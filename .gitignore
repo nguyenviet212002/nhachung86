@@ -1,0 +1,6 @@
+.env
+node_modules/
+backups/
+api/node_modules/
+*.log
+.superpowers/
