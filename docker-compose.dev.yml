@@ -1,0 +1,12 @@
+services:
+  db:
+    ports: ["5432:5432"]
+  storage:
+    ports: ["9001:9001"]
+  api:
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+  proxy:
+    environment:
+      SITE_DOMAIN: localhost
