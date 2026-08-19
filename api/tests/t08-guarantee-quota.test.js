@@ -397,7 +397,7 @@ describe('T8 POST /auth/register — ba nhánh hỏng không phân biệt đư�
     expect(second.body.error.code).toBe('OTP_INVALID');
   });
 
-  it('ba nhánh hỏng trả CÙNG mã lỗi, CÙNG câu, và đều chậm ≥300ms', async () => {
+  it('ba nhánh hỏng trả CÙNG mã lỗi, CÙNG câu, và đều bị đệm tới cùng sàn thời gian', async () => {
     // Nhánh 1: referrer_id không tồn tại.
     const ghost = '00000000-0000-4000-8000-000000000abc';
     // Nhánh 2: tồn tại nhưng chưa phải member.
