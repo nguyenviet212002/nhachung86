@@ -1,5 +1,6 @@
 import express from 'express';
 import { knex } from './db/knex.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 export function buildApp() {
   const app = express();
@@ -32,6 +33,8 @@ export function buildApp() {
 
     res.status(db ? 200 : 503).json({ ok: db, db, migration });
   });
+
+  app.use(errorHandler);
 
   return app;
 }
