@@ -25,26 +25,35 @@ describe('T11 detail không chứa dữ liệu cá nhân', () => {
   // gốc chỉ thử số điện thoại CÓ khoảng trắng ('0912 345 678'), vốn đã bị chặn
   // vì khoảng trắng không nằm trong tập ký tự cho phép — không hề chạm tới lỗ
   // hổng thật: số điện thoại/CCCD/số tài khoản KHÔNG có khoảng trắng vẫn lọt
-  // qua nguyên vẹn. Khối dưới đây phủ đúng bảng thử của vòng soát xét 1.
-  describe('token toàn chữ số (bẫy còn sót sau lần sửa trước — số điện thoại/CCCD/số tài khoản)', () => {
+  // qua nguyên vẹn.
+  //
+  // Vòng soát xét 2 (Important): bản vá của vòng 1 ("toàn bộ chuỗi chỉ gồm số
+  // và dấu phân cách") hỏng ngay khi lẫn MỘT chữ cái — 'sdt0912345678',
+  // '0912345678x', '19012345678901x' đều lọt qua. Khối dưới đây phủ đúng bảng
+  // thử của vòng soát xét 2 (gồm cả bảng vòng 1, cộng ba biến thể lẫn chữ cái
+  // và ca biên '2026-08').
+  describe('token toàn chữ số / lẫn chữ số dày đặc (số điện thoại/CCCD/số tài khoản, kể cả khi lẫn chữ cái)', () => {
     it.each([
       ['SELF_ONLY', 'mã enum, không chữ số'],
       ['GUARANTEE_QUOTA_EXCEEDED', 'mã enum, không chữ số'],
       ['phone', 'tên trường'],
       ['field_key', 'tên trường'],
-      ['007_audit_log.js', 'có chữ cái, dưới 6 chữ số liền ý nghĩa'],
-      ['page:2', 'chỉ 1 chữ số'],
-      ['v1.2', 'chỉ 2 chữ số'],
+      ['007_audit_log.js', 'cụm số dài nhất 3'],
+      ['page:2', 'cụm số dài nhất 1'],
+      ['v1.2', 'cụm số dài nhất 1'],
+      ['2026-08', 'cụm số dài nhất 4, tổng 6 chữ số — hình dạng tháng/kỳ, dưới ngưỡng luật 2 (7)'],
     ])('cho qua: %s (%s)', (value) => {
       expect(() => assertSafeDetail({ v: value })).not.toThrow();
     });
 
     it.each([
-      ['0912345678', 'số điện thoại không dấu phân cách'],
-      ['0912-345-678', 'số điện thoại có dấu gạch ngang'],
-      ['0912 345 678', 'số điện thoại có khoảng trắng'],
-      ['001234567890', 'giống số CCCD 12 chữ số'],
-      ['19012345678901', 'giống số tài khoản ngân hàng'],
+      ['0912345678', 'số điện thoại không dấu phân cách — cụm số dài nhất 10'],
+      ['0912-345-678', 'số điện thoại có dấu gạch ngang — cụm dài nhất 4, tổng 10 (luật 2)'],
+      ['0912 345 678', 'số điện thoại có khoảng trắng — cụm dài nhất 4, tổng 10 (luật 2)'],
+      ['001234567890', 'giống số CCCD 12 chữ số liền — cụm dài nhất 12 (luật 1)'],
+      ['0912345678x', 'số điện thoại có hậu tố chữ cái — cụm dài nhất 10 (luật 1)'],
+      ['sdt0912345678', 'số điện thoại có tiền tố chữ cái — cụm dài nhất 10 (luật 1)'],
+      ['19012345678901x', 'giống số tài khoản ngân hàng có hậu tố chữ cái — cụm dài nhất 14 (luật 1)'],
     ])('từ chối: %s (%s)', (value) => {
       expect(() => assertSafeDetail({ v: value })).toThrow(/dữ liệu cá nhân/);
     });

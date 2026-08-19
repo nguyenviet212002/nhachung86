@@ -6,24 +6,49 @@ import { withActor } from './tx.js';
 // phải danh sách cấm, nhưng một số điện thoại ('0912345678'), CCCD 12 chữ số,
 // hay số tài khoản ngân hàng cũng khớp đúng hình dạng "enum/field_key" đó —
 // bản thân ký tự dùng không phân biệt được. Vì vậy đây là DANH SÁCH CHO PHÉP
-// CÓ LOẠI TRỪ: sau khi khớp hình dạng token, còn phải qua một điều kiện đếm
-// chữ số để loại các chuỗi "trông như token nhưng thực ra là định danh cá
-// nhân dạng số". Quy tắc: nếu TOÀN BỘ chuỗi chỉ gồm chữ số và dấu phân cách
-// thường gặp trong số điện thoại/CCCD/số tài khoản (-, ., _, :, khoảng
-// trắng — không lẫn một chữ cái nào), và số chữ số còn lại sau khi bỏ dấu
-// phân cách từ 6 trở lên, thì từ chối. Ngưỡng 6 được chọn vì số đếm nghiệp vụ
-// thật (số lượt, số tiền quy đổi ra count, mã hai chữ số) hiếm khi cần biểu
-// diễn dưới dạng CHUỖI thuần số dài — số đếm thật nên đi qua z.number(); còn
-// mọi định danh cá nhân có ý nghĩa ở Việt Nam (số điện thoại 9-11 số, CCCD 12
-// số, số tài khoản ngân hàng 6+ số) đều RƠI VÀO đúng khoảng 6 chữ số trở lên.
-// ĐỪNG nới ngưỡng này lên "cho dễ gỡ lỗi" — 6 là ranh giới an toàn thấp nhất
-// đã kiểm; nới lên nghĩa là mở lại đúng khe hở này. Token có ít nhất một chữ
-// cái (vd. '007_audit_log.js', 'page:2', 'v1.2', 'SELF_ONLY') không bao giờ
-// bị chặn bởi quy tắc này, bất kể có bao nhiêu chữ số.
+// CÓ LOẠI TRỪ: sau khi khớp hình dạng token, còn phải qua điều kiện đếm chữ
+// số bên dưới để loại các chuỗi "trông như token nhưng thực ra là định danh
+// cá nhân dạng số".
+//
+// Vòng soát xét 2 (Important) — bản vá lần trước ("toàn bộ chuỗi chỉ gồm số
+// và dấu phân cách") hỏng ngay khi lẫn MỘT chữ cái: 'sdt0912345678',
+// '0912345678x', '19012345678901x' đều lọt qua nguyên vẹn vì điều kiện đầu
+// tiên ("toàn bộ chuỗi") thất bại — đúng thứ một lập trình viên vô ý sẽ viết
+// khi "thêm tiền tố/hậu tố cho dễ đọc rồi tưởng là an toàn". Sửa bằng CẢ HAI
+// luật hợp bằng HOẶC — mỗi luật bắt một hình dạng khác nhau, thiếu một là hở
+// một:
 function isDigitHeavyToken(s) {
-  if (!/^[0-9\-_.: ]+$/.test(s)) return false; // có chữ cái → không phải diện nghi ngờ
-  const digitCount = (s.match(/[0-9]/g) ?? []).length;
-  return digitCount >= 6;
+  // Luật 1: cụm chữ số LIÊN TIẾP dài nhất trong chuỗi >= 6 → từ chối, bất kể
+  // xung quanh có chữ cái hay không (không cần toàn chuỗi là số). Bắt hình
+  // dạng "chèn chữ cái làm tiền tố/hậu tố": 'sdt0912345678', '0912345678x',
+  // '19012345678901x'.
+  const digitRuns = s.match(/[0-9]+/g) ?? [];
+  const longestRun = digitRuns.reduce((max, run) => Math.max(max, run.length), 0);
+  if (longestRun >= 6) return true;
+
+  // Luật 2: chuỗi CHỈ gồm chữ số và dấu phân cách thường gặp trong số điện
+  // thoại/CCCD/số tài khoản (-, ., _, :, khoảng trắng — không lẫn một chữ cái
+  // nào), và tổng số chữ số sau khi bỏ dấu phân cách đủ lớn → từ chối. Bắt
+  // hình dạng "chèn dấu phân cách": '0912-345-678' có cụm dài nhất chỉ 4 (dưới
+  // ngưỡng luật 1) nên LUẬT 1 MỘT MÌNH BỎ LỌT hình dạng này — đã tự kiểm bằng
+  // cách gỡ luật 2: '0912-345-678' và '0912 345 678' lọt qua ngay lập tức. Vì
+  // vậy PHẢI giữ cả hai luật; bỏ một trong hai là mở lại đúng khe hở tương ứng
+  // của luật đó, không phải khe hở của luật kia.
+  //
+  // Ngưỡng ở đây là 7, KHÔNG PHẢI 6 như phiên bản trước: bảng thử vòng soát
+  // xét 2 đòi '2026-08' (6 chữ số, một dấu gạch ngang — hình dạng tháng/kỳ,
+  // không phải định danh cá nhân) phải CHO QUA, còn mọi ca phải-từ-chối gắn
+  // với luật này ('0912-345-678', '0912 345 678') đều có 10 chữ số trở lên —
+  // nâng lên 7 là mức tối thiểu thỏa cả hai mà không mở lại ca nào từng phải
+  // từ chối. Đánh đổi đã ghi nhận: một số tài khoản đúng 6 chữ số nếu bị chia
+  // bằng dấu phân cách (vd. '123-456') sẽ không còn bị luật 2 bắt — chưa có
+  // bảng thử nào yêu cầu ca đó, xem "Vòng sửa 2" trong task-4-report.md.
+  if (/^[0-9\-_.: ]+$/.test(s)) {
+    const digitCount = (s.match(/[0-9]/g) ?? []).length;
+    if (digitCount >= 7) return true;
+  }
+
+  return false;
 }
 
 // Luật mục 10: detail chỉ chứa định danh, enum, tên trường, số đếm, và định danh giả (HMAC).
