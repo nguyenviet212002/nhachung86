@@ -159,13 +159,15 @@ Nhiều ràng buộc cần CSDL biết "ai đang thao tác". Không có nó thì
 // core/tx.js — đường DUY NHẤT để mở giao dịch
 export async function withActor(actorId, fn) {
   return knex.transaction(async (trx) => {
-    await trx.raw('SET LOCAL app.actor_id = ?', [actorId ?? '']);
+    await trx.raw('SELECT set_config(?, ?, true)', ['app.actor_id', actorId ?? '']);
     return fn(trx);
   });
 }
 ```
 
-`SET LOCAL` hết hiệu lực khi giao dịch đóng, nên không rò sang kết nối khác trong pool. Trong CSDL đọc bằng `current_setting('app.actor_id', true)`.
+Tham số thứ ba `true` của `set_config` chính là ngữ nghĩa `SET LOCAL`: hết hiệu lực khi giao dịch đóng, nên không rò sang kết nối khác trong pool. Trong CSDL đọc bằng `current_setting('app.actor_id', true)`.
+
+> **Vì sao không viết thẳng `SET LOCAL app.actor_id = ?`** — bản nháp đầu của spec này viết như vậy và **nó không chạy**. `SET`/`SET LOCAL` là lệnh tiện ích, không nhận tham số liên kết; PostgreSQL trả `42601: syntax error at or near "$1"`. Đường vòng duy nhất còn lại là nối chuỗi — mà nối chuỗi ở đúng chỗ nhận định danh người dùng là chỗ tệ nhất để nối chuỗi. `set_config()` là một lời gọi hàm bình thường nên tham số hóa được, và cho đúng ngữ nghĩa ấy. Đã kiểm chứng bằng `psql` thật lúc thi công Task 3.
 
 ### 3.1 Nhật ký: thành công ghi cùng giao dịch, từ chối ghi giao dịch riêng
 
