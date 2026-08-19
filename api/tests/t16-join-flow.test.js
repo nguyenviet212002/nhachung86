@@ -273,6 +273,22 @@ describe('T16 hai bảng nằm ngoài tầm với của app_role', () => {
     const { rows } = await db.raw(`SELECT count(*)::int AS n FROM join_request_secrets WHERE join_request_id = ?`, [jr]);
     expect(rows[0].n).toBe(1);
   });
+
+  it('join_secret_consume: cửa chỉ mở đúng khoảnh khắc duyệt, không sớm hơn', async () => {
+    // Đơn còn 'pending' (chưa ai xác nhận gặp mặt). approve() đã chặn ở tầng
+    // ứng dụng, nhưng cổng này nằm trong CSDL để một route khác viết sau —
+    // hoặc một kết nối app_role bị chiếm — cũng không mở sớm được.
+    const jr = await submitJoinRequest({
+      phone: '0961000010', fullName: 'Don Con Cho Gap Mat', confirmMet: false,
+      referrerId: await newMember('Bao Lanh Rieng'),
+    });
+    await expect(withActor(approver, (trx) => trx.raw(`SELECT * FROM join_secret_consume(?)`, [jr])))
+      .rejects.toThrow(/JOIN_SECRET_DENIED/);
+
+    // ...và sau khi đơn đã được duyệt xong thì cửa đóng lại, không đọc lần hai.
+    await expect(withActor(approver, (trx) => trx.raw(`SELECT * FROM join_secret_consume(?)`, [jrApproved])))
+      .rejects.toThrow(/JOIN_SECRET_DENIED/);
+  });
 });
 
 // ---------------------------------------------------------------------------
