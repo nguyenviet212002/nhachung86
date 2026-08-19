@@ -1,7 +1,6 @@
 import express from 'express';
-import pinoHttp from 'pino-http';
 import { knex } from './db/knex.js';
-import { config } from './config/index.js';
+import { httpLogger } from './middleware/httpLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 export function buildApp() {
@@ -11,17 +10,11 @@ export function buildApp() {
   // gắn `req.log`, nên mọi lời gọi req.log?.fatal/error trong errorHandler là
   // no-op im lặng — kể cả cảnh báo 42501 (permission denied), đúng sự kiện mà
   // toàn bộ kiến trúc này dựng ra để phát hiện. Gắn pino-http thật ở đây.
-  // - level đọc từ config.LOG_LEVEL; .env.test đặt LOG_LEVEL=silent nên không
-  //   làm nhiễu output test.
-  // - redact chặn header authorization/cookie và thân request lọt vào log —
-  //   dữ liệu cá nhân không được ghi nhật ký (luật cứng của dự án).
-  app.use(pinoHttp({
-    level: config.LOG_LEVEL,
-    redact: {
-      paths: ['req.headers.authorization', 'req.headers.cookie', 'req.body', 'res.headers["set-cookie"]'],
-      remove: true,
-    },
-  }));
+  // Cấu hình (level, redact, serializer lỗi an toàn) nằm ở middleware/httpLogger.js
+  // — xem comment ở đó về vì sao serializer lỗi phải là DANH SÁCH CHO PHÉP
+  // (vòng sửa 2: default serializer của pino-http từng làm lộ err.detail —
+  // đúng chỗ PostgreSQL in giá trị cột thật, vd. số điện thoại — ra log).
+  app.use(httpLogger());
 
   app.use(express.json({ limit: '1mb' }));
 
