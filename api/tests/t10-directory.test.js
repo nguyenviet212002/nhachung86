@@ -230,10 +230,23 @@ describe('T10.3 lọc, phân trang, và KHÔNG rò người của cộng đồng
     const guests = await members.list({ actor: alicePage, filters: { status: 'guest' }, page: 1, limit: 100 });
     expect(guests.data.map((m) => m.id)).toEqual([guestMan]);
 
-    const all = await members.list({ actor: alicePage, filters: {}, page: 1, limit: 100 });
     const asMembers = await members.list({ actor: alicePage, filters: { status: 'member' }, page: 1, limit: 100 });
-    expect(asMembers.meta.total).toBe(all.meta.total - 1);
     expect(asMembers.data.map((m) => m.id)).not.toContain(guestMan);
+  });
+
+  // Mặc định là quyết định về riêng tư, không phải chuyện tiện tay: `guest` là
+  // người chưa được duyệt, `left` là người đã rời. Hiện họ trong danh bạ đang
+  // hoạt động là rò trạng thái tư cách thành viên của họ cho cả cộng đồng.
+  it('KHÔNG khai status thì mặc định chỉ trả member — không lộ guest, không lộ left', async () => {
+    const mac_dinh = await members.list({ actor: alicePage, filters: {}, page: 1, limit: 100 });
+    for (const m of mac_dinh.data) {
+      expect(m.status, `"${m.full_name}" không phải member mà vẫn lọt vào danh bạ mặc định`).toBe('member');
+    }
+    expect(mac_dinh.data.map((m) => m.id)).not.toContain(guestMan);
+
+    // Và khai rõ thì vẫn xem được — đây là mặc định an toàn, không phải cấm cửa.
+    const khai_ro = await members.list({ actor: alicePage, filters: { status: 'guest' }, page: 1, limit: 100 });
+    expect(khai_ro.data.map((m) => m.id)).toContain(guestMan);
   });
 
   it('lọc theo work_status', async () => {

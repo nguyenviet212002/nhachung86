@@ -100,7 +100,18 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
 
     const job = filters.job ? likeLiteral(filters.job) : null;
     const q = filters.q ? likeLiteral(filters.q) : null;
-    const status = filters.status ?? null;
+    // Mặc định danh bạ CHỈ hiện `member`. Đặc tả cho `status` là bộ lọc nhưng
+    // không nói mặc định nào, và mặc định "hiện tất cả" là sai với nguyên tắc 4:
+    // `guest` là người CHƯA được duyệt — đưa họ vào danh bạ ngang hàng với người
+    // đã qua khung gặp-mặt-và-hai-người-ký là hiện diện sai tư cách, và mời gọi
+    // người khác liên hệ trước khi cộng đồng xác nhận họ là ai. `left` là người
+    // ĐÃ RỜI, mà theo mục 10 hồ sơ người rời thành bia mộ — vẫn hiện họ trong
+    // danh bạ đang hoạt động là ngầm khẳng định "người này còn ở đây".
+    //
+    // Cả hai đều là rò trạng thái tư cách thành viên. Chốt bây giờ vì luồng
+    // "rời cộng đồng" chưa tồn tại: chốt trước khi có dữ liệu thật thì rẻ, chốt
+    // sau thì phải đi sửa cả những chỗ đã trót dựa vào hành vi cũ.
+    const status = filters.status ?? 'member';
     const workStatus = filters.workStatus ?? null;
     const areaId = filters.areaId ?? null;
 
