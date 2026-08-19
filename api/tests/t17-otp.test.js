@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import argon2 from 'argon2';
 import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
-import { requestOtp, verifyOtp, login, refresh, hashPhone } from '../src/modules/auth/service.js';
+import { requestOtp, verifyOtp, login, refresh, hashPhone, newCode } from '../src/modules/auth/service.js';
 import { buildApp } from '../src/app.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
 
@@ -84,18 +84,27 @@ describe('T17 OTP hết đường dò', () => {
   // giá trị ngẫu nhiên nhỏ hơn 100000 (có số 0 đứng đầu) — hồi quy cho lỗi
   // quên padStart()/String() sẽ làm lộ mã ngắn hơn 6 ký tự, dễ đoán hơn.
   it('mã OTP luôn đủ 6 chữ số, kể cả khi có số 0 đứng đầu', async () => {
+    // Gọi thẳng newCode 500 lần: xác suất bỏ sót lỗi thiếu padStart là 0.9^500,
+    // tức không đáng kể. Bản trước gọi requestOtp 50 lần và chập chờn — mỗi lần
+    // một argon2.hash cộng một vòng CSDL, dưới tải cả suite thì vượt ngưỡng 5000ms.
+    for (let i = 0; i < 500; i++) {
+      expect(newCode()).toMatch(/^\d{6}$/);
+    }
+
+    // Và một vòng đi thật, ít lần, để chắc mã tới tay bộ chuyển phát không bị
+    // cắt gọt trên đường: tính chất ở trên vô nghĩa nếu đường đi làm hỏng nó.
     const seen = [];
     const spy = vi.spyOn(consoleAdapter, 'send').mockImplementation(async ({ code }) => {
       seen.push(code);
     });
     try {
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 3; i++) {
         await requestOtp({ communityId: cid, phone: '0966000000', purpose: 'reset' });
       }
     } finally {
       spy.mockRestore();
     }
-    expect(seen).toHaveLength(50);
+    expect(seen).toHaveLength(3);
     for (const code of seen) {
       expect(code).toMatch(/^\d{6}$/);
     }

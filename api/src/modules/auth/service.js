@@ -41,7 +41,11 @@ export async function resolveCommunityId() {
 // và đặt lại mật khẩu ('reset'). KHÔNG dùng để đăng nhập — giao diện đăng
 // nhập bằng mật khẩu, không có màn nhập OTP.
 // ---------------------------------------------------------------------------
-function newCode() {
+// Xuất ra để bài test kiểm tính chất đệm số 0 gọi thẳng được — 500 lần gọi hàm
+// thuần mất vài mili giây, còn 500 lần qua requestOtp thì mỗi lần một argon2.hash
+// (cố ý chậm) cộng một vòng CSDL. Tính chất cần kiểm nằm ở hàm này, không nằm ở
+// đường đi mạng, nên kiểm ở đây vừa chắc hơn vừa không làm suite chập chờn.
+export function newCode() {
   // crypto.randomInt, KHÔNG PHẢI Math.random — Math.random không phải CSPRNG,
   // dò được từ vài trăm mẫu đầu ra. OTP là đường đặt lại mật khẩu, dò trúng
   // là chiếm tài khoản.
