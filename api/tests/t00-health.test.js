@@ -20,8 +20,11 @@ describe('T00 health', () => {
   it('migration phản ánh đúng số lượng và tên migration đã áp dụng thật', async () => {
     const res = await request(buildApp()).get('/api/v1/health');
     expect(res.body.migration).not.toBeNull();
-    expect(res.body.migration.applied).toBeGreaterThanOrEqual(3);
-    expect(res.body.migration.latest).toMatch(/^003_communities_areas\.js$/);
+    // Task 4: migration đánh số 007 dù mới là file migration thứ tư được viết
+    // (số 004-006 dành cho Task 5, 6 điền sau) — thứ tự đánh số theo mục 11
+    // của spec, không theo thứ tự thi công. Cập nhật lại kỳ vọng cho khớp.
+    expect(res.body.migration.applied).toBeGreaterThanOrEqual(4);
+    expect(res.body.migration.latest).toMatch(/^007_audit_log\.js$/);
   });
 
   // Phát hiện soát xét (Important): các test trước chỉ phủ nhánh "đọc được".
