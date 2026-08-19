@@ -21,19 +21,22 @@ beforeAll(async () => {
   bob = await mk('Bob');
   carol = await mk('Carol');
 
+  // UPDATE chứ không INSERT: từ migration 012, trg_member_bootstrap tạo sẵn hộp
+  // liên hệ rỗng + 8 mức riêng tư mặc định ngay khi hàng members ra đời.
   await db.raw(
-    `INSERT INTO member_contacts (member_id, community_id, phone, zalo, messenger, address)
-     VALUES (?,?,?,?,?,?)`,
-    [bob, cid, '0912000001', 'zalo-bob', 'fb.me/bob', '123 Bob St']);
+    `UPDATE member_contacts SET phone = ?, zalo = ?, messenger = ?, address = ? WHERE member_id = ?`,
+    ['0912000001', 'zalo-bob', 'fb.me/bob', '123 Bob St', bob]);
 
-  // phone, zalo: on_consent (cần xin). messenger: public. address: không cấu
-  // hình gì -> mặc định closed ở tầng CSDL (đã canh riêng ở T04).
+  // phone, zalo: on_consent (cần xin). messenger: public. Ba mức này TRÙNG với
+  // mặc định của trg_member_bootstrap, nhưng bài test vẫn đặt tường minh —
+  // nếu ai đó đổi mặc định thì bài này phải tiếp tục kiểm đúng nhánh nó nói.
+  // address: XOÁ hẳn hàng để tái lập kịch bản "không cấu hình gì" -> mặc định
+  // closed ở tầng CSDL (contact_read coalesce), khác hẳn "có cấu hình closed".
   await db.raw(
-    `INSERT INTO privacy_settings (community_id, member_id, field_key, level) VALUES
-       (?,?,'phone','on_consent'),
-       (?,?,'zalo','on_consent'),
-       (?,?,'messenger','public')`,
-    [cid, bob, cid, bob, cid, bob]);
+    `UPDATE privacy_settings SET level = CASE field_key
+        WHEN 'phone' THEN 'on_consent' WHEN 'zalo' THEN 'on_consent' ELSE 'public' END
+      WHERE member_id = ? AND field_key IN ('phone','zalo','messenger')`, [bob]);
+  await db.raw(`DELETE FROM privacy_settings WHERE member_id = ? AND field_key = 'address'`, [bob]);
 
   // alice đã được duyệt cho 'zalo'.
   await db.raw(

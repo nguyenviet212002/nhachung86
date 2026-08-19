@@ -532,10 +532,18 @@ describe('T8 /join-requests — cổng met_confirmed ở tầng HTTP', () => {
     expect(res.body.applicant.full_name).toBe('Nguoi Duoc Bao Lanh');
 
     // Bằng chứng đối chứng: dữ liệu thô ĐANG nằm trong CSDL, tức bài trên kiểm
-    // lớp lọc chứ không phải kiểm một cột rỗng.
+    // lớp lọc chứ không phải kiểm một cột rỗng. Từ migration 009a (Ruling
+    // T8-f) nó nằm ở join_request_secrets chứ không còn ở applicant_data —
+    // tức lớp lọc ở tầng service nay là lớp THỨ HAI, còn lớp thứ nhất là
+    // REVOKE của CSDL (bài kiểm ở t16).
     const { rows } = await db.raw(`SELECT applicant_data FROM join_requests WHERE id = ?`, [jrId]);
-    expect(rows[0].applicant_data.phone).toBe('0924000001');
-    expect(rows[0].applicant_data.password_hash.startsWith('$argon2')).toBe(true);
+    expect(rows[0].applicant_data.phone, 'applicant_data không được chứa số điện thoại nữa').toBeUndefined();
+    expect(rows[0].applicant_data.password_hash, 'applicant_data không được chứa băm mật khẩu nữa').toBeUndefined();
+
+    const { rows: sec } = await db.raw(
+      `SELECT phone, password_hash FROM join_request_secrets WHERE join_request_id = ?`, [jrId]);
+    expect(sec[0].phone).toBe('0924000001');
+    expect(sec[0].password_hash.startsWith('$argon2')).toBe(true);
   });
 
   it('người lạ không xem được đơn của người khác', async () => {
@@ -621,12 +629,22 @@ describe('T8 /join-requests — cổng met_confirmed ở tầng HTTP', () => {
     expect(rows[0].detail.reason_code).toBe('referrer_misrepresented');
   });
 
-  it('approve chưa làm — ném NOT_IMPLEMENTED thay vì làm nửa vời (ranh giới Task 9)', async () => {
+  // Bài này ĐÃ TỪNG khẳng định approve() ném NOT_IMPLEMENTED 501 — ranh giới cố
+  // ý giữa Task 8 và Task 9. Task 9 đã làm approve() thật, nên bài được SỬA chứ
+  // không xoá: đơn ở đây vừa bị reject ở bài trước, và cổng của approve() phải
+  // chặn nó. Nếu ai đó gỡ cổng ấy, một đơn ĐÃ BỊ TỪ CHỐI vẫn thành thành viên
+  // được — đó mới là điều đáng canh ở chỗ này.
+  it('approve đơn đã bị từ chối ⇒ 422, không tạo thành viên', async () => {
+    const { rows: before } = await db.raw(`SELECT count(*)::int AS n FROM members WHERE community_id = ?`, [cid]);
+
     const res = await supertest(app)
       .post(`/api/v1/join-requests/${jrId}/approve`)
       .set('Authorization', `Bearer ${accessTokenFor(approver)}`)
       .send({});
-    expect(res.status).toBe(501);
-    expect(res.body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('MET_CONFIRMATION_REQUIRED');
+
+    const { rows: after } = await db.raw(`SELECT count(*)::int AS n FROM members WHERE community_id = ?`, [cid]);
+    expect(after[0].n).toBe(before[0].n);
   });
 });

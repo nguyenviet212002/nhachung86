@@ -23,6 +23,13 @@ export const confirmMetSchema = z.object({
   note: z.string().trim().min(20, 'Ghi chú cần ít nhất 20 ký tự'),
 });
 
+// Đặc tả dòng 857: approve nhận { note? }. Ghi chú là tuỳ chọn ở đây (khác
+// confirm-met và reject) vì "đồng ý" không cần giải trình — chính lời khai gặp
+// mặt ở met_note mới là bằng chứng, và nó đã được ghi ở bước trước.
+export const approveSchema = z.object({
+  note: z.string().trim().min(1).max(1000).optional(),
+});
+
 export const rejectSchema = z.object({
   reason_code: z.enum(REJECT_REASON_CODES),
   note: z.string().trim().min(20, 'Ghi chú cần ít nhất 20 ký tự'),

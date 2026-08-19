@@ -27,25 +27,20 @@ beforeAll(async () => {
   bob = await mk('Bob');
   carol = await mk('Carol');
 
-  await db.raw(
-    `INSERT INTO member_contacts (member_id, community_id, phone, zalo, messenger, address)
-     VALUES (?,?,?,?,?,?)`,
-    [bob, cid, '0912000002', 'zalo-bob', 'fb.me/bob', '456 Bob Ave']);
-  await db.raw(
-    `INSERT INTO member_contacts (member_id, community_id, phone, zalo, messenger, address)
-     VALUES (?,?,?,?,?,?)`,
-    [carol, cid, '0912000003', 'zalo-carol', 'fb.me/carol', '789 Carol Ave']);
+  // UPDATE chứ không INSERT: từ migration 012, trg_member_bootstrap tạo sẵn hộp
+  // liên hệ rỗng + 8 mức riêng tư mặc định ngay khi hàng members ra đời.
+  const setContacts = (id, phone, zalo, messenger, address) => db.raw(
+    `UPDATE member_contacts SET phone = ?, zalo = ?, messenger = ?, address = ? WHERE member_id = ?`,
+    [phone, zalo, messenger, address, id]);
+  await setContacts(bob, '0912000002', 'zalo-bob', 'fb.me/bob', '456 Bob Ave');
+  await setContacts(carol, '0912000003', 'zalo-carol', 'fb.me/carol', '789 Carol Ave');
 
   // Bob: phone=public (visible), zalo=on_consent+đã approved cho alice
   // (visible), messenger=on_consent+đang chờ cho alice (requested),
   // address=on_consent+đã bị denied cho alice (denied).
   await db.raw(
-    `INSERT INTO privacy_settings (community_id, member_id, field_key, level) VALUES
-       (?,?,'phone','public'),
-       (?,?,'zalo','on_consent'),
-       (?,?,'messenger','on_consent'),
-       (?,?,'address','on_consent')`,
-    [cid, bob, cid, bob, cid, bob, cid, bob]);
+    `UPDATE privacy_settings SET level = CASE field_key WHEN 'phone' THEN 'public' ELSE 'on_consent' END
+      WHERE member_id = ? AND field_key IN ('phone','zalo','messenger','address')`, [bob]);
   await db.raw(
     `INSERT INTO contact_requests (community_id, requester_id, target_id, field_key, status) VALUES
        (?,?,?,?,'approved'),
@@ -55,9 +50,13 @@ beforeAll(async () => {
 
   // Carol: phone=on_consent, alice chưa từng xin -> can_request.
   await db.raw(
-    `INSERT INTO privacy_settings (community_id, member_id, field_key, level) VALUES
-       (?,?,'phone','on_consent')`,
-    [cid, carol]);
+    `UPDATE privacy_settings SET level = 'on_consent' WHERE member_id = ? AND field_key = 'phone'`,
+    [carol]);
+  // ...và XOÁ các trường còn lại của Carol để giữ nguyên kịch bản gốc của bài
+  // này: "trường KHÔNG có hàng privacy_settings thì contactStates không sinh
+  // trạng thái nào cho nó". trg_member_bootstrap nay tạo đủ 8 hàng cho mọi
+  // member mới, nên phải xoá tường minh mới tái lập được kịch bản đó.
+  await db.raw(`DELETE FROM privacy_settings WHERE member_id = ? AND field_key <> 'phone'`, [carol]);
 });
 
 afterAll(async () => { await db.destroy(); });

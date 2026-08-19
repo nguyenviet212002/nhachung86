@@ -24,6 +24,11 @@ const BY_MESSAGE = {
   REFERRER_FROZEN:             [409, 'REFERRER_FROZEN', 'Sợi bảo lãnh đã thành sự thật lịch sử, không sửa được.'],
   CONTACT_WRITE_DENIED:        [403, 'CONTACT_WRITE_DENIED', 'Bạn không có quyền sửa thông tin liên hệ này.'],
   REFERRER_REQUIRED:           [422, 'REFERRER_REQUIRED', 'Phải có người bảo lãnh.'],
+  // join_secret_consume (migration 009a). Không có trong bảng mục 5.1 của spec
+  // vì hàm này ra đời sau bảng đó — cùng khuôn CONTACT_WRITE_DENIED: một quyết
+  // định về QUYỀN nằm trong CSDL chứ không phải trong route.
+  JOIN_SECRET_DENIED:          [403, 'JOIN_SECRET_DENIED', 'Chỉ ban duyệt của chính cộng đồng này mới duyệt được đơn, và chỉ khi đơn đã có xác nhận gặp mặt.'],
+  JOIN_SECRET_MISSING:         [422, 'JOIN_SECRET_MISSING', 'Đơn này không có dữ liệu đăng ký kèm theo nên không duyệt được.'],
 };
 
 export function mapPgError(err) {

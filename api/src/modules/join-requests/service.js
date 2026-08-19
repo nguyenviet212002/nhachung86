@@ -3,17 +3,15 @@ import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 
 // ---------------------------------------------------------------------------
-// applicant_data chứa dữ liệu cá nhân THÔ của người chưa phải thành viên: số
-// điện thoại (đặc tả mục 5.3 dòng 855 đòi approve đọc "số từ applicant_data"
-// để gọi contact_upsert) và băm mật khẩu (không có bảng nào khác giữ hộ trước
-// khi hàng members ra đời).
+// Từ migration 009a (Ruling T8-f), số điện thoại thô và băm mật khẩu KHÔNG còn
+// nằm trong applicant_data — chúng ở join_request_secrets, bảng mà app_role
+// không có quyền đọc. Đó mới là ràng buộc của CSDL; danh sách dưới đây là lớp
+// thứ hai, và nó vẫn cần thiết: applicant_data vẫn là cột jsonb tự do mà một
+// task sau có thể nhét thêm bất cứ thứ gì vào (email, ghi chú, ảnh giấy tờ...).
 //
-// Cả kiến trúc bỏ công tách member_contacts ra khỏi members rồi REVOKE ALL để
-// một route viết ẩu không làm lộ số điện thoại. Nếu /join-requests trả nguyên
-// applicant_data thì công đó đổ sông — chỉ khác là lộ qua đơn thay vì qua hồ
-// sơ. Vì vậy đây là DANH SÁCH CHO PHÉP, không phải danh sách cấm: thêm khóa
-// mới vào applicant_data về sau sẽ mặc định KHÔNG lộ ra, thay vì mặc định lộ
-// cho tới khi có người nhớ ra phải cấm nó (bài học vòng sửa 2 của Task 3).
+// Vì vậy đây là DANH SÁCH CHO PHÉP, không phải danh sách cấm: khoá mới thêm
+// vào applicant_data về sau mặc định KHÔNG lộ ra, thay vì mặc định lộ cho tới
+// khi có người nhớ ra phải cấm nó (bài học vòng sửa 2 của Task 3).
 const APPLICANT_PUBLIC_FIELDS = ['full_name', 'birth_year', 'area_id'];
 
 export function publicApplicantData(data) {
@@ -199,15 +197,89 @@ export async function reject({ actor, id, reasonCode, note }) {
 }
 
 /**
- * CHƯA LÀM — ranh giới với Task 9 (phán quyết R2 của đề bài Task 8).
+ * Duyệt đơn — MỘT giao dịch, và service chỉ làm đúng bốn việc (đặc tả mục 5,
+ * phần "Gia nhập"):
  *
- * approve() tạo hàng `members`, và hàng đó chỉ hợp lệ khi trigger
- * trg_member_bootstrap (spec mục 4.7, migration 012 — Task 9) đã tồn tại để
- * sinh hộp liên hệ rỗng, tám mức riêng tư mặc định và cạnh bảo lãnh; đồng thời
- * bước 2 của đặc tả (dòng 855) gọi contact_upsert, cũng là hàm của migration
- * 012. Viết nửa vời ở đây nghĩa là để Task 9 đoán xem phần nào đã đúng — nên
- * chỗ này ném lỗi rõ ràng thay vì im lặng làm sai.
+ *   1. INSERT INTO members
+ *   2. SELECT contact_upsert(<member_id>, 'phone', <số của người nộp đơn>)
+ *   3. UPDATE join_requests
+ *   4. audit.log
+ *
+ * SERVICE KHÔNG CHẠM member_contacts VÀ KHÔNG CHẠM member_relations. Hai bảng
+ * đó nằm ngoài quyền của app_role (migration 005 và 012) — nếu mã dưới đây lỡ
+ * chạm vào, CSDL trả `permission denied` chứ không im lặng làm sai. Hộp liên hệ
+ * rỗng, tám mức riêng tư mặc định và cạnh guarantee do trg_member_bootstrap
+ * sinh ngay sau bước 1.
+ *
+ * Thứ tự bước 1 → bước 3 KHÔNG phải chuyện tuỳ nghi: trg_member_status_gate là
+ * CONSTRAINT TRIGGER hoãn tới COMMIT (migration 010), nó tra join_requests theo
+ * member_id. Ghi hàng members trước rồi mới nối đơn — kiểm tra chạy lúc COMMIT
+ * khi cả hai đã có mặt. Đổi sang kiểm ngay lúc ghi thì luồng hợp lệ cũng chết.
  */
-export async function approve() {
-  throw new AppError('NOT_IMPLEMENTED', 'Chức năng duyệt đơn chưa được bật.', { status: 501 });
+export async function approve({ actor, id, note }) {
+  return withActor(actor.id, async (trx) => {
+    // FOR UPDATE: hai approver bấm duyệt cùng lúc thì người thứ hai đợi, rồi
+    // đọc lại status='approved' và dừng ở cổng bên dưới. Không có FOR UPDATE
+    // thì cả hai cùng thấy 'met_confirmed' và cùng tạo một hàng members.
+    const { rows: [jr] } = await trx.raw(
+      `SELECT * FROM join_requests WHERE id = ? AND community_id = ? FOR UPDATE`,
+      [id, actor.communityId]
+    );
+    // Ném thẳng trong giao dịch an toàn ở hai chỗ này: chưa ghi gì cả nên
+    // rollback không xoá mất dòng nhật ký nào (bẫy 1). Dòng "từ chối" do
+    // errorHandler ghi bằng giao dịch RIÊNG mở sau khi giao dịch này đã cuộn.
+    if (!jr) throw NOT_FOUND();
+    if (jr.status !== 'met_confirmed') {
+      throw new AppError('MET_CONFIRMATION_REQUIRED', 'Chưa có xác nhận đã gặp mặt nên chưa duyệt được.', {
+        status: 422,
+      });
+    }
+
+    const d = jr.applicant_data;
+
+    // Số điện thoại và băm mật khẩu KHÔNG còn nằm trong applicant_data
+    // (Ruling T8-f, migration 009a) — chúng ở join_request_secrets, bảng mà
+    // app_role không có một quyền đọc nào. Hàm SECURITY DEFINER dưới đây tự
+    // kiểm actor là approver CỦA CHÍNH CỘNG ĐỒNG NÀY, tự kiểm đơn đang ở
+    // 'met_confirmed', tự ghi nhật ký, rồi XOÁ hàng bí mật: từ đây trở đi số
+    // điện thoại chỉ còn tồn tại ở member_contacts, nơi có ba mức riêng tư canh.
+    const { rows: [secret] } = await trx.raw(`SELECT * FROM join_secret_consume(?)`, [id]);
+
+    // 1. Chỉ tạo hàng members.
+    const { rows: [m] } = await trx.raw(
+      `INSERT INTO members (community_id, full_name, birth_year, email, area_id,
+                            referrer_id, password_hash, status, joined_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'member', now()) RETURNING id`,
+      [
+        actor.communityId, d.full_name, d.birth_year, d.email ?? null, d.area_id,
+        jr.referrer_id, secret.password_hash,
+      ]
+    );
+
+    // 2. Số điện thoại đi qua hàm SECURITY DEFINER; approver chỉ điền được ô
+    //    còn trống, đúng một lần, và lần đó để lại dòng contact.written.
+    await trx.raw(`SELECT contact_upsert(?, 'phone', ?)`, [m.id, secret.phone]);
+
+    // 3. Nối đơn với người vừa tạo — cổng met_confirmed kiểm lúc COMMIT dựa
+    //    vào chính cột này.
+    await trx.raw(
+      `UPDATE join_requests
+          SET member_id = ?, status = 'approved', approved_by = ?,
+              note = coalesce(?, note), updated_at = now()
+        WHERE id = ? AND community_id = ?`,
+      [m.id, actor.id, note ?? null, id, actor.communityId]
+    );
+
+    // 4. Nhật ký, cùng giao dịch.
+    await auditLog(trx, {
+      communityId: actor.communityId,
+      actorId: actor.id,
+      action: 'join_request.approved',
+      targetType: 'join_request',
+      targetId: id,
+      detail: { member_id: m.id, referrer_id: jr.referrer_id },
+    });
+
+    return { member_id: m.id };
+  });
 }

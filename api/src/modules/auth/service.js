@@ -293,17 +293,24 @@ export async function register({
                 full_name: fullName,
                 birth_year: birthYear,
                 area_id: areaId,
-                // Dữ liệu cá nhân thô nằm ở đây vì không có chỗ nào khác giữ
-                // hộ trước khi hàng members ra đời (đặc tả dòng 855 đòi
-                // approve đọc "số từ applicant_data"). Mọi đường ĐỌC đơn đều
-                // đi qua danh sách cho phép ở modules/join-requests/service.js
-                // — hai trường dưới đây không bao giờ rời khỏi máy chủ.
-                phone,
-                password_hash: passwordHash,
                 terms_accepted_at: new Date().toISOString(),
               }),
               referrerId,
             ]
+          );
+
+          // Số điện thoại thô và băm mật khẩu KHÔNG nằm trong applicant_data
+          // nữa (Ruling T8-f, migration 009a). applicant_data là cột jsonb mà
+          // app_role có SELECT, nên để chúng ở đó là dựng sẵn một đường rò chỉ
+          // cần một route viết ẩu là mở — cùng đường rò mà member_contacts đã
+          // bỏ công bịt ở tầng CSDL. join_request_secrets bị REVOKE ALL rồi chỉ
+          // cấp lại INSERT: câu này ghi được, nhưng không câu SQL nào của
+          // app_role đọc lại được. Đường đọc duy nhất là join_secret_consume(),
+          // và người gọi hợp lệ duy nhất là approve().
+          await sp.raw(
+            `INSERT INTO join_request_secrets (join_request_id, community_id, phone, password_hash)
+             VALUES (?, ?, ?, ?)`,
+            [row.id, communityId, phone, passwordHash]
           );
           created = row;
         });

@@ -61,10 +61,16 @@ router.post(
   '/:id/approve',
   requireRole('approver'),
   validate(schema.idParamSchema, 'params'),
-  async (_req, _res, next) => {
-    // Task 9 — xem chú thích dài ở joinService.approve().
+  validate(schema.approveSchema),
+  async (req, res, next) => {
     try {
-      await joinService.approve();
+      res.json(
+        await joinService.approve({
+          actor: req.actor,
+          id: req.params.id,
+          note: req.body.note,
+        })
+      );
     } catch (err) {
       next(err);
     }

@@ -23,11 +23,9 @@ beforeAll(async () => {
     [cid, await argon2.hash(ALICE_PASSWORD)]
   ));
   aliceId = alice.id;
-  await db.raw(`INSERT INTO member_contacts (member_id, community_id, phone) VALUES (?,?,?)`, [
-    aliceId,
-    cid,
-    ALICE_PHONE,
-  ]);
+  // UPDATE chứ không INSERT: từ migration 012, trg_member_bootstrap tạo sẵn hộp
+  // liên hệ rỗng ngay khi hàng members ra đời.
+  await db.raw(`UPDATE member_contacts SET phone = ? WHERE member_id = ?`, [ALICE_PHONE, aliceId]);
 });
 afterAll(async () => {
   await db.destroy();
