@@ -10,15 +10,56 @@ export async function up(knex) {
   // như bản nháp ban đầu — $1 nằm trong chuỗi dollar-quote là văn bản của khối
   // PL/pgSQL, không phải tham số của câu lệnh ngoài, nên Postgres báo "prepared
   // statement requires 0" khi bind 3 giá trị. CREATE ROLE cũng không nhận bind
-  // parameter ở mệnh đề PASSWORD (đây là lệnh DDL, không phải DML). Vì vậy: dùng
-  // knex.raw tham số hóa cho bước kiểm tra tồn tại, rồi dùng quote_literal() của
-  // chính Postgres (qua một truy vấn tham số hóa khác) để lấy về một chuỗi literal
-  // đã được Postgres tự thoát ký tự an toàn — không phải nối chuỗi tay từ input.
+  // parameter ở mệnh đề PASSWORD (đây là lệnh DDL, không phải DML — đã tự kiểm
+  // chứng: `CREATE ROLE ?? LOGIN PASSWORD ?` bị Postgres từ chối với "syntax
+  // error at or near $1"). Vì vậy: dùng knex.raw tham số hóa cho bước kiểm tra
+  // tồn tại, rồi dùng quote_ident()/quote_literal() của chính Postgres (qua
+  // một truy vấn tham số hóa khác) để lấy về các chuỗi đã được Postgres tự
+  // thoát ký tự an toàn.
   const { rows: existing } = await knex.raw(`SELECT 1 FROM pg_roles WHERE rolname = ?`, [user]);
   if (existing.length === 0) {
-    const { rows: quoted } = await knex.raw(`SELECT quote_literal(?) AS lit`, [pass]);
-    const passwordLiteral = quoted[0].lit;
-    await knex.raw(`CREATE ROLE ?? LOGIN PASSWORD ${passwordLiteral}`, [user]);
+    const { rows: quoted } = await knex.raw(
+      `SELECT quote_ident(?) AS ident, quote_literal(?) AS lit`,
+      [user, pass]
+    );
+    const { ident, lit } = quoted[0];
+    const createRoleSql = `CREATE ROLE ${ident} LOGIN PASSWORD ${lit}`;
+
+    // CẨN THẬN — LỖI NGHIÊM TRỌNG ĐÃ TỪNG MẮC, ĐÃ KIỂM CHỨNG THẬT BẰNG KẾT NỐI
+    // TCP THẬT (không suy đoán): dialect Postgres của knex chạy positionBindings()
+    // TRÊN MỌI câu lệnh đi qua knex.raw()/query builder — kể cả khi gọi
+    // knex.raw(sql) KHÔNG kèm mảng bindings — và hàm này thay MỌI dấu "?" chưa
+    // escape trong TOÀN VĂN chuỗi SQL bằng $1, $2, ... KỂ CẢ khi "?" nằm bên
+    // trong một chuỗi literal có nháy đơn (positionBindings không biết gì về
+    // ngữ cảnh chuỗi SQL). quote_literal() không thoát ký tự "?" vì nó không
+    // phải ký tự đặc biệt trong cú pháp chuỗi — nên nếu câu CREATE ROLE ở trên
+    // được thực thi qua knex.raw(), "?" trong mật khẩu sẽ bị âm thầm đổi thành
+    // "$1" ngay trong chuỗi literal, và Postgres lưu mật khẩu SAI (vd.
+    // "pass$1word" thay vì "pass?word") — KHÔNG ném lỗi nào cả. Đây là hỏng
+    // ÂM THẦM, nguy hiểm hơn nhiều so với một lỗi ồn ào: role "tạo thành công"
+    // nhưng không ai đăng nhập được bằng mật khẩu thật cho tới khi ứng dụng
+    // chạy thật và app_role không kết nối được.
+    //
+    // Đã tái hiện: tạo role qua knex.raw() với mật khẩu 'pass?word' rồi thử
+    // đăng nhập TCP thật — đăng nhập bằng "pass?word" (mật khẩu thật) THẤT BẠI,
+    // còn đăng nhập bằng "pass$1word" (mật khẩu đã bị positionBindings làm hỏng)
+    // lại THÀNH CÔNG. Việc bỏ mảng bindings ở lời gọi cuối (cách sửa lần trước)
+    // chỉ ngăn được lỗi "Expected N bindings" — KHÔNG ngăn được việc SQL text
+    // bị viết lại, vì positionBindings chạy vô điều kiện trên obj.sql, không
+    // phụ thuộc bindings có phải mảng hay không.
+    //
+    // Cách sửa đúng: câu CREATE ROLE cuối cùng PHẢI đi thẳng qua connection gốc
+    // của driver `pg` (bỏ qua toàn bộ tầng biên dịch SQL của knex, tức bỏ qua
+    // positionBindings) bằng knex.client.acquireConnection()/connection.query().
+    // Văn bản SQL đã được ráp an toàn ở trên (identifier qua quote_ident,
+    // literal mật khẩu qua quote_literal — cả hai lấy về bằng truy vấn THAM SỐ
+    // HÓA thật), driver gốc chỉ gửi nguyên văn, không dò/thay thế "?" nào cả.
+    const connection = await knex.client.acquireConnection();
+    try {
+      await connection.query(createRoleSql);
+    } finally {
+      knex.client.releaseConnection(connection);
+    }
   }
 
   // GRANT USAGE ON SCHEMA và ALTER DEFAULT PRIVILEGES gắn với schema public,
