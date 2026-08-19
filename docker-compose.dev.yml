@@ -9,4 +9,7 @@ services:
       LOG_LEVEL: debug
   proxy:
     environment:
-      SITE_DOMAIN: localhost
+      # Ruling T1-b: có scheme http:// để Caddy hiểu đây là site HTTP thuần và
+      # tắt auto-HTTPS — nếu không, Caddy tự bật HTTPS và trả 308 redirect
+      # thay vì phục vụ JSON của /api/v1/health qua HTTP.
+      SITE_DOMAIN: http://localhost
