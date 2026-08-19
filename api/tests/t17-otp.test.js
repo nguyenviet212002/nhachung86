@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import argon2 from 'argon2';
 import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
 import { requestOtp, verifyOtp, login, refresh, hashPhone } from '../src/modules/auth/service.js';
 import { buildApp } from '../src/app.js';
+import { consoleAdapter } from '../src/core/otp/console.js';
 
 let db, cid, alice, aliceId;
 const ALICE_PHONE = '0912345678';
@@ -57,13 +58,47 @@ describe('T17 OTP hết đường dò', () => {
     }
   });
 
-  it('mã sinh bằng crypto.randomInt — code_hash không đoán được bằng Math.random (kiểm gián tiếp: đủ 6 chữ số, argon2)', async () => {
+  // Soát xét vòng 1 (Minor nhưng phải sửa): bài trước tên là "mã sinh bằng
+  // crypto.randomInt..." nhưng assertion thật chỉ nhìn code_hash — sẽ xanh y
+  // hệt nếu newCode() đổi sang Math.random(). Đổi tên cho khớp đúng thứ nó
+  // kiểm (chỉ argon2, không kiểm nguồn ngẫu nhiên).
+  //
+  // Việc canh "crypto.randomInt, KHÔNG PHẢI Math.random" hiện dựa vào SOÁT
+  // MÃ (xem comment ngay tại newCode() trong modules/auth/service.js), không
+  // phải bài test tự động — nói thẳng ra còn hơn một cái tên hứa hão. Lý do
+  // không viết test thống kê để "chứng minh" CSPRNG: một bài kiểm phân bố
+  // (đủ dải, không trùng nhiều) không phân biệt được crypto.randomInt với
+  // Math.random(), vì Math.random() cũng phân bố xấp xỉ đều trên nhiều mẫu —
+  // cái Math.random() thiếu là tính KHÔNG DÒ ĐƯỢC trạng thái nội bộ, một
+  // thuộc tính không quan sát được chỉ từ các giá trị đầu ra bên ngoài.
+  it('mã OTP được băm bằng argon2 trước khi lưu — không lưu mã thô trong otp_challenges', async () => {
     const { rows } = await db.raw(
       `SELECT code_hash FROM otp_challenges WHERE phone_hash = ? ORDER BY created_at DESC LIMIT 1`,
       [hashPhone(ALICE_PHONE)]
     );
-    // argon2 hash — không phải số thô, không đoán được hình dạng bằng mắt.
     expect(rows[0].code_hash.startsWith('$argon2')).toBe(true);
+    expect(rows[0].code_hash).not.toMatch(/^\d{6}$/);
+  });
+
+  // Đây LÀ một thuộc tính kiểm được thật: mã luôn đúng 6 ký tự số, kể cả khi
+  // giá trị ngẫu nhiên nhỏ hơn 100000 (có số 0 đứng đầu) — hồi quy cho lỗi
+  // quên padStart()/String() sẽ làm lộ mã ngắn hơn 6 ký tự, dễ đoán hơn.
+  it('mã OTP luôn đủ 6 chữ số, kể cả khi có số 0 đứng đầu', async () => {
+    const seen = [];
+    const spy = vi.spyOn(consoleAdapter, 'send').mockImplementation(async ({ code }) => {
+      seen.push(code);
+    });
+    try {
+      for (let i = 0; i < 50; i++) {
+        await requestOtp({ communityId: cid, phone: '0966000000', purpose: 'reset' });
+      }
+    } finally {
+      spy.mockRestore();
+    }
+    expect(seen).toHaveLength(50);
+    for (const code of seen) {
+      expect(code).toMatch(/^\d{6}$/);
+    }
   });
 
   it('3 challenge hỏng liên tiếp cùng số ⇒ khóa 15 phút', async () => {
@@ -157,5 +192,77 @@ describe('T17 OTP hết đường dò', () => {
     }
     expect(last.status).toBe(429);
     expect(last.body.error.code).toBe('RATE_LIMITED');
+  });
+});
+
+// Soát xét vòng 1 (Important): bốn câu truy vấn OTP trong requestOtp/verifyOtp
+// từng chỉ lọc bằng phone_hash (+purpose), không có community_id — dù bảng
+// otp_challenges có cột community_id NOT NULL và cả hai hàm đã nhận sẵn tham
+// số communityId. Số điện thoại không phải định danh duy nhất toàn cục: hai
+// cộng đồng khác nhau hoàn toàn có thể trùng số. Không lọc theo community_id
+// nghĩa là challenge của cộng đồng A có thể bị verifyOtp của cộng đồng B so
+// khớp/tiêu thụ, và 3 lần dò hỏng ở B khóa luôn số đó ở A — một cộng đồng gây
+// từ chối dịch vụ cho cộng đồng khác. Đã thêm "AND community_id = ?" vào cả
+// bốn câu; hai bài dưới đây khẳng định cách ly thật, không chỉ đọc code.
+describe('T17 cách ly OTP theo community_id giữa hai cộng đồng', () => {
+  let cidA, cidB;
+
+  beforeAll(async () => {
+    ({
+      rows: [{ id: cidA }],
+    } = await db.raw(`INSERT INTO communities (code,name) VALUES ('community-iso-a','A') RETURNING id`));
+    ({
+      rows: [{ id: cidB }],
+    } = await db.raw(`INSERT INTO communities (code,name) VALUES ('community-iso-b','B') RETURNING id`));
+  });
+
+  it('verifyOtp ở cộng đồng B không tiêu thụ được challenge do cộng đồng A tạo, dù cùng số điện thoại', async () => {
+    const SHARED_PHONE = '0933000000'; // trùng ở cả hai cộng đồng, có chủ đích
+
+    // Mã đã bị argon2 băm trong CSDL, không đảo ngược được — bắt giá trị
+    // thật qua spy lên consoleAdapter.send() thay vì đọc otp_challenges.
+    let codeA;
+    const spy = vi.spyOn(consoleAdapter, 'send').mockImplementation(async ({ code }) => {
+      codeA = code;
+    });
+    try {
+      await requestOtp({ communityId: cidA, phone: SHARED_PHONE, purpose: 'reset' });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(codeA).toMatch(/^\d{6}$/);
+
+    // B chưa từng requestOtp cho số này — verifyOtp bên B với ĐÚNG mã của A
+    // phải thất bại, vì hàng của A không khớp community_id = B.
+    await expect(
+      verifyOtp({ communityId: cidB, phone: SHARED_PHONE, code: codeA, purpose: 'reset' })
+    ).rejects.toMatchObject({ code: 'OTP_INVALID' });
+
+    // Và challenge của A phải còn nguyên ('open', chưa bị B "tiêu thụ" hộ) —
+    // verifyOtp bên A với đúng mã đó vẫn thành công.
+    const r = await verifyOtp({ communityId: cidA, phone: SHARED_PHONE, code: codeA, purpose: 'reset' });
+    expect(typeof r.otpToken).toBe('string');
+  });
+
+  it('3 challenge hỏng liên tiếp ở cộng đồng B không khóa số đó ở cộng đồng A', async () => {
+    const SHARED_PHONE = '0933111111';
+
+    for (let round = 0; round < 3; round++) {
+      await requestOtp({ communityId: cidB, phone: SHARED_PHONE, purpose: 'reset' });
+      for (let i = 0; i < 5; i++) {
+        await expect(
+          verifyOtp({ communityId: cidB, phone: SHARED_PHONE, code: '000000', purpose: 'reset' })
+        ).rejects.toThrow();
+      }
+    }
+    // B bị khóa đúng như thiết kế...
+    await expect(requestOtp({ communityId: cidB, phone: SHARED_PHONE, purpose: 'reset' })).rejects.toMatchObject({
+      code: 'OTP_LOCKED',
+    });
+    // ...nhưng A, dùng CÙNG số điện thoại đó, hoàn toàn không bị ảnh hưởng —
+    // requestOtp phải thành công (không throw).
+    await expect(
+      requestOtp({ communityId: cidA, phone: SHARED_PHONE, purpose: 'reset' })
+    ).resolves.toBeUndefined();
   });
 });

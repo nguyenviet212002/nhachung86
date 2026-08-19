@@ -59,27 +59,40 @@ export async function requestOtp({ communityId, phone, purpose }) {
     // phút kể từ challenge gần nhất. Không throw sau khi đã ghi gì xuống CSDL
     // ở nhánh này — tới đây chưa có UPDATE/INSERT nào cả, nên throw ngay tại
     // chỗ vẫn an toàn (không có gì để rollback mất).
+    // BẪY (soát xét vòng 1, Important): brief gốc lọc bốn câu truy vấn OTP
+    // này chỉ bằng phone_hash (+purpose), KHÔNG có community_id — dù bảng có
+    // cột community_id NOT NULL và hàm đã nhận sẵn tham số communityId.
+    // hashPhone() không trộn communityId vào HMAC, nên hai cộng đồng khác
+    // nhau cùng chạy trên một máy chủ mà trùng số điện thoại (số điện thoại
+    // không phải định danh duy nhất toàn cục) sẽ đụng độ: yêu cầu OTP của
+    // cộng đồng A có thể so khớp/tiêu thụ challenge của cộng đồng B, và 3 lần
+    // dò hỏng ở B khoá luôn số đó ở A — một cộng đồng gây từ chối dịch vụ cho
+    // cộng đồng khác. Vô hại hôm nay (nền tảng đơn cộng đồng) nhưng phá đúng
+    // lý do toàn bộ kiến trúc đặt community_id vào mọi bảng: để cộng đồng thứ
+    // hai không phải đập đi làm lại. Thêm "AND community_id = ?" vào cả bốn
+    // câu (hai câu ở đây, một câu UPDATE ngay dưới, một câu trong verifyOtp).
     const { rows: [lock] } = await trx.raw(
       `SELECT count(*)::int AS n FROM (
          SELECT status FROM otp_challenges
-          WHERE phone_hash = ? AND created_at > now() - interval '1 hour'
+          WHERE phone_hash = ? AND community_id = ? AND created_at > now() - interval '1 hour'
           ORDER BY created_at DESC LIMIT ?) t
         WHERE status IN ('burned','expired')`,
-      [phoneHash, LOCK_AFTER_BURNED]
+      [phoneHash, communityId, LOCK_AFTER_BURNED]
     );
     if (lock.n >= LOCK_AFTER_BURNED) {
       const { rows: [last] } = await trx.raw(
-        `SELECT created_at FROM otp_challenges WHERE phone_hash = ? ORDER BY created_at DESC LIMIT 1`,
-        [phoneHash]
+        `SELECT created_at FROM otp_challenges WHERE phone_hash = ? AND community_id = ? ORDER BY created_at DESC LIMIT 1`,
+        [phoneHash, communityId]
       );
       if (last && Date.now() - new Date(last.created_at).getTime() < LOCK_WINDOW_MS) {
         throw new AppError('OTP_LOCKED', 'Số này tạm khóa 15 phút do nhập sai nhiều lần.', { status: 429 });
       }
     }
 
-    await trx.raw(`UPDATE otp_challenges SET status = 'expired' WHERE phone_hash = ? AND status = 'open'`, [
-      phoneHash,
-    ]);
+    await trx.raw(
+      `UPDATE otp_challenges SET status = 'expired' WHERE phone_hash = ? AND community_id = ? AND status = 'open'`,
+      [phoneHash, communityId]
+    );
     const code = newCode();
     await trx.raw(
       `INSERT INTO otp_challenges (community_id, phone_hash, code_hash, purpose)
@@ -114,9 +127,9 @@ export async function verifyOtp({ communityId, phone, code, purpose }) {
   const result = await withActor(null, async (trx) => {
     const { rows: [ch] } = await trx.raw(
       `SELECT * FROM otp_challenges
-        WHERE phone_hash = ? AND purpose = ? AND status = 'open' AND expires_at > now()
+        WHERE phone_hash = ? AND community_id = ? AND purpose = ? AND status = 'open' AND expires_at > now()
         ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
-      [phoneHash, purpose]
+      [phoneHash, communityId, purpose]
     );
 
     const fail = async (reason) => {
