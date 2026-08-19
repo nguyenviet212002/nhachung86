@@ -107,8 +107,12 @@ export async function requestOtp({ communityId, phone, purpose }) {
   });
 }
 
-function jwtSignOtp({ phoneHash, purpose }) {
-  return jwt.sign({ ph: phoneHash, purpose, typ: 'otp' }, config.JWT_SECRET, { expiresIn: '5m' });
+// `ch` = id của challenge đã dùng. Cần nó vì otp_token là vé MANG THEO: không
+// có gì trong bản thân JWT ngăn nộp cùng một vé ba lần trong 5 phút để lập ba
+// đơn gia nhập. register() dùng `ch` để đánh dấu consumed_at trên đúng hàng
+// challenge đó (migration 009), nên vé chỉ tiêu được một lần.
+function jwtSignOtp({ phoneHash, purpose, challengeId }) {
+  return jwt.sign({ ph: phoneHash, purpose, typ: 'otp', ch: challengeId }, config.JWT_SECRET, { expiresIn: '5m' });
 }
 
 export async function verifyOtp({ communityId, phone, code, purpose }) {
@@ -163,7 +167,7 @@ export async function verifyOtp({ communityId, phone, code, purpose }) {
     }
 
     await trx.raw(`UPDATE otp_challenges SET status = 'used' WHERE id = ?`, [ch.id]);
-    return { ok: true, otpToken: jwtSignOtp({ phoneHash, purpose }) };
+    return { ok: true, otpToken: jwtSignOtp({ phoneHash, purpose, challengeId: ch.id }) };
   });
 
   if (!result.ok) {
@@ -172,6 +176,170 @@ export async function verifyOtp({ communityId, phone, code, purpose }) {
     throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
   }
   return { otpToken: result.otpToken };
+}
+
+// ---------------------------------------------------------------------------
+// Đăng ký — nộp đơn gia nhập. Việc này Task 7 cố ý để lại (nó phụ thuộc bảng
+// join_requests, migration 009) và Task 8 nhận.
+//
+// MỘT câu, MỘT mã lỗi cho cả ba nhánh hỏng (đặc tả dòng 815): referrer_id
+// không tồn tại, referrer_id không phải member, referrer_id hết hạn mức. Nếu
+// ba nhánh trả ba câu khác nhau thì form đăng ký công khai trở thành máy dò:
+// gõ thử uuid để biết ai là thành viên, rồi biết ai sắp hết suất bảo lãnh.
+// ---------------------------------------------------------------------------
+const REFERRAL_UNAVAILABLE_MESSAGE =
+  'Hiện chưa tiếp nhận được đơn với người bảo lãnh này. Vui lòng liên hệ trực tiếp người bảo lãnh của bạn.';
+
+function isQuotaError(err) {
+  return String(err?.message ?? '').includes('GUARANTEE_QUOTA_EXCEEDED');
+}
+
+export async function register({
+  communityId, otpToken, phone, fullName, birthYear, areaId, referrerId, password,
+}) {
+  const phoneHash = hashPhone(phone);
+
+  let claims = null;
+  try {
+    claims = jwt.verify(otpToken, config.JWT_SECRET);
+  } catch {
+    claims = null;
+  }
+  // Đối chiếu `ph` với số vừa gửi lên: nếu không, ai có một otp_token hợp lệ
+  // của SỐ CỦA CHÍNH MÌNH đều khai được số của người khác vào applicant_data,
+  // và Task 9 sẽ đem số đó gắn vào hồ sơ người mới qua contact_upsert.
+  if (!claims || claims.typ !== 'otp' || claims.purpose !== 'register' || claims.ph !== phoneHash || !claims.ch) {
+    throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+  }
+
+  // Băm mật khẩu TRƯỚC khi mở giao dịch, và trên MỌI nhánh — argon2 là phần
+  // tốn thời gian nhất của cả lời gọi (cố ý chậm). Nếu chỉ băm ở nhánh thành
+  // công thì chênh lệch thời gian giữa "thành công" và "hỏng" lớn hơn nhiều
+  // lần mọi thứ khác, và lớp đệm 300ms ở tầng HTTP không che nổi.
+  const passwordHash = await argon2.hash(password);
+
+  const result = await withActor(null, async (trx) => {
+    // 1. Tiêu thụ otp_token. Điều kiện consumed_at IS NULL làm lần nộp thứ hai
+    //    cùng vé không tìm thấy hàng nào để cập nhật.
+    const { rows: [consumed] } = await trx.raw(
+      `UPDATE otp_challenges SET consumed_at = now()
+        WHERE id = ? AND community_id = ? AND purpose = 'register'
+          AND status = 'used' AND consumed_at IS NULL
+        RETURNING id`,
+      [claims.ch, communityId]
+    );
+    if (!consumed) {
+      // Ném ngay: chưa ghi gì nên rollback không xoá mất dòng nhật ký nào.
+      throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+    }
+
+    // 2. Năm sinh đọc từ communities.config, KHÔNG cứng trong mã (đặc tả dòng
+    //    776). Cộng đồng này là hội đồng niên Bính Dần 1986; cộng đồng sau có
+    //    thể là năm khác, và lúc đó không ai phải sửa mã nguồn.
+    const { rows: [community] } = await trx.raw(
+      `SELECT coalesce((config->>'birth_year')::int, 1986) AS birth_year FROM communities WHERE id = ?`,
+      [communityId]
+    );
+    if (!community || community.birth_year !== birthYear) {
+      // Lỗi nhập liệu của người dùng, KHÔNG phải nhánh dò danh sách — ném
+      // trong giao dịch để nó rollback, trả lại otp_token cho người gõ nhầm.
+      throw new AppError(
+        'BIRTH_YEAR_MISMATCH',
+        `Cộng đồng này chỉ nhận người sinh năm ${community?.birth_year ?? ''}.`,
+        { status: 422, fields: { birth_year: 'không đúng năm sinh của cộng đồng' } }
+      );
+    }
+
+    const { rows: [area] } = await trx.raw(`SELECT id FROM areas WHERE id = ? AND community_id = ?`, [
+      areaId, communityId,
+    ]);
+    if (!area) {
+      throw new AppError('INVALID_REFERENCE', 'Khu vực không hợp lệ.', {
+        status: 422, fields: { area_id: 'không tồn tại' },
+      });
+    }
+
+    // 3. Ba nhánh hỏng, CÙNG một giao dịch. MỘT truy vấn cho cả hai nhánh đầu
+    //    (không tồn tại / không phải member): hai truy vấn nối tiếp sẽ khiến
+    //    nhánh "tồn tại nhưng không phải member" tốn đúng một vòng CSDL nhiều
+    //    hơn nhánh "không tồn tại" — chênh lệch nhỏ nhưng đo được, và đó chính
+    //    là thứ mục 815 của đặc tả muốn bịt.
+    const { rows: [referrer] } = await trx.raw(
+      `SELECT id, status FROM members WHERE id = ? AND community_id = ?`,
+      [referrerId, communityId]
+    );
+    let reason = null;
+    if (!referrer) reason = 'referrer_not_found';
+    else if (referrer.status !== 'member') reason = 'referrer_not_member';
+
+    let created = null;
+    if (!reason) {
+      // SAVEPOINT: trigger fn_guarantee_quota RAISE khi hết hạn mức, và một
+      // ngoại lệ chưa bắt sẽ huỷ CẢ giao dịch — kéo theo việc tiêu thụ
+      // otp_token và dòng nhật ký từ chối. Khi đó nhánh "hết hạn mức" để lại
+      // dấu vết khác hẳn hai nhánh kia (vé còn dùng được, không có dòng log),
+      // tức ba nhánh lại phân biệt được — chỉ khác là qua trạng thái chứ
+      // không qua câu chữ. Giao dịch lồng của knex là SAVEPOINT: nó cuộn lại
+      // đúng câu INSERT hỏng, giao dịch ngoài sống tiếp và vẫn commit được.
+      try {
+        await trx.transaction(async (sp) => {
+          const { rows: [row] } = await sp.raw(
+            `INSERT INTO join_requests (community_id, applicant_data, referrer_id, status, step)
+             VALUES (?, ?::jsonb, ?, 'pending', 2)
+             RETURNING id, step`,
+            [
+              communityId,
+              JSON.stringify({
+                full_name: fullName,
+                birth_year: birthYear,
+                area_id: areaId,
+                // Dữ liệu cá nhân thô nằm ở đây vì không có chỗ nào khác giữ
+                // hộ trước khi hàng members ra đời (đặc tả dòng 855 đòi
+                // approve đọc "số từ applicant_data"). Mọi đường ĐỌC đơn đều
+                // đi qua danh sách cho phép ở modules/join-requests/service.js
+                // — hai trường dưới đây không bao giờ rời khỏi máy chủ.
+                phone,
+                password_hash: passwordHash,
+                terms_accepted_at: new Date().toISOString(),
+              }),
+              referrerId,
+            ]
+          );
+          created = row;
+        });
+      } catch (err) {
+        if (!isQuotaError(err)) throw err;
+        reason = 'quota_exceeded';
+      }
+    }
+
+    if (reason) {
+      // Từ chối phải để lại dấu. Đăng ký là đường CÔNG KHAI nên không có
+      // actor, và errorHandler chỉ gọi logDenied khi req.actor tồn tại — nếu
+      // không ghi ở đây thì một người dò hàng trăm uuid không để lại gì cả.
+      // detail chỉ có định danh giả (HMAC), uuid và mã lý do; lý do THẬT được
+      // ghi lại dù người nộp đơn chỉ nhận được một câu chung.
+      await auditLog(trx, {
+        communityId, actorId: null, action: 'join_request.denied',
+        detail: { phone_hash: phoneHash, reason, referrer_id: referrerId },
+      });
+      return { ok: false };
+    }
+
+    await auditLog(trx, {
+      communityId, actorId: null, action: 'join_request.created',
+      targetType: 'join_request', targetId: created.id,
+      detail: { referrer_id: referrerId, step: created.step },
+    });
+    return { ok: true, joinRequestId: created.id, step: created.step };
+  });
+
+  // Ném SAU khi giao dịch đã commit (bẫy mục 3): nếu ném bên trong, rollback
+  // xoá luôn dòng join_request.denied vừa ghi VÀ trả lại otp_token đã tiêu.
+  if (!result.ok) {
+    throw new AppError('REFERRAL_UNAVAILABLE', REFERRAL_UNAVAILABLE_MESSAGE, { status: 422 });
+  }
+  return { join_request_id: result.joinRequestId, step: result.step };
 }
 
 // ---------------------------------------------------------------------------

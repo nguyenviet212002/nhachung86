@@ -37,6 +37,43 @@ router.post('/otp/verify', otpLimit, validate(schema.otpVerifySchema), async (re
   }
 });
 
+// Đệm thời lượng cố định tối thiểu cho /register (đặc tả dòng 815). GIỚI HẠN
+// ĐÃ BIẾT, giữ nguyên lời thừa nhận của đặc tả: đệm ở tầng HTTP chỉ là XẤP XỈ.
+// Nó không che được chênh lệch dùng CPU, không che được tải đồng thời, và một
+// kẻ đo đủ nhiều mẫu vẫn thấy đuôi phân bố. Nó CỘNG với rate limit 60 lần/phút
+// là đủ ở quy mô ~52 người — đây không phải chống rò rỉ tuyệt đối, và không
+// nên bị gọi tên như vậy trong bất kỳ tài liệu nào về sau.
+const REGISTER_MIN_MS = 300;
+
+async function padTo(startedAt, minMs) {
+  const remaining = minMs - (Date.now() - startedAt);
+  if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
+}
+
+router.post('/register', normalLimit, validate(schema.registerSchema), async (req, res, next) => {
+  const startedAt = Date.now();
+  try {
+    const communityId = await authService.resolveCommunityId();
+    const result = await authService.register({
+      communityId,
+      otpToken: req.body.otp_token,
+      phone: req.body.phone,
+      fullName: req.body.full_name,
+      birthYear: req.body.birth_year,
+      areaId: req.body.area_id,
+      referrerId: req.body.referrer_id,
+      password: req.body.password,
+    });
+    await padTo(startedAt, REGISTER_MIN_MS);
+    res.status(201).json(result);
+  } catch (err) {
+    // Đệm cả nhánh hỏng — đệm chỉ nhánh thành công thì chính việc trả lời
+    // NHANH đã là câu trả lời "người bảo lãnh này không dùng được".
+    await padTo(startedAt, REGISTER_MIN_MS);
+    next(err);
+  }
+});
+
 router.post('/login', normalLimit, validate(schema.loginSchema), async (req, res, next) => {
   try {
     const communityId = await authService.resolveCommunityId();

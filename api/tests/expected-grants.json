@@ -11,5 +11,7 @@
   "refresh_tokens":   ["SELECT", "INSERT", "UPDATE"],
   "otp_challenges":   ["SELECT", "INSERT", "UPDATE"],
   "roles":            ["SELECT"],
-  "member_roles":     ["SELECT"]
+  "member_roles":     ["SELECT"],
+  "join_requests":    ["SELECT", "INSERT", "UPDATE"],
+  "guarantee_quota_overrides": ["SELECT", "INSERT"]
 }
