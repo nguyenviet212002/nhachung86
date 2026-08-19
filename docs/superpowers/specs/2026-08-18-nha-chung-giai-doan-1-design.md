@@ -369,6 +369,25 @@ REVOKE ALL ON member_contacts FROM app_role;   -- kể cả SELECT
 
 Một route viết ẩu `SELECT * FROM members` **không thể** làm lộ số điện thoại, vì trong bảng đó không có số điện thoại. Đường duy nhất còn lại là `contact_read` (mục 5.2) — nó tự kiểm quyền, tự ghi log, không bỏ qua được.
 
+**Người CHƯA phải thành viên cũng phải được che như vậy** (bổ sung ở Task 9 theo Ruling T8-f). Giữa lúc nộp đơn và lúc duyệt, số điện thoại thô và băm mật khẩu của người nộp đơn không có chỗ nào để ở: hàng `members` chưa ra đời. Bản nháp đầu để chúng trong `join_requests.applicant_data` — một cột `jsonb` mà `app_role` **có `SELECT`**, tức đúng đường rò mà `member_contacts` vừa bịt, chỉ khác là lộ qua *đơn* thay vì qua *hồ sơ*.
+
+```sql
+CREATE TABLE join_request_secrets (
+  join_request_id uuid PRIMARY KEY,
+  community_id uuid NOT NULL REFERENCES communities(id),
+  phone text NOT NULL, password_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (join_request_id, community_id)
+    REFERENCES join_requests (id, community_id) ON DELETE CASCADE
+);
+REVOKE ALL   ON join_request_secrets FROM app_role;
+GRANT  INSERT ON join_request_secrets TO   app_role;
+```
+
+Đường **ghi** là `GRANT INSERT` trần chứ không phải hàm `SECURITY DEFINER`, và đó là lựa chọn có lý do: `/auth/register` là đường công khai chạy `withActor(null)`, nên một hàm ghi `SECURITY DEFINER` phục vụ nó sẽ là hàm chạy bằng quyền **owner** mà mọi câu SQL của `app_role` đều gọi được và không kiểm được gì — quyền *lớn hơn* `INSERT` trần chứ không nhỏ hơn. Tính chất cần có là "`app_role` không **đọc** được", và `REVOKE ALL` + `GRANT INSERT` giữ đúng tính chất đó; `PRIMARY KEY` làm mỗi đơn chỉ ghi được một lần.
+
+Đường **đọc** là `join_secret_consume(uuid)` — `SECURITY DEFINER`, đòi actor, đòi actor có vai `approver` **của chính cộng đồng đó**, đòi đơn đang ở `met_confirmed`, ghi `audit_log`, rồi **xoá hàng** và trả về. Xoá vì người gọi hợp lệ duy nhất là `approve()`, và ngay trong cùng giao dịch đó số điện thoại đi vào `member_contacts` (nơi có ba mức riêng tư canh) còn băm mật khẩu đi vào `members.password_hash`; giữ thêm một bản sao thô sau đó là giữ đúng thứ cả kiến trúc đang tránh. Khác `contact_read`, ở đây **mọi nhánh hỏng đều `RAISE`** — không nhánh nào là hành vi người dùng bình thường cần audit, vì người không phải approver không bao giờ tới được hàm này qua API.
+
 ### 4.3 Hạn mức bảo lãnh
 
 **Cửa sổ: 12 tháng trượt.** Năm dương lịch cho phép bảo lãnh 3 người tháng 12 rồi 3 người nữa tháng 1 — sáu người trong tám tuần, đúng thứ hạn mức sinh ra để chặn.
@@ -677,6 +696,8 @@ CREATE CONSTRAINT TRIGGER trg_fund_sig_guard
 | `audit_log` (+ mọi phân mảnh) | `SELECT, INSERT` | Nhật ký không tẩy được |
 | `member_relations` | `SELECT` | Cạnh chỉ do trigger sinh |
 | `member_contacts` | *không có gì* | Chỉ vào được qua `contact_read` / `contact_upsert` |
+| `join_request_secrets` | `INSERT` | **Mới (Task 9)** — ghi được lúc nộp đơn, không đọc lại được; đường đọc là `join_secret_consume` |
+| `work_participants` | đủ bốn quyền | Danh sách người tham gia còn sửa được tới khi có xác nhận đầu tiên |
 | `work_confirmations` | `SELECT, INSERT` | Xác nhận là bút toán |
 | `work_records` | `SELECT, INSERT, UPDATE` | Không xóa được; sửa bị `WORK_RECORD_FROZEN` chặn |
 | `fund_entry_approvals` | `SELECT, INSERT` | **Mới** — chữ ký không gỡ được |
@@ -1112,6 +1133,7 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `007_audit_log` | Bảng phân mảnh + `audit_chain_head` + `fn_audit_chain` + `fn_audit_new_partition` + `REVOKE` |
 | `008_auth` | `refresh_tokens`, `otp_challenges` (có `attempts`, `phone_hash`, `code_hash`) |
 | `009_join_requests` | + `guarantee_quota_overrides` + `fn_guarantee_quota` + trigger chống chu trình |
+| `009a_join_request_secrets` | **Thêm ở Task 9** — `join_request_secrets` (số điện thoại thô + băm mật khẩu của người nộp đơn, `REVOKE ALL` rồi `GRANT INSERT`) + `join_secret_consume()`. Đánh số `009a` vì nó bổ sung cho chính `009` và không phụ thuộc gì ở `010`–`012`; nhờ vậy mọi số đã hẹn bên dưới giữ nguyên. Xem mục 4.2 và Ruling T8-f. |
 | `010_member_status_gate` | Trigger `MEMBER_NEEDS_MET_CONFIRMATION` + `fn_referrer_frozen` |
 | `011_work_records` | 3 bảng việc + `fn_self_only` + `fn_work_record_frozen` + `fn_manual_pair_quota` |
 | `012_member_relations` | Bảng + `fn_work_edge` + `fn_member_bootstrap` + `contact_upsert` + thu quyền ghi + chỉ mục một chiều |
