@@ -1,0 +1,4 @@
+{
+  "communities": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "areas":       ["SELECT", "INSERT", "UPDATE", "DELETE"]
+}

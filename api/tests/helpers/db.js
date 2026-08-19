@@ -1,4 +1,5 @@
 import knexLib from 'knex';
+import { fileURLToPath } from 'node:url';
 
 const OWNER_URL = process.env.TEST_DATABASE_URL
   ?? 'postgres://nhachung_owner:test@localhost:55432/nhachung_test';
@@ -7,7 +8,9 @@ export function ownerKnex() {
   return knexLib({
     client: 'pg',
     connection: OWNER_URL,
-    migrations: { directory: new URL('../../src/db/migrations', import.meta.url).pathname },
+    // Sửa: `.pathname` trên URL Windows trả về "/D:/..." (thừa dấu / trước ổ đĩa),
+    // khiến knex resolve sai đường dẫn. fileURLToPath() xử lý đúng trên cả Windows lẫn POSIX.
+    migrations: { directory: fileURLToPath(new URL('../../src/db/migrations', import.meta.url)) },
   });
 }
 
