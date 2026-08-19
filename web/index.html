@@ -904,6 +904,10 @@ textarea.input{resize:vertical;min-height:90px}
 <div id="modal-layer"><div class="modal-backdrop" data-close-modal></div><div id="modal-content"></div></div>
 <div id="root"></div>
 
+<!-- Lớp gọi API thật. Đường dẫn TƯƠNG ĐỐI để trang chạy được cả khi mở qua
+     Caddy (root * /srv) lẫn khi mở thẳng tệp lúc phát triển. -->
+<script src="js/api.js"></script>
+
 <script>
 /* ============================================================
    0. ICONS
@@ -1344,9 +1348,28 @@ const state = {
   role:'member',
   authTab:'login',
   activeConvo:'c1',
-  memberFilter:{q:'', area:'Tất cả'},
+  memberFilter:{q:'', area:''},
   skillFilter:{q:'', cat:'Tất cả'},
-  toastTimer:null
+  toastTimer:null,
+
+  /* ---- MỐC 2: phần nối API thật. Ba màn dùng, 47 màn còn lại không đụng ---- */
+  // Danh tính THẬT trả về từ POST /auth/login. Cố ý KHÔNG ghi đè CURRENT_USER.id:
+  // 'u1' là khoá của dữ liệu giả (SKILLS.ownerId, findMember, ...), đổi nó đi là
+  // làm hỏng những màn mà mốc này không được phép chạm.
+  me:null,
+  regStep:'form',   // 'form' | 'otp' | 'done'
+  regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', referrer_id:'', password:'', terms:false},
+  regResult:null
+};
+
+/* Danh bạ thật (GET /members). Đây là kho DUY NHẤT của màn "Con người" sau
+   MỐC 2 — hằng số MEMBERS bên trên vẫn còn vì 47 màn khác đang dựa vào nó. */
+const DIRECTORY = {
+  loading:false, loaded:false, error:null,
+  rows:[], meta:{page:1, limit:20, total:0},
+  areas:[],          // GET /areas, dùng cho ô lọc khu vực
+  phones:{},         // member_id -> số THẬT đã bấm "Xem số" (mỗi lần một người, một dòng nhật ký)
+  pending:{}         // member_id -> đang gọi /contacts/phone
 };
 
 /* ============================================================
@@ -1568,39 +1591,59 @@ function LoginForm(){
   </form>`;
 }
 
+/* ---------------------------------------------------------------------------
+   ĐĂNG KÝ — ba bước, đúng như đặc tả mục 5.3:
+     POST /auth/otp/request  →  nhập mã 6 số  →  POST /auth/otp/verify
+                             →  POST /auth/register
+   Bước nhập mã là THAY ĐỔI GIAO DIỆN DUY NHẤT của MỐC 2.
+
+   Kết thúc luồng KHÔNG phải là "đăng nhập xong": /auth/register tạo một ĐƠN
+   GIA NHẬP (`join_request_id`, `step`), người nộp vẫn chưa là thành viên cho
+   tới khi người bảo lãnh xác nhận đã gặp mặt và ban duyệt phê duyệt (đặc tả
+   mục "Gia nhập"). Bản dữ liệu giả trước đây cho vào thẳng bảng nhà — sai
+   hẳn mô hình.
+--------------------------------------------------------------------------- */
 function RegisterForm(){
+  if(state.regStep==='otp')  return RegisterOtpForm();
+  if(state.regStep==='done') return RegisterDoneHTML();
+  const d = state.regDraft;
   return `
   <form id="form-register" novalidate>
     <div class="field" data-field="name">
       <label>Họ và tên <span class="req">*</span></label>
-      <input class="input" id="reg-name" placeholder="VD: Nguyễn Văn A">
+      <input class="input" id="reg-name" placeholder="VD: Nguyễn Văn A" value="${esc(d.full_name)}">
       <div class="err"></div>
     </div>
     <div class="row-2">
       <div class="field" data-field="phone">
         <label>Số điện thoại <span class="req">*</span></label>
-        <input class="input" id="reg-phone" placeholder="VD: 0912 345 678">
+        <input class="input" id="reg-phone" placeholder="VD: 0912345678" value="${esc(d.phone)}">
         <div class="err"></div>
+        <div class="hint">10 chữ số, bắt đầu bằng 0</div>
       </div>
       <div class="field" data-field="year">
         <label>Năm sinh <span class="req">*</span></label>
-        <input class="input" id="reg-year" placeholder="1986" maxlength="4">
+        <input class="input" id="reg-year" placeholder="1986" maxlength="4" value="${esc(d.birth_year)}">
         <div class="err"></div>
         <div class="hint">Chỉ dành cho người sinh năm 1986</div>
       </div>
     </div>
     <div class="field" data-field="area">
-      <label>Khu vực sinh sống <span class="req">*</span></label>
-      <select class="input" id="reg-area">
-        <option value="">— Chọn xã/phường —</option>
-        ${AREAS.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}
-      </select>
+      <label>Mã khu vực sinh sống <span class="req">*</span></label>
+      <input class="input" id="reg-area" placeholder="Dán mã khu vực người bảo lãnh gửi cho bạn" value="${esc(d.area_id)}">
       <div class="err"></div>
+      <div class="hint">Tạm thời phải dán mã: <code>GET /areas</code> hiện đòi đăng nhập nên người chưa có tài khoản không lấy được danh sách xã/phường. Xem task-11-report.md.</div>
+    </div>
+    <div class="field" data-field="referrer">
+      <label>Mã người bảo lãnh <span class="req">*</span></label>
+      <input class="input" id="reg-referrer" placeholder="Dán mã người đưa bạn vào cộng đồng" value="${esc(d.referrer_id)}">
+      <div class="err"></div>
+      <div class="hint">Không ai vào đây một mình. Cũng chưa có đường công khai nào để tra mã này — xem task-11-report.md.</div>
     </div>
     <div class="row-2">
       <div class="field" data-field="pass">
         <label>Mật khẩu <span class="req">*</span></label>
-        <input class="input" id="reg-pass" type="password" placeholder="Tối thiểu 6 ký tự">
+        <input class="input" id="reg-pass" type="password" placeholder="Tối thiểu 8 ký tự">
         <div class="err"></div>
       </div>
       <div class="field" data-field="pass2">
@@ -1610,12 +1653,44 @@ function RegisterForm(){
       </div>
     </div>
     <div class="field" data-field="terms" style="margin-bottom:6px">
-      <label class="checkrow"><input type="checkbox" id="reg-terms"> Tôi đồng ý với Điều khoản sử dụng và Quy tắc cộng đồng Nhà Chung 86</label>
+      <label class="checkrow"><input type="checkbox" id="reg-terms" ${d.terms?'checked':''}> Tôi đồng ý với Điều khoản sử dụng và Quy tắc cộng đồng Nhà Chung 86</label>
       <div class="err"></div>
     </div>
-    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Tạo tài khoản</button>
+    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Gửi mã xác minh</button>
     <p class="muted" style="font-size:12.5px;text-align:center;margin-top:16px">Đã có tài khoản? <a href="#" style="color:var(--orange-dark);font-weight:700" data-action="auth-tab" data-tab="login">Đăng nhập</a></p>
   </form>`;
+}
+
+function RegisterOtpForm(){
+  return `
+  <form id="form-register-otp" novalidate>
+    <div class="locked-bar" style="padding:11px 13px;margin-bottom:16px">${ic('message',15)}<div><p style="font-size:12px;margin:0">Chúng tôi vừa gửi mã 6 số tới <b>${esc(state.regDraft.phone)}</b>. Mã sống 5 phút.</p></div></div>
+    <div class="field" data-field="code">
+      <label>Mã xác minh 6 số <span class="req">*</span></label>
+      <input class="input" id="reg-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" style="letter-spacing:8px;font-size:20px;text-align:center">
+      <div class="err"></div>
+      <div class="hint">Nhập sai 5 lần thì mã chết, phải xin mã mới.</div>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Xác minh và gửi đơn gia nhập</button>
+    <div class="flex gap-8 mt-12">
+      <button class="btn btn-outline" style="flex:1" type="button" data-action="reg-back">Sửa thông tin</button>
+      <button class="btn btn-outline" style="flex:1" type="button" data-action="reg-resend">Gửi lại mã</button>
+    </div>
+  </form>`;
+}
+
+function RegisterDoneHTML(){
+  return `
+  <div style="text-align:center;padding:8px 0 4px">
+    <div class="feat-ic g" style="margin:0 auto 14px">${ic('check',20)}</div>
+    <h4 style="font-size:16px;margin:0 0 8px">Đã nhận đơn gia nhập</h4>
+    <p class="muted" style="font-size:13px;line-height:1.7;margin:0 0 14px">
+      Đơn của bạn đang ở bước <b>${esc(state.regResult.step)}</b>. Người bảo lãnh cần xác nhận đã gặp mặt bạn,
+      sau đó ban duyệt mới phê duyệt. Bạn chưa đăng nhập được cho tới khi đơn được duyệt.
+    </p>
+    <div class="locked-bar" style="padding:11px 13px;text-align:left">${ic('info',15)}<div><p style="font-size:11.5px;margin:0">Mã đơn: <code>${esc(state.regResult.join_request_id)}</code></p></div></div>
+    <button class="btn btn-outline btn-block mt-12" type="button" data-close-modal>Đóng</button>
+  </div>`;
 }
 
 /* ============================================================
@@ -2219,41 +2294,184 @@ function PersonalMemoryPage(){
 /* ============================================================
    11. MEMBERS DIRECTORY
    ============================================================ */
-function MembersPage(){
-  const all=[CURRENT_USER,...MEMBERS];
-  const {q,area} = state.memberFilter;
-  let list = all.filter(m=>{
-    const matchQ = !q || (m.name+m.job+(m.tags||[]).join(' ')).toLowerCase().includes(q.toLowerCase());
-    const matchA = area==='Tất cả' || m.area===area;
-    return matchQ && matchA;
+/* ===========================================================================
+   MÀN DANH BẠ — MỐC 2. Màn DUY NHẤT của "Con người" chạy bằng dữ liệu THẬT.
+   Nguồn: GET /members?q&area_id&page&limit  (mặc định `status=member`, chốt ở
+   Task 10 — danh bạ không hiện `guest`/`left`).
+
+   NGUYÊN TẮC 4, ĐIỂM SỐNG CÒN: danh sách KHÔNG BAO GIỜ trả `value`, kể cả
+   trường mức `public` — mọi `contacts.<field>.value` đều là `null` theo thiết
+   kế (đặc tả mục 5.2 dòng 789). Số thật chỉ đến từ
+   GET /members/:id/contacts/:field: mỗi lần một trường, một người, một dòng
+   nhật ký. Ở đây KHÔNG có đường tắt nào lấy số hàng loạt, và đừng thêm một
+   đường như vậy: một vòng lặp gọi 20 lần cũng chính là lấy hàng loạt.
+=========================================================================== */
+// Gõ vào ô tìm kiếm không được bắn một request mỗi phím: mỗi lời gọi
+// GET /members ghi MỘT dòng `member.list` vào audit_log, nên gõ 12 ký tự sẽ
+// đẻ 12 dòng nhật ký cho một hành động duy nhất của người dùng.
+let dirReloadTimer = null;
+function scheduleDirectoryReload(){
+  clearTimeout(dirReloadTimer);
+  dirReloadTimer = setTimeout(function(){
+    DIRECTORY.meta.page = 1;
+    DIRECTORY.loaded = false;
+    if(state.route === 'members') loadDirectory();
+  }, 350);
+}
+
+function resetDirectory(){
+  DIRECTORY.loading = false;
+  DIRECTORY.loaded  = false;
+  DIRECTORY.error   = null;
+  DIRECTORY.rows    = [];
+  DIRECTORY.meta    = {page:1, limit:20, total:0};
+  DIRECTORY.phones  = {};
+  DIRECTORY.pending = {};
+}
+
+async function loadDirectory(){
+  if(DIRECTORY.loading) return;
+  DIRECTORY.loading = true;
+  DIRECTORY.error = null;
+  try{
+    // Ô lọc khu vực phải mang `area_id` (uuid) chứ không phải tên xã — tên xã
+    // của dữ liệu giả không tra ngược ra id được. Lấy cây khu vực thật một lần.
+    if(!DIRECTORY.areas.length){
+      const a = await api.get('/areas');
+      DIRECTORY.areas = flattenAreas(a.data || []);
+    }
+    const r = await api.get('/members' + api.qs({
+      q: state.memberFilter.q,
+      area_id: state.memberFilter.area,
+      page: DIRECTORY.meta.page,
+      limit: DIRECTORY.meta.limit
+    }));
+    DIRECTORY.rows = r.data;
+    DIRECTORY.meta = r.meta;
+    DIRECTORY.loaded = true;
+  }catch(err){
+    DIRECTORY.error = err.message;
+    DIRECTORY.loaded = true;
+  }finally{
+    DIRECTORY.loading = false;
+    // Giữ con trỏ trong ô tìm kiếm: người dùng gõ tiếp trong lúc chờ mạng là
+    // chuyện thường, mà render() trần sẽ cướp focus giữa chừng.
+    rerenderPreservingFocus();
+  }
+}
+
+function flattenAreas(nodes, depth=0, out=[]){
+  nodes.forEach(n=>{
+    out.push({id:n.id, name:'— '.repeat(depth) + n.name});
+    if(n.children && n.children.length) flattenAreas(n.children, depth+1, out);
   });
+  return out;
+}
+
+/* Bấm "Xem số" → ĐÚNG MỘT lời gọi cho ĐÚNG MỘT người, ĐÚNG MỘT trường. */
+async function revealPhone(id){
+  if(DIRECTORY.pending[id] || DIRECTORY.phones[id]) return;
+  DIRECTORY.pending[id] = true;
+  render();
+  try{
+    const r = await api.get(`/members/${encodeURIComponent(id)}/contacts/phone`);
+    DIRECTORY.phones[id] = r.value;
+  }catch(err){
+    toast(err.message, true);
+  }finally{
+    delete DIRECTORY.pending[id];
+    rerenderPreservingFocus();
+  }
+}
+
+/* Bao bì `contacts` của đặc tả mục 5.2 — sáu trạng thái, mỗi trạng thái một
+   hình dạng nút. KHÔNG tự đoán trạng thái từ `level`: `state` là thứ máy chủ
+   đã tính (core/privacy.js envelope()), đoán lại ở đây là dựng bản sao thứ hai
+   của luật riêng tư. */
+function phoneCell(m){
+  const c = (m.contacts && m.contacts.phone) || {state:'closed', value:null};
+  const shown = DIRECTORY.phones[m.id];
+  const busy = DIRECTORY.pending[m.id];
+
+  if(shown) return `<div class="locked-bar" style="padding:9px 11px">${ic('phone',14)}<div><p style="font-size:12.5px;margin:0"><b>${esc(shown)}</b></p></div></div>`;
+
+  switch(c.state){
+    case 'self':
+      return `<button class="btn btn-outline btn-sm btn-block" data-action="dir-show-phone" data-id="${esc(m.id)}" ${busy?'disabled':''}>${busy?'Đang lấy…':'Số của bạn — xem'}</button>`;
+    case 'visible':
+      return `<button class="btn btn-primary btn-sm btn-block" data-action="dir-show-phone" data-id="${esc(m.id)}" ${busy?'disabled':''}>${busy?'Đang lấy…':'Xem số'}</button>`;
+    case 'can_request':
+      return `<button class="btn btn-outline btn-sm btn-block" data-action="dir-request-phone" data-id="${esc(m.id)}">Xin xem số liên hệ</button>`;
+    case 'requested':
+      return `<div class="locked-bar" style="padding:9px 11px">${ic('clock',14)}<div><p style="font-size:11.5px;margin:0">Đang chờ chủ hồ sơ trả lời</p></div></div>`;
+    case 'denied':
+      return `<div class="locked-bar" style="padding:9px 11px;opacity:.55">${ic('lock',14)}<div><p style="font-size:11.5px;margin:0">Chủ hồ sơ chưa đồng ý. Có thể xin lại sau 30 ngày.</p></div></div>`;
+    default: // 'closed'
+      return `<div class="locked-bar" style="padding:9px 11px">${ic('lock',14)}<div><p style="font-size:11.5px;margin:0">Chủ hồ sơ đã đóng thông tin này</p></div></div>`;
+  }
+}
+
+const WORK_STATUS_LABEL = {available:'Đang nhận việc', by_appointment:'Nhận việc theo hẹn', paused:'Tạm nghỉ nhận việc'};
+
+function MembersPage(){
+  // Tài khoản demo không có token thật. Nói thẳng điều đó thay vì gọi API rồi
+  // hiện "Phiên đăng nhập đã hết hạn" — người dùng demo chưa từng có phiên nào
+  // để mà hết hạn, và một câu sai lý do còn tệ hơn không có câu nào.
+  if(!state.me){
+    return `
+    <div class="page-head"><div><h1>Con người</h1><p>Màn này là màn duy nhất trong Nhà Chung đã chạy bằng dữ liệu THẬT của máy chủ.</p></div></div>
+    <div class="empty">${ic('lock',34)}
+      <p>Bạn đang dùng tài khoản demo (dữ liệu giả). Danh bạ đọc từ <code>GET /members</code> nên cần đăng nhập bằng tài khoản thật.</p>
+      <button class="btn btn-primary mt-12" data-action="logout">Đăng nhập bằng tài khoản thật</button>
+    </div>`;
+  }
+
+  if(!DIRECTORY.loaded && !DIRECTORY.loading) loadDirectory();
+
+  const {q, area} = state.memberFilter;
+  const meta = DIRECTORY.meta;
+  const pages = Math.max(1, Math.ceil((meta.total||0) / (meta.limit||20)));
+
+  const body = DIRECTORY.error
+    ? `<div class="empty">${ic('alert',34)}<p>${esc(DIRECTORY.error)}</p><button class="btn btn-outline mt-12" data-action="dir-reload">Thử lại</button></div>`
+    : (!DIRECTORY.loaded
+      ? `<div class="empty">${ic('refresh',34)}<p>Đang tải danh bạ…</p></div>`
+      : (DIRECTORY.rows.length
+        ? `<div class="grid cards-3">${DIRECTORY.rows.map(m=>`
+        <div class="card member-card">
+          <div class="top">
+            <img class="av" src="${esc(m.avatar_url || AVATAR(1))}" width="52" height="52" alt="">
+            <div>
+              <h4>${esc(m.full_name)}</h4>
+              <div class="role">${esc(m.job || 'Chưa cập nhật nghề nghiệp')}</div>
+              <div class="role">${ic('mappin',12)} ${esc(m.area ? m.area.name : 'Chưa cập nhật khu vực')}</div>
+            </div>
+          </div>
+          <div class="tags">
+            ${m.work_status ? `<span class="badge badge-gray">${esc(WORK_STATUS_LABEL[m.work_status] || m.work_status)}</span>` : ''}
+            <span class="badge badge-orange">${esc(m.contacts.phone.level)}</span>
+          </div>
+          <div class="mt-12">${phoneCell(m)}</div>
+        </div>`).join('')}</div>`
+        : `<div class="empty">${ic('users',34)}<p>Không tìm thấy thành viên phù hợp. Thử từ khóa khác.</p></div>`));
+
   return `
     <div class="page-head">
-      <div><h1>Con người</h1><p>${all.length} thành viên đồng niên 1986 đang sinh sống và làm việc tại Hưng Yên.</p></div>
+      <div><h1>Con người</h1><p>${meta.total} thành viên đã được duyệt. Số liên hệ chỉ hiện khi chủ hồ sơ cho phép, và mỗi lần xem đều để lại một dòng nhật ký.</p></div>
     </div>
     <div class="filter-bar">
-      <input class="input" id="member-q" placeholder="Tìm theo tên, nghề, kỹ năng..." value="${esc(q)}" style="max-width:280px">
-      <select class="input" id="member-area" style="max-width:200px">
-        <option ${area==='Tất cả'?'selected':''}>Tất cả</option>
-        ${AREAS.map(a=>`<option ${area===a?'selected':''}>${esc(a)}</option>`).join('')}
+      <input class="input" id="member-q" placeholder="Tìm theo họ tên..." value="${esc(q)}" style="max-width:280px">
+      <select class="input" id="member-area" style="max-width:220px">
+        <option value="">Tất cả khu vực</option>
+        ${DIRECTORY.areas.map(a=>`<option value="${esc(a.id)}" ${area===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}
       </select>
-      <span class="muted" style="font-size:13px;margin-left:auto">${list.length} kết quả</span>
+      <span class="muted" style="font-size:13px;margin-left:auto">${DIRECTORY.rows.length} / ${meta.total} kết quả</span>
     </div>
-    ${list.length ? `<div class="grid cards-3">
-      ${list.map(m=>`
-      <a href="#" class="card card-hover member-card" data-action="nav" data-route="${m.id===CURRENT_USER.id?'profile':'member'}" data-id="${m.id}">
-        <div class="top">
-          <img class="av" src="${m.avatar}" width="52" height="52">
-          <div>
-            <h4>${esc(m.name)} ${m.verified?`<span title="Đã xác minh" style="color:var(--green-700)">${ic('shieldcheck',13)}</span>`:''}</h4>
-            <div class="role">${esc(m.job)}</div>
-            <div class="role">${ic('mappin',12)} ${esc(m.area)}</div>
-          </div>
-        </div>
-        <p class="desc">${esc(m.bio||'')}</p>
-        <div class="tags">${(m.tags||[]).slice(0,2).map(t=>`<span class="badge badge-gray">${esc(t)}</span>`).join('')}<span class="badge badge-orange">${m.hours} giờ</span></div>
-      </a>`).join('')}
-    </div>` : `<div class="empty">${ic('users',34)}<p>Không tìm thấy thành viên phù hợp. Thử từ khóa khác.</p></div>`}
+    ${body}
+    ${pages>1 ? `<div class="flex gap-8 mt-18" style="justify-content:center;align-items:center">
+      ${Array.from({length:pages},(_,i)=>i+1).map(n=>`<button class="chip ${n===meta.page?'active':''}" data-action="dir-page" data-page="${n}">${n}</button>`).join('')}
+      <span class="muted" style="font-size:12px;margin-left:12px">Trang ${meta.page} trên ${pages}</span>
+    </div>` : ''}
   `;
 }
 
@@ -5077,6 +5295,8 @@ function updateGlobalSearch(q){
 /* ============================================================
    24. LOGIN / REGISTER LOGIC
    ============================================================ */
+/* Đăng nhập GIẢ — nút "Dùng tài khoản demo". Giữ nguyên: nó là lối vào duy
+   nhất của 47 màn còn đang chạy bằng dữ liệu giả. */
 function doLogin(){
   state.user = CURRENT_USER;
   state.route = 'dashboard';
@@ -5084,17 +5304,97 @@ function doLogin(){
   render();
   toast(`Đăng nhập thành công! Chào mừng trở lại, ${CURRENT_USER.name.split(' ').slice(-1)[0]}.`);
 }
-function doRegister(f){
-  Object.assign(CURRENT_USER, {
-    name:f.name, phone:f.phone, area:f.area, job:'Chưa cập nhật nghề nghiệp',
-    role:'Thành viên mới', verified:false, hours:0, joined:'08/2026',
-    bio:'Xin chào, tôi là thành viên mới của Nhà Chung 86!'
-  });
-  state.user = CURRENT_USER;
-  state.route = 'dashboard';
-  closeModal();
-  render();
-  toast(`Đăng ký thành công! Chào mừng ${f.name} đến với Nhà Chung 86 🎉`);
+
+/* ---------------------------------------------------------------------------
+   ĐĂNG NHẬP THẬT — POST /auth/login → { access, refresh, member }
+--------------------------------------------------------------------------- */
+function busy(form, on, label){
+  const btn = form && form.querySelector('button[type="submit"]');
+  if(!btn) return;
+  btn.disabled = on;
+  if(on){ btn.dataset.label = btn.textContent; btn.textContent = label || 'Đang xử lý…'; }
+  else if(btn.dataset.label){ btn.textContent = btn.dataset.label; }
+}
+
+async function doLoginReal(form, identifier, password){
+  busy(form, true, 'Đang đăng nhập…');
+  try{
+    const r = await api.post('/auth/login', {identifier, password});
+    api.setTokens(r);                       // { access, refresh } — snake_case của đặc tả
+    state.me = r.member;                    // { id, full_name, status }
+    try{ localStorage.setItem('nc_member', JSON.stringify(r.member)); }catch(e){}
+    // Vỏ ứng dụng (sidebar, topbar) vẫn đọc CURRENT_USER của dữ liệu giả. Chỉ
+    // đồng bộ TÊN để màn hình không xưng tên người khác; `id` giữ nguyên 'u1'
+    // vì nó là khoá của dữ liệu giả (xem chú thích ở state.me).
+    CURRENT_USER.name = r.member.full_name;
+    state.user = CURRENT_USER;
+    state.route = 'members';                // vào thẳng màn đã nối API thật
+    resetDirectory();
+    closeModal();
+    render();
+    toast(`Đăng nhập thành công! Chào mừng trở lại, ${r.member.full_name.split(' ').slice(-1)[0]}.`);
+  }catch(err){
+    busy(form, false);
+    toast(err.message, true);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   ĐĂNG KÝ THẬT — ba lời gọi, mỗi lời gọi một bước
+--------------------------------------------------------------------------- */
+async function regRequestOtp(form){
+  busy(form, true, 'Đang gửi mã…');
+  try{
+    await api.post('/auth/otp/request', {phone: state.regDraft.phone, purpose:'register'});
+    state.regStep = 'otp';
+    openModal(AuthModalHTML());
+    toast('Đã gửi mã xác minh 6 số.');
+  }catch(err){
+    busy(form, false);
+    toast(err.message, true);
+  }
+}
+
+async function regVerifyAndSubmit(form, code){
+  busy(form, true, 'Đang xác minh…');
+  const d = state.regDraft;
+  try{
+    // Bước 2: đổi mã 6 số lấy vé otp_token (5 phút, dùng ĐÚNG MỘT lần).
+    const v = await api.post('/auth/otp/verify', {phone:d.phone, code, purpose:'register'});
+
+    // Bước 3: nộp đơn. `phone` gửi lại ở đây KHÔNG thừa — máy chủ đối chiếu nó
+    // với claim `ph` trong otp_token (đặc tả mục 5.3, sửa ở Task 8), vì hệ
+    // thống chỉ lưu HMAC của số nên không suy ngược ra được từ vé.
+    const r = await api.post('/auth/register', {
+      otp_token: v.otp_token,
+      phone: d.phone,
+      full_name: d.full_name,
+      birth_year: Number(d.birth_year),
+      area_id: d.area_id,
+      referrer_id: d.referrer_id,
+      password: d.password,
+      terms: true
+    });
+    state.regResult = r;
+    state.regStep = 'done';
+    state.regDraft.password = '';   // không giữ mật khẩu trong bộ nhớ lâu hơn mức cần
+    openModal(AuthModalHTML());
+  }catch(err){
+    busy(form, false);
+    toast(err.message, true);
+    // Vé OTP chỉ dùng được một lần: nếu hỏng ở bước /auth/register thì mã cũ
+    // đã cháy, phải quay lại xin mã mới chứ không cho gõ lại mã cũ.
+    if(err.code && err.code !== 'OTP_INVALID' && err.code !== 'VALIDATION_FAILED'){
+      state.regStep = 'form';
+      openModal(AuthModalHTML());
+    }
+  }
+}
+
+function resetRegister(){
+  state.regStep = 'form';
+  state.regResult = null;
+  state.regDraft = {full_name:'', phone:'', birth_year:'', area_id:'', referrer_id:'', password:'', terms:false};
 }
 
 /* ============================================================
@@ -5130,11 +5430,43 @@ document.addEventListener('click', function(e){
     }
     case 'open-auth':
       state.authTab = actionEl.dataset.tab || 'login';
+      if(state.regStep==='done') resetRegister();
       openModal(AuthModalHTML());
       break;
     case 'auth-tab':
       state.authTab = actionEl.dataset.tab;
+      if(state.regStep==='done') resetRegister();
       openModal(AuthModalHTML());
+      break;
+    /* ---- MỐC 2: bước nhập mã 6 số của màn đăng ký ---- */
+    case 'reg-back':
+      state.regStep = 'form';
+      openModal(AuthModalHTML());
+      break;
+    case 'reg-resend':
+      // Xin mã MỚI, không gửi lại mã cũ: mỗi challenge có vòng đời 5 phút và
+      // bộ đếm sai riêng, "gửi lại" mã cũ sẽ làm bộ đếm đó vô nghĩa.
+      api.post('/auth/otp/request', {phone: state.regDraft.phone, purpose:'register'})
+        .then(()=>toast('Đã gửi mã mới.'))
+        .catch(err=>toast(err.message, true));
+      break;
+    /* ---- MỐC 2: màn danh bạ ---- */
+    case 'dir-reload':
+      resetDirectory(); render();
+      break;
+    case 'dir-page':
+      DIRECTORY.meta.page = Number(actionEl.dataset.page) || 1;
+      DIRECTORY.loaded = false;
+      render();
+      break;
+    case 'dir-show-phone':
+      revealPhone(id);
+      break;
+    case 'dir-request-phone':
+      // Đặc tả mục 5.3 có `POST /members/:id/contact-requests`, nhưng route đó
+      // CHƯA TỒN TẠI trong api/src (Task 10 dừng ở ba route đọc). Nói thật
+      // thay vì gọi một đường 404 rồi hiện "Hệ thống đang trục trặc".
+      toast('Chức năng xin xem số liên hệ chưa được nối (POST /members/:id/contact-requests chưa có ở máy chủ).', true);
       break;
     case 'demo-login':
       doLogin();
@@ -5225,7 +5557,10 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'logout':
-      state.user = null; state.route='landing'; closeModal(); render();
+      api.clearTokens();
+      try{ localStorage.removeItem('nc_member'); }catch(e){}
+      state.me = null; state.user = null; state.route='landing';
+      resetDirectory(); closeModal(); render();
       toast('Bạn đã đăng xuất khỏi Nhà Chung 86.');
       break;
     case 'logout-all':
@@ -5336,7 +5671,7 @@ function closeAllDropdowns(){
 }
 
 document.addEventListener('input', function(e){
-  if(e.target.id==='member-q'){ state.memberFilter.q = e.target.value; rerenderPreservingFocus(); }
+  if(e.target.id==='member-q'){ state.memberFilter.q = e.target.value; scheduleDirectoryReload(); rerenderPreservingFocus(); }
   else if(e.target.id==='skill-q'){ state.skillFilter.q = e.target.value; rerenderPreservingFocus(); }
   else if(e.target.id==='global-search'){ updateGlobalSearch(e.target.value); }
 });
@@ -5360,7 +5695,7 @@ document.addEventListener('change', function(e){
     reader.readAsDataURL(file);
     return;
   }
-  if(e.target.id==='member-area'){ state.memberFilter.area = e.target.value; render(); }
+  if(e.target.id==='member-area'){ state.memberFilter.area = e.target.value; DIRECTORY.meta.page = 1; DIRECTORY.loaded = false; render(); }
   const priv = e.target.closest('[data-action-change="privacy-scope"]');
   if(priv){ toast(`Đã cập nhật quyền riêng tư cho "${priv.previousElementSibling ? priv.closest('.priv-row').querySelector('.l b').textContent : ''}"`); }
   const notif = e.target.closest('[data-action-change="notif-pref"]');
@@ -5393,27 +5728,46 @@ document.addEventListener('submit', function(e){
     const phone = val('login-phone'), pass = val('login-pass');
     const ok = validateForm(form, [
       ['phone', [[phone.length>=3, 'Vui lòng nhập số điện thoại hoặc email.']]],
-      ['pass', [[pass.length>=4, 'Mật khẩu phải có ít nhất 4 ký tự.']]],
+      // 8 chứ không phải 4: máy chủ (modules/auth/schema.js, loginSchema) đòi
+      // tối thiểu 8 ký tự. Để 4 ở đây thì người dùng nhận VALIDATION_FAILED từ
+      // máy chủ thay vì câu nhắc ngay dưới ô nhập.
+      ['pass', [[pass.length>=8, 'Mật khẩu phải có ít nhất 8 ký tự.']]],
     ]);
-    if(ok) doLogin();
+    if(ok) doLoginReal(form, phone, pass);
     return;
   }
 
   if(form.id==='form-register'){
     e.preventDefault();
-    const name=val('reg-name'), phone=val('reg-phone'), year=val('reg-year'), area=val('reg-area'),
+    const name=val('reg-name'), year=val('reg-year'), area=val('reg-area'), referrer=val('reg-referrer'),
           pass=val('reg-pass'), pass2=val('reg-pass2'), terms=document.getElementById('reg-terms').checked;
-    const phoneOk = /^[0-9\s]{9,11}$/.test(phone);
+    // Máy chủ (schema.js, vnPhone) đòi ĐÚNG `^0\d{9}$` — không khoảng trắng,
+    // không dấu chấm. Bản dữ liệu giả nhận `^[0-9\s]{9,11}$`, tức nhận cả
+    // '091 234 567' (9 số) rồi gửi lên và ăn VALIDATION_FAILED. Chuẩn hoá
+    // trước, kiểm sau, và kiểm bằng ĐÚNG luật của máy chủ.
+    const phone = val('reg-phone').replace(/[\s.\-]/g,'');
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const ok = validateForm(form, [
-      ['name', [[name.length>=3, 'Vui lòng nhập họ tên đầy đủ.']]],
-      ['phone', [[phoneOk, 'Số điện thoại không hợp lệ (9-11 chữ số).']]],
+      ['name', [[name.length>=2, 'Vui lòng nhập họ tên đầy đủ.']]],
+      ['phone', [[/^0\d{9}$/.test(phone), 'Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.']]],
       ['year', [[year==='1986', 'Nhà Chung 86 chỉ dành cho người sinh năm 1986.']]],
-      ['area', [[!!area, 'Vui lòng chọn khu vực sinh sống.']]],
-      ['pass', [[pass.length>=6, 'Mật khẩu phải có ít nhất 6 ký tự.']]],
+      ['area', [[uuidRe.test(area), 'Mã khu vực chưa đúng dạng.']]],
+      ['referrer', [[uuidRe.test(referrer), 'Mã người bảo lãnh chưa đúng dạng.']]],
+      ['pass', [[pass.length>=8, 'Mật khẩu phải có ít nhất 8 ký tự.']]],
       ['pass2', [[pass2===pass && pass2.length>0, 'Mật khẩu nhập lại không khớp.']]],
       ['terms', [[terms, 'Bạn cần đồng ý với điều khoản để tiếp tục.']]],
     ]);
-    if(ok) doRegister({name,phone,area});
+    if(!ok) return;
+    state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, referrer_id:referrer, password:pass, terms:true};
+    regRequestOtp(form);
+    return;
+  }
+
+  if(form.id==='form-register-otp'){
+    e.preventDefault();
+    const code = val('reg-otp');
+    const ok = validateForm(form, [['code', [[/^\d{6}$/.test(code), 'Mã xác minh gồm đúng 6 chữ số.']]]]);
+    if(ok) regVerifyAndSubmit(form, code);
     return;
   }
 
@@ -5773,6 +6127,34 @@ document.addEventListener('submit', function(e){
 /* ============================================================
    27. INIT
    ============================================================ */
+
+/* Phiên hết hạn hoặc refresh token bị thu hồi: api.js gọi vào đây sau khi đã
+   xoá token. Một chỗ duy nhất, nên không màn nào phải tự nhớ xử lý 401. */
+api.onAuthLost(function(){
+  if(!state.me) return;                 // đang dùng tài khoản demo, không đụng
+  try{ localStorage.removeItem('nc_member'); }catch(e){}
+  state.me = null; state.user = null; state.route = 'landing';
+  resetDirectory(); closeModal(); render();
+  toast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.', true);
+});
+
+/* Khôi phục phiên sau khi tải lại trang. KHÔNG gọi /auth/me để kiểm trước:
+   token có còn sống hay không sẽ lộ ra ở lời gọi thật đầu tiên (GET /areas),
+   và nếu chết thì api.js tự làm mới, tự xoá, tự gọi onAuthLost ở trên.
+   Lý do phải tự nhớ `member`: GET /auth/me chỉ trả { id, community_id, roles }
+   — không có `full_name` — nên không khôi phục được tên người dùng từ đó. */
+if(api.isLoggedIn()){
+  try{
+    const saved = JSON.parse(localStorage.getItem('nc_member') || 'null');
+    if(saved && saved.id){
+      state.me = saved;
+      CURRENT_USER.name = saved.full_name || CURRENT_USER.name;
+      state.user = CURRENT_USER;
+      state.route = 'members';
+    }
+  }catch(e){}
+}
+
 render();
 </script>
 </body>

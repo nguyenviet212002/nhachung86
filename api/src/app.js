@@ -1,6 +1,7 @@
 import express from 'express';
 import { knex } from './db/knex.js';
 import { httpLogger } from './middleware/httpLogger.js';
+import { cors } from './middleware/cors.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { router as authRouter } from './modules/auth/routes.js';
 import { router as joinRequestsRouter } from './modules/join-requests/routes.js';
@@ -19,6 +20,11 @@ export function buildApp() {
   // (vòng sửa 2: default serializer của pino-http từng làm lộ err.detail —
   // đúng chỗ PostgreSQL in giá trị cột thật, vd. số điện thoại — ra log).
   app.use(httpLogger());
+
+  // CORS đứng TRƯỚC express.json và trước mọi route: preflight OPTIONS không
+  // có thân, và một Origin lạ phải bị từ chối trước khi chạm tới bất cứ thứ
+  // gì đọc dữ liệu. Sau httpLogger để lượt bị từ chối vẫn có mặt trong log.
+  app.use(cors);
 
   app.use(express.json({ limit: '1mb' }));
 
