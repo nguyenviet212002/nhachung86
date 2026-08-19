@@ -4,5 +4,8 @@
   "members":     ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "member_contacts": [],
   "audit_log":   ["SELECT", "INSERT"],
-  "audit_chain_head": ["SELECT", "INSERT", "UPDATE"]
+  "audit_chain_head": ["SELECT", "INSERT", "UPDATE"],
+  "privacy_settings": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "contact_requests": ["SELECT", "INSERT", "UPDATE"],
+  "profile_views":    ["SELECT", "INSERT"]
 }
