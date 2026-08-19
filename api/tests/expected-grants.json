@@ -7,5 +7,9 @@
   "audit_chain_head": ["SELECT", "INSERT", "UPDATE"],
   "privacy_settings": ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "contact_requests": ["SELECT", "INSERT", "UPDATE"],
-  "profile_views":    ["SELECT", "INSERT"]
+  "profile_views":    ["SELECT", "INSERT"],
+  "refresh_tokens":   ["SELECT", "INSERT", "UPDATE"],
+  "otp_challenges":   ["SELECT", "INSERT", "UPDATE"],
+  "roles":            ["SELECT"],
+  "member_roles":     ["SELECT"]
 }
