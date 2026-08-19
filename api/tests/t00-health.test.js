@@ -1,7 +1,22 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { buildApp } from '../src/app.js';
 import { resetDb, ownerKnex } from './helpers/db.js';
+
+// Vòng soát xét 1 (Minor, nhưng cắn nhiều task nếu để nguyên): trước đây bài
+// dưới đây cứng tên file migration mới nhất ('007_audit_log.js') — mọi task
+// sau còn thêm migration đều phải sửa lại dòng đó dù chẳng liên quan gì tới
+// nội dung task, và một bài test phải sửa vì lý do không liên quan là bài
+// test sẽ bị sửa cho xong chuyện chứ không được xem lại kỹ. Đọc động danh
+// sách migration THẬT từ đĩa (cùng thư mục knex đọc khi migrate) thay vì
+// đoán/cứng tên — bài test vẫn khẳng định đúng thứ /health báo cáo khớp sự
+// thật, mà không ai phải đụng vào file này nữa.
+function migrationFilesOnDisk() {
+  const dir = fileURLToPath(new URL('../src/db/migrations', import.meta.url));
+  return readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
+}
 
 describe('T00 health', () => {
   let owner;
@@ -20,11 +35,12 @@ describe('T00 health', () => {
   it('migration phản ánh đúng số lượng và tên migration đã áp dụng thật', async () => {
     const res = await request(buildApp()).get('/api/v1/health');
     expect(res.body.migration).not.toBeNull();
-    // Task 4: migration đánh số 007 dù mới là file migration thứ tư được viết
-    // (số 004-006 dành cho Task 5, 6 điền sau) — thứ tự đánh số theo mục 11
-    // của spec, không theo thứ tự thi công. Cập nhật lại kỳ vọng cho khớp.
-    expect(res.body.migration.applied).toBeGreaterThanOrEqual(4);
-    expect(res.body.migration.latest).toMatch(/^007_audit_log\.js$/);
+    const files = migrationFilesOnDisk();
+    // resetDb() chạy migrate.latest() trước bài test này nên MỌI file trên
+    // đĩa phải đã áp dụng — so khớp chính xác, không chỉ >=, để bài test còn
+    // bắt được trường hợp một migration bị bỏ sót khi migrate.
+    expect(res.body.migration.applied).toBe(files.length);
+    expect(res.body.migration.latest).toBe(files[files.length - 1]);
   });
 
   // Phát hiện soát xét (Important): các test trước chỉ phủ nhánh "đọc được".

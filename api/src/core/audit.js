@@ -1,6 +1,31 @@
 import { z } from 'zod';
 import { withActor } from './tx.js';
 
+// Vòng soát xét 1 (Important) — bẫy còn sót: chuỗi token dưới đây vốn là
+// DANH SÁCH CHO PHÉP (chỉ chữ/số/., :, _, - và tối đa 64 ký tự) chứ không
+// phải danh sách cấm, nhưng một số điện thoại ('0912345678'), CCCD 12 chữ số,
+// hay số tài khoản ngân hàng cũng khớp đúng hình dạng "enum/field_key" đó —
+// bản thân ký tự dùng không phân biệt được. Vì vậy đây là DANH SÁCH CHO PHÉP
+// CÓ LOẠI TRỪ: sau khi khớp hình dạng token, còn phải qua một điều kiện đếm
+// chữ số để loại các chuỗi "trông như token nhưng thực ra là định danh cá
+// nhân dạng số". Quy tắc: nếu TOÀN BỘ chuỗi chỉ gồm chữ số và dấu phân cách
+// thường gặp trong số điện thoại/CCCD/số tài khoản (-, ., _, :, khoảng
+// trắng — không lẫn một chữ cái nào), và số chữ số còn lại sau khi bỏ dấu
+// phân cách từ 6 trở lên, thì từ chối. Ngưỡng 6 được chọn vì số đếm nghiệp vụ
+// thật (số lượt, số tiền quy đổi ra count, mã hai chữ số) hiếm khi cần biểu
+// diễn dưới dạng CHUỖI thuần số dài — số đếm thật nên đi qua z.number(); còn
+// mọi định danh cá nhân có ý nghĩa ở Việt Nam (số điện thoại 9-11 số, CCCD 12
+// số, số tài khoản ngân hàng 6+ số) đều RƠI VÀO đúng khoảng 6 chữ số trở lên.
+// ĐỪNG nới ngưỡng này lên "cho dễ gỡ lỗi" — 6 là ranh giới an toàn thấp nhất
+// đã kiểm; nới lên nghĩa là mở lại đúng khe hở này. Token có ít nhất một chữ
+// cái (vd. '007_audit_log.js', 'page:2', 'v1.2', 'SELF_ONLY') không bao giờ
+// bị chặn bởi quy tắc này, bất kể có bao nhiêu chữ số.
+function isDigitHeavyToken(s) {
+  if (!/^[0-9\-_.: ]+$/.test(s)) return false; // có chữ cái → không phải diện nghi ngờ
+  const digitCount = (s.match(/[0-9]/g) ?? []).length;
+  return digitCount >= 6;
+}
+
 // Luật mục 10: detail chỉ chứa định danh, enum, tên trường, số đếm, và định danh giả (HMAC).
 // KHÔNG BAO GIỜ chứa giá trị cá nhân thô. Canh lúc chạy, không chỉ bằng lời hứa.
 const scalar = z.union([
@@ -14,7 +39,11 @@ const scalar = z.union([
   // "từ chối" không bao giờ được ghi, đúng thất bại mà bẫy mục 3 cảnh báo.
   // Cho phép cả hai hoa/thường vẫn giữ đúng tinh thần luật mục 10 (chỉ định
   // danh/enum/tên trường, không phải văn bản tự do).
-  z.string().regex(/^[A-Za-z0-9_.:-]{1,64}$/), // enum, field_key, mã lý do
+  z.string()
+    .regex(/^[A-Za-z0-9_.:-]{1,64}$/) // enum, field_key, mã lý do
+    .refine((s) => !isDigitHeavyToken(s), {
+      message: 'chuỗi toàn chữ số (giống số điện thoại/CCCD/số tài khoản) — không phải token nghiệp vụ hợp lệ',
+    }),
   z.string().regex(/^[0-9a-f]{64}$/),         // định danh giả: HMAC-SHA256 hex
   z.number(), z.boolean(), z.null(),
 ]);
