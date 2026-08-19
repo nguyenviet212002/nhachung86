@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { resetDb } from './helpers/db.js';
 import { withActor } from '../src/core/tx.js';
-import { readContact } from '../src/core/privacy.js';
+import { readContact, contactStates } from '../src/core/privacy.js';
 import * as members from '../src/modules/members/service.js';
 import * as areas from '../src/modules/areas/service.js';
 
@@ -294,6 +294,23 @@ describe('T10.4 chặn đọc liên hệ CHÉO CỘNG ĐỒNG', () => {
     await expect(
       withActor(alice, (trx) => readContact(trx, eveOther, 'phone'))
     ).rejects.toThrow(/NO_TARGET/);
+  });
+
+  it('contactStates() lọc community_id, không chỉ lọc theo danh sách id truyền vào', async () => {
+    // Người gọi hôm nay luôn truyền ids đã lọc cộng đồng, nên nếu không có bài
+    // này thì bộ lọc community_id trong contactStates() là trang trí: gỡ ra
+    // không bài nào đỏ. Bài này gọi thẳng hàm với một id CỐ Ý sai cộng đồng.
+    const leaked = await withActor(alice, (trx) => contactStates(trx, alice, [eveOther], cid));
+    expect(leaked.get(eveOther), 'không được trả trạng thái của người thuộc cộng đồng khác').toBeUndefined();
+
+    // Và khẳng định đối chứng: cùng câu đó với ĐÚNG cộng đồng của Eve thì có dữ
+    // liệu — tức bài trên đỏ vì bộ lọc chứ không phải vì Eve không có hàng nào.
+    const real = await withActor(alice, (trx) => contactStates(trx, alice, [eveOther], otherCid));
+    expect(real.get(eveOther).phone).toMatchObject({ level: 'public' });
+  });
+
+  it('contactStates() từ chối chạy khi thiếu communityId thay vì im lặng bỏ lọc', async () => {
+    await expect(withActor(alice, (trx) => contactStates(trx, alice, [bob]))).rejects.toThrow(/communityId/);
   });
 
   it('GET hồ sơ người của cộng đồng khác trả NOT_FOUND', async () => {
