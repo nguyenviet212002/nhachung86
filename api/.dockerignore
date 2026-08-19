@@ -1,0 +1,25 @@
+# KHÔNG được chép node_modules của máy phát triển vào image.
+#
+# Dockerfile có hai tầng: tầng `deps` chạy `npm ci` TRONG alpine để biên dịch
+# đúng nền tảng, rồi tầng `runtime` chép node_modules đó sang. Nhưng ngay sau
+# đó là `COPY . .` — không có tệp này thì câu đó GHI ĐÈ node_modules vừa chép
+# bằng node_modules của máy chủ phát triển (Windows x64), và mọi gói có phần
+# native chết ngay lúc nạp:
+#
+#   Error loading shared library /app/node_modules/argon2/lib/binding/napi-v3/
+#   argon2.node: Exec format error   (ERR_DLOPEN_FAILED)
+#
+# Không ai thấy lỗi này cho tới khi có gói native đầu tiên — argon2 vào dự án ở
+# Task 7, và MỐC 1 của Task 9 là lần đầu stack được dựng lại sau đó. Migration
+# vẫn chạy trót lọt (knex/pg là JS thuần) nên `docker compose ps` chỉ hiện
+# api restart vòng lặp, còn proxy trả 502.
+node_modules
+npm-debug.log*
+
+# Bí mật không bao giờ đi vào image — cấu hình đến từ biến môi trường của
+# docker compose (xem config/index.js: nó đọc thẳng process.env).
+.env
+.env.*
+
+coverage
+.vitest

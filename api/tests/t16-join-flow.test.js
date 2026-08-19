@@ -217,6 +217,66 @@ describe('T16 duyệt xong: hộp liên hệ, 8 mức riêng tư, đúng MỘT c
 });
 
 // ---------------------------------------------------------------------------
+// Hai bài dưới đây ra đời từ MỐC 1: chạy luồng thật bằng `curl` mới lộ ra rằng
+// vỏ HTTP đang dùng camelCase của tầng JS ở hai chỗ, trong khi đặc tả (dòng
+// 773 và 775) nói snake_case. Không bài test nào bắt được vì mọi bài trước đều
+// gọi thẳng service, không đi qua vỏ.
+describe('T16 vỏ HTTP dùng snake_case đúng như đặc tả', () => {
+  it('/auth/otp/verify trả otp_token, và chính khoá đó nộp thẳng được cho /auth/register', async () => {
+    const phone = '0961000020';
+    let code;
+    const spy = vi.spyOn(consoleAdapter, 'send').mockImplementation(async (a) => { code = a.code; });
+    try {
+      await supertest(api).post('/api/v1/auth/otp/request').send({ phone, purpose: 'register' }).expect(202);
+    } finally {
+      spy.mockRestore();
+    }
+
+    const verify = await supertest(api).post('/api/v1/auth/otp/verify')
+      .send({ phone, code, purpose: 'register' });
+    expect(verify.status).toBe(200);
+    expect(verify.body.otp_token, 'đặc tả dòng 773: đầu ra là { otp_token }').toBeTruthy();
+    expect(verify.body.otpToken, 'không được rò quy ước camelCase của tầng JS ra vỏ HTTP').toBeUndefined();
+
+    // Nộp thẳng thân phản hồi vào bước kế tiếp — nếu hai bên lệch quy ước, câu
+    // này hỏng ngay chứ không phải chờ tới lúc nối frontend ở Task 11.
+    const reg = await supertest(api).post('/api/v1/auth/register').send({
+      otp_token: verify.body.otp_token,
+      phone,
+      full_name: 'Nop Bang Chinh Than Phan Hoi',
+      birth_year: 1986,
+      area_id: areaId,
+      referrer_id: await newMember('Bao Lanh Rieng'),
+      password: NEW_PASSWORD,
+      terms: true,
+    });
+    expect(reg.status, JSON.stringify(reg.body)).toBe(201);
+  });
+
+  it('/auth/login → /auth/refresh nối được bằng đúng tên khoá của đặc tả', async () => {
+    // Cùng lỗi quy ước, chiều ngược lại: /auth/refresh từng đòi `refreshToken`
+    // trong khi đặc tả dòng 775 nói `{ refresh_token }` — một client làm đúng
+    // đặc tả sẽ nhận VALIDATION_FAILED.
+    const password = 'mat-khau-de-dang-nhap-86';
+    const who = await newMember('Nguoi Dang Nhap');
+    await db.raw(`UPDATE members SET password_hash = ? WHERE id = ?`, [await argon2.hash(password), who]);
+    await db.raw(`UPDATE member_contacts SET phone = '0961000030' WHERE member_id = ?`, [who]);
+
+    const login = await supertest(api).post('/api/v1/auth/login')
+      .send({ identifier: '0961000030', password });
+    expect(login.status, JSON.stringify(login.body)).toBe(200);
+    expect(login.body.refresh).toBeTruthy();
+
+    const refreshed = await supertest(api).post('/api/v1/auth/refresh')
+      .send({ refresh_token: login.body.refresh });
+    expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
+    expect(refreshed.body.access).toBeTruthy();
+    expect(refreshed.body.refresh).toBeTruthy();
+    expect(refreshed.body.refresh, 'refresh token phải xoay vòng').not.toBe(login.body.refresh);
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe('T16 hai bảng nằm ngoài tầm với của app_role', () => {
   it('app_role KHÔNG ghi được vào member_relations — nếu service lỡ chạm sẽ chết', async () => {
     await expect(app.raw(

@@ -21,8 +21,12 @@ export const loginSchema = z.object({
   password: z.string().min(8),
 });
 
+// Đặc tả dòng 775: `{ refresh_token }`. Trước đây schema đòi `refreshToken`
+// (camelCase của tầng JS lọt ra vỏ HTTP) nên client làm đúng đặc tả sẽ nhận
+// VALIDATION_FAILED. Không bài test nào bắt được vì chưa bài nào gọi
+// /auth/refresh qua HTTP.
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(32),
+  refresh_token: z.string().min(32),
 });
 
 // Đăng ký — đặc tả dòng 770.

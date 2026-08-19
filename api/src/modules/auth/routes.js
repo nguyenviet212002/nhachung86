@@ -31,7 +31,12 @@ router.post('/otp/verify', otpLimit, validate(schema.otpVerifySchema), async (re
       code: req.body.code,
       purpose: req.body.purpose,
     });
-    res.json(result);
+    // snake_case ở LỚP VỎ HTTP, camelCase ở trong JS. Đặc tả dòng 773 nói đầu
+    // ra là `{ otp_token }`, và chính `/auth/register` (dòng 774) nhận lại khóa
+    // `otp_token` — trả `{ otpToken }` là bắt client tự dịch giữa hai quy ước
+    // trong cùng một luồng ba bước. Phát hiện khi chạy MỐC 1 bằng curl thật:
+    // mọi bài test trước đều gọi thẳng service nên không bài nào đi qua vỏ này.
+    res.json({ otp_token: result.otpToken });
   } catch (err) {
     next(err);
   }
@@ -103,7 +108,10 @@ router.post('/login', normalLimit, validate(schema.loginSchema), async (req, res
 
 router.post('/refresh', normalLimit, validate(schema.refreshSchema), async (req, res, next) => {
   try {
-    const result = await authService.refresh({ refreshToken: req.body.refreshToken });
+    // Cùng lỗi quy ước với /otp/verify, chỉ khác chiều: đặc tả dòng 775 nói
+    // đầu vào là `{ refresh_token }`. Tầng JS giữ camelCase, vỏ HTTP giữ
+    // snake_case — biên dịch nằm ở đúng một chỗ, là dòng này.
+    const result = await authService.refresh({ refreshToken: req.body.refresh_token });
     res.json(result);
   } catch (err) {
     next(err);
