@@ -616,16 +616,24 @@ CREATE FUNCTION contact_upsert(p_target uuid, p_field text, p_value text) RETURN
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_actor uuid := nullif(current_setting('app.actor_id', true), '')::uuid;
-  v_cur text; v_is_approver boolean;
+  v_cur text; v_is_approver boolean; v_cid uuid;
 BEGIN
   IF v_actor IS NULL THEN RAISE EXCEPTION 'NO_ACTOR'; END IF;
   IF p_field NOT IN ('phone','zalo','messenger','address') THEN
     RAISE EXCEPTION 'BAD_FIELD'; END IF;
 
+  SELECT community_id INTO v_cid FROM members WHERE id = p_target;
+  IF v_cid IS NULL THEN RAISE EXCEPTION 'NO_TARGET'; END IF;
+
   EXECUTE format('SELECT %I FROM member_contacts WHERE member_id = $1', p_field)
     INTO v_cur USING p_target;
+  -- v_cid lấy từ hàng members của p_target. Vế `mr.community_id = v_cid` KHÔNG được
+  -- bỏ: thiếu nó thì một approver của cộng đồng khác cũng thoả điều kiện, và ô liên
+  -- hệ được canh gắt nhất trở thành ô người ngoài cộng đồng điền hộ. Bản nháp đầu
+  -- của đặc tả này thiếu đúng vế đó — cùng họ với Ruling T7-a và T8-d.
   SELECT EXISTS (SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
-                  WHERE mr.member_id = v_actor AND r.key = 'approver') INTO v_is_approver;
+                  WHERE mr.member_id = v_actor AND mr.community_id = v_cid
+                    AND r.key = 'approver') INTO v_is_approver;
 
   -- chính chủ sửa bất cứ lúc nào; approver CHỈ được điền lần đầu, khi ô còn trống
   IF NOT (v_actor = p_target OR (v_is_approver AND v_cur IS NULL)) THEN
@@ -886,12 +894,19 @@ Mặc định khi tạo member: `phone`/`zalo` = `on_consent`; `address`/`family
 
 `reason_code ∈ { not_ready, no_meeting, referrer_misrepresented, other }`. Chỉ `referrer_misrepresented` mới đốt suất bảo lãnh vĩnh viễn, và `reason_code` được ghi vào `detail` của dòng nhật ký.
 
-`approve` chạy trong **một giao dịch**, và service chỉ làm đúng bốn việc:
+`approve` chạy trong **một giao dịch**, và service chỉ làm đúng năm việc:
 
-1. `INSERT INTO members (…, referrer_id, status='member')`
-2. `SELECT contact_upsert(<member_id>, 'phone', <số từ applicant_data>)`
-3. `UPDATE join_requests SET member_id = …, status='approved'`
-4. `audit.log(trx, { action: 'join_request.approved' })`
+1. `SELECT join_secret_consume(<request_id>)` — lấy số điện thoại và băm mật khẩu, **và đốt hàng đó luôn**
+2. `INSERT INTO members (…, referrer_id, password_hash, status='member')`
+3. `SELECT contact_upsert(<member_id>, 'phone', <số vừa lấy ở bước 1>)`
+4. `UPDATE join_requests SET member_id = …, status='approved'`
+5. `audit.log(trx, { action: 'join_request.approved' })`
+
+> **Số điện thoại và băm mật khẩu KHÔNG nằm trong `applicant_data`.** Bản nháp đầu để chúng ở đó, và `applicant_data` là cột `jsonb` mà `app_role` có `SELECT` — nghĩa là cả công sức tách `member_contacts` rồi `REVOKE ALL` bị vô hiệu bằng một route mới trả thẳng cột đơn. Chúng nằm ở bảng riêng `join_request_secrets` bị `REVOKE ALL` (mục 4.2), lối vào duy nhất là `join_secret_consume()` — hàm này **đốt hàng sau khi đọc**, nên bí mật của người nộp đơn không nằm lại trong CSDL sau khi đơn được duyệt.
+>
+> Vì cả năm việc nằm trong **cùng một giao dịch**, `approve()` hỏng ở bước sau bước 1 sẽ rollback và **bí mật được phục hồi nguyên vẹn** — đơn duyệt lại được, không mất gì. Đã kiểm chứng bằng thực nghiệm.
+>
+> Việc dọn `join_request_secrets` của đơn bị **từ chối** thì chưa có ai làm: nó cần khung tác vụ định kỳ. Đây là nợ đã ghi, không phải chỗ bỏ sót.
 
 **Service không chạm `member_contacts` và không chạm `member_relations`** — hai bảng đó nằm ngoài quyền của `app_role`. Hàng liên hệ rỗng, 8 mức riêng tư mặc định, và cạnh `guarantee` do `trg_member_bootstrap` (mục 4.7) sinh ra ngay sau bước 1.
 
@@ -1135,7 +1150,7 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `009_join_requests` | + `guarantee_quota_overrides` + `fn_guarantee_quota` + trigger chống chu trình |
 | `009a_join_request_secrets` | **Thêm ở Task 9** — `join_request_secrets` (số điện thoại thô + băm mật khẩu của người nộp đơn, `REVOKE ALL` rồi `GRANT INSERT`) + `join_secret_consume()`. Đánh số `009a` vì nó bổ sung cho chính `009` và không phụ thuộc gì ở `010`–`012`; nhờ vậy mọi số đã hẹn bên dưới giữ nguyên. Xem mục 4.2 và Ruling T8-f. |
 | `010_member_status_gate` | Trigger `MEMBER_NEEDS_MET_CONFIRMATION` + `fn_referrer_frozen` |
-| `011_work_records` | 3 bảng việc + `fn_self_only` + `fn_work_record_frozen` + `fn_manual_pair_quota` |
+| `011_work_records` | 3 bảng việc **và chỉ 3 bảng** — ba hàm `fn_self_only`, `fn_work_record_frozen`, `fn_manual_pair_quota` đã dời sang `025_work_triggers` (Task 12), vì gắn trigger uy tín trước khi có bảng đếm uy tín là dựng một cửa không ai canh |
 | `012_member_relations` | Bảng + `fn_work_edge` + `fn_member_bootstrap` + `contact_upsert` + thu quyền ghi + chỉ mục một chiều |
 | `013_capabilities` | + ảnh + chứng cứ |
 | `014_signals` | 5 bảng + `v_signal_recipients` |
