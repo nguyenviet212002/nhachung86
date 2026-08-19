@@ -388,10 +388,19 @@ async function issueTokens(trx, member, familyId) {
     action: 'auth.login',
     detail: {},
   });
+  // Soát xét độc lập Task 9 (Important): đây là bản `fullName` — cùng lỗi quy
+  // ước camelCase-lọt-ra-vỏ-HTTP mà otp/verify (`otpToken`) và refresh
+  // (`refreshToken`) đã mắc và được sửa, nhưng chỗ này lọt lại vì bị xác nhận
+  // chỉ bằng `curl` chọn ba route, không phải cả bốn. Xác nhận bằng `curl` thật
+  // (`POST /auth/login`): trước khi sửa, thân trả về có
+  // `"member":{"id":"...","fullName":"...","status":"..."}`. tests/t21-http-shape.test.js
+  // canh lại bằng một khẳng định chung (mọi khoá JSON phải khớp
+  // /^[a-z0-9_]+$/, đệ quy) thay vì chỉ khẳng định đúng bốn khoá của hôm nay —
+  // lưới đó bắt được cả lỗi cùng họ ở route chưa viết.
   return {
     access: signAccessToken(member),
     refresh: raw,
-    member: { id: member.id, fullName: member.full_name, status: member.status },
+    member: { id: member.id, full_name: member.full_name, status: member.status },
   };
 }
 

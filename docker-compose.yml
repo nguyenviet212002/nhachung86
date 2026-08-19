@@ -36,10 +36,15 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN}
       NODE_ENV: ${NODE_ENV}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/health"]
-      interval: 15s
-      retries: 5
+    # KHÔNG khai `healthcheck:` ở đây. compose ghi đè HOÀN TOÀN chỉ thị
+    # HEALTHCHECK của image (không hợp nhất), nên có một khối ở đây từng làm
+    # image chạy `node -e ...` (api/Dockerfile) trong khi container thật lại
+    # chạy `wget` — hai nơi tưởng nói cùng một việc nhưng chỉ một nơi có hiệu
+    # lực, và không nơi nào cảnh báo khi chúng lệch nhau. Soát xét độc lập Task
+    # 9 xác nhận bằng `docker inspect ... --format '{{json .Config.Healthcheck}}'`
+    # (ra `wget`, không phải `node`) và log truy cập có "user-agent":"Wget".
+    # Nguồn sự thật DUY NHẤT bây giờ là HEALTHCHECK trong api/Dockerfile — sửa
+    # cách kiểm tra thì sửa ở đó, không thêm lại khối này.
     networks: [nhachung_net]
 
   storage:
