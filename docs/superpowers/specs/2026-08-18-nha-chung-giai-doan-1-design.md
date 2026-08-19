@@ -418,6 +418,10 @@ CREATE TRIGGER trg_guarantee_quota
 
 Trigger bắt cả `UPDATE OF status`, nếu không thì lách bằng cách tạo mười đơn `draft` rồi đẩy lên `pending` một lượt.
 
+**`referrer_id` phải là khóa ngoại GHÉP `(referrer_id, community_id)`, không phải `REFERENCES members(id)`.** Với khóa ngoại đơn cột, `community_id` và `referrer_id` là hai ràng buộc độc lập, nên **một đơn của cộng đồng B trỏ được người bảo lãnh sang thành viên của cộng đồng A** — và khi đó hàm trên đọc `cap` từ `config` của B trong khi tiêu suất của một người thuộc A. Hạn mức của A bị chi tiêu bằng luật của B. Migration 004 đã cố ý để sẵn `UNIQUE members_id_cid (id, community_id)` cho đúng việc này. Áp dụng cho `join_requests.referrer_id`, `join_requests.member_id` và `guarantee_quota_overrides.referrer_id`; `met_confirmed_by`/`approved_by` giữ khóa đơn cột vì chúng do ứng dụng đặt sau khi đã kiểm cộng đồng và không nuôi hàm hạn mức nào.
+
+Vị từ của chỉ mục hạn mức phải phủ **cả** vế `rejected AND reject_reason_code = 'referrer_misrepresented'`. Bản nháp đầu chỉ liệt kê ba trạng thái đang hoạt động, tức đúng những hàng đốt suất vĩnh viễn thì rơi ra ngoài chỉ mục của chính câu đếm chúng.
+
 **Ai được vượt:** `guarantee_quota_overrides (referrer_id, extra_slots, reason, granted_by, valid_until)`. Cấp qua **khung hai người ký** (mục 7) — đây là quyết định về thành phần cộng đồng, cùng loại với "chấm dứt tư cách". Có thời hạn, nên nới lỏng tự hết hạn thay vì nằm lại vĩnh viễn.
 
 ### 4.4 `manual` là cửa đúc bậc uy tín
@@ -767,13 +771,19 @@ Cột "Log" là `action` ghi vào `audit_log`; dấu `—` nghĩa là không ghi
 |---|---|---|---|---|---|
 | POST | `/auth/otp/request` | công khai | `{ phone: vnPhone, purpose: 'register'\|'reset' }` | `204` | `otp.requested` |
 | POST | `/auth/otp/verify` | công khai | `{ phone, code: /^\d{6}$/, purpose }` | `{ otp_token }` (5 phút) | `otp.verified` / `otp.failed` |
-| POST | `/auth/register` | công khai | `{ otp_token, full_name, birth_year: 1986, area_id, referrer_id, password: min(8), terms: true }` | `{ join_request_id, step }` | `join_request.created` |
+| POST | `/auth/register` | công khai | `{ otp_token, phone: vnPhone, full_name, birth_year: 1986, area_id, referrer_id, password: min(8), terms: true }` | `{ join_request_id, step }` | `join_request.created` |
 | POST | `/auth/login` | công khai | `{ identifier, password }` | `{ access, refresh, member }` | `auth.login` / `auth.login.denied` |
 | POST | `/auth/refresh` | công khai | `{ refresh_token }` | `{ access, refresh }` | — |
 | POST | `/auth/logout-all` | member | — | `204` | `auth.logout_all` |
 | POST | `/auth/password/reset` | công khai | `{ otp_token, new_password }` | `204` | `auth.password_reset` |
 
 `birth_year` cố định 1986 nằm trong `communities.config`, **không nằm trong mã nguồn** — cộng đồng sau có thể là năm khác.
+
+> **`phone` được thêm vào `/auth/register` sau khi thi công Task 8 phát hiện bản nháp này tự mâu thuẫn.** Bảng trên không nhận số điện thoại, nhưng mục "Gia nhập" bên dưới lại đòi `approve` chạy `contact_upsert(<member_id>, 'phone', <số từ applicant_data>)`. Số đó **không suy ra được** từ `otp_token`: hệ thống cố ý chỉ lưu HMAC `phone_hash`, và HMAC không đảo ngược. Để nguyên thì luồng duyệt không có gì để điền vào hộp liên hệ.
+>
+> Số gửi lên **phải được đối chiếu với claim `ph` trong `otp_token`**. Không đối chiếu thì bất kỳ ai có một vé hợp lệ của số mình đều khai được số người khác vào `applicant_data`, và bước duyệt sẽ đem số đó gắn vào hồ sơ người mới — biến ô liên hệ được canh gắt nhất thành ô người lạ điền hộ.
+>
+> `otp_token` cũng **chỉ dùng được một lần**: claim `ch` mang id challenge, và `otp_challenges.consumed_at` đảm bảo nộp lần hai không tìm thấy hàng nào để cập nhật. Không mượn `status='expired'` cho việc này — "hết hạn theo thời gian" khác hẳn "đã dùng để lập đơn".
 
 Access token 15 phút, refresh 30 ngày. `refresh_tokens (id, member_id, token_hash, family_id, issued_at, expires_at, revoked_at, replaced_by)` — lưu **băm**, không lưu token; xoay vòng khi dùng; phát hiện dùng lại token cũ thì thu hồi cả `family_id`.
 
@@ -812,7 +822,13 @@ Ngân sách của kẻ dò sau khi siết: tối đa ~15 lần đoán mỗi 15 p
 
 #### Không để thông báo lỗi thành công cụ dò danh sách
 
-- **`/auth/register`:** `referrer_id` không tồn tại, `referrer_id` không phải member, và `referrer_id` đúng nhưng hết hạn mức — cả ba trả **cùng một lỗi** `REFERRAL_UNAVAILABLE` với cùng câu tiếng Việt. Ba nhánh chạy trong cùng một giao dịch và phản hồi được đệm tới **thời lượng cố định tối thiểu 300ms** để không lộ qua thời gian. Đệm thời gian ở tầng HTTP chỉ là xấp xỉ — nó cộng với rate limit là đủ ở quy mô này, và tôi nói rõ giới hạn đó thay vì gọi nó là chống rò rỉ tuyệt đối.
+- **`/auth/register`:** `referrer_id` không tồn tại, `referrer_id` không phải member, và `referrer_id` đúng nhưng hết hạn mức — cả ba trả **cùng một lỗi** `REFERRAL_UNAVAILABLE` với cùng câu tiếng Việt. Ba nhánh chạy trong cùng một giao dịch và phản hồi được đệm tới **thời lượng cố định** để không lộ qua thời gian. Đệm thời gian ở tầng HTTP chỉ là xấp xỉ — nó cộng với rate limit là đủ ở quy mô này, và tôi nói rõ giới hạn đó thay vì gọi nó là chống rò rỉ tuyệt đối.
+
+  **Sàn đệm: 700ms, không phải 300ms.** Bản nháp đầu viết 300ms và con số đó **không che được gì**. Đo thật ba nhánh khi tắt đệm cho thấy nhánh "hết hạn mức" luôn chậm hơn hai nhánh kia một cách **cấu trúc** — nó còn chèn hàng, chạy trigger hạn mức và lấy khóa tư vấn, trong khi hai nhánh kia hỏng ngay ở câu tra cứu. Hai lần đo độc lập trên hai máy khác nhau: 250/262/**342**ms và 86/86/**133**ms. Con số tuyệt đối không tái lập được (phụ thuộc phần cứng), nhưng nhánh chậm nhất **vượt sàn 300ms trên máy chậm**, và khi đã vượt sàn thì nó không được đệm chút nào — vẫn lộ nguyên chênh lệch. Luật thay cho số cứng: **sàn phải ≥ 2× nhánh chậm nhất đo được trên phần cứng triển khai thật**, và bài test phải khẳng định theo hằng số xuất ra từ mã nguồn chứ không chép lại con số. Đăng ký là việc một người làm đúng một lần trong đời, nên 700ms không đổi lấy gì đáng kể.
+
+  **Che câu chữ thôi là che một nửa — ba nhánh còn phải để lại cùng một *trạng thái*.** Nhánh hết hạn mức hỏng bằng `RAISE EXCEPTION` từ trigger, và một ngoại lệ chưa bắt **hủy cả giao dịch**, kéo theo cả việc tiêu vé `otp_token` lẫn dòng nhật ký từ chối. Khi đó kẻ dò chỉ cần nộp lại vé cũ: còn dùng được nghĩa là vừa trúng nhánh hạn mức. Câu `INSERT` phải được bọc bằng **SAVEPOINT** để cuộn lại đúng câu hỏng, giao dịch ngoài sống tiếp và vẫn commit được cả hai việc kia. Không bọc thì còn hỏng nặng hơn: giao dịch bị nhiễm độc làm câu `auditLog` kế tiếp cũng lỗi (`current transaction is aborted`), và người dùng nhận HTTP 500 thay vì 422.
+
+  **Đăng ký là đường công khai nên không có `req.actor`**, mà `errorHandler` chỉ gọi `logDenied` khi có actor. Không ghi nhật ký ngay trong giao dịch thì một người dò hàng trăm uuid không để lại dấu vết nào. Dòng `join_request.denied` được ghi bằng `audit.log(trx, …)` trực tiếp — luật "`errorHandler` là nơi duy nhất gọi `logDenied`" vẫn nguyên vẹn.
 - **`/auth/login`:** sai `identifier` và sai `password` trả **cùng** `INVALID_CREDENTIALS`. Khi `identifier` không tồn tại, vẫn chạy so khớp mật khẩu với một **băm giả cố định** — nếu bỏ qua bước này, thời gian phản hồi tự nó tiết lộ số nào đã là thành viên.
 
 #### Khu vực và con người

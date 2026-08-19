@@ -1985,6 +1985,29 @@ export async function up(knex) {
 }
 ```
 
+**Năm chỗ sai trong khối DDL trên, đã sửa khi thi công** — bản chạy thật là
+`api/src/db/migrations/009_join_requests.js`, khối trên chỉ còn giá trị lịch sử:
+
+1. **`referrer_id uuid REFERENCES members(id)` là khóa ngoại đơn cột.** Đơn của cộng đồng B
+   trỏ được người bảo lãnh sang thành viên của cộng đồng A, và hạn mức của A bị chi tiêu bằng
+   `config` của B. Dùng khóa ghép `(referrer_id, community_id)` — migration 004 đã để sẵn
+   `UNIQUE members_id_cid` cho đúng việc này. Áp cho cả `member_id` và
+   `guarantee_quota_overrides.referrer_id`. (Đã kiểm chứng: đổi về đơn cột ⇒ bài test đỏ.)
+2. **Không có cột chứa `met_on`.** `POST /confirm-met` nhận `{ met_on, note }`, nhưng DDL chỉ
+   có `met_confirmed_at` — *lúc lời khai được ghi*, khác hẳn *ngày hai người thật sự gặp nhau*.
+   Thêm `met_on date`.
+3. **Một cột `note` cho hai việc.** Đơn đã confirm-met rồi bị reject sẽ bị lời khai gặp mặt
+   **ghi đè** bởi lý do từ chối — mất đúng bằng chứng mà cổng `met_confirmed` sinh ra để giữ.
+   Tách `met_note`.
+4. **Vị từ `idx_jr_quota` không phủ hết vế `WHERE` của chính hàm hạn mức** — nó bỏ sót
+   `rejected AND reject_reason_code = 'referrer_misrepresented'`, tức đúng những hàng đốt suất
+   vĩnh viễn thì rơi ra ngoài chỉ mục.
+5. **Thiếu `otp_challenges.consumed_at`.** `otp_token` là vé mang theo; không có gì trong bản
+   thân JWT ngăn nộp cùng một vé ba lần trong 5 phút để lập ba đơn.
+
+Và một phán quyết về tên tệp: kế hoạch ghi `t06-guarantee-quota.test.js` nhưng `t06-envelope`
+đã chiếm chỗ từ Task 6. Tệp thật là **`api/tests/t08-guarantee-quota.test.js`**.
+
 - [ ] **Step 2: Thêm `fn_guarantee_quota` vào cùng migration**
 
 Sao chép nguyên văn khối SQL ở **mục 4.3 của spec** (bản đã sửa, đọc hạn mức từ `communities.config`). Điểm bắt buộc giữ nguyên: `pg_advisory_xact_lock` theo `referrer_id`, trigger bắt cả `BEFORE INSERT OR UPDATE OF status`, và đơn `rejected` với `reason_code='referrer_misrepresented'` vẫn tính vào hạn mức.
@@ -2050,16 +2073,23 @@ describe('T6 hạn mức bảo lãnh', () => {
     ).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
   });
 
+  // ⚠️ KHUNG DƯỚI ĐÂY LÀ BÀI TEST GIẢ — GIỮ LẠI LÀM VÍ DỤ PHẢN DIỆN, ĐỪNG CHÉP.
+  // Task 8 chép đúng khung này, chạy xanh, rồi GỠ pg_advisory_xact_lock ra —
+  // VẪN XANH. `const p2 = insert(tb)` chỉ TẠO promise; câu lệnh của giao dịch thứ
+  // hai tới máy chủ trước hay sau `await ta.commit()` là do bộ lập lịch Node
+  // quyết định, và thực tế nó thường tới SAU. Khi đó giao dịch thứ hai đếm ra 3
+  // và hỏng — bài test có đúng kết quả mong đợi nhưng vì lý do hoàn toàn khác,
+  // và nó không phân biệt được hai lý do. Nó sẽ báo xanh vào đúng ngày ai đó gỡ
+  // khóa tư vấn vì thấy nó "làm chậm".
   it('hai đơn ĐỒNG THỜI thì chỉ một cái qua', async () => {
     const a = ownerKnex(), b = ownerKnex();
     const ta = await a.transaction(), tb = await b.transaction();
     const insert = (t) => t.raw(
       `INSERT INTO join_requests (community_id, applicant_data, referrer_id, status)
        VALUES (?, '{}'::jsonb, ?, 'pending')`, [cid, fresh]);
-    // Cả hai cùng ở suất thứ 3 → advisory lock buộc xếp hàng, cái sau thấy count đã đủ
     const r1 = await insert(ta).then(() => 'ok').catch(() => 'fail');
     const p2 = insert(tb).then(() => 'ok').catch(() => 'fail');
-    await ta.commit();
+    await ta.commit();   // ← không có gì bảo đảm p2 đã tới máy chủ trước dòng này
     const r2 = await p2;
     await tb.rollback().catch(() => {});
     expect([r1, r2].filter(x => x === 'ok').length).toBe(1);
@@ -2067,6 +2097,16 @@ describe('T6 hạn mức bảo lãnh', () => {
   });
 });
 ```
+
+**Bản đúng** (xem `api/tests/t08-guarantee-quota.test.js`): trước khi commit giao dịch thứ
+nhất, dùng **kết nối thứ ba** đọc `pg_locks` và chờ tới khi giao dịch thứ hai **thật sự đang
+xếp hàng** sau một khóa tư vấn (`locktype = 'advisory' AND NOT granted`). Có khóa thì điều
+kiện này đạt được; không có khóa thì không bao giờ đạt, hết giờ, và assertion đỏ — **đỏ vì
+đúng lý do**. Đã kiểm chứng độc lập: gỡ `pg_advisory_xact_lock` ⇒ bài test mới đỏ, khôi phục
+⇒ xanh.
+
+**Luật rút ra, áp cho mọi bài test chạy đua về sau:** một bài test đồng thời phải có **điểm
+đồng bộ quan sát được từ phía máy chủ**. Xếp lịch promise trong Node không phải điểm đồng bộ.
 
 - [ ] **Step 5: Chạy T6, xác nhận thất bại rồi xanh**
 
@@ -2088,6 +2128,20 @@ git commit -m "feat(join): join_requests + han muc bao lanh 12 thang truot + con
 ---
 
 ## Task 9: `member_relations`, trigger khởi tạo hồ sơ, và **MỐC 1 — luồng gia nhập chạy đầu-cuối**
+
+> **Việc bắt buộc thừa kế từ Task 8 — không được hoãn thêm một task nữa.**
+> `join_requests.applicant_data` là cột `jsonb` mà `app_role` có `SELECT`, và nó đang chứa
+> **số điện thoại thô** cùng **băm mật khẩu** của người chưa phải thành viên. Cả kiến trúc bỏ
+> công tách `member_contacts` rồi `REVOKE ALL` để một route viết ẩu không làm lộ số điện thoại
+> — nếu một route mới `SELECT applicant_data` rồi trả thẳng thì công đó đổ sông, chỉ khác là
+> lộ qua đơn thay vì qua hồ sơ. Task 8 đã bịt bằng **danh sách cho phép** ở tầng service
+> (`publicApplicantData`, ba trường), nhưng đó là lời hứa của ứng dụng, không phải ràng buộc
+> của CSDL — đúng thứ mà nguyên tắc "ép ở tầng dữ liệu" sinh ra để không phải tin.
+>
+> Task 8 cố ý không làm vì hàm `SECURITY DEFINER` hẹp cho việc này chỉ có **đúng một người gọi
+> hợp lệ là `approve()`**, mà `approve()` là Task 9 — viết trước nghĩa là dựng một cửa không ai
+> canh. Task 9 có cả hai, nên phải làm dứt điểm: tách số điện thoại và băm mật khẩu sang bảng
+> riêng bị `REVOKE ALL`, đọc qua một hàm hẹp theo đúng khuôn `member_contacts`/`contact_read`.
 
 **Files:**
 - Create: `api/src/db/migrations/011_work_records.js` (chỉ phần bảng, để Task 12 thêm trigger uy tín)
