@@ -6,6 +6,7 @@ import { config } from '../src/config/index.js';
 import { requestOtp, verifyOtp } from '../src/modules/auth/service.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
 import { buildApp } from '../src/app.js';
+import { REGISTER_MIN_MS } from '../src/modules/auth/routes.js';
 
 let db, cid, areaId;
 
@@ -417,10 +418,14 @@ describe('T8 POST /auth/register — ba nhánh hỏng không phân biệt đư�
       results.push({ res, ms: Date.now() - startedAt });
     }
 
+    // Sàn thời gian phải là sàn THẬT cho MỌI nhánh. Khẳng định theo hằng số
+    // được xuất ra chứ không chép lại con số: nếu ai đó hạ sàn xuống dưới mức
+    // đặc tả đòi, dòng dưới bắt được; nếu đệm bị gỡ, ba dòng trên bắt được.
+    expect(REGISTER_MIN_MS, 'đặc tả dòng 815 đòi tối thiểu 300ms').toBeGreaterThanOrEqual(300);
     for (const { res, ms } of results) {
       expect(res.status).toBe(422);
       expect(res.body.error.code).toBe('REFERRAL_UNAVAILABLE');
-      expect(ms).toBeGreaterThanOrEqual(300);
+      expect(ms).toBeGreaterThanOrEqual(REGISTER_MIN_MS);
     }
     const messages = new Set(results.map((r) => r.res.body.error.message));
     expect(messages.size, `ba nhánh phải cùng MỘT câu, đang có: ${[...messages].join(' | ')}`).toBe(1);

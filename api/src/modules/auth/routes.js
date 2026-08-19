@@ -37,13 +37,26 @@ router.post('/otp/verify', otpLimit, validate(schema.otpVerifySchema), async (re
   }
 });
 
-// Đệm thời lượng cố định tối thiểu cho /register (đặc tả dòng 815). GIỚI HẠN
-// ĐÃ BIẾT, giữ nguyên lời thừa nhận của đặc tả: đệm ở tầng HTTP chỉ là XẤP XỈ.
-// Nó không che được chênh lệch dùng CPU, không che được tải đồng thời, và một
-// kẻ đo đủ nhiều mẫu vẫn thấy đuôi phân bố. Nó CỘNG với rate limit 60 lần/phút
-// là đủ ở quy mô ~52 người — đây không phải chống rò rỉ tuyệt đối, và không
-// nên bị gọi tên như vậy trong bất kỳ tài liệu nào về sau.
-const REGISTER_MIN_MS = 300;
+// Đệm thời lượng cố định cho /register (đặc tả dòng 815).
+//
+// GIỚI HẠN ĐÃ BIẾT, giữ nguyên lời thừa nhận của đặc tả: đệm ở tầng HTTP chỉ
+// là XẤP XỈ. Nó không che được chênh lệch dùng CPU, không che được tải đồng
+// thời, và một kẻ đo đủ nhiều mẫu vẫn thấy đuôi phân bố. Nó CỘNG với rate
+// limit 60 lần/phút là đủ ở quy mô ~52 người — đây không phải chống rò rỉ
+// tuyệt đối, và không nên bị gọi tên như vậy trong bất kỳ tài liệu nào về sau.
+//
+// 700ms chứ không phải 300ms, và con số này đến từ ĐO ĐẠC chứ không từ cảm
+// tính. Tắt đệm rồi đo ba nhánh hỏng trên máy phát triển: 250ms (referrer
+// không tồn tại) / 262ms (không phải member) / 342ms (hết hạn mức — nhánh này
+// còn chèn hàng, chạy trigger và lấy khóa tư vấn). Với sàn 300ms, nhánh chậm
+// nhất VƯỢT sàn, nên nó không được đệm chút nào và vẫn lộ ra chênh lệch ~90ms
+// so với hai nhánh kia — tức con số 300 trong đặc tả KHÔNG làm được việc mà nó
+// được viết ra để làm. Đặc tả nói "tối thiểu 300ms", nên nâng lên là vẫn đúng
+// đặc tả. Đăng ký là việc một người làm đúng một lần trong đời; 700ms không
+// phải cái giá đáng cân nhắc.
+//
+// Xuất ra để bài test khẳng định đúng bất biến này thay vì chép lại con số.
+export const REGISTER_MIN_MS = 700;
 
 async function padTo(startedAt, minMs) {
   const remaining = minMs - (Date.now() - startedAt);
