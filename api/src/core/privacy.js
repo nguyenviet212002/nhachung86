@@ -21,17 +21,27 @@ export async function readContact(trx, targetId, field) {
  * và contact_requests (hai bảng thường, app_role đọc trực tiếp được) — không
  * chạm member_contacts, nên không có giá trị liên hệ nào rời khỏi hàm này.
  */
-export async function contactStates(trx, viewerId, targetIds) {
+export async function contactStates(trx, viewerId, targetIds, communityId) {
   if (targetIds.length === 0) return new Map();
+  // communityId là THAM SỐ BẮT BUỘC, không phải tuỳ chọn. Bản đầu (Task 6) chỉ
+  // lọc theo targetIds và dựa vào lời hứa "người gọi đã lọc cộng đồng rồi" —
+  // đúng hình dạng lỗi đã lặp năm lần trong dự án (Ruling T7-a, T8-d, hai chỗ
+  // ở Task 9, mã mẫu contact_upsert). Tham số bắt buộc làm chỗ quên trở thành
+  // lỗi thấy được ngay (SQL nhận NULL ⇒ không trả hàng nào) chứ không phải một
+  // đường rò im lặng. Xem thêm migration 012a: cùng lỗ hổng, phía CSDL.
+  if (!communityId) {
+    throw new Error('contactStates() cần communityId — mọi truy vấn theo cộng đồng phải lọc community_id');
+  }
   const { rows } = await trx.raw(
     `SELECT ps.member_id, ps.field_key, ps.level,
             cr.id AS request_id, cr.status AS request_status
        FROM privacy_settings ps
        LEFT JOIN contact_requests cr
          ON cr.target_id = ps.member_id AND cr.field_key = ps.field_key
-        AND cr.requester_id = ?
-      WHERE ps.member_id = ANY(?) AND ps.field_key = ANY(?)`,
-    [viewerId, targetIds, FIELDS]
+        AND cr.requester_id = ? AND cr.community_id = ?
+      WHERE ps.member_id = ANY(?) AND ps.field_key = ANY(?)
+        AND ps.community_id = ?`,
+    [viewerId, communityId, targetIds, FIELDS, communityId]
   );
   const map = new Map();
   for (const r of rows) {

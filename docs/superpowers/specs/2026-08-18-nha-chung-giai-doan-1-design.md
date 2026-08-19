@@ -880,7 +880,11 @@ Ngân sách của kẻ dò sau khi siết: tối đa ~15 lần đoán mỗi 15 p
 
 Mặc định khi tạo member: `phone`/`zalo` = `on_consent`; `address`/`family` = `closed`; còn lại `public`.
 
-`GET /members` ghi **một** dòng log cho cả trang (`{"count":20,"filters":{…}}`), không phải 20 dòng — xem danh bạ là hành vi bình thường, chỉ cần đếm được ai duyệt danh bạ bao nhiêu lần.
+`GET /members` ghi **một** dòng log cho cả trang, không phải 20 dòng — xem danh bạ là hành vi bình thường, chỉ cần đếm được ai duyệt danh bạ bao nhiêu lần.
+
+> **Hình dạng `detail` phải PHẲNG, không phải `{"count":20,"filters":{…}}` như bản nháp đầu viết.** `assertSafeDetail` (`core/audit.js`, luật mục 10) là `z.record(scalar | scalar[])` — một object lồng bên trong `detail` bị từ chối thẳng, nên hình dạng có khoá `filters` **không chạy được**. Phát hiện ở Task 10.
+>
+> Và **`q`/`job` không bao giờ được ghi nguyên văn**: cả hai là văn bản tự do người dùng gõ, mà người ta tìm danh bạ bằng số điện thoại là chuyện thường — đúng thứ luật mục 10 cấm. Chỉ ghi `has_q`/`has_job` dạng boolean. Các bộ lọc còn lại (`status`, `work_status`, `area_id`) là enum/uuid nên ghi thẳng được.
 
 #### Gia nhập
 
@@ -948,8 +952,11 @@ export async function readContact(trx, targetId, field) {
 }
 
 // 2. Dựng bao bì trạng thái cho một danh sách người — MỘT truy vấn cho cả trang.
-export async function contactStates(trx, viewerId, targetIds) { … }
+//    communityId là tham số BẮT BUỘC, xem ghi chú bên dưới.
+export async function contactStates(trx, viewerId, targetIds, communityId) { … }
 ```
+
+> **`communityId` được thêm vào chữ ký ở Task 10 và nó bắt buộc, không tuỳ chọn.** Bản đầu chỉ lọc theo `targetIds` rồi dựa vào lời hứa "người gọi đã lọc cộng đồng rồi" — đúng hình dạng lỗi đã lặp năm lần trong dự án (Ruling T7-a, T8-d, hai chỗ ở Task 9, mã mẫu `contact_upsert` mục 4.7). Tham số bắt buộc biến chỗ quên thành lỗi thấy được ngay thay vì một đường rò im lặng. Cùng lỗ hổng ở phía CSDL được bịt bằng migration `012a`.
 
 ### Bài toán N+1: không tồn tại, và đó là do thiết kế chứ không do may
 
@@ -1152,6 +1159,7 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `010_member_status_gate` | Trigger `MEMBER_NEEDS_MET_CONFIRMATION` + `fn_referrer_frozen` |
 | `011_work_records` | 3 bảng việc **và chỉ 3 bảng** — ba hàm `fn_self_only`, `fn_work_record_frozen`, `fn_manual_pair_quota` đã dời sang `025_work_triggers` (Task 12), vì gắn trigger uy tín trước khi có bảng đếm uy tín là dựng một cửa không ai canh |
 | `012_member_relations` | Bảng + `fn_work_edge` + `fn_member_bootstrap` + `contact_upsert` + thu quyền ghi + chỉ mục một chiều |
+| `012a_contact_read_community` | **Thêm ở Task 10** — `CREATE OR REPLACE contact_read` để nó tự kiểm **người xem và người bị xem cùng một cộng đồng**. Bản ở `006` chỉ đọc `community_id` của người bị xem mà không bao giờ so với người xem, nên một người ở cộng đồng A đọc được số điện thoại thật của người ở cộng đồng B (đã tái hiện: `{allowed: true, value: '09…'}`). Trước Task 10 lỗ này không có đường vào vì chưa route nào gọi `contact_read`. Đánh số `012a` vì `013` đã hẹn cho `013_capabilities`; điều kiện an toàn của Ruling T9-d thỏa hiển nhiên (nó được **nối vào đuôi**, không chèn giữa). **Migration `015` khi `CREATE OR REPLACE` hàm này lần nữa phải giữ nguyên hai câu kiểm cộng đồng đó.** |
 | `013_capabilities` | + ảnh + chứng cứ |
 | `014_signals` | 5 bảng + `v_signal_recipients` |
 | `015_jobs` | + `intro_three_consents` |

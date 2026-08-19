@@ -2316,13 +2316,15 @@ git commit -m "feat(join): MOC 1 — luong gia nhap chay dau-cuoi
 **Files:**
 - Create: `api/src/modules/members/{routes,service,schema}.js`, `api/src/modules/areas/{routes,service}.js`
 - Modify: `api/src/app.js`
-- Test: `api/tests/t05-three-consents.test.js` (phần 1/3, hoàn tất ở Task 13)
+- Test: `api/tests/t10-directory.test.js` (tên `t05-three-consents.test.js` ở bản đầu **va chạm** với `t05-contact-read-branches.test.js` đã có từ Task 6; `t10-grants.test.js` cũng đã tồn tại nên `t10-directory` là tên không đụng), cộng bốn route mới thêm vào `api/tests/t21-http-shape.test.js` theo Ruling T9-e
 
 **Interfaces:**
 - Consumes: `privacy.contactStates`, `privacy.envelope`, `privacy.readContact`, `requireAuth`.
 - Produces: `memberService.list({ actor, filters, page, limit })`, `.get({ actor, id })`, `.readContactField({ actor, id, field })`.
 
 - [ ] **Step 1: Viết `members/service.js` — danh sách, MỘT truy vấn trạng thái cho cả trang**
+
+> Ba sai lệch của khung dưới đây, đã sửa trong bản thi công: (a) `count(*) OVER ()` rồi đọc `rows[0]?.total ?? 0` báo **`total = 0` cho một trang rỗng** (bấm quá trang cuối ⇒ danh bạ "biến mất") — dùng câu đếm riêng dùng chung vị từ `WHERE`; (b) thiếu hai bộ lọc `q` và `work_status` mà **bảng API mục 5 đặc tả có**; (c) `ILIKE '%' || ? || '%'` tham số hóa nên không tiêm SQL được, nhưng `%`/`_` người dùng gõ vẫn là **ký tự đại diện của chính LIKE** — một chữ `%` biến bộ lọc thành "khớp tất cả", phải thoát.
 
 ```js
 export async function list({ actor, filters, page = 1, limit = 20 }) {
@@ -2362,12 +2364,15 @@ export async function list({ actor, filters, page = 1, limit = 20 }) {
 
 - [ ] **Step 2: Viết `readContactField` — lối vào DUY NHẤT của `contact_read`**
 
+> ⚠️ **KHUNG DƯỚI ĐÂY LÀ VÍ DỤ PHẢN DIỆN — nó mắc đúng bẫy mục 3.** `contact_read` **tự ghi** dòng `contact.denied` **trong giao dịch đang mở** rồi mới trả `allowed = false` (nó cố ý không RAISE). Ném `AppError` ngay tại đó cuộn cả giao dịch và **xoá luôn dòng nhật ký vừa ghi** ⇒ mọi lượt bị từ chối xem số điện thoại đều không để lại dấu vết, kẻ dò hồ sơ trở nên vô hình. Giữ khung sai ở đây làm ví dụ, giống Ruling T8-a. Bản đúng ở `api/src/modules/members/service.js`: giao dịch **luôn commit** và trả `{kind, …}`, `AppError` ném **sau** khi commit.
+
 ```js
+// ❌ SAI — đừng chép
 export async function readContactField({ actor, id, field }) {
   return withActor(actor.id, async (trx) => {
     const r = await readContact(trx, id, field);      // hàm này tự ghi log, cả khi từ chối
     if (!r.allowed) {
-      throw new AppError(
+      throw new AppError(                             // ← rollback xoá dòng contact.denied
         r.reason === 'CLOSED' ? 'CONTACT_CLOSED' : 'CONTACT_NEEDS_CONSENT',
         r.reason === 'CLOSED'
           ? 'Chủ hồ sơ đã đóng thông tin này.'

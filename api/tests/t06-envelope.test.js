@@ -63,7 +63,7 @@ afterAll(async () => { await db.destroy(); });
 
 describe('T6 contactStates() — một truy vấn cho cả trang', () => {
   it('trả đúng bao bì cho nhiều người trong một lần gọi', async () => {
-    const states = await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol]));
+    const states = await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol], cid));
 
     expect(states.get(bob).phone).toMatchObject({ level: 'public' });
     expect(states.get(bob).zalo).toMatchObject({ level: 'on_consent', requestStatus: 'approved' });
@@ -83,7 +83,7 @@ describe('T6 contactStates() — một truy vấn cho cả trang', () => {
     // contact_read, mỗi dòng sẽ tạo một dòng audit_log 'contact.read' —
     // ở đây phải là 0.
     const before = (await db.raw(`SELECT count(*)::int AS n FROM audit_log`)).rows[0].n;
-    await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol]));
+    await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol], cid));
     const after = (await db.raw(`SELECT count(*)::int AS n FROM audit_log`)).rows[0].n;
     expect(after).toBe(before);
   });
@@ -91,7 +91,7 @@ describe('T6 contactStates() — một truy vấn cho cả trang', () => {
 
 describe('T6 envelope() — value luôn null, kể cả self và visible', () => {
   it('duyệt đủ sáu trạng thái: value === null ở mọi trạng thái', async () => {
-    const states = await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol]));
+    const states = await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol], cid));
     const eBob = envelope(states.get(bob), { viewerId: alice, targetId: bob });
     const eSelf = envelope(states.get(bob), { viewerId: bob, targetId: bob });
     const eCarol = envelope(states.get(carol), { viewerId: alice, targetId: carol });

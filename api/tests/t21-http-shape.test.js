@@ -187,4 +187,97 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
 
     assertSnakeKeys(res.body);
   });
+
+  // -------------------------------------------------------------------------
+  // Task 10 — bốn route danh bạ. Thêm vào đây theo đúng luật ở Ruling T9-e:
+  // assertSnakeKeys chỉ soi những phản hồi mà bài test chịu khó gọi tới, nên
+  // route mới KHÔNG được thêm vào t21 là route không có lưới nào canh lớp vỏ.
+  //
+  // `contacts` là object có khoá ĐỘNG theo nghĩa "khoá là tên trường liên hệ"
+  // (phone/zalo/messenger/address) — bốn tên này đều đã là snake_case nên luật
+  // chung vẫn áp được nguyên vẹn, không cần khai ngoại lệ.
+  // -------------------------------------------------------------------------
+  async function accessTokenForAlice() {
+    const login = await supertest(api)
+      .post('/api/v1/auth/login')
+      .send({ identifier: ALICE_PHONE, password: ALICE_PASSWORD });
+    expect(login.status, JSON.stringify(login.body)).toBe(200);
+    return { token: login.body.access, memberId: login.body.member.id };
+  }
+
+  it('GET /areas trả data[] với id, name, parent_id, children', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api).get('/api/v1/areas').set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data[0]).toMatchObject({ id: areaId, name: 'Khu T21', parent_id: null });
+    expect(Array.isArray(res.body.data[0].children)).toBe(true);
+    expect(res.body.data[0].parentId, 'không rò camelCase').toBeUndefined();
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /members trả { data, meta{page,limit,total} } và contacts.*.value luôn null', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api).get('/api/v1/members?page=1&limit=20').set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 20 });
+    expect(typeof res.body.meta.total).toBe('number');
+    expect(res.body.data.length).toBeGreaterThan(0);
+
+    const row = res.body.data[0];
+    expect(row.full_name).toBeTruthy();
+    expect(row.fullName, 'không rò camelCase').toBeUndefined();
+    expect(row.workStatus, 'không rò camelCase').toBeUndefined();
+    expect(row.avatarUrl, 'không rò camelCase').toBeUndefined();
+
+    // Việc quan trọng nhất của Task 10, canh lại ở đúng lớp vỏ: số điện thoại
+    // KHÔNG được có mặt trong thân phản hồi danh sách dưới bất kỳ hình dạng nào.
+    for (const m of res.body.data) {
+      for (const f of Object.values(m.contacts)) expect(f.value).toBeNull();
+    }
+    expect(JSON.stringify(res.body)).not.toContain(ALICE_PHONE);
+
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /members/:id trả hồ sơ + contacts, không rò email/lat/lng', async () => {
+    const { token, memberId } = await accessTokenForAlice();
+    const res = await supertest(api).get(`/api/v1/members/${memberId}`).set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    expect(res.body.id).toBe(memberId);
+    expect(res.body.full_name).toBe(ALICE_FULL_NAME);
+    expect(res.body.contacts.phone.state).toBe('self');
+    expect(res.body.contacts.phone.value).toBeNull();
+    for (const forbidden of ['email', 'lat', 'lng', 'password_hash', 'community_id']) {
+      expect(res.body[forbidden], `hồ sơ không được chứa ${forbidden}`).toBeUndefined();
+    }
+    expect(JSON.stringify(res.body)).not.toContain(ALICE_PHONE);
+
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /members/:id/contacts/:field trả { value } — cửa DUY NHẤT có số thật', async () => {
+    const { token, memberId } = await accessTokenForAlice();
+    const res = await supertest(api)
+      .get(`/api/v1/members/${memberId}/contacts/phone`)
+      .set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body).toEqual({ value: ALICE_PHONE });
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /members/:id/contacts/:field từ chối tên trường lạ ở vỏ ngoài (400, không phải 500)', async () => {
+    const { token, memberId } = await accessTokenForAlice();
+    // Chặn ở zod TRƯỚC khi chạm contact_read: nhánh BAD_FIELD của hàm CSDL
+    // RAISE EXCEPTION, và ngoại lệ chưa bắt sẽ thành HTTP 500 (bẫy 2).
+    const res = await supertest(api)
+      .get(`/api/v1/members/${memberId}/contacts/password_hash`)
+      .set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    assertSnakeKeys(res.body);
+  });
 });

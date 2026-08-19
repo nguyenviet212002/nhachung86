@@ -4,6 +4,8 @@ import { httpLogger } from './middleware/httpLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { router as authRouter } from './modules/auth/routes.js';
 import { router as joinRequestsRouter } from './modules/join-requests/routes.js';
+import { router as membersRouter } from './modules/members/routes.js';
+import { router as areasRouter } from './modules/areas/routes.js';
 
 export function buildApp() {
   const app = express();
@@ -50,6 +52,8 @@ export function buildApp() {
 
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/join-requests', joinRequestsRouter);
+  app.use('/api/v1/areas', areasRouter);
+  app.use('/api/v1/members', membersRouter);
 
   app.use(errorHandler);
 
