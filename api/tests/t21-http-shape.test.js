@@ -163,4 +163,28 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     expect(res.body.step).toBe(2);
     assertSnakeKeys(res.body);
   });
+
+  // Lỗi thứ TƯ cùng họ, tìm ra sau khi ba lỗi trước đã được tuyên bố là "đã rà
+  // toàn bộ". Nó lọt qua cả bài test này ở bản đầu vì `assertSnakeKeys` chỉ soi
+  // những phản hồi mà bài test chịu khó gọi tới — một cái lưới rộng vẫn không
+  // bắt được con cá bơi ở khúc sông không ai thả lưới. Mỗi route mới ở task sau
+  // phải được thêm vào đây, nếu không lớp vỏ lại hở đúng chỗ cũ.
+  it('GET /auth/me trả community_id — không đổ thẳng req.actor (camelCase) ra dây', async () => {
+    const login = await supertest(api)
+      .post('/api/v1/auth/login')
+      .send({ identifier: ALICE_PHONE, password: ALICE_PASSWORD });
+    expect(login.status, JSON.stringify(login.body)).toBe(200);
+
+    const res = await supertest(api)
+      .get('/api/v1/auth/me')
+      .set('authorization', `Bearer ${login.body.access}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+
+    expect(res.body.actor.id).toBeTruthy();
+    expect(res.body.actor.community_id).toBeTruthy();
+    expect(Array.isArray(res.body.actor.roles)).toBe(true);
+    expect(res.body.actor.communityId, 'không được rò camelCase của tầng JS ra vỏ HTTP').toBeUndefined();
+
+    assertSnakeKeys(res.body);
+  });
 });

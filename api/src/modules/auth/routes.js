@@ -119,5 +119,17 @@ router.post('/refresh', normalLimit, validate(schema.refreshSchema), async (req,
 });
 
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ actor: req.actor });
+  // KHÔNG đổ thẳng req.actor ra dây. Đó là đối tượng nội bộ của ứng dụng, đặt tên
+  // theo quy ước JavaScript (camelCase); vỏ HTTP theo đặc tả mục 5 là snake_case.
+  // Đổ thẳng vừa rò `communityId` (lỗi thứ tư cùng họ với otpToken/refreshToken/
+  // fullName), vừa có nghĩa là bất cứ trường nào ai đó thêm vào req.actor về sau
+  // sẽ tự động ra tới client mà không ai quyết định — cùng loại với bẫy pino tự
+  // sao chép mọi thuộc tính của đối tượng lỗi ở Task 3. Liệt kê tường minh.
+  res.json({
+    actor: {
+      id: req.actor.id,
+      community_id: req.actor.communityId,
+      roles: req.actor.roles,
+    },
+  });
 });
