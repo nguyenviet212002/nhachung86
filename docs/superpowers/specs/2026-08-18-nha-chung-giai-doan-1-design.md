@@ -865,7 +865,7 @@ Ngân sách của kẻ dò sau khi siết: tối đa ~15 lần đoán mỗi 15 p
 | Method | Đường dẫn | Vai | Vào | Ra | Log |
 |---|---|---|---|---|---|
 | GET | `/areas` | member | — | cây khu vực | — |
-| GET | `/members` | member | `?q&job&area_id&status&work_status&page&limit` | danh sách, `contacts.*.value = null` | `member.list` (một dòng cho cả trang) |
+| GET | `/members` | member | `?q&job&area_id&status&work_status&page&limit` — **`status` mặc định `member`** | danh sách, `contacts.*.value = null` | `member.list` (một dòng cho cả trang) |
 | GET | `/members/:id` | member | — | hồ sơ + bao bì `contacts` | `profile.view` |
 | PATCH | `/members/me` | member | `{ bio?, job?, area_id?, work_status?, avatar_file_id?, cover_file_id? }` | hồ sơ | `member.updated` |
 | GET | `/members/:id/contacts/:field` | member | — | `{ value }` hoặc `403` | `contact.read` / `contact.denied` |
@@ -877,6 +877,12 @@ Ngân sách của kẻ dò sau khi siết: tối đa ~15 lần đoán mỗi 15 p
 | GET | `/members/me/profile-views` | member | `?page&limit` | ai xem gì, khi nào | — |
 | POST | `/members/me/export` | member | — | `202` + file khi xong | `subject.export` |
 | GET | `/members/me/relations` | member | — | sợi bảo lãnh + việc chung | — |
+
+> **`status` mặc định là `member`, không phải "hiện tất cả".** Bản đầu để trống nghĩa là không lọc, và đó là rò trạng thái tư cách thành viên: `guest` là người **chưa được duyệt** — đưa họ vào danh bạ ngang hàng với người đã qua khung gặp-mặt-và-hai-người-ký là hiện diện sai tư cách, và mời gọi người khác liên hệ trước khi cộng đồng xác nhận họ là ai; `left` là người **đã rời**, mà theo mục 10 hồ sơ người rời trở thành bia mộ — vẫn hiện họ trong danh bạ đang hoạt động là ngầm khẳng định "người này còn ở đây". Khai rõ `?status=guest` thì vẫn xem được: đây là mặc định an toàn, không phải cấm cửa.
+>
+> **`/members/me/*` phải khai TRƯỚC `/members/:id`** trong bộ định tuyến, nếu không `me` bị nuốt thành một `:id` không hợp lệ.
+>
+> **Hình dạng `detail` của `member.list` phải PHẲNG.** Bản đầu viết `{ count, filters: { … } }`, nhưng `assertSafeDetail` (mục 10) từ chối object lồng nhau. Và **không ghi nguyên văn `q`/`job`** — chúng là văn bản tự do người dùng gõ, mà người ta tìm danh bạ bằng chính số điện thoại. Ghi `has_q`/`has_job` thay vì nội dung.
 
 Mặc định khi tạo member: `phone`/`zalo` = `on_consent`; `address`/`family` = `closed`; còn lại `public`.
 
@@ -966,6 +972,7 @@ Hiện 20 người trong danh bạ **không** thành 60 lời gọi hàm, vì da
 SELECT ps.member_id, ps.field_key, ps.level,
        cr.id AS request_id, cr.status AS request_status
   FROM privacy_settings ps
+  JOIN members m ON m.id = ps.member_id AND m.community_id = :community_id
   LEFT JOIN contact_requests cr
     ON cr.target_id = ps.member_id AND cr.field_key = ps.field_key
    AND cr.requester_id = :viewer
