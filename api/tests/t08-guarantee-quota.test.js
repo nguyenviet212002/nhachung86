@@ -202,6 +202,30 @@ describe('T8 hạn mức bảo lãnh — cưỡng chế ở CSDL, không phải 
     await expect(insertJr(referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
   });
 
+  it('đơn của cộng đồng này không trỏ được người bảo lãnh sang cộng đồng khác', async () => {
+    // Cộng đồng thứ hai được tạo SAU cộng đồng chính, nên resolveCommunityId()
+    // (lấy cộng đồng cũ nhất) vẫn trả về cộng đồng chính — các bài đi qua HTTP
+    // không bị bài này làm nhiễu.
+    const { rows: [{ id: otherCid }] } = await db.raw(
+      `INSERT INTO communities (code,name) VALUES ('community-khac','Cong dong khac') RETURNING id`
+    );
+    const { rows: [outsider] } = await db.raw(
+      `INSERT INTO members (community_id, full_name, status) VALUES (?, 'Nguoi cong dong khac', 'member') RETURNING id`,
+      [otherCid]
+    );
+
+    // Nếu chỉ có khóa ngoại đơn cột REFERENCES members(id) như kế hoạch viết,
+    // câu này QUA — và fn_guarantee_quota sẽ đọc cap từ config của cộng đồng
+    // này trong khi tiêu suất của một người thuộc cộng đồng kia.
+    await expect(
+      db.raw(
+        `INSERT INTO join_requests (community_id, applicant_data, referrer_id, status)
+         VALUES (?, '{}'::jsonb, ?, 'pending')`,
+        [cid, outsider.id]
+      )
+    ).rejects.toThrow(/jr_referrer_same_community|violates foreign key/i);
+  });
+
   it('hạn mức đọc từ communities.config, không phải hằng số trong mã', async () => {
     const referrer = await newMember();
     await db.raw(`UPDATE communities SET config = config || '{"guarantee_quota_per_year":1}'::jsonb WHERE id = ?`, [cid]);
