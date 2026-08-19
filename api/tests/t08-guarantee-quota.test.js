@@ -130,6 +130,33 @@ describe('T8 hạn mức bảo lãnh — cưỡng chế ở CSDL, không phải 
       // lệnh một ảnh chụp) nên thấy đủ 3.
       const r1 = await ins(ta).then(() => 'ok').catch(() => 'fail');
       const p2 = ins(tb).then(() => 'ok').catch(() => 'fail');
+
+      // BÀI HỌC ĐẮT (khung ở kế hoạch dòng 2053–2067 KHÔNG có đoạn này, và
+      // thiếu nó thì bài test là bài test giả — đã tự kiểm bằng phép thử đột
+      // biến: gỡ pg_advisory_xact_lock, bài vẫn XANH). Lý do: `ins(tb)` chỉ
+      // TẠO promise, còn câu lệnh có tới máy chủ trước hay sau `ta.commit()`
+      // là do bộ lập lịch của Node quyết định. Thực tế nó thường tới SAU, tb
+      // đếm ra 3 và hỏng — đúng kết quả mong đợi, nhưng vì lý do sai hoàn
+      // toàn, và bài test không phân biệt được hai lý do đó.
+      //
+      // Chờ tới khi tb THẬT SỰ đang xếp hàng sau một khóa tư vấn (đọc pg_locks
+      // bằng kết nối thứ ba) mới commit ta. Có khóa: điều kiện này đạt được,
+      // và tb chắc chắn còn đang chờ khi ta commit. Không có khóa: không bao
+      // giờ đạt, hết giờ, và assertion ngay dưới đỏ — đỏ vì đúng lý do.
+      let blocked = false;
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {
+        const { rows } = await db.raw(
+          `SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND NOT granted`
+        );
+        if (rows[0].n > 0) {
+          blocked = true;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      expect(blocked, 'giao dịch thứ hai không hề bị chặn — khóa tư vấn không có tác dụng').toBe(true);
+
       await ta.commit();
       const r2 = await p2;
       await tb.rollback().catch(() => {});
