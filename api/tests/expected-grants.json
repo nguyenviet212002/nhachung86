@@ -275,5 +275,71 @@
     "SELECT",
     "INSERT",
     "UPDATE"
+  ],
+  "fund_entries": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "fund_entry_approvals": [
+    "SELECT",
+    "INSERT"
+  ],
+  "transparency_reports": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "report_versions": [
+    "SELECT",
+    "INSERT"
+  ],
+  "subject_keys": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "loans": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "loan_guarantors": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+  ],
+  "loan_repayments": [
+    "SELECT",
+    "INSERT"
+  ],
+  "permissions": [
+    "SELECT"
+  ],
+  "role_permissions": [
+    "SELECT"
+  ],
+  "pending_actions": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "pending_action_signatures": [
+    "SELECT",
+    "INSERT"
+  ],
+  "backups": [
+    "SELECT",
+    "INSERT"
+  ],
+  "restore_tests": [
+    "SELECT",
+    "INSERT"
+  ],
+  "moderation_queue": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
   ]
 }
