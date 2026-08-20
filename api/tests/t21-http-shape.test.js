@@ -493,6 +493,70 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     assertSnakeKeys(res.body);
   });
 
+  // -------------------------------------------------------------------------
+  // Lượt 15 — hai route `/files`. Thêm vào đây theo đúng luật Ruling T9-e:
+  // `assertSnakeKeys` chỉ soi những phản hồi mà bài test chịu khó gọi tới.
+  //
+  // `GET /files/:id` trả BYTE chứ không trả JSON, nên với nó cái đáng canh ở
+  // lớp vỏ là HEADER (loại nội dung, `nosniff`, `Cache-Control: private`) và
+  // hình dạng thân LỖI. Hành vi nghiệp vụ của cả hai route nằm ở `t28`.
+  //
+  // Ảnh dùng ở đây là một JPEG 8×8 nhúng sẵn dạng base64, KHÔNG dựng bằng
+  // sharp: tệp này canh lớp vỏ HTTP, và kéo một thư viện xử lý ảnh vào chỉ để
+  // sinh tám điểm ảnh là làm nó phụ thuộc thêm một thứ không liên quan.
+  const JPEG_8x8 = Buffer.from(
+    '/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBD' +
+      'ARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIAAgD' +
+      'ASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAA' +
+      'BP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJgBI7//2Q==',
+    'base64'
+  );
+
+  it('POST /files trả đúng { id } — không rò storage_key, không rò camelCase', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api)
+      .post('/api/v1/files')
+      .set('authorization', `Bearer ${token}`)
+      .attach('file', JPEG_8x8, { filename: 'anh.jpg', contentType: 'image/jpeg' });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(Object.keys(res.body)).toEqual(['id']);
+    expect(res.body.storage_key, 'khoá kho không bao giờ rời máy chủ').toBeUndefined();
+    expect(res.body.storageKey, 'không rò camelCase').toBeUndefined();
+    assertSnakeKeys(res.body);
+
+    const anh = await supertest(api)
+      .get(`/api/v1/files/${res.body.id}`)
+      .set('authorization', `Bearer ${token}`);
+    expect(anh.status).toBe(200);
+    expect(anh.headers['content-type']).toBe('image/jpeg');
+    expect(anh.headers['x-content-type-options']).toBe('nosniff');
+    expect(anh.headers['cache-control']).toContain('private');
+  });
+
+  it('POST /files từ chối loại tệp ngoài danh sách trắng — thân lỗi vẫn snake_case', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api)
+      .post('/api/v1/files')
+      .set('authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('MZ  khong phai anh'), {
+        filename: 'anh.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(415);
+    expect(res.body.error.code).toBe('FILE_TYPE_NOT_ALLOWED');
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /files/:id với id không phải uuid ⇒ 400 snake_case, không phải 500', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api).get('/api/v1/files/khong-phai-uuid').set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    assertSnakeKeys(res.body);
+  });
+
   it('GET /members/:id/contacts/:field từ chối tên trường lạ ở vỏ ngoài (400, không phải 500)', async () => {
     const { token, memberId } = await accessTokenForAlice();
     // Chặn ở zod TRƯỚC khi chạm contact_read: nhánh BAD_FIELD của hàm CSDL
