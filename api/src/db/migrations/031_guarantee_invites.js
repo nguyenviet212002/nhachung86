@@ -414,10 +414,17 @@ export async function up(knex) {
   // Khoá tư vấn vẫn cần, nhưng ở CHỖ KHÁC: `fn_guarantee_invite_quota` ở trên,
   // nơi đúng là bài toán bóng ma của Task 8.
   //
-  // Ba lưới cho cùng một luật (dùng một lần), cố ý chồng nhau vì mỗi lưới
-  // chặn một đường vào khác nhau: FOR UPDATE chặn cuộc đua; `AND used_at IS
-  // NULL` chặn trường hợp ai đó gỡ FOR UPDATE; `trg_guarantee_invite_frozen`
-  // chặn câu UPDATE trần không đi qua hàm này.
+  // BỐN lưới cho cùng một luật (dùng một lần), cố ý chồng nhau vì mỗi lưới
+  // chặn một đường vào khác nhau: FOR UPDATE; `AND used_at IS NULL` cộng
+  // GET DIAGNOSTICS; nhánh `used_at` của `trg_guarantee_invite_frozen`; và
+  // nhánh `used_by_join_request` ghi-một-lần của cùng trigger đó.
+  //
+  // ĐO ĐẠC, KHÔNG PHẢI SUY ĐOÁN (phép thử đột biến, xem task-qd1-report.md
+  // mục 5): gỡ RIÊNG `FOR UPDATE` thì KHÔNG bài nào đỏ, gỡ thêm cả `AND
+  // used_at IS NULL` vẫn KHÔNG bài nào đỏ. Phải gỡ đủ cả bốn lưới thì bài
+  // "hai giao dịch đồng thời" mới chết. Nghĩa là `FOR UPDATE` ở đây là DƯ,
+  // không phải thứ đang gánh luật — giữ lại vì nó đặt chỗ chặn đúng nơi người
+  // đọc mã trông đợi, nhưng đừng ai viết vào tài liệu rằng nó là cái chốt.
   // -------------------------------------------------------------------------
   await knex.raw(`
     CREATE FUNCTION guarantee_invite_claim(p_token_hash text, p_community uuid)
