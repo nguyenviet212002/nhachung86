@@ -151,6 +151,51 @@ describe('T22/t29 — dữ liệu mẫu', () => {
     ]);
   });
 
+  it('đủ bộ dữ liệu mẫu theo Task 17', async () => {
+    const expected = {
+      areas: 12,
+      capabilities: 148,
+      signals: 7,
+      job_needs: 5,
+      aid_requests: 5,
+      activities: 4,
+      activity_summaries: 2,
+      fund_entries: 12,
+      loans: 2,
+    };
+    for (const [table, want] of Object.entries(expected)) {
+      const { rows: [{ n }] } = await db.raw(
+        `SELECT count(*)::int AS n FROM ${table} WHERE community_id = ?`,
+        [COMMUNITY_ID]
+      );
+      expect(n, table).toBe(want);
+    }
+
+    const { rows: [{ n: largeFunds }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM fund_entries
+        WHERE community_id = ? AND abs(amount) >= 1000000`,
+      [COMMUNITY_ID]
+    );
+    expect(largeFunds).toBe(2);
+
+    const { rows: [{ n: confirmedWorks }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM work_records w
+        WHERE w.community_id = ?
+          AND (w.source_type <> 'manual' OR w.reviewed_at IS NOT NULL)
+          AND NOT EXISTS (
+            SELECT 1 FROM work_participants p
+             WHERE p.community_id = w.community_id
+               AND p.work_record_id = w.id
+               AND NOT EXISTS (
+                 SELECT 1 FROM work_confirmations c
+                  WHERE c.community_id = w.community_id
+                    AND c.work_record_id = w.id
+                    AND c.member_id = p.member_id))`,
+      [COMMUNITY_ID]
+    );
+    expect(confirmedWorks).toBe(60);
+  });
+
   it('có 3 bản ghi mới một bên xác nhận, và chúng CHƯA sinh cạnh', async () => {
     const { rows } = await db.raw(
       `SELECT w.id FROM work_records w

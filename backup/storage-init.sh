@@ -36,7 +36,11 @@ until mc alias set root "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY" >/dev/n
 done
 
 mc mb --ignore-existing root/nhachung
-mc mb --ignore-existing root/nhachung-audit
+# Object-lock phải được bật ngay lúc tạo bucket; MinIO không cho bật lại sau
+# khi bucket đã tồn tại. Chính sách Deny bên dưới vẫn là lớp không-xoá chính,
+# còn object-lock giữ cho bucket đối chiếu không mất lớp bảo vệ nếu policy bị
+# cấu hình rộng hơn ở một môi trường khác.
+mc mb --ignore-existing --with-lock root/nhachung-audit
 
 # Kho nhật ký bật VERSIONING và khoá giữ theo hạn: ngay cả khi một ngày nào đó
 # có ai gắn nhầm một chính sách rộng hơn, bản cũ vẫn còn. Đây là lớp thứ hai,
@@ -44,7 +48,10 @@ mc mb --ignore-existing root/nhachung-audit
 mc version enable root/nhachung-audit || echo "canh bao: khong bat duoc versioning cho nhachung-audit" >&2
 
 mc admin user add root "$BACKUP_S3_ACCESS_KEY" "$BACKUP_S3_SECRET_KEY" || true
-mc admin policy create root nhachung-backup /policy/backup.json
+# `storage-init` có thể được tạo lại sau `docker compose down/up`. Policy đã
+# tồn tại không phải lỗi khởi tạo; user vẫn được attach lại ở lệnh kế tiếp.
+mc admin policy info root nhachung-backup >/dev/null 2>&1 || \
+  mc admin policy create root nhachung-backup /policy/backup.json
 mc admin policy attach root nhachung-backup --user "$BACKUP_S3_ACCESS_KEY" || true
 
 echo "da gan chinh sach nhachung-backup cho nguoi dung sao luu"

@@ -5,6 +5,10 @@ RUN npm ci --omit=dev
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
+# Các mốc trong `src/jobs/` là giờ vận hành của cộng đồng, không phải UTC.
+# Backup container dùng cùng múi giờ; đặt ngay trên image để chạy standalone
+# cũng không âm thầm lệch bảy tiếng so với cron.
+ENV TZ=Asia/Ho_Chi_Minh
 # KHÔNG `apk add wget`. Gói đó trên image này cài ra một /usr/bin/wget RỖNG
 # (0 byte) và còn che mất applet wget có sẵn của BusyBox, nên một HEALTHCHECK
 # chạy `wget` sẽ luôn hỏng với `exec /usr/bin/wget: exec format error` —

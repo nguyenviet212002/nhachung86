@@ -11,6 +11,7 @@ import { router as opsRouter } from './modules/ops/routes.js';
 import { router as filesRouter } from './modules/files/routes.js';
 import { router as invitesRouter } from './modules/invites/routes.js';
 import { health as storageHealth } from './core/storage.js';
+import { buildOpenApi } from './openapi/build.js';
 
 export function buildApp() {
   const app = express();
@@ -73,6 +74,13 @@ export function buildApp() {
     const storage = await storageHealth();
 
     res.status(db ? 200 : 503).json({ ok: db, db, storage, migration });
+  });
+
+  // Tài liệu là JSON công khai để client, người vận hành và kiểm thử có cùng
+  // một nguồn mô tả request. Các schema trong build.js chính là schema Zod
+  // middleware đang dùng, không phải một bản chép tay khác.
+  app.get('/api/v1/docs', (req, res) => {
+    res.json(buildOpenApi());
   });
 
   app.use('/api/v1/auth', authRouter);

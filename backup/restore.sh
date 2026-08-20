@@ -53,17 +53,34 @@ if [ -z "$ACTION_ID" ] || [ -z "$DUMP" ]; then
 fi
 [ -f "$DUMP" ] || { echo "khong thay tep $DUMP" >&2; exit 66; }
 
+# Hai giá trị này đi vào câu SQL quản trị (một giá trị uuid và một identifier
+# database). Kiểm tra hình dạng trước, sau đó vẫn truyền qua biến psql để không
+# bao giờ nối input người vận hành trực tiếp vào SQL.
+if [[ ! "$ACTION_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+  echo "pending_action_id khong phai UUID hop le" >&2
+  exit 65
+fi
+if [[ ! "$TARGET" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]]; then
+  echo "RESTORE_TARGET_DB chi duoc la ten database PostgreSQL hop le" >&2
+  exit 65
+fi
+LIVE_DB="$(psql_q "SELECT current_database()")"
+[ "$TARGET" != "$LIVE_DB" ] || {
+  echo "khong duoc khoi phuc de len database dang chay ($LIVE_DB)" >&2
+  exit 65
+}
+
 # --- Cổng hai người ký -------------------------------------------------------
 # Đọc rồi kiểm, RỒI mới tiêu. Câu kiểm ở đây cố ý lặp lại điều mà
 # `fn_pending_signature_valid` và `fn_pending_two_signatures` đã cưỡng chế: ở
 # tầng CSDL chúng canh lúc GHI chữ ký, còn ở đây ta cần biết tình trạng lúc
 # THI HÀNH — hai thời điểm khác nhau.
-STATE="$(psql_q "
+STATE="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -v action_id="$ACTION_ID" -c "
   SELECT a.action_key || '|' || a.status || '|' ||
          (a.expires_at > now())::text || '|' ||
          fn_pending_action_signatures(a.id) || '|' ||
          (a.consumed_at IS NULL)::text
-    FROM pending_actions a WHERE a.id = '$ACTION_ID'")"
+    FROM pending_actions a WHERE a.id = :'action_id'::uuid")"
 
 [ -n "$STATE" ] || { echo "khong co hanh dong cho nao mang ma $ACTION_ID" >&2; exit 65; }
 
@@ -77,13 +94,14 @@ IFS='|' read -r KEY STATUS NOT_EXPIRED SIGS UNCONSUMED <<< "$STATE"
 # TIÊU VÉ TRƯỚC KHI KHÔI PHỤC. `WHERE consumed_at IS NULL` cộng `ROW_COUNT` là
 # vế chạy đua: hai lần chạy đồng thời thì lần thứ hai chạm 0 hàng và dừng ở đây,
 # không phải sau khi đã ghi đè xong. Đúng khuôn migration 033.
-CONSUMED="$(psql_q "
+CONSUMED="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At \
+  -v action_id="$ACTION_ID" -v target="$TARGET" -c "
   WITH taken AS (
     UPDATE pending_actions
        SET consumed_at = now(), status = 'executed', executed_at = now(),
-           result = jsonb_build_object('restored_into', '$TARGET')
-     WHERE id = '$ACTION_ID' AND consumed_at IS NULL
-     RETURNING 1)
+           result = jsonb_build_object('restored_into', :'target')
+     WHERE id = :'action_id'::uuid AND consumed_at IS NULL
+       RETURNING 1)
   SELECT count(*) FROM taken")"
 [ "$CONSUMED" = "1" ] || { echo "khong tieu duoc quyet dinh nay (co the mot lan chay khac vua tieu no)" >&2; exit 65; }
 
@@ -97,7 +115,7 @@ finish() {
 trap finish EXIT
 
 log "khoi phuc $DUMP -> $TARGET"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"$TARGET\""
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -v target="$TARGET" -c 'CREATE DATABASE :"target"'
 TARGET_URL="$(printf '%s' "$DATABASE_URL" | sed -E "s#/[^/?]+(\\?|$)#/$TARGET\\1#")"
 
 if ! pg_restore --dbname "$TARGET_URL" --no-owner --exit-on-error "$DUMP"; then

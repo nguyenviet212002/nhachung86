@@ -62,6 +62,14 @@ describe('T30 — khung tác vụ định kỳ', () => {
     // Hai tác vụ trùng khoá sẽ giành nhau CÙNG một khoá tư vấn, tức chỉ một
     // cái chạy được mỗi lượt và cái kia im lặng bỏ lượt mãi mãi.
     expect(new Set(JOBS.map((j) => j.key)).size).toBe(JOBS.length);
+
+    expect(Object.fromEntries(JOBS.map((j) => [j.key, j.schedule]))).toEqual({
+      'audit.partition': { hour: 2, minute: 0 },
+      'trust.recount': { hour: 3, minute: 15 },
+      'privacy.purge_join_secrets': { hour: 3, minute: 45 },
+      'ops.overdue': { hour: null, minute: 5 },
+      'ops.reminders': { hour: 7, minute: 0 },
+    });
   });
 
   // -- Nợ Task 12 ------------------------------------------------------------
@@ -143,6 +151,10 @@ describe('T30 — khung tác vụ định kỳ', () => {
     next.setMonth(next.getMonth() + 1, 1);
     const want = `audit_log_${next.getFullYear()}_${String(next.getMonth() + 1).padStart(2, '0')}`;
     expect(names).toContain(want);
+    const next2 = new Date();
+    next2.setMonth(next2.getMonth() + 2, 1);
+    const want2 = `audit_log_${next2.getFullYear()}_${String(next2.getMonth() + 1).padStart(2, '0')}`;
+    expect(names).toContain(want2);
 
     // Phân mảnh mới phải THỪA HƯỞNG ĐÚNG ma trận quyền: `app_role` chỉ
     // SELECT/INSERT. Nếu quên, thì mỗi tháng lại mở ra một bảng nhật ký mà ứng
@@ -166,6 +178,16 @@ describe('T30 — khung tác vụ định kỳ', () => {
     const quiet = await runJob(overdue);
     expect(quiet).toEqual({ actions_expired: 0, signals_closed: 0 });
 
+    // Dựng đúng một hành động đang chờ nhưng đã quá hạn. Đây là nhánh trước
+    // đây chưa được test, dù plan yêu cầu job phải đóng cửa chữ ký cũ.
+    await db.raw(`SELECT set_config('app.actor_id', ?, false)`, [byCode.M01.id]);
+    await db.raw(
+      `INSERT INTO pending_actions
+        (community_id, action_key, target_type, payload, payload_hash, created_by, expires_at)
+       VALUES (?, 'backup.restore', 'database', '{}'::jsonb, 'seed-expired', ?, now() - interval '1 minute')`,
+      [COMMUNITY_ID, byCode.M01.id]
+    );
+
     await db.raw(
       `UPDATE signals SET respond_by = now() - interval '2 days'
         WHERE community_id = ? AND status = 'open'`,
@@ -173,6 +195,7 @@ describe('T30 — khung tác vụ định kỳ', () => {
     );
 
     const r = await runJob(overdue);
+    expect(r.actions_expired).toBe(1);
     expect(r.signals_closed).toBeGreaterThanOrEqual(1);
 
     const { rows: [{ n }] } = await db.raw(
@@ -201,11 +224,20 @@ describe('T30 — khung tác vụ định kỳ', () => {
       [COMMUNITY_ID, byCode.M09.id]
     );
 
+    await db.raw(
+      `INSERT INTO connections
+        (community_id, poster_id, worker_id, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'contacted', now() - interval '40 days', now() - interval '40 days')`,
+      [COMMUNITY_ID, byCode.M09.id, byCode.M10.id]
+    );
+
     const r = await runJob(reminders);
     expect(r.verifications_stale).toBe(1);
+    expect(r.connections_silent).toBe(1);
 
     const logged = await auditRows('job.reminders');
     expect(logged.at(-1).detail.verifications_stale).toBe(1);
+    expect(logged.at(-1).detail.connections_silent).toBe(1);
   }, 60_000);
 
   // -- Tính chất chung -------------------------------------------------------

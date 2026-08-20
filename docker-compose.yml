@@ -32,11 +32,14 @@ services:
       OTP_PEPPER: ${OTP_PEPPER}
       OTP_ADAPTER: ${OTP_ADAPTER}
       S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_BUCKET: ${S3_BUCKET}
+      S3_BUCKET: ${S3_BUCKET:-nhachung}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN}
       NODE_ENV: ${NODE_ENV}
+      # Các job trong api dùng giờ vận hành UTC+7, cùng múi giờ với container
+      # backup; không để runtime tự rơi về UTC của Alpine.
+      TZ: Asia/Ho_Chi_Minh
       # `npm run seed` chạy trong chính container này (`docker compose exec api
       # npm run seed`), nên mật khẩu của các tài khoản mẫu phải có mặt ở đây.
       # Không có giá trị mặc định: seed dừng lại và nói rõ nếu thiếu.
@@ -113,14 +116,14 @@ services:
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       S3_ENDPOINT: ${S3_ENDPOINT}
-      S3_BUCKET: ${S3_BUCKET}
+      S3_BUCKET: ${S3_BUCKET:-nhachung}
       # KHOÁ RIÊNG của container sao lưu, không phải khoá gốc của MinIO. Chính
       # sách của nó (backup/policy/backup.json) cho đọc kho ảnh và CHỈ GHI THÊM
       # vào kho nhật ký — không một lệnh xoá nào, ở bất kỳ kho nào. Người sửa
       # được nhật ký không được xoá bản sao đối chiếu.
       S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY}
       S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY}
-      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-nhachung-audit}
       # Đích ngoài máy chủ. Tệp khoá tài khoản dịch vụ được GẮN VÀO, không nằm
       # trong kho mã nguồn và không đi cùng bản sao lưu — mất khoá gốc là mất
       # toàn bộ dữ liệu nhạy cảm (đặc tả mục 10), nên kho khoá đi đường riêng.

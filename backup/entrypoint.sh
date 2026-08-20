@@ -13,4 +13,11 @@ done
 mkdir -p "${BACKUP_DIR:-/backups}"
 crontab /app/crontab
 echo "container sao luu san sang; lich:" && crontab -l
-exec crond -f -l 8
+# dcron 4.5 trong Alpine gọi setpgid khi chính nó là PID 1; một số Docker
+# sandbox không cấp operation đó và container restart vô hạn. Chạy `-d` dưới
+# shell PID 1 để dcron có process-group bình thường, đồng thời giữ log ở
+# stdout. Shell vẫn forward signal để dcron không bị bỏ lại khi container dừng.
+crond -d -l 8 &
+cron_pid=$!
+trap 'kill "$cron_pid" 2>/dev/null || true' TERM INT
+wait "$cron_pid"

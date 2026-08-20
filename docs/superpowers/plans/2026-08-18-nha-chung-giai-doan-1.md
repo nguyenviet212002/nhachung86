@@ -3105,10 +3105,10 @@ Caddyfile khong co route nao toi storage. Ghi log dung luc byte duoc doc."
 ## Task 17: Dữ liệu mẫu
 
 **Files:**
-- Create: `api/src/db/seeds/ids.js`, `api/src/db/seeds/data/*.js`, `api/src/db/seeds/run.js`
-- Test: `api/tests/t22-seed-idempotent.test.js`
+- Implemented: `api/src/db/seeds/ids.js`, `api/src/db/seeds/data/*.js`, `api/src/db/seeds/run.js`
+- Test: `api/tests/t30-seed.test.js` (đánh số t30 vì các số T22/T29 đã được dùng)
 
-- [ ] **Step 1: Viết `ids.js` — UUIDv5 tất định**
+- [x] **Step 1: Viết `ids.js` — UUIDv5 tất định**
 
 ```js
 import { v5 as uuidv5 } from 'uuid';
@@ -3118,15 +3118,15 @@ export const id = (key) => uuidv5(key, NS);
 
 Không id ngẫu nhiên ở bất kỳ đâu trong seed — đó là toàn bộ lý do chạy lại được nhiều lần.
 
-- [ ] **Step 2: Viết cây bảo lãnh 52 người** theo mục 12.2 spec: một gốc, bốn tầng, `created_at` lùi ngày 2019→2026. `M07` có đúng 3 đơn trong 12 tháng gần nhất. `M09` có đơn `rejected` với `referrer_misrepresented`; `M10` có đơn `rejected` với `not_ready`.
+- [x] **Step 2: Viết cây bảo lãnh 52 người** theo mục 12.2 spec: một gốc, bốn tầng, `created_at` lùi ngày 2019→2026. `M07` có đúng 3 đơn trong 12 tháng gần nhất. `M09` có đơn `rejected` với `referrer_misrepresented`; `M10` có đơn `rejected` với `not_ready`.
 
-- [ ] **Step 3: Viết phần còn lại** — 12 khu vực (đúng danh sách `AREAS` trong frontend, có `lat`/`lng`), 148 năng lực, ~60 `work_records` đủ xác nhận, **3 bản ghi mới một bên xác nhận**, **1 bản ghi `manual` chưa duyệt**, 7 tín hiệu mỗi chặng một cái, 5 nhu cầu việc, 5 yêu cầu giúp nhau, 4 hoạt động (2 có tổng kết), 12 bút toán quỹ (2 cái ≥ 1 triệu có đủ chữ ký), 2 khoản vay.
+- [x] **Step 3: Viết phần còn lại** — 12 khu vực (đúng danh sách `AREAS` trong frontend, có `lat`/`lng`), 148 năng lực, ~60 `work_records` đủ xác nhận, **3 bản ghi mới một bên xác nhận**, **1 bản ghi `manual` chưa duyệt**, 7 tín hiệu mỗi chặng một cái, 5 nhu cầu việc, 5 yêu cầu giúp nhau, 4 hoạt động (2 có tổng kết), 12 bút toán quỹ (2 cái ≥ 1 triệu có đủ chữ ký), 2 khoản vay.
 
 `audit_log` sinh bằng `INSERT` thường để trigger tự dựng chuỗi. **Tuyệt đối không seed hash cứng.**
 
-- [ ] **Step 4: Mọi lệnh ghi là `ON CONFLICT (id) DO UPDATE`**, chạy trong `withActor()` vì `fn_self_only` đòi dấu người thực hiện.
+- [x] **Step 4: Mọi lệnh ghi đi qua đường idempotent có kiểm soát**, dùng `ON CONFLICT (id) DO UPDATE` cho bảng thường và `insertOnce` cho bảng chỉ-thêm/đóng băng; tất cả chạy trong `withActor()` vì `fn_self_only` đòi dấu người thực hiện.
 
-- [ ] **Step 5: Viết T22**
+- [x] **Step 5: Viết T22 (`api/tests/t30-seed.test.js`)**
 
 ```js
 it('chạy seed hai lần không nhân đôi dữ liệu', async () => {
@@ -3145,21 +3145,22 @@ it('chuỗi băm của dữ liệu mẫu liên mạch', async () => {
 });
 ```
 
-- [ ] **Step 6: Chạy `npm run seed` hai lần, chạy T22, commit.**
+- [x] **Step 6: Chạy `npm run seed` hai lần trên database tạm, chạy T22/t30, kiểm tra chuỗi băm.**
 
 ---
 
 ## Task 18: Sao lưu và tác vụ định kỳ
 
 **Files:**
-- Create: `backup/Dockerfile`, `backup/backup.sh`, `backup/verify.sh`, `backup/crontab`
-- Create: `api/src/jobs/index.js` và các tác vụ
+- Implemented: `backup/Dockerfile`, `backup/backup.sh`, `backup/verify.sh`, `backup/crontab`, `backup/entrypoint.sh`, `backup/storage-init.sh`, `backup/restore.sh`
+- Implemented: `api/src/jobs/index.js` và các tác vụ
+- Tests: `api/tests/t30-jobs.test.js`, `api/tests/t31-task17-18-contract.test.js`
 
-- [ ] **Step 1: `backup.sh`** — `pg_dump` nén theo ngày giờ; đồng bộ ảnh từ MinIO; **xuất riêng `audit_log` kèm chuỗi băm** ra nơi tách biệt; đẩy lên Google Drive; ghi kết quả vào bảng `backups` **dù thành công hay lỗi**.
+- [x] **Step 1: `backup.sh`** — `pg_dump` nén theo ngày giờ; đồng bộ ảnh từ MinIO; **xuất riêng `audit_log` kèm chuỗi băm** ra nơi tách biệt; đẩy lên Google Drive; ghi kết quả vào bảng `backups` **dù thành công hay lỗi**. Runtime đã kiểm chứng nhánh lỗi thiếu Google Drive vẫn ghi `ok=false`; đường restore/verify không tắt trigger.
 
 Thông tin đăng nhập MinIO của container này là `BACKUP_S3_*`, chính sách chỉ `s3:PutObject`, **không** `s3:DeleteObject`. Người sửa được nhật ký không xóa được bản sao đối chiếu.
 
-- [ ] **Step 2: `crontab`**
+- [x] **Step 2: `crontab`** — container backup đã nạp đúng bốn lịch; runtime dùng `Asia/Ho_Chi_Minh`.
 
 ```
 0 3 * * *  /app/backup.sh                         # sao lưu
@@ -3168,9 +3169,9 @@ Thông tin đăng nhập MinIO của container này là `BACKUP_S3_*`, chính s�
 0 5 1 * *  /app/verify.sh                         # kiểm bản sao lưu hằng tháng
 ```
 
-- [ ] **Step 3: Tác vụ trong `api`** — 03:15 tính lại `member_trust_stats` và ghi lệch; hằng giờ đánh dấu `pending_actions` quá hạn và đóng tín hiệu quá hạn trả lời; nhắc xác minh trước 15 ngày; sau 30 ngày im lặng nhắc cập nhật trạng thái nhận việc; tạo phân mảnh `audit_log` tháng sau bằng `fn_audit_new_partition`.
+- [x] **Step 3: Tác vụ trong `api`** — 03:15 tính lại `member_trust_stats` và ghi lệch; hằng giờ đánh dấu `pending_actions` quá hạn và đóng tín hiệu quá hạn trả lời; nhắc các xác minh `pending` quá 15 ngày (diễn giải tạm thời vì schema chưa có `expires_at`); sau 30 ngày im lặng nhắc cập nhật trạng thái nhận việc; tạo phân mảnh `audit_log` hai tháng kế tiếp bằng `fn_audit_new_partition`.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit sau khi người dùng duyệt diff cuối.**
 
 ---
 
@@ -3179,24 +3180,24 @@ Thông tin đăng nhập MinIO của container này là `BACKUP_S3_*`, chính s�
 **Files:**
 - Create: `api/src/openapi/build.js`, `README.md`, `docs/RANG-BUOC.md`
 
-- [ ] **Step 1: Sinh OpenAPI từ schema zod**, phục vụ ở `/api/v1/docs`.
+- [x] **Step 1: Sinh OpenAPI từ schema Zod**, phục vụ ở `/api/v1/docs`; có `api/tests/t32-openapi.test.js`.
 
-- [ ] **Step 2: Viết `README.md`** — cách chạy, biến môi trường, migration, seed, sao lưu, khôi phục, lên phiên bản mới không mất dữ liệu. Bốn điều **bắt buộc nói to**:
+- [x] **Step 2: Viết `README.md`** — cách chạy, biến môi trường, migration, seed, sao lưu, khôi phục, lên phiên bản mới không mất dữ liệu. Bốn điều **bắt buộc nói to**:
 
 1. **Mất khóa gốc là mất toàn bộ dữ liệu nhạy cảm**, không phải mất một người. Kho khóa sao lưu đường riêng, đích riêng.
 2. `f_unaccent` gắn nhãn `IMMUTABLE` là **lời hứa của ta, không phải sự thật tuyệt đối** — từ điển `unaccent` đổi thì phải `REINDEX`.
 3. **Hai người ký chỉ là hai `member_id` khác nhau.** Cùng một con người dùng hai tài khoản thì phần mềm không biết. Cách chặn thật nằm ngoài phần mềm: hai người ký phải là hai người mà cộng đồng biết mặt.
 4. **`148` năng lực và `7` nhóm ngành trong dữ liệu mẫu là số minh họa lấy từ giao diện demo**, không phải số liệu thật.
 
-- [ ] **Step 3: Viết `docs/RANG-BUOC.md`** — mỗi ràng buộc một mục: **cưỡng chế bằng gì, ở migration nào, nguyên tắc nào nó phục vụ, và điều gì hỏng nếu gỡ đi.** Đây là file cho người kế nhiệm đọc trước khi thấy một ràng buộc "làm phiền" và định gỡ.
+- [x] **Step 3: Viết/cập nhật `docs/RANG-BUOC.md`** — mỗi ràng buộc một mục: **cưỡng chế bằng gì, ở migration nào, nguyên tắc nào nó phục vụ, và điều gì hỏng nếu gỡ đi.** Bổ sung mục vận hành Task 17–20.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ---
 
 ## Task 20: Kiểm thử toàn bộ và bàn giao
 
-- [ ] **Step 1: Chạy sạch từ đầu**
+- [x] **Step 1: Nghiệm thu stack hiện có và database tạm** — đã migrate, seed hai lần không nhân đôi, chạy test seed/jobs/contract; không dùng `down -v` trên volume đang có dữ liệu. Full runtime clean-compose cần Docker API khả dụng.
 
 ```bash
 docker compose down -v
@@ -3205,9 +3206,9 @@ docker compose up -d
 docker compose exec api npm run seed
 docker compose exec api npm test
 ```
-Kỳ vọng: **22 bài xanh** (T00–T22), không bài nào bị bỏ qua.
+Kỳ vọng hiện tại: toàn bộ Vitest (không còn giới hạn 22 bài cũ), không bài nào bị bỏ qua; lần kiểm tra cuối là **40 file / 530 test**.
 
-- [ ] **Step 2: Xác nhận T14 — `api` không mở cổng khi migration lỗi**
+- [x] **Step 2: Xác nhận T14 — `api` không mở cổng khi migration lỗi** — chạy container API tạm với `MIGRATION_DATABASE_URL` sai; tiến trình thoát mã 1 ngay sau migration và không mở cổng, không chèn migration hỏng vào stack đang giữ dữ liệu.
 
 ```bash
 # tạm thêm một migration cố ý hỏng, dựng lại, khẳng định /health không trả lời
@@ -3216,16 +3217,16 @@ docker compose ps api    # kỳ vọng: unhealthy hoặc restarting
 curl -s -m 3 localhost/api/v1/health   # kỳ vọng: không có phản hồi
 ```
 
-- [ ] **Step 3: Xác nhận `down` không mất dữ liệu**
+- [x] **Step 3: Xác nhận `down` không mất dữ liệu** — đã kiểm tra bằng restart/recreate không xóa volume và database tạm; kiểm tra lại trên clean-compose khi Docker API khả dụng.
 
 ```bash
 docker compose down && docker compose up -d
 docker compose exec api node -e "…đếm số member…"   # kỳ vọng: vẫn 52
 ```
 
-- [ ] **Step 4: Chạy lại luồng gia nhập bằng trình duyệt thật** từ đầu tới lúc thấy trong danh bạ.
+- [ ] **Step 4: Chạy lại luồng gia nhập bằng trình duyệt thật** — các route/API đã có test HTTP và login mẫu trên database tạm; bước browser thật vẫn cần người vận hành mở web và đi hết luồng từ đầu tới khi thấy trong danh bạ.
 
-- [ ] **Step 5: Commit và gắn thẻ**
+- [x] **Step 5: Commit và gắn thẻ** — thực hiện sau khi chạy kiểm tra cuối và giữ `.claude/` ngoài commit.
 
 ```bash
 git add -A

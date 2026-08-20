@@ -407,6 +407,23 @@ Bảy chỗ dưới đây đã tái hiện được nhưng không nằm trong `0
 
 ---
 
+## 9. Ràng buộc vận hành của giai đoạn 1
+
+Phần này bổ sung cách đọc cho các thành phần vận hành được thêm ở Task 17–20.
+Mỗi dòng ghi rõ nơi cầm luật, migration hoặc file cấu hình liên quan, nguyên
+tắc được bảo vệ và hư hỏng nếu bỏ nó.
+
+| Ràng buộc | Cưỡng chế bằng gì | Migration/file | Nguyên tắc | Nếu gỡ |
+|---|---|---|---|---|
+| Seed không tạo bản ghi trùng khi chạy lại | UUIDv5 ổn định, `insertOnce`/upsert, transaction và actor | `api/src/db/seeds/`, Task 17 | Dữ liệu mẫu tái lập được, không che lỗi bằng dữ liệu ngẫu nhiên | Chạy seed lần hai phình dữ liệu và làm sai mọi số kiểm đếm |
+| Job dùng đúng giờ UTC+7 | `TZ=Asia/Ho_Chi_Minh` ở API/backup và crontab bốn dòng | `api/Dockerfile`, `docker-compose.yml`, `backup/crontab` | Lịch nghiệp vụ có nghĩa theo giờ cộng đồng | Backup/job chạy lệch giờ, khó đối chiếu incident |
+| Backup luôn có kết quả | `backup.sh` ghi `backups` trong nhánh thành công và thất bại | migration `032`, `backup/backup.sh` | Dashboard phải phân biệt “đã thử” với “đã thành công” | Lỗi `pg_dump` biến mất, vận hành tưởng hệ thống đã sao lưu |
+| Bản sao audit không bị container backup xóa | MinIO object-lock và policy chỉ `PutObject`/đọc kho ảnh | `backup/storage-init.sh`, `backup/policy/backup.json` | Kẻ ghi backup không được tự xóa bằng chứng | Có thể xóa dấu vết sau khi ghi |
+| Restore không tắt trigger | Script không nhận cờ tắt trigger và dùng `pg_restore` mặc định | `backup/restore.sh`, `backup/verify.sh` | Restore phải kiểm tra lại invariant/audit như dữ liệu sống | Bản restore xanh giả dù trigger đã bị vô hiệu |
+| Restore không ghi đè DB đang chạy | `ACTION_ID` là UUID, tên DB là identifier hợp lệ, chặn tên DB live | `backup/restore.sh` | Khôi phục thử phải có database tạm và phê duyệt hai người | Một lệnh sai có thể phá database phục vụ |
+| Tài liệu API cùng nguồn với validation | `/api/v1/docs` gọi builder từ schema Zod của module | `api/src/openapi/build.js`, `api/src/app.js` | Client đọc đúng contract mà middleware thực sự kiểm tra | Tài liệu nhận input mà API từ chối hoặc ngược lại |
+| Cảnh báo khóa gốc và dữ liệu demo phải được nhìn thấy | README và tài liệu này ghi rõ, không ẩn trong comment code | `README.md`, `.env.example` | Người vận hành hiểu giới hạn an toàn trước khi deploy | Mất khóa hoặc hiểu nhầm seed demo thành số liệu thật |
+
 ## 8. Cách rà lại lần sau
 
 Không có mẹo nào thay được việc đi hết bảng, nhưng có bốn câu hỏi rút gọn được công:
