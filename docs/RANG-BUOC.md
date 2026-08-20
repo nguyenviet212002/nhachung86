@@ -162,3 +162,141 @@ lại: **năm trong sáu chỗ hở là trigger chỉ khai `BEFORE INSERT`.** Ng
 `UPDATE` biến một hàng cũ thành một hành động mới mà không đi qua `INSERT` lần nào.
 Nguyên tắc rút ra: **trigger canh danh tính hoặc canh hạn mức phải khai
 `BEFORE INSERT OR UPDATE`, trừ khi cột liên quan đã bị `REVOKE UPDATE`.**
+
+---
+
+### 4.3 Nhóm `017`–`026` — hoạt động, bảo chứng, ký ức, quỹ, vay, vận hành
+
+28 bảng: `activities`, `activity_participants`, `activity_needs`, `activity_summaries`,
+`activity_photos`, `verifications`, `endorsements`, `endorsement_signatures`, `complaints`,
+`complaint_events`, `memories`, `memory_versions`, `memory_photos`, `memory_photo_people`,
+`memory_consents`, `fund_entries`, `fund_entry_approvals`, `transparency_reports`,
+`report_versions`, `subject_keys`, `loans`, `loan_guarantors`, `loan_repayments`,
+`permissions`, `role_permissions`, `pending_actions`, `pending_action_signatures`,
+`backups`, `restore_tests`, `moderation_queue`, `member_trust_stats`.
+
+| Bất biến | Bảng giữ luật | Phá được bằng gì mà không chạm bảng giữ luật | Hai đầu | Bằng chứng |
+|---|---|---|---|---|
+| Không mở hoạt động dùng quỹ mới khi còn món cũ đã xong chưa tổng kết | `trg_activity_summary_required` (`BEFORE INSERT OR UPDATE ON activities`) | ① `activity_summaries`: `DELETE` đã bị `REVOKE`; dời `activity_id` sang hoạt động khác **bảo toàn** tổng số món thiếu tổng kết nên vô hại · ② **`UPDATE activities SET ends_at = <tương lai>`** trên chính món đang kẹt: trigger có chạy nhưng thoát sớm ở `TG_OP='UPDATE' AND OLD.uses_fund` ⇒ cổng mở, không ai tổng kết gì (mục 5.6, đã tái hiện) | ❌ | `t13-fund` canh vế "còn món chưa tổng kết ⇒ chặn"; đường gỡ kẹt — **chưa có bài test** |
+| Bảo chứng cần **đúng 2** người khác nhau, và người ký không phải người được bảo chứng | `trg_endorsement_two_signatures` (trên `endorsements`) **+** `trg_endorsement_sig_guard` (trên `endorsement_signatures`) + `trg_endorsement_signer_valid` + `REVOKE UPDATE, DELETE` | Đã thử **đổi `endorsements.member_id` thành một trong hai người ký** — **bị chặn**: trigger hoãn trên `endorsements` chạy cả ở `UPDATE` và đếm lại theo `NEW.member_id` | ✅ | `t13-signature-removal` (khẳng định đúng tên ràng buộc, SQLSTATE 23503), `t13-guards-ab` |
+| Ảnh ký ức chỉ `approved` khi **tất cả** người trong ảnh đồng ý | `trg_memory_photo_consent` (trên `memory_photos`) **+** `trg_memory_photo_ppl_guard` (hoãn, trên `memory_photo_people`) | **`UPDATE memory_photo_people SET photo_id = <ảnh khác>`** — hàm canh chỉ đọc `OLD` ở nhánh `DELETE`; ở nhánh `UPDATE` nó chỉ nhìn `NEW.photo_id`, nên **dời** một tiếng "không" ra khỏi ảnh đã duyệt đi lọt (mục 5.5, đã tái hiện). `DELETE` bị `REVOKE` đúng để chặn việc "xoá tiếng không" — nhưng **dời** cũng là xoá, chỉ khác động từ | ❌ | `t13-guards-ab` (đột biến: gỡ trigger ⇒ 3/14 đỏ) canh đường **đổi ý** và **thêm người**; đường **dời hàng** — **chưa có bài test** |
+| Bút toán ≥ ngưỡng cần ≥ 2 chữ ký approver hợp lệ, khác người tạo, đúng cộng đồng | `trg_fund_two_approvers` (trên `fund_entries`) **+** `trg_fund_sig_guard` (trên `fund_entry_approvals`), cả hai gọi **một** hàm đếm `fn_fund_valid_signatures` | ① **`UPDATE communities SET config->fund_two_approver_threshold`** — ngưỡng đọc từ `communities`, mà `communities` có **đủ bốn quyền** và không trigger nào canh. Đã tái hiện: nâng ngưỡng bằng một câu `UPDATE` rồi ghi bút toán **chi 50 triệu không một chữ ký nào** (mục 5.7) · ② `member_roles` — xem mục 5.7 | ❌ | `t13-fund` (có đột biến gỡ trigger); đường `config` và đường `member_roles` — **chưa có bài test** |
+| Bút toán đã `locked` là bất động | `trg_fund_entry_locked` (`BEFORE UPDATE OR DELETE`) + `REVOKE DELETE` | — | ✅ | `t13-fund` |
+| Chữ ký quỹ không gỡ được | `REVOKE UPDATE, DELETE ON fund_entry_approvals` + `trg_fund_sig_guard` (hoãn, chặn cả đường owner) | — | ✅ | `t13-signature-removal` |
+| Hành động vận hành cần **hai người ký**, người ký không phải đối tượng, đúng vai | `trg_pending_two_signatures` (trên `pending_actions`) **+** `trg_pending_sig_guard` (trên `pending_action_signatures`) **+** `fn_pending_signature_valid` | ① **`UPDATE pending_actions SET payload, payload_hash`** sau khi đã đủ chữ ký rồi mới `status='executed'`: hai trigger chỉ **ĐẾM** chữ ký, chưa bao giờ so `payload_hash_at_sign` với `payload_hash` — cột đó tồn tại từ đặc tả mục 7.1 và **không ai đọc nó** (mục 5.5, đã tái hiện) · ② **`UPDATE pending_actions SET target_id = <chính người vừa ký>`**: `fn_pending_signature_valid` kiểm "người ký không phải đối tượng" ở **bảng chữ ký**, nên đổi đối tượng ở **bảng hành động** không ai kiểm lại (đã tái hiện) | ❌ | `t13-guards-ab` canh vế **gỡ chữ ký** (đột biến ⇒ 1/14 đỏ); hai đường trên — **chưa có bài test** |
+| Người vay không tự bảo lãnh cho khoản vay của mình | `trg_loan_guarantor_valid` (`BEFORE INSERT OR UPDATE ON loan_guarantors`) | **`UPDATE loans SET borrower_id = <chính người bảo lãnh>`** — trigger ngồi trên bảng người bảo lãnh, không ngồi trên bảng khoản vay (mục 5.5, đã tái hiện) | ❌ | **chưa có bài test** (không tệp nào nhắc `loan_guarantors`) |
+| Khóa chủ thể đã hủy thì không hồi sinh; "hủy" nghĩa là bản khóa **thật sự không còn** | `trg_subject_key_destroy` (`BEFORE UPDATE OR DELETE`) + `CHECK subject_key_destroy_means_gone` + `REVOKE DELETE` | — (cả hai vế nằm trên cùng một hàng, `CHECK` được đánh giá lại ở mọi `UPDATE`) | ✅ | **chưa có bài test** |
+| Sổ nợ và sổ sự kiện chỉ thêm (`loan_repayments`, `complaint_events`, `backups`, `restore_tests`, `memory_versions`, `report_versions`) | `GRANT SELECT, INSERT` (024) | — với `app_role`; `psql` vẫn sửa được (không trigger) | ⚠️ | `t10-grants` |
+| `member_trust_stats` là **cache dẫn xuất**, ứng dụng không ghi được | `REVOKE INSERT, UPDATE, DELETE` (023) + `fn_trust_recount` (`SECURITY DEFINER`, tự kiểm cộng đồng) | Luật "manual phải qua approver" nằm gọn trong `fn_trust_recount`; nó đọc `work_records.reviewed_at`, mà cột đó được canh bởi `fn_work_review_gate` (025). Hai đầu khớp nhau | ✅ | `t12-trust` (đột biến trên cả bốn chỉ số) |
+| Bản ghi `manual` chỉ được tính khi có approver **thật** duyệt | `fn_work_review_gate` (025) + `fn_trust_recount` (023) | `member_roles` — xem mục 5.7. Ngoài ra ✅: `fn_work_record_frozen` đóng băng cả `created_by`, nên cửa mục 4.4 không mở lại được | ⚠️ (chỉ hở ở `member_roles`) | `t12-manual-quota` (đột biến: comment trigger ⇒ 4/14 đỏ) |
+| `permissions` / `role_permissions` là hằng số nền tảng | `GRANT SELECT` (022, 024) | — | ✅ | `t10-grants` |
+| Bảng mới thêm về sau không âm thầm mang đủ bốn quyền | câu **tự kiểm** cuối `024`: liệt kê mọi bảng/view `public` và ném lỗi nếu thiếu trong `GRANTS` | — (đây là một trong hai chỗ hiếm hoi trong dự án mà lưới nằm ở **nguồn** chứ không ở bản sao) | ✅ | `t10-grants`, và chính migration `024` |
+| Mọi mã `RAISE EXCEPTION` của CSDL đều dịch được ra câu tiếng Việt | `t23-error-map` đọc thẳng `src/db/migrations/` | — | ✅ | `t23-error-map` (Ruling T13-c) |
+
+**Ghi chú về nhóm này.** Xuất hiện một họ lỗi thứ hai, khác với họ "`BEFORE INSERT`" của
+nhóm trước:
+
+> **Trigger ngồi trên bảng CON và đọc một cột định danh ở bảng CHA. Đổi cột đó ở bảng cha
+> thì không ai canh.**
+
+`capabilities.member_id` (bằng chứng năng lực), `loans.borrower_id` (người bảo lãnh khoản
+vay), `pending_actions.target_id` (người ký không được là đối tượng) đều dính. `endorsements.member_id`
+**không** dính — và lý do đáng học: bảng đó có **trigger hoãn trên chính bảng cha**, nên
+mọi `UPDATE` lên nó đều đếm lại. Đó chính là hình dạng đúng, và nó đã có sẵn ở ba chỗ
+(`fund_entries`, `endorsements`, `pending_actions`) — chỉ là hai chỗ còn lại đếm **thiếu
+một điều kiện**.
+
+---
+
+## 5. Chỗ thứ sáu trở đi — những gì vòng rà này tìm ra
+
+Tất cả những chỗ dưới đây đã được **tái hiện bằng chạy thật** trên chính CSDL của dự án
+(migration đầy đủ từ schema trắng, kết nối `app_role` thật, giao dịch có đóng dấu người
+thực hiện). Không có mục nào là suy đoán từ việc đọc mã.
+
+Chúng rơi vào **bốn họ**. Đọc theo họ chứ đừng đọc theo danh sách — họ mới là thứ giúp
+tìm ra chỗ thứ hai mươi.
+
+### 5.1 Họ A — luật đọc một bảng mà **không ai canh ai được ghi vào bảng đó**
+
+Đây là họ nặng nhất, vì cả ba chỗ đổ vào **cùng một tài sản**: số điện thoại trong
+`member_contacts` — thứ mà `REVOKE ALL`, `contact_read`, `contact_upsert`, `auth_lookup`,
+`fn_privacy_state` và ba vòng soát xét đã dựng lên để bảo vệ.
+
+`contact_read` không quyết định gì cả. Nó **đi hỏi**: hỏi `privacy_settings` mức riêng tư,
+hỏi `contact_requests` đã có ai đồng ý chưa, hỏi `introductions` kênh đã mở chưa. Cả ba
+bảng ấy `app_role` viết được bằng một câu `UPDATE`, và **không bảng nào có một trigger
+nào**.
+
+| # | Cửa | Tái hiện được |
+|---|---|---|
+| **6** | `UPDATE privacy_settings SET level='public' WHERE member_id = <người khác>` | Alice đặt mức của Bob thành `public`, rồi `contact_read(bob,'phone')` trả về `{"allowed":true,"value":"0912345678"}` |
+| **7** | Người **xin** tự duyệt đơn xin quyền của chính mình: `INSERT contact_requests(status='pending')` rồi `UPDATE … SET status='approved'` | Carol tự duyệt, `contact_read` trả số thật của Bob |
+| **8** | Một người vừa là `introducer` vừa là `poster` tự bật cả ba cờ `consent_*` rồi đặt `channel_opened_at` | Alice mở kênh một mình với Bob làm "ứng viên", `contact_read` trả số thật của Bob |
+
+Chỗ **8** là ca **câu hỏi 4** ở dạng thuần khiết nhất. `CHECK intro_three_consents` đúng
+tuyệt đối về hình thức: nó bảo đảm không tồn tại trạng thái "kênh mở mà thiếu chữ ký", và
+`t13-three-consents` chứng minh điều đó rất kỹ, kể cả chiều ngược lại (rút chữ ký sau khi
+mở kênh cũng hỏng). Nhưng `CHECK` chỉ biết **ba ô cùng bật**; nó không biết **ai bật ô
+nào**. Ba cái tick do một người bấm vẫn là ba cái tick.
+
+Đây cũng đúng khuôn "lỗ hổng ngủ" của Ruling T10-a: chưa endpoint nào chạm ba bảng này
+(`GET /members/me/*` và contact-requests còn nằm ngoài phạm vi, màn "Quyền riêng tư" chưa
+có route ghi). Ngày có endpoint là ngày lỗ hổng thức dậy, và người viết endpoint đó sẽ
+không biết `contact_read` có liên quan gì.
+
+### 5.2 Họ B — trigger chỉ khai `BEFORE INSERT`
+
+`UPDATE` biến một hàng cũ thành một hành động mới mà không đi qua `INSERT` lần nào.
+
+| # | Cửa | Tái hiện được |
+|---|---|---|
+| **9** | `UPDATE aid_slot_takers SET member_id = <người khác>` — lách `trg_slot_self_only` | Carol sang tên suất giúp của mình cho Bob, Bob không hề bấm gì |
+| **10** | `UPDATE aid_slot_takers SET slot_id = <suất khác>` — lách `fn_aid_slot_capacity` | Suất khai `needed = 1` kết thúc với **2** người |
+| **11** | `UPDATE signal_responses SET responder_id = <người khác>` — lách `trg_sig_resp_self_only` | Cùng khuôn; khóa ngoại ghép sang `signal_recipients` chỉ đòi người mới cũng là người nhận |
+
+`signal_forwards` **không** dính vì `UPDATE`/`DELETE` đã bị `REVOKE` — tức chỗ này được
+cứu bởi bảng quyền chứ không bởi trigger, và điều đó nên được nói ra thay vì để người sau
+tưởng trigger đang làm việc.
+
+### 5.3 Họ C — trigger ngồi trên bảng **con**, đọc cột định danh ở bảng **cha**
+
+| # | Cửa | Tái hiện được |
+|---|---|---|
+| **12** | `UPDATE capabilities SET member_id = <người khác>` sau khi đã gắn `capability_evidence` | Năng lực chuyển sang tên Carol, bằng chứng là một việc Carol không tham gia và chưa từng ký |
+| **13** | `UPDATE loans SET borrower_id = <chính người bảo lãnh>` | Người vay chính là người bảo lãnh duy nhất của khoản vay |
+| **14** | `UPDATE pending_actions SET target_id = <chính người vừa ký>` rồi `status='executed'` | Hành động `member.terminate` thi hành nhắm vào B, mà B là một trong hai người ký — đúng điều mục 7.2 cấm |
+| **15** | `UPDATE pending_actions SET payload, payload_hash` **sau** khi đã có đủ hai chữ ký, rồi mới `status='executed'` | Hai người ký nội dung X, hệ thống thi hành nội dung Y. `pending_action_signatures.payload_hash_at_sign` có mặt từ đặc tả mục 7.1 và **chưa có một câu SQL nào đọc nó** |
+| **16** | `UPDATE memory_photo_people SET photo_id = <ảnh khác>` | Tiếng "không" của một người bị **dời** ra khỏi tấm ảnh đã duyệt. `fn_memory_photo_people_guard` đọc `OLD` ở nhánh `DELETE` nhưng ở nhánh `UPDATE` chỉ nhìn `NEW.photo_id` |
+
+Chỗ **16** đáng dừng lại: nó nằm **bên trong chính bản vá** mà Ruling T13-b dựng ra để bịt
+đúng họ lỗi này. `DELETE` bị `REVOKE` với lý do ghi rõ trong `019`: *"gỡ hàng của một người
+là cách xoá tiếng 'không' của họ"*. Nhận định ấy đúng — nhưng **dời cũng là xoá**, chỉ khác
+động từ, và cái động từ thứ hai không ai nghĩ tới. Đây là minh hoạ đắt giá cho một điều
+sổ phán quyết đã ghi hai lần: **một bản vá có thể để hở đúng chỗ nó vừa vá.**
+
+### 5.4 Họ D — luật đọc **trạng thái đổi được**, và không ai đóng băng trạng thái đó
+
+Ràng buộc không sai; nó chỉ tính trên một con số mà người bị ràng buộc tự sửa được.
+
+| # | Cửa | Tái hiện được |
+|---|---|---|
+| **17** | `UPDATE join_requests SET reject_reason_code='not_ready'` trên một đơn đã bị từ chối vì `referrer_misrepresented` | Suất "đốt vĩnh viễn" quay lại: 1 → 0. `trg_guarantee_quota` khai `UPDATE OF status` nên không chạy |
+| **18** | `UPDATE join_requests SET created_at = now() - interval '18 months'` | Cửa sổ 12 tháng trượt tự rỗng |
+| **19** | `UPDATE join_requests SET referrer_id = NULL` | Đơn `pending` sống tiếp mà không còn người bảo lãnh — `REFERRER_REQUIRED` chỉ chạy ở `INSERT`/`UPDATE OF status` |
+| **20** | `INSERT INTO guarantee_quota_overrides` thẳng | Alice tự cấp 3 suất cho Alice, `granted_by = Alice`. Đặc tả mục 4.3 nói nới hạn mức phải qua **khung hai người ký**; không đối tượng SQL nào buộc điều đó |
+| **21** | `UPDATE members SET status='left'` rồi `UPDATE members SET referrer_id = <người khác>` | `trg_referrer_frozen` chỉ chặn khi `OLD.status = 'member'`, mà `status` có **ba** giá trị. Sợi bảo lãnh — "sự thật lịch sử" — viết lại được trong hai câu. Kèm hệ quả: `member_relations` (bản dẫn xuất) **không** đi theo, hai nguồn lệch nhau vĩnh viễn |
+| **22** | `UPDATE communities SET config->'fund_two_approver_threshold'` | Bút toán **chi 50 triệu, không một chữ ký nào**. `communities` có đủ bốn quyền và không trigger nào canh. Cùng cần lối canh này: `guarantee_quota_per_year`, `manual_pair_quota`, `privacy_defaults` |
+| **23** | `UPDATE activities SET ends_at = now() + interval '1 year'` trên hoạt động đang kẹt | `SUMMARY_REQUIRED` mở ra, không ai tổng kết gì |
+| **24** | Gỡ vai `approver` khỏi một người **đã ký** | Bút toán quỹ / hành động vận hành đã `COMMIT` mất hiệu lực chữ ký mà không trigger nào chạy — `fn_fund_valid_signatures` và `fn_pending_signature_valid` đều đếm theo **vai hôm nay**, không theo vai **lúc ký**. Hôm nay chưa khai thác được vì `member_roles` chỉ có `SELECT`; hết hiệu lực ngay khi có hàm gán vai (migration `008` đã hẹn trước là sẽ có) |
+
+Chỗ **24** là loại nguy hiểm nhất trong bảng này vì nó **chưa** là lỗ hổng: nó là một quả
+mìn đặt sẵn cho task viết luồng gán vai. Chữ ký là một sự việc đã xảy ra ở một thời điểm;
+đếm nó bằng trạng thái hiện tại là trộn hai trục thời gian.
+
+### 5.5 Chỗ nào được vá trong vòng này, chỗ nào không
+
+Xem mục 6 (bản vá) và mục 7 (việc còn để lại, kèm lý do). Nguyên tắc chọn: vá những chỗ
+**vá được ở tầng CSDL mà không phải sửa một tệp test có sẵn** — `api/tests/` đang có người
+khác soát xét song song, và sửa bài test của người khác giữa chừng là cách chắc chắn nhất
+để cả hai bên cùng mất việc.
