@@ -673,3 +673,38 @@ Ba điều kiện kèm theo, và chúng không phải chú thích lịch sự:
   vá trong vòng này). Ma trận đáng tin; cái lưới canh nó thì vừa mới đáng tin.
 - **`auth_lookup` chỉ được canh bằng một dòng `expect`**, không bằng đối tượng SQL nào. Xoá bài
   test ấy là gỡ lớp canh duy nhất của một hàm trả về `password_hash`.
+
+---
+
+## Đính chính về môi trường — nhánh đã đổi TRONG lúc soát xét
+
+Phải ghi rõ vì nó ảnh hưởng tới cách đọc mọi con số ở trên.
+
+Đề bài viết: *"Chỉ MỘT tiến trình được chạy `vitest` — không có agent nào khác đang chạy."*
+**Điều đó không đúng trong thực tế.** Trong lúc tôi làm việc, một tiến trình khác đã:
+
+| Lúc | Việc |
+|---|---|
+| ~18:35 → | tạo ba CSDL `nhachung_l15`, `nhachung_l17`, `nhachung_qd1` trong cùng cụm Postgres |
+| 19:07 | commit `8945ac3` — migration **030** (`files`) + tệp test `t28-files.test.js` |
+| 19:18 | commit `6391fcd` — migration **031** (`guarantee_invites`) |
+| 19:25 (lúc tôi kiểm) | còn một phiên `idle in transaction` trên `nhachung_l15`, đang chạy `CREATE FUNCTION fn_guarantee_slots_used(...)` |
+
+Hệ quả, và cách đọc đúng từng con số:
+
+- **Mọi phép đo của Giai đoạn A, B, C đo trên `nhachung_probe`** — một CSDL migrate đúng **32
+  migration**, tức đúng trạng thái của ba commit đang được soát (`7b202e8`, `8ef9071`, `951bdcb`).
+  Đó là phạm vi đúng, và nó **không** bị 030/031 làm nhiễu. Con số "72 quan hệ" là con số của
+  phạm vi ấy; ở `HEAD` hôm nay nó đã lớn hơn vì 030 và 031 thêm bảng.
+- **Bản vá `t27` đã kiểm chứng trên `HEAD` hiện tại**: `t10-grants` + `t27-ops-vai-quyen` =
+  **44/44 xanh**, chạy sau khi 030 và 031 đã vào nhánh.
+- **Bộ kiểm thử đầy đủ ở `HEAD` hiện tại: 34 tệp, 403 bài xanh, 2 tệp đỏ**, và **cả hai đều
+  không phải phạm vi của tôi**:
+  - `t02-role-password` — đỏ vì `DROP ROLE app_role` là lệnh cấp cụm, và ba CSDL kia giữ đối
+    tượng cấp quyền cho vai đó (xem cảnh báo ở mục trước);
+  - `t28-files` — tệp test **mới của tiến trình kia**, đang dở: `Error: read ECONNRESET` ở bài
+    *"tệp quá 10 MB ⇒ 413"*.
+
+Tôi **không** đụng vào 030, 031, `t28-files`, hay ba CSDL kia. Đề nghị cho người chủ trì: cho
+hai vòng làm việc chạy nối tiếp thay vì chồng lên nhau, hoặc cho mỗi vòng một cụm Postgres riêng —
+`t02` sẽ còn đỏ vì lý do sai chừng nào hai vòng còn dùng chung một cụm.
