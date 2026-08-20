@@ -122,32 +122,20 @@ export async function logDenied(entry) {
  * lưu. Chỉ có seq và hai cờ boolean (prev_ok, hash_ok) rời khỏi CSDL để về
  * JS — `at` không bao giờ đi vòng qua JavaScript.
  */
+/**
+ * Task 18: thân của phép kiểm đã DỜI XUỐNG CSDL (`fn_audit_verify_chain`,
+ * migration 032), và hàm này chỉ còn là lớp vỏ gọi nó. Không phải vì gọn hơn:
+ * tác vụ `verify-chain.sh` chạy trong container sao lưu, nơi KHÔNG có Node —
+ * nó phải kiểm chuỗi bằng `psql`. Nếu để câu SQL ở đây rồi chép một bản sang
+ * shell thì có hai định nghĩa của cùng một phép kiểm, và hai bản đồ giống nhau
+ * đặt ở hai chỗ là hai bản đồ sẽ khác nhau — đúng khuôn `fn_pending_action_role`
+ * (migration 022) đã tránh. Chữ ký hàm, tên trường trả về và ngữ nghĩa của
+ * `checked` (số dòng lành TRƯỚC chỗ gãy) giữ nguyên.
+ */
 export async function verifyChain(db, { communityId, from, to }) {
-  const { rows } = await db.raw(
-    `WITH ordered AS (
-       SELECT seq, actor_id, action, target_type, target_id, at, prev_hash, hash,
-              lag(hash) OVER (ORDER BY seq) AS expected_prev,
-              row_number() OVER (ORDER BY seq) AS rn
-         FROM audit_log
-        WHERE community_id = ?
-          AND (?::timestamptz IS NULL OR at >= ?)
-          AND (?::timestamptz IS NULL OR at <= ?)
-     )
-     SELECT seq,
-            (rn = 1 OR prev_hash = expected_prev) AS prev_ok,
-            (hash = encode(digest(
-                prev_hash || '|' || coalesce(actor_id::text, '-') || '|' || action || '|' ||
-                coalesce(target_type, '-') || '|' || coalesce(target_id::text, '-') || '|' ||
-                to_char(at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US'), 'sha256'), 'hex')) AS hash_ok
-       FROM ordered
-      ORDER BY seq`,
-    [communityId, from ?? null, from ?? null, to ?? null, to ?? null]
+  const { rows: [r] } = await db.raw(
+    `SELECT (fn_audit_verify_chain(?, ?::timestamptz, ?::timestamptz)).*`,
+    [communityId, from ?? null, to ?? null]
   );
-
-  let checked = 0;
-  for (const r of rows) {
-    if (!r.prev_ok || !r.hash_ok) return { ok: false, checked, brokenAt: r.seq };
-    checked++;
-  }
-  return { ok: true, checked, brokenAt: null };
+  return { ok: r.ok, checked: Number(r.checked), brokenAt: r.broken_at === null ? null : r.broken_at };
 }

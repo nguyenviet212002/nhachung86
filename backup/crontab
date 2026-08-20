@@ -1,0 +1,12 @@
+# Lich cua container sao luu — ke hoach Task 18, buoc 2.
+#
+# Bon tac vu, bon khung gio khac nhau va do la co y: sao luu xong roi moi kiem
+# chuoi bam (03:15 sau 03:00), va kiem ban sao luu hang thang chay sau cung khi
+# moi thu khac da xong.
+#
+# `run-job.sh` boc moi tac vu: no ghi log ra stdout de `docker compose logs`
+# thay duoc, va no khong bao gio de mot tac vu chet lam dung dcron.
+0  3 * * *  /app/run-job.sh backup.sh
+15 3 * * *  /app/run-job.sh verify-chain.sh
+0  4 * * 0  /app/run-job.sh export-audit.sh
+0  5 1 * *  /app/run-job.sh verify.sh
