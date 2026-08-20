@@ -455,6 +455,15 @@ export async function refresh({ refreshToken }) {
       await trx.raw(`UPDATE refresh_tokens SET revoked_at = now() WHERE family_id = ? AND revoked_at IS NULL`, [
         row.family_id,
       ]);
+      // Đóng dấu người thực hiện NGAY TẠI ĐÂY, không phải ở đầu giao dịch:
+      // trước khi tra `refresh_tokens` ta chưa biết vé này của ai, nên
+      // `withActor(null)` là lựa chọn đúng lúc mở giao dịch. Nhưng dòng nhật ký
+      // ngay dưới nêu đích danh `row.member_id`, và từ migration 029
+      // `trg_audit_actor_guard` không cho `app_role` nêu tên một người mà giao
+      // dịch không đóng dấu — chính là luật "ô *_id ghi lại MỘT CÁI TÊN, không
+      // ghi lại MỘT HÀNH ĐỘNG của người mang tên đó" (docs/RANG-BUOC.md mục 2).
+      // Đặt dấu để CSDL và dòng nhật ký nói cùng một điều.
+      await trx.raw(`SELECT set_config('app.actor_id', ?, true)`, [row.member_id]);
       await auditLog(trx, {
         communityId: row.community_id,
         actorId: row.member_id,

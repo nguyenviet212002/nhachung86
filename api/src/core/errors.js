@@ -98,6 +98,22 @@ const BY_MESSAGE = {
   CONFIG_CHANGE_UNSIGNED:      [422, 'CONFIG_CHANGE_UNSIGNED', 'Đổi chính sách của Hội phải qua một việc chờ có đủ hai người ký.'],
   QUOTA_OVERRIDE_UNSIGNED:     [422, 'QUOTA_OVERRIDE_UNSIGNED', 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.'],
   ENDORSER_ROLE_REQUIRED:      [403, 'ENDORSER_ROLE_REQUIRED', 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.'],
+
+  // ---------------------------------------------------------------------
+  // Migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự kiểm
+  // người gọi. Khai ngay khi trigger/hàm ra đời, cùng lý do đã ghi ở trên.
+  // ---------------------------------------------------------------------
+  ROLE_SELF_GRANT:             [403, 'ROLE_SELF_GRANT', 'Không ai tự gán hay tự gỡ vai của chính mình — kể cả vai kỹ thuật.'],
+  ROLE_MANAGE_DENIED:          [403, 'ROLE_MANAGE_DENIED', 'Chỉ người mang vai kỹ thuật của chính Hội này mới gán hay gỡ vai được.'],
+  // Tên vai bịa: zod đã chặn ở vỏ ngoài, nên tới được đây là dữ liệu gửi lên
+  // sai — cùng cách xử lý với BAD_FIELD, không đẻ mã mới cho người dùng đọc.
+  BAD_ROLE:                    [422, 'VALIDATION_FAILED', 'Dữ liệu gửi lên chưa hợp lệ.'],
+  EXECUTOR_NOT_SIGNER:         [403, 'EXECUTOR_NOT_SIGNER', 'Chỉ một trong hai người đã ký mới bấm thi hành được việc này.'],
+  TRUST_RECOUNT_DENIED:        [403, 'TRUST_RECOUNT_DENIED', 'Không tính lại uy tín cho người của Hội khác được.'],
+  // Nhật ký bất biến chỉ đáng tin khi nó vừa bất biến vừa TRUNG THỰC: một dòng
+  // ghi tên người khác là lịch sử giả mạo, và vì actor_id nằm trong chuỗi băm
+  // nên nó sẽ là lịch sử giả mạo HỢP LỆ VĨNH VIỄN.
+  AUDIT_ACTOR_MISMATCH:        [403, 'AUDIT_ACTOR_MISMATCH', 'Dòng nhật ký phải mang tên chính người đang thực hiện việc đó.'],
 };
 
 export function mapPgError(err) {

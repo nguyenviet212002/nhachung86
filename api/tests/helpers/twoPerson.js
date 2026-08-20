@@ -73,13 +73,22 @@ export async function markExecuted(db, id, result = {}) {
  * config mới, rồi `fn_community_config_apply`.
  */
 export async function applyConfig(db, cid, newConfig) {
-  const { id } = await twoSignedAction(db, cid, {
+  const { id, creator } = await twoSignedAction(db, cid, {
     actionKey: 'community.config_change',
     targetType: 'community',
     targetId: cid,
     payload: { config: newConfig },
   });
-  await db.raw(`SELECT fn_community_config_apply(?)`, [id]);
+  // ĐÓNG DẤU NGƯỜI THỰC HIỆN, dù đây là kết nối owner: từ migration 029,
+  // `fn_community_config_apply` đòi người gọi phải là MỘT TRONG NHỮNG NGƯỜI ĐÃ
+  // KÝ hành động đó (`EXECUTOR_NOT_SIGNER`). Trước 029 hàm không hỏi ai bấm
+  // nút — một thành viên không vai gì cũng thi hành được một quyết định của
+  // hai người khác, đã tái hiện bằng chạy thật. Người ký thứ nhất là `creator`,
+  // nên helper đi đúng con đường mà `core/twoPerson.sign()` đi.
+  await db.transaction(async (trx) => {
+    await trx.raw(`SELECT set_config('app.actor_id', ?, true)`, [creator]);
+    await trx.raw(`SELECT fn_community_config_apply(?)`, [id]);
+  });
   await markExecuted(db, id, { config: newConfig });
   return id;
 }

@@ -120,6 +120,14 @@
     QUOTA_OVERRIDE_UNSIGNED: 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.',
     ENDORSER_ROLE_REQUIRED: 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.',
 
+    // Mã của migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự
+    // kiểm người gọi thay vì dựa vào việc chưa route nào gọi tới chúng.
+    ROLE_SELF_GRANT:        'Không ai tự gán hay tự gỡ vai của chính mình — kể cả vai kỹ thuật.',
+    ROLE_MANAGE_DENIED:     'Chỉ người mang vai kỹ thuật của chính Hội này mới gán hay gỡ vai được.',
+    EXECUTOR_NOT_SIGNER:    'Chỉ một trong hai người đã ký mới bấm thi hành được việc này.',
+    TRUST_RECOUNT_DENIED:   'Không tính lại uy tín cho người của Hội khác được.',
+    AUDIT_ACTOR_MISMATCH:   'Dòng nhật ký phải mang tên chính người đang thực hiện việc đó.',
+
     // Khung hai người ký (core/twoPerson.js, đặc tả mục 7). Năm mã này do tầng
     // ứng dụng ném, không có trong BY_MESSAGE.
     ACTION_NOT_AVAILABLE:   'Việc này chưa mở để ký trong giai đoạn hiện tại.',
