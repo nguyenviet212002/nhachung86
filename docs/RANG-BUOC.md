@@ -87,6 +87,12 @@ Một luật chỉ được ghi **"đã phủ cả hai đầu"** khi mọi bản
 
 ## 4. Bảng đối chiếu
 
+> Cột **Hai đầu** ghi trạng thái **trước** migration `027`. Mười ba chỗ đánh ❌ ở đây đã
+> được vá trong chính vòng rà này — mục 6 nói rõ chỗ nào và bằng đối tượng SQL nào; mục 7
+> ghi những chỗ **cố ý chưa vá** kèm lý do. Giữ nguyên trạng thái cũ trong bảng thay vì
+> sửa thành ✅ vì bảng này còn dùng để trả lời câu hỏi *"vì sao chỗ ấy hở"*, và câu trả lời
+> đó là thứ giúp tìm ra chỗ tiếp theo.
+
 ### 4.1 Nhóm `001`–`008` — gốc, hồ sơ, riêng tư, nhật ký, xác thực
 
 13 bảng: `communities`, `areas`, `members`, `member_contacts`, `privacy_settings`,
@@ -300,3 +306,123 @@ Xem mục 6 (bản vá) và mục 7 (việc còn để lại, kèm lý do). Nguy
 **vá được ở tầng CSDL mà không phải sửa một tệp test có sẵn** — `api/tests/` đang có người
 khác soát xét song song, và sửa bài test của người khác giữa chừng là cách chắc chắn nhất
 để cả hai bên cùng mất việc.
+
+---
+
+## 6. Bản vá — migration `027_cross_table_guards.js`
+
+Mười ba cửa được đóng. Bài test canh chúng: `api/tests/t24-rang-buoc-lien-bang.test.js`
+(25 bài, chạy **bằng `app_role` với dấu người thực hiện** — đúng hình dạng một request
+HTTP thật, không phải bằng kết nối owner).
+
+| Cửa (mục 5) | Đối tượng SQL mới | Mã lỗi |
+|---|---|---|
+| 6 — mức riêng tư của người khác | `trg_privacy_self_only` (`BEFORE UPDATE OR DELETE ON privacy_settings`) | `SELF_ONLY` |
+| 7 — người xin tự duyệt | `trg_contact_request_self_only` (`BEFORE INSERT OR UPDATE ON contact_requests`) | `SELF_ONLY` |
+| 8 — một người bật cả ba ô đồng ý | `trg_intro_consent_self_only` (`BEFORE INSERT OR UPDATE ON introductions`) | `SELF_ONLY` |
+| 9, 11 — `fn_self_only` chỉ ở `INSERT` | `fn_self_only` nay đọc được `OLD`; `trg_ast_1_self_only`, `trg_sig_resp_self_only`, `trg_sig_fwd_self_only` khai `INSERT OR UPDATE OR DELETE` | `SELF_ONLY` |
+| 10 — sức chứa suất chỉ canh ở `INSERT` | `trg_ast_2_capacity` khai `INSERT OR UPDATE` | `AID_SLOT_FULL` |
+| 12 — đổi chủ năng lực đã có bằng chứng | `trg_capability_owner_frozen` (`BEFORE UPDATE ON capabilities`) | `CAPABILITY_OWNER_FROZEN` |
+| 13 — người vay thành người bảo lãnh của chính mình | `trg_loan_borrower_valid` (`BEFORE UPDATE ON loans`) | `LOAN_GUARANTOR_IS_BORROWER` (**dùng lại**) |
+| 14 — đổi đối tượng hành động sau khi ký | `trg_pending_action_frozen` (`BEFORE UPDATE ON pending_actions`) | `PENDING_ACTION_FROZEN` |
+| 15 — ký nội dung X, thi hành nội dung Y | `fn_pending_action_signatures` nay so `payload_hash_at_sign = payload_hash` | `TWO_SIGNATURES_REQUIRED` (**dùng lại**) |
+| 16 — dời lời khai có mặt sang ảnh khác | `trg_memory_photo_ppl_frozen` (`BEFORE UPDATE ON memory_photo_people`) | `PHOTO_PEOPLE_FROZEN` |
+| 17, 18, 19 — dữ kiện hạn mức bảo lãnh | `trg_join_request_frozen` (`BEFORE UPDATE ON join_requests`) | `JOIN_REQUEST_FROZEN` |
+| 21 — viết lại sợi bảo lãnh qua trạng thái `left` | `fn_referrer_frozen`: điều kiện `OLD.status = 'member'` → `OLD.status <> 'guest'` | `REFERRER_FROZEN` (**dùng lại**) |
+
+Bốn trong mười ba chỗ **dùng lại mã lỗi đã có** thay vì đẻ mã mới, vì chúng cưỡng chế đúng
+cùng một luật — chỉ từ đầu bên kia. Bốn mã mới (`CAPABILITY_OWNER_FROZEN`,
+`PENDING_ACTION_FROZEN`, `JOIN_REQUEST_FROZEN`, `PHOTO_PEOPLE_FROZEN`) đã khai ở
+`api/src/core/errors.js` **và** `web/js/api.js` ngay khi trigger ra đời; `t23-error-map`
+canh việc đó bằng cách đọc thẳng `RAISE EXCEPTION` trong thư mục migration.
+
+### 6.1 `fn_acting_member()` — và vì sao nó KHÁC `fn_self_only()`
+
+Ba trigger của họ A cần biết *ai đang thao tác*, nhưng không dùng được `fn_self_only` (vốn
+ném `NO_ACTOR` khi giao dịch không đóng dấu), vì `fn_member_bootstrap` — hàm
+`SECURITY DEFINER` của luồng duyệt gia nhập — ghi tám hàng `privacy_settings` cho **người
+mới** trong giao dịch đóng dấu **người duyệt**. Ở đó luật "chính chủ" **sai về nghiệp vụ**
+chứ không chỉ bất tiện.
+
+`fn_acting_member(TG_RELID)` trả về:
+
+- `uuid` người thực hiện, nếu giao dịch có đóng dấu ⇒ luật chính chủ **ép**;
+- `NULL`, nếu không đóng dấu **nhưng** câu lệnh chạy bằng quyền **chủ bảng** — migration,
+  `psql` của người vận hành, hoặc một hàm `SECURITY DEFINER` của chính hệ thống (trong hàm
+  `SECURITY DEFINER`, `current_user` là chủ hàm) ⇒ đường của hệ thống, bỏ qua;
+- ném `NO_ACTOR`, nếu không đóng dấu và **không** phải chủ bảng — tức `app_role` ghi ngoài
+  `withActor()`, đúng loại lỗi `fn_self_only` vẫn bắt.
+
+**Giới hạn, nói thẳng:** khác `fn_work_participants_frozen` hay `fn_fund_sig_guard` (chặn
+cả đường owner/`psql`), ba trigger này **không** chặn đường owner. Đổi lại chúng chặn đúng
+mặt tấn công thật — mọi request HTTP đi qua `withActor()` bằng vai `app_role`. README vận
+hành phải ghi: sửa `privacy_settings` bằng `psql` là sửa quyền riêng tư của người khác mà
+không có dấu vết.
+
+### 6.2 Phép thử đột biến
+
+Gỡ hẳn `027_cross_table_guards.js` khỏi thư mục migration rồi chạy lại `t24`:
+**21/25 bài đỏ**, và **19 bài đỏ vì đúng một lý do**: *"promise resolved instead of
+rejecting"* — tức câu ghi lẽ ra phải bị cấm đã **thành công**. Không bài nào đỏ vì lỗi cú
+pháp hay hết giờ. **Mỗi trong mười ba cửa đều có ít nhất một bài đỏ trực tiếp.**
+
+Hai bài còn lại đỏ **dây chuyền** (phép thử gỡ *toàn bộ* trigger cùng lúc nên trạng thái
+dữ liệu của bài trước rò sang bài sau): *"CHỦ HỒ SƠ duyệt thì đơn có hiệu lực"* đỏ vì bài
+trước đó đã xoá được hàng `privacy_settings` của Bob; *"chính chủ vẫn nhả suất của mình
+được"* đỏ vì bài trước đã dời được hàng sang suất khác. Ghi ra để không ai tính nhầm chúng
+là bằng chứng độc lập.
+
+Khôi phục bản vá ⇒ **315/315 xanh**, chạy hai lần. `migrate:latest` → `down` ba bước →
+`up` → `latest` phục hồi đủ mười trigger của `027`.
+
+### 6.3 Một vòng sửa bị vứt, và lý do đáng ghi lại
+
+Bản vá đầu cho cửa **16** mở rộng `fn_memory_photo_people_guard` để kiểm **cả**
+`OLD.photo_id` lẫn `NEW.photo_id`. Nghe đúng, và nó **không hoạt động**: hàm đếm
+`fn_photo_consent_missing` đếm số người **chưa đồng ý**, nên dời một hàng `consent='yes'`
+ra khỏi ảnh đã duyệt vẫn cho ra con số 0.
+
+Thiệt hại thật không phải *"ảnh thiếu đồng ý"* mà là *"một người biến mất khỏi danh sách
+người có mặt"* — **một đại lượng khác hẳn**. Đây đúng bài học Ruling T13-c ở dạng khác:
+một cái lưới dựng để chống loại lỗi X vẫn mù trước X nếu nó **đo sai đại lượng**. Bản vá
+đúng không đếm gì cả — nó nói `(photo_id, member_id)` *là* danh tính của một lời khai có
+mặt, và danh tính thì không sửa.
+
+---
+
+## 7. Cố ý CHƯA vá — và vì sao
+
+Bảy chỗ dưới đây đã tái hiện được nhưng không nằm trong `027`. Mỗi chỗ kèm hình dạng bản vá
+đề nghị, để người nhận việc không phải rà lại từ đầu.
+
+| # | Chỗ hở | Vì sao chưa vá | Hình dạng bản vá đề nghị |
+|---|---|---|---|
+| **20** | Tự cấp `guarantee_quota_overrides` cho chính mình | Đặc tả mục 4.3 nói nới hạn mức phải qua **khung hai người ký** (mục 7), mà khung ấy chưa có endpoint — Task 14. Dựng ràng buộc trỏ tới một luồng chưa tồn tại là dựng cửa trước khi có người canh (cùng lập luận Ruling T8-f) | Thêm cột `pending_action_id NOT NULL` (khoá ngoại ghép sang `pending_actions`) + trigger đòi hành động ấy `status='executed'` và `action_key='guarantee.quota_override'` |
+| **22** | `communities.config` là đòn bẩy không ai canh: `fund_two_approver_threshold`, `guarantee_quota_per_year`, `manual_pair_quota`, `privacy_defaults` | Nặng nhất trong nhóm này (**đã tái hiện: chi 50 triệu, không một chữ ký nào**) nhưng bản vá đúng là đưa `communities.config` vào khung hai người ký — cùng phụ thuộc Task 14. Bản vá tạm ở tầng CSDL sẽ phải gỡ ra ngay sau đó | `action_key` mới `community.config_change`; trong lúc chờ, tối thiểu một trigger `AFTER UPDATE ON communities` ghi `audit_log` khi khoá ngưỡng đổi |
+| **23** | Đẩy `activities.ends_at` ra tương lai để gỡ kẹt `SUMMARY_REQUIRED` | Không phân biệt được **"hoãn thật"** với **"gỡ kẹt"** nếu chỉ nhìn dữ liệu; một hoạt động dời lịch là chuyện bình thường. Vá ẩu sẽ chặn nhầm đúng loại việc mà mục 4.5 dặn "chặn nhầm là chặn hỏng" | Chỉ cấm đẩy `ends_at` **ra sau** khi hoạt động đã `status='done'` và chưa có `activity_summaries` — hẹp đúng một hình dạng |
+| **24** | Gỡ vai `approver` khỏi người **đã ký** làm chữ ký cũ mất hiệu lực | Chưa khai thác được (`member_roles` chỉ có `SELECT`), nhưng migration `008` đã hẹn sẽ có hàm gán vai. Đây là **quả mìn đặt sẵn cho task đó**, không phải lỗ hổng hôm nay | Ghi ảnh chụp vai vào **chính hàng chữ ký** (`fund_entry_approvals`, `pending_action_signatures`) và đếm theo đó. Chữ ký là sự việc ở một thời điểm; đếm nó bằng trạng thái hiện tại là trộn hai trục thời gian |
+| — | Cổng `met_confirmed` là kiểm **THỨ TỰ**, không phải kiểm **THẨM QUYỀN**; `met_confirmed_by` / `approved_by` là ô điền tên ai cũng được (câu hỏi 4) | Thẩm quyền đang nằm ở `requireRole('approver')` và ở `join-requests/service.js` (nó **có** kiểm `referrer_id === actor.id`). Tức luật đang được giữ, chỉ là giữ ở tầng ứng dụng | Trigger trên `join_requests`: khi `met_confirmed_at` chuyển từ `NULL`, đòi `met_confirmed_by = fn_acting_member(TG_RELID)` **và** `= referrer_id`. Đây là chỗ đáng vá tiếp theo nếu chọn một chỗ |
+| — | `member_relations(kind='guarantee')` không đi theo khi `members.referrer_id` đổi lúc còn `guest` | `t08-guarantee-quota` **khẳng định** khách đổi được người bảo lãnh (`resolves.toBeTruthy()`), nên đóng băng hẳn sẽ phá một bài test có sẵn — và `api/tests/` đang có người khác soát xét | Trigger `AFTER UPDATE OF referrer_id ON members` sinh lại cạnh; hoặc bỏ hẳn bản dẫn xuất và tính bằng view (cùng lập luận `v_signal_recipients` ở migration `014`) |
+| — | Ba trigger họ A không chặn đường owner/`psql` | Xem mục 6.1 | Nếu về sau muốn chặn cả đường owner: đổi `fn_acting_member` thành ném `NO_ACTOR` vô điều kiện, và sửa phần **dựng dữ liệu** của bộ kiểm thử sang `withActor()`. Việc này phải làm **cùng** người đang soát xét `api/tests/` |
+
+---
+
+## 8. Cách rà lại lần sau
+
+Không có mẹo nào thay được việc đi hết bảng, nhưng có bốn câu hỏi rút gọn được công:
+
+1. **Grep `RAISE EXCEPTION` trong `src/db/migrations/`.** Với mỗi hàm chứa nó, liệt kê mọi
+   bảng mà thân hàm `SELECT`/`EXISTS` tới. Đó là danh sách cửa.
+2. **Với mỗi cửa, hỏi ma trận quyền `024`:** `app_role` có `UPDATE`/`DELETE` trên bảng ấy
+   không? Có mà không có trigger nào trên bảng ấy ⇒ nghi ngờ ngay.
+3. **Với mỗi `CREATE TRIGGER`, đọc danh sách sự kiện.** Chỉ `BEFORE INSERT` mà bảng có
+   `UPDATE` trong ma trận quyền ⇒ nghi ngờ ngay. Đây là họ B, và nó chiếm năm trong mười
+   chín chỗ của vòng này.
+4. **Với mỗi khóa ngoại trỏ tới bảng cha, hỏi:** trigger nào đọc một cột **khác khóa
+   chính** của bảng cha (`member_id`, `borrower_id`, `target_id`, `created_by`)? Cột đó có
+   đóng băng không? Đây là họ C.
+
+Và một luật viết cho người sửa lần sau, rút từ chính vòng này (mục 6.3):
+
+> **Trước khi tin một bản vá, hỏi nó ĐANG ĐO CÁI GÌ.** Một cái lưới đo sai đại lượng vẫn
+> xanh, vẫn trông như đang canh, và sẽ dập tắt đúng câu hỏi cần được hỏi lại.
