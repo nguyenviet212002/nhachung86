@@ -1,345 +1,72 @@
 {
-  "communities": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "areas": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "members": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "member_contacts": [],
-  "audit_log": [
-    "SELECT",
-    "INSERT"
-  ],
-  "audit_chain_head": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "privacy_settings": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "contact_requests": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "profile_views": [
-    "SELECT",
-    "INSERT"
-  ],
-  "refresh_tokens": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "otp_challenges": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "roles": [
-    "SELECT"
-  ],
-  "member_roles": [
-    "SELECT"
-  ],
-  "join_requests": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "guarantee_quota_overrides": [
-    "SELECT",
-    "INSERT"
-  ],
-  "join_request_secrets": [
-    "INSERT"
-  ],
-  "work_records": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "work_participants": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "work_confirmations": [
-    "SELECT",
-    "INSERT"
-  ],
-  "member_relations": [
-    "SELECT"
-  ],
-  "member_trust_stats": [
-    "SELECT"
-  ],
-  "capabilities": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "capability_photos": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "capability_evidence": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "signals": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "signal_recipients": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "signal_responses": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "signal_options": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "signal_forwards": [
-    "SELECT",
-    "INSERT"
-  ],
-  "v_signal_recipients": [
-    "SELECT"
-  ],
-  "job_needs": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "ready_profiles": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "introductions": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "connections": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "connection_events": [
-    "SELECT",
-    "INSERT"
-  ],
-  "aid_requests": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "aid_offers": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "aid_slots": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "aid_slot_takers": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "aid_events": [
-    "SELECT",
-    "INSERT"
-  ],
-  "activities": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "activity_participants": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "activity_needs": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "activity_photos": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "activity_summaries": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "verifications": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "endorsements": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "endorsement_signatures": [
-    "SELECT",
-    "INSERT"
-  ],
-  "complaints": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "complaint_events": [
-    "SELECT",
-    "INSERT"
-  ],
-  "memories": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "memory_versions": [
-    "SELECT",
-    "INSERT"
-  ],
-  "memory_photos": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "memory_photo_people": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "memory_consents": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "fund_entries": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "fund_entry_approvals": [
-    "SELECT",
-    "INSERT"
-  ],
-  "transparency_reports": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "report_versions": [
-    "SELECT",
-    "INSERT"
-  ],
-  "subject_keys": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "loans": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "loan_guarantors": [
-    "SELECT",
-    "INSERT",
-    "UPDATE",
-    "DELETE"
-  ],
-  "loan_repayments": [
-    "SELECT",
-    "INSERT"
-  ],
-  "permissions": [
-    "SELECT"
-  ],
-  "role_permissions": [
-    "SELECT"
-  ],
-  "pending_actions": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ],
-  "pending_action_signatures": [
-    "SELECT",
-    "INSERT"
-  ],
-  "backups": [
-    "SELECT",
-    "INSERT"
-  ],
-  "restore_tests": [
-    "SELECT",
-    "INSERT"
-  ],
-  "moderation_queue": [
-    "SELECT",
-    "INSERT",
-    "UPDATE"
-  ]
+  "communities":              ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "areas":                    ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "members":                  ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "member_contacts":          [],
+  "audit_log":                ["SELECT", "INSERT"],
+  "audit_chain_head":         ["SELECT", "INSERT", "UPDATE"],
+  "privacy_settings":         ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "contact_requests":         ["SELECT", "INSERT", "UPDATE"],
+  "profile_views":            ["SELECT", "INSERT"],
+  "refresh_tokens":           ["SELECT", "INSERT", "UPDATE"],
+  "otp_challenges":           ["SELECT", "INSERT", "UPDATE"],
+  "roles":                    ["SELECT"],
+  "member_roles":             ["SELECT"],
+  "join_requests":            ["SELECT", "INSERT", "UPDATE"],
+  "guarantee_quota_overrides":["SELECT", "INSERT"],
+  "join_request_secrets":     ["INSERT"],
+  "work_records":             ["SELECT", "INSERT", "UPDATE"],
+  "work_participants":        ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "work_confirmations":       ["SELECT", "INSERT"],
+  "member_relations":         ["SELECT"],
+  "member_trust_stats":       ["SELECT"],
+  "capabilities":             ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "capability_photos":        ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "capability_evidence":      ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signals":                  ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_recipients":        ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_responses":         ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_options":           ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_forwards":          ["SELECT", "INSERT"],
+  "v_signal_recipients":      ["SELECT"],
+  "job_needs":                ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "ready_profiles":           ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "introductions":            ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "connections":              ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "connection_events":        ["SELECT", "INSERT"],
+  "aid_requests":             ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "aid_offers":               ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "aid_slots":                ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "aid_slot_takers":          ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "aid_events":               ["SELECT", "INSERT"],
+  "activities":               ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "activity_participants":    ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "activity_needs":           ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "activity_photos":          ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "activity_summaries":       ["SELECT", "INSERT", "UPDATE"],
+  "verifications":            ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "endorsements":             ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "endorsement_signatures":   ["SELECT", "INSERT"],
+  "complaints":               ["SELECT", "INSERT", "UPDATE"],
+  "complaint_events":         ["SELECT", "INSERT"],
+  "memories":                 ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "memory_versions":          ["SELECT", "INSERT"],
+  "memory_photos":            ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "memory_photo_people":      ["SELECT", "INSERT", "UPDATE"],
+  "memory_consents":          ["SELECT", "INSERT", "UPDATE"],
+  "fund_entries":             ["SELECT", "INSERT", "UPDATE"],
+  "fund_entry_approvals":     ["SELECT", "INSERT"],
+  "transparency_reports":     ["SELECT", "INSERT", "UPDATE"],
+  "report_versions":          ["SELECT", "INSERT"],
+  "subject_keys":             ["SELECT", "INSERT", "UPDATE"],
+  "loans":                    ["SELECT", "INSERT", "UPDATE"],
+  "loan_guarantors":          ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "loan_repayments":          ["SELECT", "INSERT"],
+  "permissions":              ["SELECT"],
+  "role_permissions":         ["SELECT"],
+  "pending_actions":          ["SELECT", "INSERT", "UPDATE"],
+  "pending_action_signatures":["SELECT", "INSERT"],
+  "backups":                  ["SELECT", "INSERT"],
+  "restore_tests":            ["SELECT", "INSERT"],
+  "moderation_queue":         ["SELECT", "INSERT", "UPDATE"]
 }

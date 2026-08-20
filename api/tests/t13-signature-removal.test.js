@@ -168,7 +168,12 @@ describe('T13 chữ ký nào được tính', () => {
       `INSERT INTO member_roles (member_id, role_id, community_id)
        SELECT ?, r.id, ? FROM roles r WHERE r.key = 'approver'`, [nguoiLa.id, cidKhac]);
 
-    await expect(writeEntry([approverA, nguoiLa.id])).rejects.toThrow(/foreign key|FUND_TWO/i);
+    // Chặn bởi khoá ngoại GHÉP, ngay lúc GHI — đã kiểm bằng probe chạy thật:
+    // SQLSTATE 23503, constraint fund_entry_approvals_approver_id_community_id_fkey.
+    // Khai community_id = cộng đồng B thay vì A cũng không lách được: khoá ngoại
+    // (entry_id, community_id) -> fund_entries đóng nốt chiều còn lại.
+    await expect(writeEntry([approverA, nguoiLa.id]))
+      .rejects.toThrow(/fund_entry_approvals_approver_id_community_id_fkey/);
   });
 
   it('bút toán NHỎ không cần chữ ký nào — ngưỡng có thật, không phải cấm cửa', async () => {

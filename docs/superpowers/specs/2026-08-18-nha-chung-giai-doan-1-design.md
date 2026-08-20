@@ -573,9 +573,9 @@ Còn lại: bảng điều khiển vận hành hiện tỷ lệ `manual / tổng
 | Quỹ ≥ 1 triệu cần 2 approver | Bảng nối + trigger ràng buộc hoãn (dưới) | `ERROR: FUND_TWO_APPROVERS_REQUIRED` |
 | `fund_entries.locked` bất động | Trigger `BEFORE UPDATE OR DELETE` + `REVOKE DELETE` | `ERROR: FUND_ENTRY_LOCKED` |
 | Hoạt động dùng quỹ khi còn món chưa tổng kết | Trigger `BEFORE INSERT ON activities` | `ERROR: SUMMARY_REQUIRED` → 422 |
-| Bảo chứng đúng 2 người khác nhau | `endorsement_signatures` + trigger hoãn `= 2`, `signer_id <> member_id` | `ERROR: ENDORSEMENT_NEEDS_TWO_DISTINCT` |
-| Ảnh ký ức chỉ `approved` khi tất cả đồng ý | Trigger dò `memory_photo_people`; `no_reply` và thiếu hàng đều là chưa đồng ý | `ERROR: PHOTO_CONSENT_INCOMPLETE` |
-| Không chuyển tiếp tự động | `signal_forwards.from_member_id NOT NULL` + FK + `CHECK (from <> to)` | `ERROR: null value … violates not-null` |
+| Bảo chứng đúng 2 người khác nhau | `endorsement_signatures` + **HAI** trigger hoãn `= 2` (trên `endorsements` **và** trên chính bảng chữ ký), `signer_id <> member_id` bằng trigger vì đây là ràng buộc liên bảng | `ERROR: ENDORSEMENT_NEEDS_TWO_DISTINCT` |
+| Ảnh ký ức chỉ `approved` khi tất cả đồng ý | **HAI** trigger (Task 13): `trg_memory_photo_consent` trên `memory_photos` + `trg_memory_photo_ppl_guard` **hoãn, trên `memory_photo_people`** — trigger trên bảng ảnh không chạy khi ai đó đổi ý *sau* lúc duyệt; `no_reply` và thiếu hàng đều là chưa đồng ý | `ERROR: PHOTO_CONSENT_INCOMPLETE` |
+| Không chuyển tiếp tự động | `signal_forwards.from_member_id NOT NULL` + FK sang `signal_recipients` + `CHECK (from <> to)` + **`trg_sig_fwd_self_only`** (Task 13): `NOT NULL` bắt được ô TRỐNG, không bắt được ô điền TÊN NGƯỜI KHÁC | `ERROR: SELF_ONLY` / `ERROR: null value … violates not-null` |
 | Vòng bảo lãnh A→B→C→A | Trigger đi ngược tổ tiên khi đặt `referrer_id` | `ERROR: GUARANTEE_CYCLE` |
 | `audit_log` chỉ INSERT | `REVOKE UPDATE, DELETE` + `fn_audit_chain` | `ERROR: permission denied for table audit_log` |
 | Mọi bảng có `community_id` | `NOT NULL REFERENCES communities(id)` từ migration đầu; T10 quét `information_schema` | CI đỏ |
@@ -584,19 +584,36 @@ Còn lại: bảng điều khiển vận hành hiện tỷ lệ `manual / tổng
 
 ```sql
 CREATE TABLE fund_entry_approvals (
-  entry_id    uuid NOT NULL REFERENCES fund_entries(id) ON DELETE CASCADE,
-  approver_id uuid NOT NULL REFERENCES members(id),
-  signed_at   timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (entry_id, approver_id)
+  entry_id     uuid NOT NULL,
+  approver_id  uuid NOT NULL,
+  community_id uuid NOT NULL REFERENCES communities(id),   -- thêm ở Task 13, xem ghi chú dưới
+  signed_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (entry_id, approver_id),
+  FOREIGN KEY (entry_id, community_id)    REFERENCES fund_entries (id, community_id) ON DELETE CASCADE,
+  FOREIGN KEY (approver_id, community_id) REFERENCES members (id, community_id)
 );
+```
 
+> **Hai lỗi trong khối dưới đây, sửa ở Task 13.** (a) `JOIN member_roles` **không lọc
+> `community_id`** — lần thứ BẢY của cùng họ lỗi (Ruling T7-a, T8-d, hai chỗ Task 9, mã mẫu
+> `contact_upsert` mục 4.7, Ruling T10-a). Hậu quả: người mang vai `approver` ở cộng đồng B ký
+> **hợp lệ** cho bút toán của cộng đồng A. Bản thi công thêm `mr.community_id`, và thêm cột
+> `community_id` vào chính `fund_entry_approvals` để dùng khoá ngoại **ghép** — CSDL chặn từ lúc
+> GHI (`23503`, đã kiểm bằng probe thật) chứ không phải lúc ĐẾM. (b) `count(*)` qua một JOIN sang
+> `member_roles` phụ thuộc vào khoá chính của một bảng **khác**; dùng `count(DISTINCT approver_id)`
+> để câu đếm tự đứng vững. Ngưỡng 1 triệu đọc từ `communities.config` — hạn mức là chính sách của
+> cộng đồng, không phải hằng số của nền tảng.
+
+```sql
 CREATE FUNCTION fn_fund_two_approvers() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE v_n int;
 BEGIN
   IF abs(NEW.amount) < 1000000 THEN RETURN NULL; END IF;
-  SELECT count(*) INTO v_n
+  SELECT count(DISTINCT a.approver_id) INTO v_n
     FROM fund_entry_approvals a
+    JOIN fund_entries e ON e.id = a.entry_id
     JOIN member_roles mr ON mr.member_id = a.approver_id
+                        AND mr.community_id = e.community_id      -- CÙNG cộng đồng
     JOIN roles r ON r.id = mr.role_id AND r.key = 'approver'
    WHERE a.entry_id = NEW.id AND a.approver_id <> NEW.created_by;
   IF v_n < 2 THEN
@@ -804,7 +821,19 @@ CREATE CONSTRAINT TRIGGER trg_fund_sig_guard
 | `backups`, `restore_tests` | `SELECT, INSERT` | **Mới** — ghi nhận việc đã xảy ra |
 | `fund_entries` | `SELECT, INSERT, UPDATE` | Không xóa; `locked` chặn sửa |
 | `join_requests`, `contact_requests` | `SELECT, INSERT, UPDATE` | **Mới (bỏ DELETE)** — đơn đã nộp không biến mất |
+| `activity_summaries` | `SELECT, INSERT, UPDATE` | **Mới (Task 13)** — xoá bản tổng kết là mở lại đúng cửa `SUMMARY_REQUIRED` vừa đóng |
+| `memory_photo_people` | `SELECT, INSERT, UPDATE` | **Mới (Task 13)** — gỡ hàng của một người là cách xoá tiếng "không" của họ |
+| `aid_events`, `loan_repayments` | `SELECT, INSERT` | **Mới (Task 13)** — sổ sự kiện / sổ nợ |
+| `subject_keys`, `loans` | `SELECT, INSERT, UPDATE` | **Mới (Task 13)** — hủy khóa là `UPDATE destroyed_at`, không phải `DELETE` |
+| `complaints`, `moderation_queue`, `transparency_reports` | `SELECT, INSERT, UPDATE` | **Mới (Task 13)** — đơn/hồ sơ đã mở không biến mất |
+| `permissions`, `role_permissions` | `SELECT` | **Mới (Task 13)** — hằng số nền tảng, như `roles` |
+| `v_signal_recipients` (VIEW) | `SELECT` | **Mới (Task 13)** — `ALTER DEFAULT PRIVILEGES` cấp cả bốn quyền cho VIEW y như cho bảng, nên view chưa khai báo là một cửa chưa ai đếm; T10 nay quét cả `relkind='v'` |
 | Còn lại | đủ bốn quyền | |
+
+**Nguồn sự thật thi hành được:** từ Task 13, bảng này được chép thành hằng `GRANTS` trong
+`024_indexes_and_revokes.js`, và migration đó **tự kiểm**: nó liệt kê mọi bảng/view trong schema
+`public` và **ném lỗi** nếu có cái nào không có mặt trong `GRANTS`. Không có câu tự kiểm đó thì câu
+"đọc một tệp là thấy hết ma trận quyền" hết hạn ngay lần thêm bảng tiếp theo.
 
 ---
 
@@ -1041,10 +1070,33 @@ export async function readContact(trx, targetId, field) {
   return r;   // { allowed, value, reason }
 }
 
-// 2. Dựng bao bì trạng thái cho một danh sách người — MỘT truy vấn cho cả trang.
-//    communityId là tham số BẮT BUỘC, xem ghi chú bên dưới.
+// 2. Dựng bao bì trạng thái cho một danh sách người — MỘT truy vấn cho cả trang,
+//    TÁM trường mỗi người. communityId là tham số BẮT BUỘC.
 export async function contactStates(trx, viewerId, targetIds, communityId) { … }
+
+// 3. Đóng gói. KHÔNG có luật nào ở đây — `state` đến thẳng từ fn_privacy_state.
+export function envelope(stateForMember, values = {}) { … }
 ```
+
+> **TÁM trường, MỘT luật (thêm ở Task 13, Ruling T11-f).** `privacy_settings` nhận tám `field_key`.
+> Bốn trường liên hệ đọc qua `contact_read`; bốn trường hồ sơ (`job`, `area`, `price`, `family`)
+> trước Task 13 **không ai đọc mức của chúng** — `GET /members` trả `job` và `area` như cột thường,
+> nên đặt `closed` mà danh bạ vẫn trả đủ. Một cái nút không nối vào đâu cả tệ hơn không có nút.
+>
+> Luật nay nằm **một chỗ duy nhất**: `fn_privacy_state(viewer, target, field)` trong CSDL
+> (migration `012b`). `contactStates()` gọi nó, `contact_read` gọi nó, và **câu `WHERE` của
+> `GET /members` cũng gọi nó**. Vế cuối là bắt buộc chứ không phải thừa: bộ lọc `?job=` và
+> `?area_id=` là một kênh phụ đọc trọn vẹn chính cái trường vừa bị che — che giá trị mà để hở bộ
+> lọc là che một nửa (cùng hình dạng Ruling T8-c). Và một khi SQL đã phải biết luật thì viết lại
+> lần thứ hai trong JS là tự tạo hai bản sao sẽ trôi dạt khỏi nhau.
+>
+> Khác biệt duy nhất giữa hai nhóm là `inline` trong bảng `FIELD_SPEC`: giá trị của trường **liên
+> hệ** không bao giờ đi kèm bao bì (nguyên tắc 4), giá trị của trường **hồ sơ** thì có, vì nó *là*
+> nội dung của danh bạ và không có endpoint riêng nào để đọc. Đó là **dữ liệu trong một bảng**,
+> không phải một nhánh `if` cho từng trường.
+>
+> `price` sống ở `capabilities.price` (migration `013`); `family` **chưa có cột hay bảng nào chứa**
+> — cả hai vẫn đi qua đúng cửa này để khi có dữ liệu thì không ai phải nhớ nối lại.
 
 > **`communityId` được thêm vào chữ ký ở Task 10 và nó bắt buộc, không tuỳ chọn.** Bản đầu chỉ lọc theo `targetIds` rồi dựa vào lời hứa "người gọi đã lọc cộng đồng rồi" — đúng hình dạng lỗi đã lặp năm lần trong dự án (Ruling T7-a, T8-d, hai chỗ ở Task 9, mã mẫu `contact_upsert` mục 4.7). Tham số bắt buộc biến chỗ quên thành lỗi thấy được ngay thay vì một đường rò im lặng. Cùng lỗ hổng ở phía CSDL được bịt bằng migration `012a`.
 
@@ -1251,10 +1303,11 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `011_work_records` | 3 bảng việc **và chỉ 3 bảng** — ba hàm `fn_self_only`, `fn_work_record_frozen`, `fn_manual_pair_quota` đã dời sang `025_work_triggers` (Task 12), vì gắn trigger uy tín trước khi có bảng đếm uy tín là dựng một cửa không ai canh |
 | `012_member_relations` | Bảng + `fn_work_edge` + `fn_member_bootstrap` + `contact_upsert` + thu quyền ghi + chỉ mục một chiều |
 | `012a_contact_read_community` | **Thêm ở Task 10** — `CREATE OR REPLACE contact_read` để nó tự kiểm **người xem và người bị xem cùng một cộng đồng**. Bản ở `006` chỉ đọc `community_id` của người bị xem mà không bao giờ so với người xem, nên một người ở cộng đồng A đọc được số điện thoại thật của người ở cộng đồng B (đã tái hiện: `{allowed: true, value: '09…'}`). Trước Task 10 lỗ này không có đường vào vì chưa route nào gọi `contact_read`. Đánh số `012a` vì `013` đã hẹn cho `013_capabilities`; điều kiện an toàn của Ruling T9-d thỏa hiển nhiên (nó được **nối vào đuôi**, không chèn giữa). **Migration `015` khi `CREATE OR REPLACE` hàm này lần nữa phải giữ nguyên hai câu kiểm cộng đồng đó.** |
-| `013_capabilities` | + ảnh + chứng cứ |
+| `012b_privacy_state` | **Thêm ở Task 13** — `fn_privacy_state(viewer, target, field)`: MỘT luật riêng tư cho cả TÁM `field_key`, tự kiểm cộng đồng bên trong. `core/privacy.js`, bộ lọc của `GET /members`, và `contact_read` đều gọi nó, nên không có bản sao thứ hai của luật để trôi dạt. Xem Ruling T11-f. Đánh số `012b` vì `013` đã hẹn; nó chỉ phụ thuộc `004` và `006` nên điều kiện an toàn của Ruling T9-d thoả. |
+| `013_capabilities` | + ảnh + chứng cứ + `fn_capability_evidence_valid` (bằng chứng phải là việc chính chủ có tham gia **và** đã tự xác nhận). `capabilities.price` là nhà của `field_key='price'`. |
 | `014_signals` | 5 bảng + `v_signal_recipients` |
 | `015_jobs` | + `intro_three_consents` |
-| `016_aid` | + `trg_slot_self_only` |
+| `016_aid` | 5 bảng + `fn_aid_slot_capacity`. **`trg_slot_self_only` KHÔNG ở đây** — `fn_self_only` sinh ở `025` (Ruling C8) nên mọi `CREATE TRIGGER` dùng nó phải chạy **sau** `025`; `CREATE TRIGGER` đòi hàm tồn tại ngay lúc chạy (đã kiểm: `42883`). Xem `026`. |
 | `017_activities` | + trigger `SUMMARY_REQUIRED` |
 | `018_verify_endorse_complaints` | + `endorsement_signatures` + trigger hoãn |
 | `019_memories` | + `memory_photo_people` + trigger đồng ý |
@@ -1264,6 +1317,7 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `023_trust_stats` | **Task 12** — `member_trust_stats` (`app_role` chỉ có `SELECT`) + `fn_trust_recount` (`SECURITY DEFINER`, viết bằng CTE nhiều tầng theo Ruling C9) + `trg_trust_touch` trên `work_confirmations` + `trg_trust_review` trên `work_records` (approver duyệt xong thì con số đổi ngay, không chờ tác vụ 03:15) |
 | `024_indexes_and_revokes` | `search_vec`, GIN, GiST, và **chốt lại toàn bộ ma trận quyền theo bảng ở mục 4.8** — nơi duy nhất `REVOKE` được tập trung, để đọc một file là thấy hết |
 | `025_work_triggers` | **Task 12** — `fn_self_only`, `fn_manual_pair_quota`, `fn_work_record_frozen`, `fn_work_review_gate`, `fn_work_participants_frozen`, `fn_work_edge` + trigger của cả sáu. Tệp RIÊNG chứ không sửa `011`: Ruling C8 (migration đã chạy thì không sửa). Số `025 > 023` nên bảng đếm uy tín đã có mặt trước khi trigger bắt đầu sống. Hai trigger `BEFORE INSERT` trên `work_confirmations` đặt tên có số thứ tự (`trg_wc_1_self_only`, `trg_wc_2_manual_pair_quota`) vì PostgreSQL chạy trigger cùng thời điểm theo **thứ tự tên**, và luật danh tính phải chặn trước luật hạn mức. |
+| `026_self_only_triggers` | **Thêm ở Task 13** — `trg_slot_self_only` (`aid_slot_takers`), `trg_sig_resp_self_only` (`signal_responses`), `trg_sig_fwd_self_only` (`signal_forwards`). Tệp riêng vì cả ba dùng `fn_self_only` của `025`. |
 
 ---
 
