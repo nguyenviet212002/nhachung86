@@ -80,8 +80,8 @@
 // Bảng quyền: CHỈ những khoá thật sự được `requirePermission()` cưỡng chế ở
 // một route nào đó. Không thêm khoá "cho đủ bộ" — một hàng quyền không ai đọc
 // là một lời hứa không ai giữ, và `t27` khẳng định hai chiều: mọi khoá ở đây
-// phải có route dùng, mọi `requirePermission('x')` trong `api/src` phải có
-// hàng ở đây.
+// phải có route dùng, và mọi khoá truyền cho requirePermission trong api/src
+// phải có hàng ở đây.
 const PERMISSIONS = [
   ['ops.audit.read', 'Xem nhật ký hệ thống', 'Đọc audit_log có lọc và phân trang, và chạy kiểm chuỗi băm'],
   ['ops.dashboard', 'Xem bảng điều khiển vận hành', 'Bốn cảnh báo của mục 4.6 và mục 9 đặc tả'],

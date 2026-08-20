@@ -18,8 +18,9 @@ import { AppError } from '../core/errors.js';
 // vi ở những luồng đã có bài test dày, và làm việc đó trong cùng lượt với
 // việc mở luồng gán vai là trộn hai rủi ro. `t27` khẳng định hai chiều để
 // bảng không trôi dạt: mọi khoá trong `permissions` phải có ít nhất một route
-// dùng, và mọi `requirePermission('x')` trong `api/src` phải có hàng trong
-// `permissions`.
+// dùng, và mọi khoá truyền cho hàm dưới đây trong `api/src` phải có hàng trong
+// `permissions`. (Không viết một lời gọi ví dụ ở đây — bài test quét chính
+// thư mục này, nên một ví dụ trong chú thích sẽ bị đếm là một lời gọi thật.)
 // ---------------------------------------------------------------------------
 export function requirePermission(...keys) {
   return (req, _res, next) => {

@@ -269,6 +269,163 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     assertSnakeKeys(res.body);
   });
 
+  // -------------------------------------------------------------------------
+  // Task 16 — bảy route `/ops`. Thêm vào đây theo đúng luật Ruling T9-e:
+  // `assertSnakeKeys` chỉ soi những phản hồi mà bài test chịu khó gọi tới, nên
+  // một route mới KHÔNG có mặt ở đây là một route không có lưới nào canh lớp
+  // vỏ — đúng chỗ bốn lỗi camelCase liên tiếp đã lọt qua.
+  //
+  // Ba route `/ops/pending-actions` của lượt 14 cũng được thêm ở đây, vì chúng
+  // ra đời trước khi luật này được nhắc lại và chưa ai bù.
+  // -------------------------------------------------------------------------
+  let opsToken, opsMemberId, targetId;
+  async function setUpOps() {
+    if (opsToken) return;
+    const email = 'tech-t21@nhachung.test';
+    const {
+      rows: [t],
+    } = await db.raw(
+      `INSERT INTO members (community_id, full_name, status, password_hash, email)
+       VALUES (?, 'Tech T21', 'member', ?, ?) RETURNING id`,
+      [cid, await argon2.hash(ALICE_PASSWORD), email]
+    );
+    opsMemberId = t.id;
+    await db.raw(
+      `INSERT INTO member_roles (member_id, role_id, community_id) SELECT ?, r.id, ? FROM roles r WHERE r.key = 'tech'`,
+      [t.id, cid]
+    );
+    const {
+      rows: [u],
+    } = await db.raw(
+      `INSERT INTO members (community_id, full_name, status) VALUES (?, 'Nhan Vai T21', 'member') RETURNING id`,
+      [cid]
+    );
+    targetId = u.id;
+    const login = await supertest(api).post('/api/v1/auth/login').send({ identifier: email, password: ALICE_PASSWORD });
+    expect(login.status, JSON.stringify(login.body)).toBe(200);
+    opsToken = login.body.access;
+  }
+
+  it('GET /ops/audit-log trả { data, meta } — không rò camelCase, không rò ip', async () => {
+    await setUpOps();
+    const res = await supertest(api)
+      .get('/api/v1/ops/audit-log?page=1&limit=5')
+      .set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 5 });
+    expect(res.body.data.length).toBeGreaterThan(0);
+    const row = res.body.data[0];
+    expect(row.actor_id !== undefined).toBe(true);
+    expect(row.target_type !== undefined).toBe(true);
+    expect(row.actorId, 'không rò camelCase').toBeUndefined();
+    expect(row.targetType, 'không rò camelCase').toBeUndefined();
+    // `ip` là dữ liệu cá nhân và đây là cửa đọc HÀNG LOẠT.
+    expect(row.ip, 'địa chỉ IP không rời máy chủ ở cửa đọc hàng loạt').toBeUndefined();
+    // `detail` là object có khoá ĐỘNG theo tên trường nghiệp vụ — bốn khoá
+    // hiện có đều snake_case nên luật chung vẫn áp được nguyên vẹn.
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /ops/audit-log/verify trả broken_at, không phải brokenAt', async () => {
+    await setUpOps();
+    const res = await supertest(api).get('/api/v1/ops/audit-log/verify').set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(typeof res.body.checked).toBe('number');
+    expect(res.body).toHaveProperty('broken_at');
+    expect(res.body.brokenAt, 'không rò camelCase — verifyChain() trả brokenAt ở tầng JS').toBeUndefined();
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /ops/dashboard trả bốn cụm cảnh báo, mọi khoá snake_case', async () => {
+    await setUpOps();
+    const res = await supertest(api).get('/api/v1/ops/dashboard').set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(['audit_log', 'contact_denied', 'manual_ratio', 'two_person_same_ip']);
+    expect(res.body.audit_log).toHaveProperty('rows_avg_30d');
+    expect(res.body.audit_log.rowsAvg30d, 'không rò camelCase').toBeUndefined();
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /ops/permissions trả { roles, permissions[] }', async () => {
+    await setUpOps();
+    const res = await supertest(api).get('/api/v1/ops/permissions').set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.roles).toEqual(['tech']);
+    expect(res.body.permissions.length).toBeGreaterThan(0);
+    expect(Object.keys(res.body.permissions[0]).sort()).toEqual(['description', 'key', 'name']);
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /ops/roles trả { data: [{ role, members[] }] }', async () => {
+    await setUpOps();
+    const res = await supertest(api).get('/api/v1/ops/roles').set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const tech = res.body.data.find((r) => r.role === 'tech');
+    expect(tech.members.map((m) => m.member_id)).toContain(opsMemberId);
+    expect(tech.members[0].fullName, 'không rò camelCase').toBeUndefined();
+    assertSnakeKeys(res.body);
+  });
+
+  it('PUT/DELETE /ops/members/:id/roles/:role trả member_id, role, granted/revoked', async () => {
+    await setUpOps();
+    const gan = await supertest(api)
+      .put(`/api/v1/ops/members/${targetId}/roles/approver`)
+      .set('authorization', `Bearer ${opsToken}`);
+    expect(gan.status, JSON.stringify(gan.body)).toBe(200);
+    expect(gan.body).toEqual({ member_id: targetId, role: 'approver', granted: true });
+    assertSnakeKeys(gan.body);
+
+    const go = await supertest(api)
+      .delete(`/api/v1/ops/members/${targetId}/roles/approver`)
+      .set('authorization', `Bearer ${opsToken}`);
+    expect(go.status, JSON.stringify(go.body)).toBe(200);
+    expect(go.body).toEqual({ member_id: targetId, role: 'approver', revoked: true });
+    assertSnakeKeys(go.body);
+
+    // Tên vai bịa bị chặn ngay ở zod, KHÔNG để CSDL phải nói `BAD_ROLE` — và
+    // là 400, không phải 500 (bẫy 2: ngoại lệ trigger chưa bắt thành 500).
+    const bia = await supertest(api)
+      .put(`/api/v1/ops/members/${targetId}/roles/sieu_quan_tri`)
+      .set('authorization', `Bearer ${opsToken}`);
+    expect(bia.status, JSON.stringify(bia.body)).toBe(400);
+    expect(bia.body.error.code).toBe('VALIDATION_FAILED');
+    assertSnakeKeys(bia.body);
+  });
+
+  it('GET /ops/pending-actions trả { data, meta } — route của lượt 14, chưa ai thêm vào đây', async () => {
+    await setUpOps();
+    const res = await supertest(api)
+      .get('/api/v1/ops/pending-actions?page=1&limit=10')
+      .set('authorization', `Bearer ${opsToken}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 10 });
+    expect(Array.isArray(res.body.data)).toBe(true);
+    assertSnakeKeys(res.body);
+  });
+
+  it('POST /ops/pending-actions và /sign trả snake_case, và 403 cũng vậy', async () => {
+    await setUpOps();
+    // `backup.restore` đòi vai `tech` (bảng mục 7.5) nhưng CHƯA có người thi
+    // hành, nên `core/twoPerson.js` chặn ngay lúc TẠO. Đó là hình dạng phản hồi
+    // cần canh: một lỗi 422 đi qua `errorHandler` vẫn phải snake_case.
+    const som = await supertest(api)
+      .post('/api/v1/ops/pending-actions')
+      .set('authorization', `Bearer ${opsToken}`)
+      .send({ action_key: 'backup.restore', payload: {} });
+    expect(som.status, JSON.stringify(som.body)).toBe(422);
+    expect(som.body.error.code).toBe('ACTION_NOT_AVAILABLE');
+    assertSnakeKeys(som.body);
+
+    // `member.terminate` đòi vai `approver`; người này là `tech` ⇒ 403.
+    const cam = await supertest(api)
+      .post('/api/v1/ops/pending-actions')
+      .set('authorization', `Bearer ${opsToken}`)
+      .send({ action_key: 'member.terminate', target_type: 'member', target_id: targetId, payload: {} });
+    expect(cam.status, JSON.stringify(cam.body)).toBe(403);
+    assertSnakeKeys(cam.body);
+  });
+
   it('GET /members/:id/contacts/:field từ chối tên trường lạ ở vỏ ngoài (400, không phải 500)', async () => {
     const { token, memberId } = await accessTokenForAlice();
     // Chặn ở zod TRƯỚC khi chạm contact_read: nhánh BAD_FIELD của hàm CSDL
