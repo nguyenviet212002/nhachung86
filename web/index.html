@@ -1681,7 +1681,19 @@ function RegisterForm(){
   if(state.regStep==='otp')  return RegisterOtpForm();
   if(state.regStep==='done') return RegisterDoneHTML();
   const d = state.regDraft;
-  if(!REGISTER_AREAS.length) api.get('/areas').then(r=>{ REGISTER_AREAS=(r.data||[]).flatMap(x=>[x,...(x.children||[])]); render(); }).catch(()=>{});
+  if(!REGISTER_AREAS.length) api.get('/areas').then(r=>{
+    REGISTER_AREAS=(r.data||[]).flatMap(x=>[x,...(x.children||[])]);
+    const select = document.getElementById('reg-area');
+    if(select){
+      const selected = select.value;
+      select.innerHTML = '<option value="">— Chọn khu vực —</option>' +
+        REGISTER_AREAS.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+      if(selected) select.value = selected;
+    }
+  }).catch(()=>{
+    const select = document.getElementById('reg-area');
+    if(select) select.innerHTML = '<option value="">Không tải được khu vực — thử tải lại trang</option>';
+  });
   const areaOptions = REGISTER_AREAS.length ? REGISTER_AREAS.map(a=>`<option value="${esc(a.id)}" ${d.area_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('') : '<option value="">Đang tải danh sách khu vực…</option>';
   return `
   <form id="form-register" novalidate>
