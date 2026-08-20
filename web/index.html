@@ -1409,7 +1409,7 @@ function startRealtime(){
   stopRealtime();
   if(!liveMode() || !window.EventSource) return;
   const token=api.accessToken(); if(!token) return;
-  notificationStream = new EventSource('/api/v1/notifications/stream?access_token='+encodeURIComponent(token));
+  notificationStream = new EventSource(api.baseUrl()+'/notifications/stream?access_token='+encodeURIComponent(token));
   notificationStream.addEventListener('notification', e=>{ try{ const n=JSON.parse(e.data); LIVE_NOTIFICATIONS.unshift(n); playTing(); render(); }catch(err){} });
   notificationStream.addEventListener('message', e=>{ try{ const m=JSON.parse(e.data); const id=m.sender_id===state.me.id?m.recipient_id:m.sender_id; (LIVE_MESSAGES[id] ||= []).push(m); playTing(); render(); }catch(err){} });
   notificationStream.onerror=()=>{};

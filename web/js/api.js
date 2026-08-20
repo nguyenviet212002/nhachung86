@@ -18,7 +18,15 @@
 (function () {
   'use strict';
 
-  var BASE = '/api/v1';
+  // Khi mở trực tiếp bằng Live Server (thường là :5500), trang tĩnh không
+  // phục vụ API. Trỏ qua Caddy ở :80 để frontend local vẫn dùng đúng backend
+  // Docker; khi chạy production qua cùng origin thì tiếp tục dùng đường dẫn
+  // tương đối. Có thể ghi đè bằng window.NH_API_BASE khi cần môi trường khác.
+  var BASE = window.NH_API_BASE || (
+    window.location && window.location.port === '5500'
+      ? 'http://localhost/api/v1'
+      : '/api/v1'
+  );
 
   // ------------------------------------------------------------------------
   // MỘT chỗ duy nhất dịch error.code sang tiếng Việt.
@@ -389,6 +397,7 @@
     del:  function (p) { return raw('DELETE', p); },
     upload: upload,
     blob: blob,
+    baseUrl: function () { return BASE; },
     accessToken: function () { return access; },
 
     setTokens: setTokens,
