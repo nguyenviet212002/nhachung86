@@ -51,6 +51,9 @@ export const registerSchema = z.object({
   full_name: z.string().trim().min(2).max(120),
   birth_year: z.coerce.number().int().min(1900).max(2100),
   area_id: z.string().uuid(),
+  // Số điện thoại chỉ là thông tin người dùng nhập để đối chiếu ngoài đời;
+  // quan hệ bảo lãnh thật vẫn lấy từ invite_token đã ký, không tra theo số.
+  referrer_phone: vnPhone.optional(),
   // QĐ-1: KHÔNG có ô nhập người bảo lãnh nữa. `referrer_id` từng là một uuid
   // do người nộp đơn gõ vào — tức một máy dò danh sách thành viên, và một cách
   // khai bừa tên người khác làm người bảo lãnh cho mình. Nay nó đến từ token

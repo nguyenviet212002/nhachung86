@@ -70,5 +70,7 @@
   "backups":                  ["SELECT", "INSERT"],
   "restore_tests":            ["SELECT", "INSERT"],
   "moderation_queue":         ["SELECT", "INSERT", "UPDATE"],
-  "files":                    ["SELECT", "INSERT", "UPDATE"]
+  "files":                    ["SELECT", "INSERT", "UPDATE"],
+  "notifications":            ["SELECT", "INSERT", "UPDATE"],
+  "direct_messages":           ["SELECT", "INSERT", "UPDATE"]
 }

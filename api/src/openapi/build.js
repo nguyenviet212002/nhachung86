@@ -4,6 +4,7 @@ import * as invites from '../modules/invites/schema.js';
 import * as joinRequests from '../modules/join-requests/schema.js';
 import * as members from '../modules/members/schema.js';
 import * as ops from '../modules/ops/schema.js';
+import * as notifications from '../modules/notifications/schema.js';
 
 const TYPE_NAMES = {
   ZodAny: 'ZodAny',
@@ -219,11 +220,24 @@ export function buildOpenApi() {
     requestBody: {
       type: 'object',
       required: ['file'],
-      properties: { file: { type: 'string', format: 'binary' } },
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        purpose: { type: 'string', enum: ['member_avatar', 'member_cover'] },
+      },
     },
     response: { description: 'Created' },
   }));
   add('/api/v1/files/{id}', endpoint('GET', '/api/v1/files/{id}', { pathParams: files.idParamSchema, response: { description: 'JPEG file bytes', content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } } }));
+
+  add('/api/v1/notifications',
+    endpoint('GET', '/api/v1/notifications', { query: notifications.listQuerySchema }),
+    endpoint('POST', '/api/v1/notifications', { body: notifications.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/notifications/stream', endpoint('GET', '/api/v1/notifications/stream'));
+  add('/api/v1/notifications/unread-count', endpoint('GET', '/api/v1/notifications/unread-count'));
+  add('/api/v1/notifications/{id}/read', endpoint('POST', '/api/v1/notifications/{id}/read', { pathParams: notifications.idParamSchema }));
+  add('/api/v1/messages',
+    endpoint('GET', '/api/v1/messages', { query: notifications.listQuerySchema }),
+    endpoint('POST', '/api/v1/messages', { body: notifications.messageSchema, response: { description: 'Created' } }));
 
   add('/api/v1/guarantee-invites',
     endpoint('POST', '/api/v1/guarantee-invites', { body: invites.createSchema, response: { description: 'Created' } }),

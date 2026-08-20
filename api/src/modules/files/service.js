@@ -138,7 +138,10 @@ const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy tệp này
  * được cấp", và tác vụ dọn có thứ để đối chiếu. Xem câu hỏi 2 của báo cáo
  * lượt 15.
  */
-export async function upload({ actor, file }) {
+export async function upload({ actor, file, purpose = null }) {
+  if (purpose !== null && !['member_avatar', 'member_cover'].includes(purpose)) {
+    throw new AppError('VALIDATION_FAILED', 'Mục đích ảnh không hợp lệ.', { status: 400 });
+  }
   if (!file?.buffer?.length) {
     throw new AppError('FILE_MISSING', 'Chưa chọn tệp nào để tải lên.', { status: 400 });
   }
@@ -162,10 +165,11 @@ export async function upload({ actor, file }) {
       rows: [row],
     } = await trx.raw(
       `INSERT INTO files (community_id, owner_id, storage_key, mime, source_mime,
-                          byte_size, width, height, sha256)
-       VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?, ?)
+                          byte_size, width, height, sha256, attached_type, attached_id)
+       VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?, ?, ?, ?)
        RETURNING id`,
-      [actor.communityId, actor.id, key, sourceMime, out.buffer.length, out.width, out.height, sha256]
+      [actor.communityId, actor.id, key, sourceMime, out.buffer.length, out.width, out.height, sha256,
+       purpose, purpose ? actor.id : null]
     );
     await auditLog(trx, {
       communityId: actor.communityId,

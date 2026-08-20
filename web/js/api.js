@@ -343,6 +343,34 @@
     });
   }
 
+  // Multipart phải để trình duyệt tự đặt boundary; tuyệt đối không gắn
+  // content-type application/json cho FormData.
+  function upload(path, file, fields, allowRetry) {
+    if (allowRetry === undefined) allowRetry = true;
+    var form = new FormData();
+    form.append('file', file);
+    Object.keys(fields || {}).forEach(function (key) { form.append(key, fields[key]); });
+    var headers = {};
+    if (access) headers.authorization = 'Bearer ' + access;
+    return fetch(BASE + path, { method: 'POST', headers: headers, body: form })
+      .catch(function () { throw ApiError('NETWORK', null, null, 0); })
+      .then(function (res) {
+        if (res.status === 401 && allowRetry && refresh) {
+          return renew().then(function (ok) { return ok ? upload(path, file, fields, false) : finish(res); });
+        }
+        return finish(res);
+      });
+  }
+
+  function blob(path) {
+    var headers = {};
+    if (access) headers.authorization = 'Bearer ' + access;
+    return fetch(BASE + path, { headers: headers }).then(function (res) {
+      if (!res.ok) return finish(res);
+      return res.blob();
+    }).catch(function () { throw ApiError('NETWORK', null, null, 0); });
+  }
+
   function qs(params) {
     var parts = [];
     for (var k in params) {
@@ -359,6 +387,9 @@
     post: function (p, b) { return raw('POST', p, b === undefined ? {} : b); },
     put:  function (p, b) { return raw('PUT', p, b === undefined ? {} : b); },
     del:  function (p) { return raw('DELETE', p); },
+    upload: upload,
+    blob: blob,
+    accessToken: function () { return access; },
 
     setTokens: setTokens,
     clearTokens: clearTokens,

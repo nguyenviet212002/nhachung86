@@ -29,7 +29,11 @@ router.use(normalLimit, requireAuth);
 // phải `application/json`, nên `singleFile` vẫn đọc được luồng nguyên vẹn.
 router.post('/', uploadLimit, singleFile({ field: 'file' }), async (req, res, next) => {
   try {
-    res.status(201).json(await fileService.upload({ actor: req.actor, file: req.file }));
+    res.status(201).json(await fileService.upload({
+      actor: req.actor,
+      file: req.file,
+      purpose: req.body?.purpose || null,
+    }));
   } catch (err) {
     next(err);
   }

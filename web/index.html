@@ -1093,6 +1093,11 @@ const ROLES = [
 ];
 function curRole(){ return ROLES.find(r=>r.key===state.role)||ROLES[0]; }
 function curRoleLabel(){ return curRole().label; }
+const REAL_ROLE_LABELS = { member:'Thành viên', content_ops:'Điều phối nội dung', approver:'Người duyệt', tech:'Kỹ thuật', guest:'Khách' };
+function actualRoleLabel(){
+  const roles=state.me?.roles||[];
+  return roles.length ? roles.map(r=>REAL_ROLE_LABELS[r]||r).join(' · ') : curRoleLabel();
+}
 
 /* ---- TÍN HIỆU: một nhu cầu khởi phát và lan đi qua 7 chặng ---- */
 const SIGNAL_STEPS = ['Khởi tạo','Tiếp nhận','Lan truyền','Phản hồi','Hội tụ','Hành động','Ký ức'];
@@ -1358,9 +1363,65 @@ const state = {
   // làm hỏng những màn mà mốc này không được phép chạm.
   me:null,
   regStep:'form',   // 'form' | 'otp' | 'done'
-  regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', referrer_id:'', password:'', terms:false},
+  regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', referrer_phone:'', invite_token:'', password:'', terms:false},
   regResult:null
 };
+
+// Dữ liệu thật dùng chung cho topbar, thông báo và màn tin nhắn. Dữ liệu demo
+// vẫn giữ làm fallback để các màn chưa nối API không bị trống khi test giao diện.
+let LIVE_NOTIFICATIONS = [];
+let LIVE_MESSAGES = {};
+let LIVE_CONTACTS = {};
+let notificationStream = null;
+let soundEnabled = true;
+let soundUnlocked = false;
+let REGISTER_AREAS = [];
+
+function liveMode(){ return Boolean(state.me && api.isLoggedIn()); }
+function liveNotifications(){ return liveMode() ? LIVE_NOTIFICATIONS : NOTIFICATIONS; }
+function liveUnreadNotifications(){ return liveNotifications().filter(n=>!(n.read_at || n.read)).length; }
+function playTing(){
+  if(!soundEnabled || !soundUnlocked) return;
+  try{
+    const C = window.AudioContext || window.webkitAudioContext;
+    if(!C) return;
+    const ctx = new C(); const now = ctx.currentTime;
+    [880, 660].forEach((hz,i)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.value=hz; o.type='sine'; g.gain.setValueAtTime(0.0001, now+i*.11); g.gain.exponentialRampToValueAtTime(.12, now+i*.11+.015); g.gain.exponentialRampToValueAtTime(.0001, now+i*.11+.1); o.connect(g).connect(ctx.destination); o.start(now+i*.11); o.stop(now+i*.11+.12); });
+  }catch(e){}
+}
+function unlockSound(){ soundUnlocked=true; playTing(); }
+function stopRealtime(){ if(notificationStream){ notificationStream.close(); notificationStream=null; } }
+async function loadLiveNotifications(){
+  if(!liveMode()) return;
+  try{ const r=await api.get('/notifications?limit=30'); LIVE_NOTIFICATIONS=r.data||[]; render(); }catch(e){ /* UI demo vẫn dùng được nếu API tạm unavailable */ }
+}
+function startRealtime(){
+  stopRealtime();
+  if(!liveMode() || !window.EventSource) return;
+  const token=api.accessToken(); if(!token) return;
+  notificationStream = new EventSource('/api/v1/notifications/stream?access_token='+encodeURIComponent(token));
+  notificationStream.addEventListener('notification', e=>{ try{ const n=JSON.parse(e.data); LIVE_NOTIFICATIONS.unshift(n); playTing(); render(); }catch(err){} });
+  notificationStream.addEventListener('message', e=>{ try{ const m=JSON.parse(e.data); const id=m.sender_id===state.me.id?m.recipient_id:m.sender_id; (LIVE_MESSAGES[id] ||= []).push(m); playTing(); render(); }catch(err){} });
+  notificationStream.onerror=()=>{};
+  loadLiveNotifications();
+  loadLiveInbox();
+}
+async function loadLiveConversation(memberId){
+  if(!liveMode() || !memberId) return;
+  try{ const r=await api.get('/messages'+api.qs({with_member_id:memberId,limit:100})); LIVE_MESSAGES[memberId]=r.data||[]; render(); }catch(e){ toast(e.message,true); }
+}
+async function loadLiveInbox(){
+  if(!liveMode()) return;
+  try{
+    const r=await api.get('/messages?limit=100');
+    for(const m of (r.data||[])){ const id=m.sender_id===state.me.id?m.recipient_id:m.sender_id; (LIVE_MESSAGES[id] ||= []).push(m); }
+  }catch(e){}
+}
+function liveContact(memberId){
+  const row=LIVE_CONTACTS[memberId] || DIRECTORY.rows.find(x=>x.id===memberId);
+  return row ? {id:row.id,name:row.full_name||row.name||'Thành viên',job:row.job||'',area:row.area_name||row.area||'',avatar:row.avatar_url||AVATAR(1)} : findMember(memberId);
+}
+function isLiveConvo(){ return liveMode() && Boolean(LIVE_CONTACTS[state.activeConvo] || (state.activeConvo && state.activeConvo.includes('-'))); }
 
 /* Danh bạ thật (GET /members). Đây là kho DUY NHẤT của màn "Con người" sau
    MỐC 2 — hằng số MEMBERS bên trên vẫn còn vì 47 màn khác đang dựa vào nó. */
@@ -1426,8 +1487,11 @@ function validateForm(formEl, rules){
   return ok;
 }
 function val(id){ const el=document.getElementById(id); return el ? el.value.trim() : ''; }
-function unreadMsgCount(){ return CONVERSATIONS.reduce((s,c)=>s+c.unread,0); }
-function unreadNotifCount(){ return NOTIFICATIONS.filter(n=>!n.read).length; }
+function unreadMsgCount(){
+  if(liveMode()) return Object.values(LIVE_MESSAGES).flat().filter(m=>m.recipient_id===state.me.id && !m.read_at).length;
+  return CONVERSATIONS.reduce((s,c)=>s+c.unread,0);
+}
+function unreadNotifCount(){ return liveMode() ? liveUnreadNotifications() : NOTIFICATIONS.filter(n=>!n.read).length; }
 
 /* ============================================================
    4. LOGO / BRAND MARK
@@ -1607,6 +1671,8 @@ function RegisterForm(){
   if(state.regStep==='otp')  return RegisterOtpForm();
   if(state.regStep==='done') return RegisterDoneHTML();
   const d = state.regDraft;
+  if(!REGISTER_AREAS.length) api.get('/areas').then(r=>{ REGISTER_AREAS=(r.data||[]).flatMap(x=>[x,...(x.children||[])]); render(); }).catch(()=>{});
+  const areaOptions = REGISTER_AREAS.length ? REGISTER_AREAS.map(a=>`<option value="${esc(a.id)}" ${d.area_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('') : '<option value="">Đang tải danh sách khu vực…</option>';
   return `
   <form id="form-register" novalidate>
     <div class="field" data-field="name">
@@ -1629,16 +1695,16 @@ function RegisterForm(){
       </div>
     </div>
     <div class="field" data-field="area">
-      <label>Mã khu vực sinh sống <span class="req">*</span></label>
-      <input class="input" id="reg-area" placeholder="Dán mã khu vực người bảo lãnh gửi cho bạn" value="${esc(d.area_id)}">
+      <label>Địa chỉ / khu vực sinh sống <span class="req">*</span></label>
+      <select class="input" id="reg-area"><option value="">— Chọn khu vực —</option>${areaOptions}</select>
       <div class="err"></div>
-      <div class="hint">Tạm thời phải dán mã: <code>GET /areas</code> hiện đòi đăng nhập nên người chưa có tài khoản không lấy được danh sách xã/phường. Xem task-11-report.md.</div>
+      <div class="hint">Chọn tên khu vực, không cần nhập mã kỹ thuật.</div>
     </div>
     <div class="field" data-field="referrer">
-      <label>Mã người bảo lãnh <span class="req">*</span></label>
-      <input class="input" id="reg-referrer" placeholder="Dán mã người đưa bạn vào cộng đồng" value="${esc(d.referrer_id)}">
+      <label>Số điện thoại người giới thiệu <span class="req">*</span></label>
+      <input class="input" id="reg-referrer" placeholder="VD: 0912345678" value="${esc(d.referrer_phone||'')}">
       <div class="err"></div>
-      <div class="hint">Không ai vào đây một mình. Cũng chưa có đường công khai nào để tra mã này — xem task-11-report.md.</div>
+      <div class="hint">Link mời bảo lãnh được lấy tự động từ đường dẫn bạn mở, không cần dán mã.</div>
     </div>
     <div class="row-2">
       <div class="field" data-field="pass">
@@ -1828,7 +1894,7 @@ function Sidebar(){
       <img class="av" src="${state.user.avatar}" width="36" height="36" alt="">
       <div style="min-width:0">
         <b style="color:#fff;font-size:13.5px;display:block">${esc(state.user.name)}</b>
-        <i style="font-style:normal;font-size:11px;color:#8E8E8E">${esc(curRoleLabel())}</i>
+        <i style="font-style:normal;font-size:11px;color:#8E8E8E">${esc(actualRoleLabel())}</i>
       </div>
     </a>
   </aside>`;
@@ -1837,6 +1903,7 @@ function Sidebar(){
 function Topbar(){
   const nUnread = unreadNotifCount();
   const mUnread = unreadMsgCount();
+  const notices = liveNotifications();
   return `
   <header class="topbar">
     <div class="topbar-search">
@@ -1844,7 +1911,8 @@ function Topbar(){
       <input type="text" id="global-search" placeholder="Tìm kiếm thành viên, năng lực, việc chung, hoạt động..." autocomplete="off">
       <div class="topbar-search-results" id="global-search-results"></div>
     </div>
-    <div class="role-switch" title="Chuyển đổi vai trò để xem 3 luồng demo">
+    <div class="role-switch" title="Các nút dưới đây là luồng demo; quyền thật lấy từ API /auth/me">
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">Vai thật: ${esc(actualRoleLabel())}</span>
       ${ROLES.map(r=>`<button class="role-chip ${state.role===r.key?'active':''}" data-action="switch-role" data-role="${r.key}">${ic(r.icon,14)}<span>${r.short}</span></button>`).join('')}
     </div>
     <div class="topbar-right">
@@ -1852,10 +1920,10 @@ function Topbar(){
         <button class="ico-btn" data-action="toggle-dd" data-dd="notif">${ic('bell',17)}${nUnread?`<span class="bd">${nUnread}</span>`:''}</button>
         <div class="dropdown" id="dd-notif" style="width:340px">
           <div class="dd-head flex-between"><b style="font-size:13.5px">Thông báo</b><a href="#" data-action="mark-all-read" style="font-size:12px;font-weight:700;color:var(--orange-dark)">Đánh dấu đã đọc</a></div>
-          ${NOTIFICATIONS.slice(0,6).map(n=>`
+          ${notices.slice(0,6).map(n=>`
             <div class="dd-item">
-              ${!n.read?'<span class="dot-unread"></span>':'<span style="width:7px"></span>'}
-              <div><p>${esc(n.text)}</p><small>${esc(n.time)}</small></div>
+              ${!(n.read_at || n.read)?'<span class="dot-unread"></span>':'<span style="width:7px"></span>'}
+              <div><p>${esc(n.body || n.text)}</p><small>${esc(n.created_at || n.time || '')}</small></div>
             </div>`).join('')}
         </div>
       </div>
@@ -1874,7 +1942,7 @@ function Topbar(){
       <div style="position:relative">
         <div class="who" data-action="toggle-dd" data-dd="user">
           <img class="av" src="${state.user.avatar}" width="34" height="34">
-          <div><b>${esc(state.user.name)}</b><span>${esc(curRoleLabel())}</span></div>
+          <div><b>${esc(state.user.name)}</b><span>${esc(actualRoleLabel())}</span></div>
           ${ic('chevrondown',15)}
         </div>
         <div class="dropdown" id="dd-user" style="width:210px">
@@ -3094,6 +3162,23 @@ function AidCard(r){
    16. MESSAGES (TIN NHẮN)
    ============================================================ */
 function MessagesPage(){
+  if(liveMode() && !isLiveConvo()){
+    const first=Object.keys(LIVE_MESSAGES)[0];
+    if(first){ state.activeConvo=first; return MessagesPage(); }
+    return `<div class="page-head"><div><h1>Tin nhắn</h1><p>Chọn nút “Nhắn tin” trong hồ sơ một thành viên để bắt đầu cuộc trò chuyện realtime.</p></div></div>`;
+  }
+  if(isLiveConvo()){
+    const memberId=state.activeConvo, m=liveContact(memberId), msgs=LIVE_MESSAGES[memberId]||[];
+    return `
+    <div class="page-head"><div><h1>Tin nhắn</h1><p>Tin nhắn realtime giữa các thành viên. Khi có tin mới, màn hình sẽ cập nhật và phát tiếng “ting ting”.</p></div></div>
+    <div class="msg-shell">
+      <div class="msg-list"><div class="msg-item active"><img class="av" src="${m.avatar}" width="42" height="42"><div class="t"><div class="r1"><b>${esc(m.name)}</b></div><p>${msgs.length?esc(msgs[msgs.length-1].body):'Chưa có tin nhắn'}</p></div></div></div>
+      <div class="msg-thread"><div class="th-head"><img class="av" src="${m.avatar}" width="38" height="38"><div><b style="font-size:14px;display:block">${esc(m.name)}</b><span class="muted" style="font-size:11.5px">${esc(m.job)} · ${esc(m.area)}</span></div></div>
+        <div class="th-body" id="thread-body">${msgs.map(x=>`<div class="bubble ${x.sender_id===state.me.id?'out':'in'}">${esc(x.body)}<span class="tm">${esc(x.created_at||'')}</span></div>`).join('')}</div>
+        <form class="th-foot" id="form-send-msg"><input class="input" id="msg-text" placeholder="Nhập tin nhắn..."><button class="btn btn-primary btn-icon" type="submit">${ic('send',16)}</button></form>
+      </div>
+    </div>`;
+  }
   const convo = CONVERSATIONS.find(c=>c.id===state.activeConvo)||CONVERSATIONS[0];
   const m = findMember(convo.with);
   return `
@@ -5332,8 +5417,10 @@ async function doLoginReal(form, identifier, password){
   try{
     const r = await api.post('/auth/login', {identifier, password});
     api.setTokens(r);                       // { access, refresh } — snake_case của đặc tả
-    state.me = r.member;                    // { id, full_name, status }
-    try{ localStorage.setItem('nc_member', JSON.stringify(r.member)); }catch(e){}
+    let identity = null;
+    try { identity = await api.get('/auth/me'); } catch(e) {}
+    state.me = {...r.member, ...(identity?.actor||{}), roles:identity?.actor?.roles||[]};
+    try{ localStorage.setItem('nc_member', JSON.stringify(state.me)); }catch(e){}
     // Vỏ ứng dụng (sidebar, topbar) vẫn đọc CURRENT_USER của dữ liệu giả. Chỉ
     // đồng bộ TÊN để màn hình không xưng tên người khác; `id` giữ nguyên 'u1'
     // vì nó là khoá của dữ liệu giả (xem chú thích ở state.me).
@@ -5341,6 +5428,8 @@ async function doLoginReal(form, identifier, password){
     state.user = CURRENT_USER;
     state.route = 'members';                // vào thẳng màn đã nối API thật
     resetDirectory();
+    unlockSound();
+    startRealtime();
     closeModal();
     render();
     toast(`Đăng nhập thành công! Chào mừng trở lại, ${r.member.full_name.split(' ').slice(-1)[0]}.`);
@@ -5382,7 +5471,8 @@ async function regVerifyAndSubmit(form, code){
       full_name: d.full_name,
       birth_year: Number(d.birth_year),
       area_id: d.area_id,
-      referrer_id: d.referrer_id,
+      invite_token: d.invite_token,
+      referrer_phone: d.referrer_phone,
       password: d.password,
       terms: true
     });
@@ -5405,7 +5495,7 @@ async function regVerifyAndSubmit(form, code){
 function resetRegister(){
   state.regStep = 'form';
   state.regResult = null;
-  state.regDraft = {full_name:'', phone:'', birth_year:'', area_id:'', referrer_id:'', password:'', terms:false};
+  state.regDraft = {full_name:'', phone:'', birth_year:'', area_id:'', referrer_phone:'', invite_token:new URLSearchParams(location.search).get('invite_token')||'', password:'', terms:false};
 }
 
 /* ============================================================
@@ -5499,6 +5589,10 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'mark-all-read':
+      if(liveMode()){
+        Promise.all(LIVE_NOTIFICATIONS.filter(n=>!n.read_at).map(n=>api.post('/notifications/'+n.id+'/read'))).then(()=>{ LIVE_NOTIFICATIONS.forEach(n=>n.read_at=n.read_at||new Date().toISOString()); render(); }).catch(err=>toast(err.message,true));
+        break;
+      }
       NOTIFICATIONS.forEach(n=>n.read=true);
       render();
       toast('Đã đánh dấu tất cả thông báo là đã đọc.');
@@ -5508,6 +5602,13 @@ document.addEventListener('click', function(e){
       go('messages');
       break;
     case 'open-convo-with': {
+      if(liveMode()){
+        state.activeConvo=id;
+        const row=DIRECTORY.rows.find(x=>x.id===id); if(row) LIVE_CONTACTS[id]=row;
+        go('messages');
+        loadLiveConversation(id);
+        break;
+      }
       let c = CONVERSATIONS.find(c=>c.with===id);
       if(!c){ c = {id:'c'+Date.now(), with:id, unread:0, msgs:[]}; CONVERSATIONS.unshift(c); }
       state.activeConvo = c.id;
@@ -5568,6 +5669,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'logout':
+      stopRealtime();
       api.clearTokens();
       try{ localStorage.removeItem('nc_member'); }catch(e){}
       state.me = null; state.user = null; state.route='landing';
@@ -5702,6 +5804,17 @@ document.addEventListener('change', function(e){
       if(prev){ prev.src = data; prev.style.display='block'; }
       if(kind==='avatar') uploadedAvatarData = data;
       else if(kind==='memory'){ uploadedMemoryData = data; document.querySelectorAll('.mem-pick-img').forEach(img=>img.style.border='2px solid transparent'); }
+      if(liveMode()){
+        api.upload('/files', file, kind==='avatar' ? {purpose:'member_avatar'} : {})
+          .then(r=>api.blob('/files/'+r.id))
+          .then(blob=>{
+            const url=URL.createObjectURL(blob);
+            if(prev){ prev.src=url; prev.style.display='block'; }
+            if(kind==='avatar') uploadedAvatarData=url; else if(kind==='memory') uploadedMemoryData=url;
+            toast('Đã tải ảnh lên máy chủ.');
+          })
+          .catch(err=>toast(err.message,true));
+      }
     };
     reader.readAsDataURL(file);
     return;
@@ -5750,26 +5863,26 @@ document.addEventListener('submit', function(e){
 
   if(form.id==='form-register'){
     e.preventDefault();
-    const name=val('reg-name'), year=val('reg-year'), area=val('reg-area'), referrer=val('reg-referrer'),
+    const name=val('reg-name'), year=val('reg-year'), area=val('reg-area'), referrer=val('reg-referrer').replace(/[\s.\-]/g,''),
           pass=val('reg-pass'), pass2=val('reg-pass2'), terms=document.getElementById('reg-terms').checked;
     // Máy chủ (schema.js, vnPhone) đòi ĐÚNG `^0\d{9}$` — không khoảng trắng,
     // không dấu chấm. Bản dữ liệu giả nhận `^[0-9\s]{9,11}$`, tức nhận cả
     // '091 234 567' (9 số) rồi gửi lên và ăn VALIDATION_FAILED. Chuẩn hoá
     // trước, kiểm sau, và kiểm bằng ĐÚNG luật của máy chủ.
     const phone = val('reg-phone').replace(/[\s.\-]/g,'');
-    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const inviteToken = new URLSearchParams(location.search).get('invite_token') || '';
     const ok = validateForm(form, [
       ['name', [[name.length>=2, 'Vui lòng nhập họ tên đầy đủ.']]],
       ['phone', [[/^0\d{9}$/.test(phone), 'Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.']]],
       ['year', [[year==='1986', 'Nhà Chung 86 chỉ dành cho người sinh năm 1986.']]],
-      ['area', [[uuidRe.test(area), 'Mã khu vực chưa đúng dạng.']]],
-      ['referrer', [[uuidRe.test(referrer), 'Mã người bảo lãnh chưa đúng dạng.']]],
+      ['area', [[!!area, 'Vui lòng chọn khu vực sinh sống.']]],
+      ['referrer', [[/^0\d{9}$/.test(referrer), 'Số điện thoại người giới thiệu phải có 10 chữ số.'], [!!inviteToken, 'Hãy mở đường link mời của người bảo lãnh trước khi đăng ký.']]],
       ['pass', [[pass.length>=8, 'Mật khẩu phải có ít nhất 8 ký tự.']]],
       ['pass2', [[pass2===pass && pass2.length>0, 'Mật khẩu nhập lại không khớp.']]],
       ['terms', [[terms, 'Bạn cần đồng ý với điều khoản để tiếp tục.']]],
     ]);
     if(!ok) return;
-    state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, referrer_id:referrer, password:pass, terms:true};
+    state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, referrer_phone:referrer, invite_token:inviteToken, password:pass, terms:true};
     regRequestOtp(form);
     return;
   }
@@ -5786,6 +5899,14 @@ document.addEventListener('submit', function(e){
     e.preventDefault();
     const text = val('msg-text');
     if(!text) return;
+    if(isLiveConvo()){
+      api.post('/messages', {recipient_id:state.activeConvo, body:text}).then(m=>{
+        (LIVE_MESSAGES[state.activeConvo] ||= []).push(m);
+        const input=document.getElementById('msg-text'); if(input) input.value='';
+        render();
+      }).catch(err=>toast(err.message,true));
+      return;
+    }
     const convo = CONVERSATIONS.find(c=>c.id===state.activeConvo);
     if(convo){
       convo.msgs.push({from:'me', text, time:'Vừa xong'});
@@ -6142,6 +6263,7 @@ document.addEventListener('submit', function(e){
 /* Phiên hết hạn hoặc refresh token bị thu hồi: api.js gọi vào đây sau khi đã
    xoá token. Một chỗ duy nhất, nên không màn nào phải tự nhớ xử lý 401. */
 api.onAuthLost(function(){
+  stopRealtime();
   if(!state.me) return;                 // đang dùng tài khoản demo, không đụng
   try{ localStorage.removeItem('nc_member'); }catch(e){}
   state.me = null; state.user = null; state.route = 'landing';
@@ -6165,6 +6287,7 @@ if(api.isLoggedIn()){
     }
   }catch(e){}
 }
+if(liveMode()) startRealtime();
 
 render();
 </script>
