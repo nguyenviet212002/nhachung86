@@ -40,6 +40,40 @@ const BY_MESSAGE = {
   REVIEWER_NOT_APPROVER:        [403, 'REVIEWER_NOT_APPROVER', 'Chỉ ban duyệt của chính cộng đồng này mới duyệt được việc thủ công.'],
   REVIEWER_IS_PARTICIPANT:      [403, 'REVIEWER_IS_PARTICIPANT', 'Người tham gia không tự duyệt việc của mình được.'],
   REVIEWER_REQUIRED:            [422, 'REVIEWER_REQUIRED', 'Phải ghi rõ ai là người duyệt.'],
+
+  // ---------------------------------------------------------------------
+  // Mười chín mã của Task 13 (migration 013–026) và ba mã cũ chưa ai khai.
+  //
+  // Chúng thiếu ở đây suốt vì `t23` bản đầu so bảng JS với bảng JS: cả hai
+  // cùng thiếu thì nó vẫn xanh. Nay `t23` đọc thẳng `RAISE EXCEPTION` trong
+  // migration, nên danh sách này không tụt lại được nữa.
+  //
+  // "Không tìm thấy X" đều gộp về NOT_FOUND: người dùng không cần biết
+  // trigger nào bắt, họ cần biết thứ họ trỏ tới không còn ở đó. Gộp cũng
+  // tránh làm bảng phía trình duyệt phình ra vì bảy câu nói cùng một điều.
+  // ---------------------------------------------------------------------
+  NO_CAPABILITY:               [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_ENDORSEMENT:              [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_LOAN:                     [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_PENDING_ACTION:           [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_AID_SLOT:                 [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_WORK_RECORD:              [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  NO_TARGET:                   [404, 'NOT_FOUND', 'Không tìm thấy dữ liệu này.'],
+  // Lối vào sai tên trường: zod đã chặn trước, nhưng nếu lọt tới CSDL thì đó
+  // là lỗi dữ liệu gửi lên, không phải hệ thống hỏng.
+  BAD_FIELD:                   [422, 'VALIDATION_FAILED', 'Dữ liệu gửi lên chưa hợp lệ.'],
+
+  AID_SLOT_FULL:               [409, 'AID_SLOT_FULL', 'Suất giúp này đã có đủ người nhận.'],
+  EVIDENCE_NOT_PARTICIPANT:    [422, 'EVIDENCE_NOT_PARTICIPANT', 'Chỉ người đã làm việc đó mới lấy nó làm bằng chứng năng lực được.'],
+  EVIDENCE_NOT_CONFIRMED:      [422, 'EVIDENCE_NOT_CONFIRMED', 'Việc chưa đủ xác nhận của mọi người tham gia nên chưa làm bằng chứng được.'],
+  ENDORSEMENT_SELF_SIGN:       [403, 'ENDORSEMENT_SELF_SIGN', 'Không ai tự bảo chứng cho chính mình.'],
+  LOAN_GUARANTOR_IS_BORROWER:  [422, 'LOAN_GUARANTOR_IS_BORROWER', 'Người vay không thể tự đứng ra bảo lãnh cho khoản vay của mình.'],
+  SUBJECT_KEY_IMMUTABLE:       [409, 'SUBJECT_KEY_IMMUTABLE', 'Khoá này đã cấp nên không đổi được.'],
+  SUBJECT_KEY_DESTROYED:       [409, 'SUBJECT_KEY_DESTROYED', 'Khoá đã hủy thì không hồi sinh được.'],
+  SIGNER_IS_TARGET:            [403, 'SIGNER_IS_TARGET', 'Người bị ảnh hưởng bởi quyết định này không được ký duyệt nó.'],
+  SIGNER_ROLE_REQUIRED:        [403, 'SIGNER_ROLE_REQUIRED', 'Bạn không có vai được ký duyệt việc này.'],
+  TWO_SIGNATURES_REQUIRED:     [422, 'TWO_SIGNATURES_REQUIRED', 'Việc này cần đúng hai người khác nhau ký.'],
+  CREATOR_SIGNATURE_MISSING:   [422, 'CREATOR_SIGNATURE_MISSING', 'Người đề xuất phải ký trước khi việc được thi hành.'],
 };
 
 export function mapPgError(err) {

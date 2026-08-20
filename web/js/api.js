@@ -90,6 +90,21 @@
     REVIEWER_IS_PARTICIPANT: 'Người tham gia không tự duyệt việc của mình được.',
     REVIEWER_REQUIRED:      'Phải ghi rõ ai là người duyệt.',
 
+    // Mã của Task 13 (migration 013–026). Bảy mã "không tìm thấy X" đã gộp về
+    // NOT_FOUND ngay ở core/errors.js nên không xuất hiện ở đây — người dùng
+    // cần biết thứ họ trỏ tới không còn ở đó, không cần biết trigger nào bắt.
+    AID_SLOT_FULL:          'Suất giúp này đã có đủ người nhận.',
+    EVIDENCE_NOT_PARTICIPANT: 'Chỉ người đã làm việc đó mới lấy nó làm bằng chứng năng lực được.',
+    EVIDENCE_NOT_CONFIRMED: 'Việc chưa đủ xác nhận của mọi người tham gia nên chưa làm bằng chứng được.',
+    ENDORSEMENT_SELF_SIGN:  'Không ai tự bảo chứng cho chính mình.',
+    LOAN_GUARANTOR_IS_BORROWER: 'Người vay không thể tự đứng ra bảo lãnh cho khoản vay của mình.',
+    SUBJECT_KEY_IMMUTABLE:  'Khoá này đã cấp nên không đổi được.',
+    SUBJECT_KEY_DESTROYED:  'Khoá đã hủy thì không hồi sinh được.',
+    SIGNER_IS_TARGET:       'Người bị ảnh hưởng bởi quyết định này không được ký duyệt nó.',
+    SIGNER_ROLE_REQUIRED:   'Bạn không có vai được ký duyệt việc này.',
+    TWO_SIGNATURES_REQUIRED: 'Việc này cần đúng hai người khác nhau ký.',
+    CREATOR_SIGNATURE_MISSING: 'Người đề xuất phải ký trước khi việc được thi hành.',
+
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',
 
