@@ -122,6 +122,9 @@
     QUOTA_OVERRIDE_UNSIGNED: 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.',
     ENDORSER_ROLE_REQUIRED: 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.',
 
+    // Mã của migration 033 — một quyết định đã ký thi hành đúng MỘT lần.
+    CONFIG_CHANGE_ALREADY_APPLIED: 'Việc đổi chính sách này đã thi hành rồi. Muốn đổi tiếp thì tạo một việc mới và ký lại từ đầu.',
+
     // Mã của migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự
     // kiểm người gọi thay vì dựa vào việc chưa route nào gọi tới chúng.
     ROLE_SELF_GRANT:        'Không ai tự gán hay tự gỡ vai của chính mình — kể cả vai kỹ thuật.',

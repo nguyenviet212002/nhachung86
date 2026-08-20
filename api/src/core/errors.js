@@ -100,6 +100,14 @@ const BY_MESSAGE = {
   ENDORSER_ROLE_REQUIRED:      [403, 'ENDORSER_ROLE_REQUIRED', 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.'],
 
   // ---------------------------------------------------------------------
+  // Migration 033 — cửa cấu hình của 028 hỏi "đủ hai chữ ký chưa" nhưng không
+  // hỏi "đã tiêu chưa", nên một quyết định đã thi hành phát lại được. 409 chứ
+  // không phải 422: dữ liệu gửi lên không sai, chỉ là việc này đã xong rồi —
+  // cùng cách xếp với nhóm *_FROZEN ở trên.
+  // ---------------------------------------------------------------------
+  CONFIG_CHANGE_ALREADY_APPLIED: [409, 'CONFIG_CHANGE_ALREADY_APPLIED', 'Việc đổi chính sách này đã thi hành rồi. Muốn đổi tiếp thì tạo một việc mới và ký lại từ đầu.'],
+
+  // ---------------------------------------------------------------------
   // Migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự kiểm
   // người gọi. Khai ngay khi trigger/hàm ra đời, cùng lý do đã ghi ở trên.
   // ---------------------------------------------------------------------
