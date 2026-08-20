@@ -332,6 +332,34 @@ REVOKE UPDATE, DELETE          ON work_confirmations FROM app_role;
 REVOKE DELETE                  ON work_records       FROM app_role;
 ```
 
+**Danh sách người tham gia cũng phải đóng băng — bổ sung ở Task 12.** Bảng quyền ở mục 4.8 cấp cho `work_participants` đủ bốn quyền với lý do "còn sửa được **tới khi** có xác nhận đầu tiên", nhưng bản nháp đầu không có đối tượng SQL nào thực hiện vế "tới khi" đó. Hai đường khai thác, đã tái hiện bằng chạy thật:
+
+- **Thêm người sau khi mọi người đã ký.** A và B xác nhận việc `{A,B}` ⇒ có cạnh A–B. Chèn thêm C rồi để C tự xác nhận ⇒ `fn_work_edge` thấy "đủ mọi người" và sinh thêm **A–C và B–C**. A và B chưa bao giờ xác nhận một việc có C trong đó — cạnh quan hệ mọc ra từ chữ ký của người khác.
+- **Xoá người chưa ký.** Việc `{A,B,C}`, A và B ký, C im lặng nên việc chưa được tính. Xoá C ⇒ điều kiện "đủ mọi người" thành đúng ⇒ `confirmed_works` của A nhảy từ 1 lên 2. Khóa ngoại của `work_confirmations` chỉ chặn xoá người **đã** ký.
+
+```sql
+CREATE FUNCTION fn_work_participants_frozen() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE v_wr uuid;
+BEGIN
+  -- TG_OP tường minh, KHÔNG coalesce(NEW, OLD): trong plpgsql, NEW chưa được gán
+  -- ở trigger DELETE và OLD chưa được gán ở trigger INSERT.
+  IF TG_OP = 'DELETE' THEN v_wr := OLD.work_record_id; ELSE v_wr := NEW.work_record_id; END IF;
+  IF EXISTS (SELECT 1 FROM work_confirmations WHERE work_record_id = v_wr) THEN
+    RAISE EXCEPTION 'WORK_PARTICIPANTS_FROZEN'
+      USING DETAIL = 'đã có xác nhận, danh sách người tham gia không đổi được nữa';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END $$;
+
+CREATE TRIGGER trg_work_participants_frozen
+  BEFORE INSERT OR UPDATE OR DELETE ON work_participants
+  FOR EACH ROW EXECUTE FUNCTION fn_work_participants_frozen();
+```
+
+Trigger chặn cả đường owner/`psql` chứ không chỉ đường `app_role`, nên bảng quyền mục 4.8 giữ nguyên — nay câu "tới khi có xác nhận đầu tiên" là sự thật chứ không phải một dòng trong bảng.
+
+`fn_work_record_frozen` cũng phải khoá thêm `created_by` và `community_id`: `created_by` của bản ghi `manual` là dữ kiện mà mục 4.4 dựa vào, nên sửa được nó **sau** khi đã có xác nhận là mở lại đúng cửa vừa đóng.
+
 **Ứng dụng cố ghi sai thì gặp gì** — mỗi dòng dưới đây trỏ tới một đối tượng SQL có tên thật ở trên:
 
 | Ứng dụng làm gì | CSDL trả lời |
@@ -345,6 +373,8 @@ REVOKE DELETE                  ON work_records       FROM app_role;
 | A bảo lãnh B khi B đã bảo lãnh A | `ERROR: duplicate key value violates unique index "rel_guarantee_one_direction"` |
 | Sửa ngày/tên việc đã có xác nhận | `ERROR: WORK_RECORD_FROZEN` |
 | Xóa bản ghi việc để nắn số liệu | `ERROR: permission denied for table work_records` |
+| Thêm người tham gia sau khi đã có xác nhận | `ERROR: WORK_PARTICIPANTS_FROZEN` |
+| Xóa người tham gia chưa ký để việc thành "đủ chữ ký" | `ERROR: WORK_PARTICIPANTS_FROZEN` |
 
 ### 4.2 Ba chữ ký mở kênh: số điện thoại không nằm ở chỗ API lỡ tay đọc được
 
@@ -451,34 +481,88 @@ Nguyên tắc 5 nói *trao đổi thật diễn ra ngoài nền tảng* — ph�
 
 **Lớp 2 — hạn mức 6 bản ghi `manual` mỗi cặp / 12 tháng**, khóa tư vấn theo cặp chuẩn tắc:
 
+> **Bản nháp đầu của hàm này có hai lỗi, sửa ở Task 12.** (a) Nó gọi `min(member_id), max(member_id)` trên cột `uuid` — **PostgreSQL không có hàm gộp `min`/`max` cho kiểu `uuid`**. Đã kiểm trên chính máy chủ của dự án (PostgreSQL 16.14): `ERROR: function min(uuid) does not exist`, SQLSTATE `42883`. Nghĩa là bản nháp không phải "chặn hơi lỏng" mà là **ném lỗi ở chữ ký đầu tiên của bản ghi `manual` đầu tiên**, và hạn mức không bao giờ chạy. (b) Nó chỉ canh **một** cặp (`min`,`max`) trong khi luật viết ra là "6 bản ghi mỗi **cặp**": với bản ghi ba người `A<B<C`, cặp (A,B) và (B,C) không ai đếm, nên sáu bản ghi `{A,B}` rồi bản thứ bảy `{A,B,C}` sẽ **lọt**. Bản dưới đây duyệt **mọi** cặp của bản ghi, và lấy khóa tư vấn theo thứ tự `(lo, hi)` cố định để hai giao dịch chồng cặp không khóa chéo nhau.
+
 ```sql
 CREATE FUNCTION fn_manual_pair_quota() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE v_lo uuid; v_hi uuid; v_n int;
+DECLARE r RECORD; v_n int; v_cap int; v_creator uuid; v_type text;
 BEGIN
-  IF (SELECT source_type FROM work_records WHERE id = NEW.work_record_id) <> 'manual'
-    THEN RETURN NEW; END IF;
-  SELECT min(member_id), max(member_id) INTO v_lo, v_hi
-    FROM work_participants WHERE work_record_id = NEW.work_record_id;
-  IF v_lo IS NULL OR v_lo = v_hi THEN RETURN NEW; END IF;
+  SELECT source_type, created_by INTO v_type, v_creator FROM work_records
+   WHERE id = NEW.work_record_id AND community_id = NEW.community_id;
+  IF v_type IS DISTINCT FROM 'manual' THEN RETURN NEW; END IF;
 
-  PERFORM pg_advisory_xact_lock(hashtextextended(v_lo::text || v_hi::text, 99));
-
-  SELECT count(DISTINCT w.id) INTO v_n
-    FROM work_records w
-    JOIN work_participants a ON a.work_record_id = w.id AND a.member_id = v_lo
-    JOIN work_participants b ON b.work_record_id = w.id AND b.member_id = v_hi
-   WHERE w.source_type = 'manual' AND w.created_at > now() - interval '12 months';
-
-  IF v_n > coalesce((SELECT (config->>'manual_pair_quota')::int
-                       FROM communities WHERE id = NEW.community_id), 6) THEN
-    RAISE EXCEPTION 'MANUAL_PAIR_QUOTA_EXCEEDED'
-      USING DETAIL = format('%s bản ghi thủ công giữa hai người trong 12 tháng', v_n);
+  -- "created_by của bản ghi manual bắt buộc là một trong những người tham gia":
+  -- không kiểm được lúc INSERT work_records (chưa có người tham gia nào), nên
+  -- chỗ đúng là đây — cửa đầu tiên mà một bản ghi manual phải đi qua.
+  IF NOT EXISTS (SELECT 1 FROM work_participants p
+                  WHERE p.work_record_id = NEW.work_record_id
+                    AND p.community_id = NEW.community_id
+                    AND p.member_id = v_creator) THEN
+    RAISE EXCEPTION 'MANUAL_CREATOR_NOT_PARTICIPANT';
   END IF;
+
+  FOR r IN SELECT a.member_id AS lo, b.member_id AS hi
+             FROM work_participants a
+             JOIN work_participants b ON b.work_record_id = a.work_record_id
+                                     AND a.member_id < b.member_id
+                                     AND b.community_id = NEW.community_id
+            WHERE a.work_record_id = NEW.work_record_id
+              AND a.community_id = NEW.community_id
+            ORDER BY a.member_id, b.member_id       -- thứ tự cố định: không khóa chéo
+  LOOP
+    PERFORM pg_advisory_xact_lock(hashtextextended(r.lo::text || r.hi::text, 99));
+
+    SELECT count(DISTINCT w.id) INTO v_n
+      FROM work_records w
+      JOIN work_participants pa ON pa.work_record_id = w.id AND pa.member_id = r.lo
+      JOIN work_participants pb ON pb.work_record_id = w.id AND pb.member_id = r.hi
+     WHERE w.source_type = 'manual'
+       AND w.community_id = NEW.community_id
+       AND w.created_at > now() - interval '12 months';
+
+    v_cap := coalesce((SELECT (config->>'manual_pair_quota')::int
+                         FROM communities WHERE id = NEW.community_id), 6);
+    IF v_n > v_cap THEN
+      RAISE EXCEPTION 'MANUAL_PAIR_QUOTA_EXCEEDED'
+        USING DETAIL = format('%s bản ghi thủ công giữa hai người trong 12 tháng', v_n);
+    END IF;
+  END LOOP;
   RETURN NEW;
 END $$;
 ```
 
-Thêm: `created_by` của bản ghi `manual` bắt buộc là một trong những người tham gia; bảng điều khiển vận hành hiện tỷ lệ `manual / tổng việc tính bậc` của từng người. Kịch bản "hai người lên Kim Cương trong một buổi tối" giờ cần 100 bản ghi, chặn ở bản ghi thứ bảy mỗi cặp, mỗi bản ghi qua approver.
+**Lớp 1 cần một người canh, không chỉ một cột (bổ sung ở Task 12).** Cả lớp 1 dựa vào `reviewed_at IS NOT NULL`, nhưng bản nháp đầu không có gì kiểm **ai** đặt được cột đó: `reviewed_by` chỉ là `REFERENCES members(id)`, còn `app_role` có `UPDATE` trên `work_records`. Hai người dựng bản ghi `manual` rồi tự điền `reviewed_by` bằng chính tên mình là xong — cửa có, người canh thì không.
+
+```sql
+CREATE FUNCTION fn_work_review_gate() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.reviewed_at IS NULL THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND NEW.reviewed_at IS NOT DISTINCT FROM OLD.reviewed_at
+                      AND NEW.reviewed_by IS NOT DISTINCT FROM OLD.reviewed_by THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'INSERT' AND NEW.source_type = 'manual' THEN
+    RAISE EXCEPTION 'MANUAL_REVIEW_BEFORE_WORK';   -- không sinh ra đã duyệt sẵn
+  END IF;
+  IF NEW.reviewed_by IS NULL THEN RAISE EXCEPTION 'REVIEWER_REQUIRED'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                  WHERE mr.member_id = NEW.reviewed_by
+                    AND mr.community_id = NEW.community_id      -- CÙNG cộng đồng
+                    AND r.key = 'approver') THEN
+    RAISE EXCEPTION 'REVIEWER_NOT_APPROVER';
+  END IF;
+  IF EXISTS (SELECT 1 FROM work_participants p
+              WHERE p.work_record_id = NEW.id AND p.member_id = NEW.reviewed_by) THEN
+    RAISE EXCEPTION 'REVIEWER_IS_PARTICIPANT';     -- cùng lập luận với trigger quỹ
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER trg_work_review_gate BEFORE INSERT OR UPDATE ON work_records
+  FOR EACH ROW EXECUTE FUNCTION fn_work_review_gate();
+```
+
+Còn lại: bảng điều khiển vận hành hiện tỷ lệ `manual / tổng việc tính bậc` của từng người (chưa làm — chưa có bảng điều khiển). Kịch bản "hai người lên Kim Cương trong một buổi tối" giờ cần 100 bản ghi, chặn ở bản ghi thứ bảy mỗi cặp, mỗi bản ghi qua approver **thật**.
 
 ### 4.5 Các ràng buộc còn lại
 
@@ -1111,7 +1195,7 @@ export function tierOf(confirmedWorks) { … }   // không có đường vào n�
 
 - **Có cache không:** có, chính bảng đó là cache.
 - **Làm mới khi nào:** (a) tức thì theo trigger; (b) tác vụ 03:15 hằng đêm tính lại toàn bộ, so với giá trị đang lưu, lệch thì ghi `audit_log` và sửa. Ở 52 người phép tính lại mất dưới một giây — rẻ hơn nhiều so với rủi ro trigger trôi số.
-- `distinct_requesters` đếm số người khác nhau đã nhờ; `repeat_requesters` đếm người xuất hiện từ hai việc trở lên.
+- `distinct_requesters` đếm số người khác nhau **đã nhờ**; `repeat_requesters` đếm người xuất hiện từ hai việc trở lên. **"Đã nhờ" nghĩa là mang vai `receiver` trên việc mà người này mang vai `doer`** (làm rõ ở Task 12): đếm mọi người tham gia khác bất kể vai sẽ gộp người *đã giúp mình* vào cùng một con số với người *đã nhờ mình* — hai chiều ngược nhau, gộp lại thì chỉ số mất hết ý nghĩa. Cả hai chỉ số đếm trên tập việc **được tính bậc**, không phải mọi việc đủ chữ ký: một bản ghi `manual` chưa qua approver là đúng thứ mục 4.4 sinh ra để không tin, nên nó cũng không được đẻ ra tín hiệu uy tín ở cửa bên cạnh.
 - `manual_works` đếm riêng và **hiện tách bạch** trên hồ sơ.
 
 **Bậc uy tín không được dùng để xếp thứ tự.** Bài kiểm thử T9 quét mã nguồn tầng tìm kiếm; ai lỡ thêm `ORDER BY confirmed_works` hay `ORDER BY tier`, CI đỏ.
@@ -1177,8 +1261,9 @@ Luật này được cưỡng chế lúc chạy: `audit.log()` kiểm `detail` b
 | `020_fund` | + `fund_entry_approvals` + trigger hoãn + khóa bút toán |
 | `021_loans` | Cột `_enc`, bảng khóa theo chủ thể |
 | `022_ops` | `roles`, `permissions`, `pending_actions`, `backups`, `restore_tests`, `moderation_queue` |
-| `023_trust_stats` | `member_trust_stats` + trigger |
+| `023_trust_stats` | **Task 12** — `member_trust_stats` (`app_role` chỉ có `SELECT`) + `fn_trust_recount` (`SECURITY DEFINER`, viết bằng CTE nhiều tầng theo Ruling C9) + `trg_trust_touch` trên `work_confirmations` + `trg_trust_review` trên `work_records` (approver duyệt xong thì con số đổi ngay, không chờ tác vụ 03:15) |
 | `024_indexes_and_revokes` | `search_vec`, GIN, GiST, và **chốt lại toàn bộ ma trận quyền theo bảng ở mục 4.8** — nơi duy nhất `REVOKE` được tập trung, để đọc một file là thấy hết |
+| `025_work_triggers` | **Task 12** — `fn_self_only`, `fn_manual_pair_quota`, `fn_work_record_frozen`, `fn_work_review_gate`, `fn_work_participants_frozen`, `fn_work_edge` + trigger của cả sáu. Tệp RIÊNG chứ không sửa `011`: Ruling C8 (migration đã chạy thì không sửa). Số `025 > 023` nên bảng đếm uy tín đã có mặt trước khi trigger bắt đầu sống. Hai trigger `BEFORE INSERT` trên `work_confirmations` đặt tên có số thứ tự (`trg_wc_1_self_only`, `trg_wc_2_manual_pair_quota`) vì PostgreSQL chạy trigger cùng thời điểm theo **thứ tự tên**, và luật danh tính phải chặn trước luật hạn mức. |
 
 ---
 

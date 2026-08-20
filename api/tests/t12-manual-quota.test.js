@@ -180,9 +180,10 @@ describe('T12 lớp 2 — hạn mức 6 bản ghi manual mỗi cặp / 12 tháng
 
     const a = ownerKnex();
     const b = ownerKnex();
+    let ta, tb;
     try {
-      const ta = await a.transaction();
-      const tb = await b.transaction();
+      ta = await a.transaction();
+      tb = await b.transaction();
 
       // Mỗi giao dịch tự tạo bản ghi manual thứ 6/7 của mình rồi ký. Không có
       // khóa tư vấn thì cả hai đều đếm ra 6 (không thấy bản ghi chưa commit của
@@ -230,10 +231,21 @@ describe('T12 lớp 2 — hạn mức 6 bản ghi manual mỗi cặp / 12 tháng
 
       expect([r1, r2].filter((s) => s === 'ok')).toHaveLength(1);
     } finally {
+      // Đóng giao dịch TRƯỚC khi destroy: nếu một assertion ở trên ném lỗi thì
+      // ta/tb còn đang mở, và knex.destroy() sẽ CHỜ kết nối được trả về pool —
+      // bài test treo tới lúc hết giờ, che mất chính lỗi vừa ném. Đúng thứ vừa
+      // xảy ra ở vòng đột biến M7.
+      await ta?.rollback().catch(() => {});
+      await tb?.rollback().catch(() => {});
       await a.destroy();
       await b.destroy();
     }
-  });
+    // Hạn 20s chứ không phải 5s mặc định: phần gieo dữ liệu (5 bản ghi manual
+    // trọn vẹn) đã ăn gần hết ngân sách, nên khi khóa tư vấn bị gỡ bài này
+    // chết vì HẾT GIỜ thay vì vì `blocked === false`. Đỏ vì lý do khác với lý
+    // do cần kiểm thì không chứng minh được gì (Ruling T8-a) — đã tự vấp đúng
+    // một vòng đột biến vào chuyện này.
+  }, 20000);
 });
 
 // ---------------------------------------------------------------------------

@@ -46,8 +46,18 @@ export async function up(knex) {
   // ---------------------------------------------------------------------------
   // fn_manual_pair_quota — spec mục 4.4 lớp 2.
   //
-  // LỆCH CÓ CHỦ ĐÍCH khỏi mã mẫu đặc tả, và đây là một lỗi thật chứ không phải
-  // sở thích: mã mẫu lấy `min(member_id), max(member_id)` của bản ghi rồi chỉ
+  // LỆCH CÓ CHỦ ĐÍCH khỏi mã mẫu đặc tả vì HAI lỗi, một lỗi làm nó chạy sai và
+  // một lỗi làm nó KHÔNG CHẠY ĐƯỢC:
+  //
+  // (a) `SELECT min(member_id), max(member_id) ... INTO v_lo, v_hi` — PostgreSQL
+  //     KHÔNG có hàm gộp min/max cho kiểu uuid. Đã kiểm trên chính máy chủ của
+  //     dự án (PostgreSQL 16.14): `ERROR: function min(uuid) does not exist`,
+  //     SQLSTATE 42883. Nghĩa là mã mẫu ở mục 4.4 sẽ ném lỗi ngay ở chữ ký đầu
+  //     tiên của bản ghi manual đầu tiên — hạn mức không chặn ai cả, nó làm
+  //     hỏng cả thao tác. Muốn giữ đúng ngữ nghĩa min/max cho uuid thì phải
+  //     dùng `ORDER BY member_id LIMIT 1`.
+  //
+  // (b) Ngữ nghĩa: mã mẫu lấy `min(member_id), max(member_id)` của bản ghi rồi chỉ
   // đếm cho ĐÚNG MỘT cặp đó. Với bản ghi hai người thì trùng nhau, nhưng luật
   // được viết ra là "6 bản ghi manual MỖI CẶP / 12 tháng" — với bản ghi ba
   // người (A<B<C) mã mẫu chỉ canh cặp (A,C), còn (A,B) và (B,C) không ai đếm.
