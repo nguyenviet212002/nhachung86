@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "migrate": "knex migrate:latest",
     "seed": "node src/db/seeds/run.js",
+    "seed:areas": "node src/db/seeds/areas.js",
     "test": "vitest run"
   },
   "dependencies": {

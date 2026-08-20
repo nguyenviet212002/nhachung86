@@ -76,8 +76,8 @@ async function seedCommunity(trx, stat) {
     [{ id: COMMUNITY_ID, code: COMMUNITY_CODE, name: 'Nhà Chung Bính Dần 1986', config: JSON.stringify(CONFIG) }]
   );
   stat.areas += await upsert(
-    trx, 'areas', ['id', 'community_id', 'name', 'lat', 'lng'], AREAS,
-    { update: ['name', 'lat', 'lng'] }
+    trx, 'areas', ['id', 'community_id', 'name', 'lat', 'lng', 'is_active'], AREAS,
+    { update: ['name', 'lat', 'lng', 'is_active'] }
   );
 }
 

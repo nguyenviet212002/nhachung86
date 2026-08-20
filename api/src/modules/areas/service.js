@@ -15,7 +15,9 @@ export async function tree({ actor, communityId }) {
   const cid = actor?.communityId ?? communityId;
   return withActor(actor?.id ?? null, async (trx) => {
     const { rows } = await trx.raw(
-      `SELECT id, name, parent_id FROM areas WHERE community_id = ? ORDER BY name, id`,
+      `SELECT id, name, parent_id FROM areas
+        WHERE community_id = ? AND is_active = true
+        ORDER BY name, id`,
       [cid]
     );
 

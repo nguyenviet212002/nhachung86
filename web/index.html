@@ -966,7 +966,17 @@ function ic(name,size=18){ return `<svg width="${size}" height="${size}" viewBox
    1. MOCK DATA
    ============================================================ */
 const AVATAR = n => `https://i.pravatar.cc/150?img=${n}`;
-const AREAS = ['TP. Hưng Yên','Xã Văn Giang','Xã Khoái Châu','Xã Yên Mỹ','Xã Ân Thi','Xã Kim Động','Xã Phù Cừ','Xã Tiên Lữ','Phường Lam Sơn','Xã Tân Hưng','Xã Bảo Khê','Phường Hiến Nam'];
+const AREAS = [
+  'Xã Tân Hưng','Xã Hoàng Hoa Thám','Xã Tiên Lữ','Xã Tiên Hoa','Xã Quang Hưng','Xã Đoàn Đào','Xã Tiên Tiến','Xã Tống Trân','Xã Lương Bằng','Xã Nghĩa Dân','Xã Hiệp Cường','Xã Đức Hợp',
+  'Xã Ân Thi','Xã Xuân Trúc','Xã Phạm Ngũ Lão','Xã Nguyễn Trãi','Xã Hồng Quang','Xã Khoái Châu','Xã Triệu Việt Vương','Xã Việt Tiến','Xã Chí Minh','Xã Châu Ninh','Xã Yên Mỹ','Xã Việt Yên',
+  'Xã Hoàn Long','Xã Nguyễn Văn Linh','Xã Như Quỳnh','Xã Lạc Đạo','Xã Đại Đồng','Xã Nghĩa Trụ','Xã Phụng Công','Xã Văn Giang','Xã Mễ Sở','Xã Thái Thụy','Xã Đông Thụy Anh','Xã Bắc Thụy Anh',
+  'Xã Thụy Anh','Xã Nam Thụy Anh','Xã Bắc Thái Ninh','Xã Thái Ninh','Xã Đông Thái Ninh','Xã Nam Thái Ninh','Xã Tây Thái Ninh','Xã Tây Thụy Anh','Xã Tiền Hải','Xã Tây Tiền Hải','Xã Ái Quốc','Xã Đồng Châu',
+  'Xã Đông Tiền Hải','Xã Nam Cường','Xã Hưng Phú','Xã Nam Tiền Hải','Xã Đông Hưng','Xã Bắc Tiên Hưng','Xã Đông Tiên Hưng','Xã Nam Đông Hưng','Xã Bắc Đông Quan','Xã Bắc Đông Hưng','Xã Đông Quan','Xã Nam Tiên Hưng',
+  'Xã Tiên Hưng','Xã Quỳnh Phụ','Xã Minh Thọ','Xã Nguyễn Du','Xã Quỳnh An','Xã Ngọc Lâm','Xã Đồng Bằng','Xã A Sào','Xã Phụ Dực','Xã Tân Tiến','Xã Hưng Hà','Xã Tiên La',
+  'Xã Lê Quý Đôn','Xã Hồng Minh','Xã Thần Khê','Xã Diên Hà','Xã Ngự Thiên','Xã Long Hưng','Xã Kiến Xương','Xã Lê Lợi','Xã Quang Lịch','Xã Vũ Quý','Xã Bình Thanh','Xã Bình Định',
+  'Xã Hồng Vũ','Xã Bình Nguyên','Xã Trà Giang','Xã Vũ Thư','Xã Thư Trì','Xã Tân Thuận','Xã Thư Vũ','Xã Vũ Tiên','Xã Vạn Xuân','Phường Phố Hiến','Phường Sơn Nam','Phường Hồng Châu',
+  'Phường Mỹ Hào','Phường Đường Hào','Phường Thượng Hồng','Phường Thái Bình','Phường Trần Lãm','Phường Trần Hưng Đạo','Phường Trà Lý','Phường Vũ Phúc'
+];
 
 const CURRENT_USER = {
   id:'u1', name:'Nguyễn Văn Hùng', role:'Quản trị viên', job:'Kỹ sư xây dựng',

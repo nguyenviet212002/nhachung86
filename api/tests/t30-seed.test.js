@@ -4,7 +4,7 @@ import { v5 as uuidv5 } from 'uuid';
 import { resetDb } from './helpers/db.js';
 import { runSeed } from '../src/db/seeds/run.js';
 import { id } from '../src/db/seeds/ids.js';
-import { COMMUNITY_ID } from '../src/db/seeds/data/community.js';
+import { COMMUNITY_ID, HUNG_YEN_2025_AREA_NAMES } from '../src/db/seeds/data/community.js';
 import { byCode, MEMBERS } from '../src/db/seeds/data/tree.js';
 import { verifyChain } from '../src/core/audit.js';
 import { buildApp } from '../src/app.js';
@@ -153,7 +153,6 @@ describe('T22/t29 — dữ liệu mẫu', () => {
 
   it('đủ bộ dữ liệu mẫu theo Task 17', async () => {
     const expected = {
-      areas: 12,
       capabilities: 148,
       signals: 7,
       job_needs: 5,
@@ -170,6 +169,28 @@ describe('T22/t29 — dữ liệu mẫu', () => {
       );
       expect(n, table).toBe(want);
     }
+
+    const { rows: [{ n: activeAreas }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM areas WHERE community_id = ? AND is_active = true`,
+      [COMMUNITY_ID]
+    );
+    expect(activeAreas).toBe(104);
+    expect(HUNG_YEN_2025_AREA_NAMES).toHaveLength(104);
+
+    const { rows: activeAreaRows } = await db.raw(
+      `SELECT name FROM areas WHERE community_id = ? AND is_active = true ORDER BY name`,
+      [COMMUNITY_ID]
+    );
+    expect(activeAreaRows.map((r) => r.name)).toEqual(
+      HUNG_YEN_2025_AREA_NAMES.map(([name]) => name).sort()
+    );
+
+    const { rows: [{ n: activeWards }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM areas
+        WHERE community_id = ? AND is_active = true AND name LIKE 'Phường %'`,
+      [COMMUNITY_ID]
+    );
+    expect(activeWards).toBe(11);
 
     const { rows: [{ n: largeFunds }] } = await db.raw(
       `SELECT count(*)::int AS n FROM fund_entries

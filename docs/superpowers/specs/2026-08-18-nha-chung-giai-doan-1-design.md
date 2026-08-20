@@ -1353,7 +1353,7 @@ Thêm `M09` có một đơn `rejected` với `reason_code='referrer_misrepresent
 
 ### 12.3 Còn lại
 
-- **12 khu vực Hưng Yên** đúng danh sách `AREAS` trong frontend (`index_2.html:965`), có `lat`/`lng` để thử `earthdistance`.
+- **104 đơn vị cấp xã Hưng Yên sau sắp xếp 2025** (93 xã, 11 phường); khu vực cũ được giữ để bảo toàn liên kết lịch sử nhưng không còn là lựa chọn hoạt động. `lat`/`lng` không được tự suy đoán và không trả ra client.
 - **148 năng lực** rải theo 7 nhóm ngành của frontend, phần lớn `published`, vài cái `pending_review`.
 - **`work_records`:** ~60 bản ghi đủ xác nhận (đủ để có người ở bậc Mầm, Đồng, Bạc); **3 bản ghi mới một bên xác nhận** — cạnh chưa được hình thành, dữ liệu cho T1; **1 bản ghi `manual` chưa duyệt** — không được cộng vào bậc, dữ liệu cho T12.
 - **7 tín hiệu, mỗi chặng một cái** (`created` → `archived`).

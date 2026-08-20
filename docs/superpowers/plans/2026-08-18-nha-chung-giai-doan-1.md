@@ -3120,7 +3120,7 @@ Không id ngẫu nhiên ở bất kỳ đâu trong seed — đó là toàn bộ 
 
 - [x] **Step 2: Viết cây bảo lãnh 52 người** theo mục 12.2 spec: một gốc, bốn tầng, `created_at` lùi ngày 2019→2026. `M07` có đúng 3 đơn trong 12 tháng gần nhất. `M09` có đơn `rejected` với `referrer_misrepresented`; `M10` có đơn `rejected` với `not_ready`.
 
-- [x] **Step 3: Viết phần còn lại** — 12 khu vực (đúng danh sách `AREAS` trong frontend, có `lat`/`lng`), 148 năng lực, ~60 `work_records` đủ xác nhận, **3 bản ghi mới một bên xác nhận**, **1 bản ghi `manual` chưa duyệt**, 7 tín hiệu mỗi chặng một cái, 5 nhu cầu việc, 5 yêu cầu giúp nhau, 4 hoạt động (2 có tổng kết), 12 bút toán quỹ (2 cái ≥ 1 triệu có đủ chữ ký), 2 khoản vay.
+- [x] **Step 3: Viết phần còn lại** — 104 đơn vị cấp xã hiện hành của Hưng Yên (93 xã, 11 phường; khu vực cũ được giữ lịch sử nhưng ẩn khỏi danh mục hoạt động), 148 năng lực, ~60 `work_records` đủ xác nhận, **3 bản ghi mới một bên xác nhận**, **1 bản ghi `manual` chưa duyệt**, 7 tín hiệu mỗi chặng một cái, 5 nhu cầu việc, 5 yêu cầu giúp nhau, 4 hoạt động (2 có tổng kết), 12 bút toán quỹ (2 cái ≥ 1 triệu có đủ chữ ký), 2 khoản vay.
 
 `audit_log` sinh bằng `INSERT` thường để trigger tự dựng chuỗi. **Tuyệt đối không seed hash cứng.**
 

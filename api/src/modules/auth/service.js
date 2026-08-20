@@ -277,7 +277,8 @@ export async function register({
       );
     }
 
-    const { rows: [area] } = await trx.raw(`SELECT id FROM areas WHERE id = ? AND community_id = ?`, [
+    const { rows: [area] } = await trx.raw(`SELECT id FROM areas
+      WHERE id = ? AND community_id = ? AND is_active = true`, [
       areaId, communityId,
     ]);
     if (!area) {
