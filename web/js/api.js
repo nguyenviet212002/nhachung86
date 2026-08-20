@@ -132,6 +132,19 @@
     // nối tấm ảnh với chủ của nó thì không sửa được.
     FILE_IMMUTABLE:         'Những dữ kiện này của tệp đã cố định, không sửa lại được.',
 
+    // Mã của migration 031 — link mời bảo lãnh (QĐ-1). Bốn mã đầu cố ý nói
+    // thật lý do thay vì gộp thành một câu chung: token mời không dò được nên
+    // người đang cầm link là người đã được trao nó, và người bị chuyền tay một
+    // cái link đã dùng cần hiểu vì sao mình không vào được.
+    INVITE_NOT_FOUND:       'Đường link mời này không dùng được. Hãy hỏi lại người đã mời bạn.',
+    INVITE_EXPIRED:         'Đường link mời đã hết hạn. Hãy xin người bảo lãnh một đường link mới.',
+    INVITE_REVOKED:         'Đường link mời đã bị người bảo lãnh thu hồi.',
+    INVITE_ALREADY_USED:    'Đường link mời này đã có người dùng. Mỗi đường link chỉ dùng được một lần.',
+    INVITE_FROZEN:          'Những dữ kiện này của đường link mời đã cố định, không sửa lại được.',
+    INVITE_CREATOR_MISMATCH: 'Đường link mời phải mang tên chính người bấm nút phát nó.',
+    INVITE_ON_BEHALF_DENIED: 'Chỉ ban duyệt của chính Hội này mới phát link mời hộ người khác.',
+    INVITE_REASON_REQUIRED: 'Phát link mời hộ người khác thì phải ghi rõ lý do.',
+
     // Khung hai người ký (core/twoPerson.js, đặc tả mục 7). Năm mã này do tầng
     // ứng dụng ném, không có trong BY_MESSAGE.
     ACTION_NOT_AVAILABLE:   'Việc này chưa mở để ký trong giai đoạn hiện tại.',
@@ -139,6 +152,15 @@
     PENDING_ACTION_STALE:   'Dữ liệu liên quan đã thay đổi kể từ chữ ký đầu. Hãy tạo lại việc này và ký lại từ đầu.',
     NEEDS_SECOND_PERSON:    'Cần một người thứ hai ký. Người đề xuất đã là chữ ký thứ nhất.',
     REAUTH_FAILED:          'Mật khẩu không đúng. Ký một việc vận hành phải nhập lại mật khẩu.',
+
+    // Tệp (modules/files, đặc tả mục 5.3). Năm mã do tầng ứng dụng ném, không
+    // có trong BY_MESSAGE. Câu chữ cố ý KHÔNG nói ra ta đoán tệp là loại gì:
+    // trả lời chi tiết biến ô tải ảnh thành máy nhận dạng định dạng miễn phí.
+    FILE_TOO_LARGE:         'Tệp vượt quá dung lượng cho phép (10 MB).',
+    FILE_TYPE_NOT_ALLOWED:  'Chỉ nhận ảnh JPEG, PNG hoặc WebP.',
+    FILE_MISSING:           'Chưa chọn tệp nào để tải lên.',
+    FILE_CORRUPT:           'Không đọc được ảnh này. Hãy thử tấm khác.',
+    STORAGE_UNAVAILABLE:    'Kho ảnh đang không nhận được tệp. Thử lại sau ít phút.',
 
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',

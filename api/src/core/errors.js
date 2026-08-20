@@ -122,6 +122,32 @@ const BY_MESSAGE = {
   // khác, đổi chủ tệp, hay hồi sinh tấm ảnh đã bỏ.
   // ---------------------------------------------------------------------
   FILE_IMMUTABLE:              [409, 'FILE_IMMUTABLE', 'Những dữ kiện này của tệp đã cố định, không sửa lại được.'],
+
+  // ---------------------------------------------------------------------
+  // Migration 031 — link mời bảo lãnh (QĐ-1).
+  //
+  // Bốn mã đầu KHÔNG gộp về một câu chung, và đó là một lệch có chủ đích so
+  // với luật "ba nhánh hỏng của /auth/register phải giống hệt nhau" (đặc tả
+  // dòng 815). Luật ấy sinh ra để bịt MÁY DÒ: ô nhập uuid người bảo lãnh cho
+  // phép gõ thử một giá trị bất kỳ rồi đọc thông báo lỗi. Token mời không dò
+  // được — 256 bit ngẫu nhiên — nên người đang cầm nó là người đã được trao
+  // nó, và nói thật với họ ("link đã có người dùng" khác "link hết hạn") không
+  // rò ra điều gì về Hội mà họ chưa biết. Ngược lại, gộp cả bốn thành một câu
+  // thì người bị chuyền tay một cái link đã dùng sẽ không hiểu vì sao mình
+  // không vào được — đúng chỗ QĐ-1 đòi họ phải hiểu.
+  // ---------------------------------------------------------------------
+  INVITE_NOT_FOUND:            [404, 'INVITE_NOT_FOUND', 'Đường link mời này không dùng được. Hãy hỏi lại người đã mời bạn.'],
+  INVITE_EXPIRED:              [422, 'INVITE_EXPIRED', 'Đường link mời đã hết hạn. Hãy xin người bảo lãnh một đường link mới.'],
+  INVITE_REVOKED:              [422, 'INVITE_REVOKED', 'Đường link mời đã bị người bảo lãnh thu hồi.'],
+  INVITE_ALREADY_USED:         [409, 'INVITE_ALREADY_USED', 'Đường link mời này đã có người dùng. Mỗi đường link chỉ dùng được một lần.'],
+  INVITE_FROZEN:               [409, 'INVITE_FROZEN', 'Những dữ kiện này của đường link mời đã cố định, không sửa lại được.'],
+  INVITE_CREATOR_MISMATCH:     [403, 'INVITE_CREATOR_MISMATCH', 'Đường link mời phải mang tên chính người bấm nút phát nó.'],
+  INVITE_ON_BEHALF_DENIED:     [403, 'INVITE_ON_BEHALF_DENIED', 'Chỉ ban duyệt của chính Hội này mới phát link mời hộ người khác.'],
+  INVITE_REASON_REQUIRED:      [422, 'INVITE_REASON_REQUIRED', 'Phát link mời hộ người khác thì phải ghi rõ lý do.'],
+  // Bất biến của hệ thống, không phải lỗi người dùng: một giao dịch đã đốt
+  // link nhưng không để lại đơn nào. Người dùng không sửa được gì, nên họ nhận
+  // câu chung — cùng cách xử lý với NO_ACTOR.
+  INVITE_USE_INCOMPLETE:       [500, 'INTERNAL', 'Lỗi hệ thống.'],
 };
 
 export function mapPgError(err) {

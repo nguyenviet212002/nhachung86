@@ -14,6 +14,7 @@
   "member_roles":             ["SELECT"],
   "join_requests":            ["SELECT", "INSERT", "UPDATE"],
   "guarantee_quota_overrides":["SELECT", "INSERT"],
+  "guarantee_invites":        ["SELECT", "INSERT", "UPDATE"],
   "join_request_secrets":     ["INSERT"],
   "work_records":             ["SELECT", "INSERT", "UPDATE"],
   "work_participants":        ["SELECT", "INSERT", "UPDATE", "DELETE"],
