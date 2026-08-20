@@ -409,4 +409,18 @@ describe('T10.7 GET /areas — cây khu vực của đúng cộng đồng ngư�
     expect(flat).not.toContain(areaOther);
     expect(flat).not.toContain('Khu vuc cong dong khac');
   });
+
+  // Người đang điền đơn gia nhập CHƯA đăng nhập, mà `POST /auth/register` bắt
+  // buộc `area_id` — nên danh mục khu vực phải với tới được khi chưa có actor.
+  // Mở được vì `areas` là tên thôn/xã, danh mục hành chính công khai, không gắn
+  // với người nào. Ranh giới dừng đúng ở đây: mở danh sách THÀNH VIÊN thì vô
+  // hiệu hoá toàn bộ cơ chế chống dò của `/auth/register`.
+  it('gọi được khi CHƯA đăng nhập — không có actor vẫn ra cây khu vực', async () => {
+    const res = await areas.tree({ actor: undefined, communityId: cid });
+    expect(res.data).toHaveLength(1);
+    expect(res.data[0].name).toBe('Xa Khoai Chau');
+
+    const flat = JSON.stringify(res.data);
+    expect(flat, 'khách chưa đăng nhập vẫn không được thấy cộng đồng khác').not.toContain(areaOther);
+  });
 });

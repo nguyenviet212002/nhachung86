@@ -9,11 +9,14 @@ import { withActor } from '../../core/tx.js';
  * ở giai đoạn 1. Chưa màn nào cần chúng, và toạ độ là thứ chỉ nên mở khi có
  * người quyết định mở — không phải vì `SELECT *` tiện tay.
  */
-export async function tree({ actor }) {
-  return withActor(actor.id, async (trx) => {
+export async function tree({ actor, communityId }) {
+  // `actor` vắng mặt khi người chưa đăng nhập mở màn đăng ký — xem ghi chú ở
+  // routes.js. Cộng đồng khi đó do người gọi truyền vào, không suy từ actor.
+  const cid = actor?.communityId ?? communityId;
+  return withActor(actor?.id ?? null, async (trx) => {
     const { rows } = await trx.raw(
       `SELECT id, name, parent_id FROM areas WHERE community_id = ? ORDER BY name, id`,
-      [actor.communityId]
+      [cid]
     );
 
     const byId = new Map(rows.map((r) => [r.id, { id: r.id, name: r.name, parent_id: r.parent_id, children: [] }]));
