@@ -2384,9 +2384,20 @@ async function revealPhone(id){
   }
 }
 
+/* `profile_fields` — bốn trường hồ sơ (job, area, price, family) nay cũng có
+   mức riêng tư THẬT SỰ được cưỡng chế (Task 13). Máy chủ trả `job: null` khi
+   chủ hồ sơ đã đóng, y như khi họ chưa khai — nên phải nhìn `state` mới nói
+   đúng được. In "Chưa cập nhật nghề nghiệp" cho một trường bị CHỦ HỒ SƠ ẨN là
+   thay một lời nói dối bằng một lời nói dối khác. */
+function profileText(m, key, value, empty){
+  const st = (m.profile_fields && m.profile_fields[key] && m.profile_fields[key].state) || 'visible';
+  if(value) return value;
+  return (st === 'visible' || st === 'self') ? empty : 'Chủ hồ sơ đã ẩn mục này';
+}
+
 /* Bao bì `contacts` của đặc tả mục 5.2 — sáu trạng thái, mỗi trạng thái một
    hình dạng nút. KHÔNG tự đoán trạng thái từ `level`: `state` là thứ máy chủ
-   đã tính (core/privacy.js envelope()), đoán lại ở đây là dựng bản sao thứ hai
+   đã tính (fn_privacy_state trong CSDL), đoán lại ở đây là dựng bản sao thứ hai
    của luật riêng tư. */
 function phoneCell(m){
   const c = (m.contacts && m.contacts.phone) || {state:'closed', value:null};
@@ -2443,8 +2454,8 @@ function MembersPage(){
             <img class="av" src="${esc(m.avatar_url || AVATAR(1))}" width="52" height="52" alt="">
             <div>
               <h4>${esc(m.full_name)}</h4>
-              <div class="role">${esc(m.job || 'Chưa cập nhật nghề nghiệp')}</div>
-              <div class="role">${ic('mappin',12)} ${esc(m.area ? m.area.name : 'Chưa cập nhật khu vực')}</div>
+              <div class="role">${esc(profileText(m,'job', m.job, 'Chưa cập nhật nghề nghiệp'))}</div>
+              <div class="role">${ic('mappin',12)} ${esc(profileText(m,'area', m.area && m.area.name, 'Chưa cập nhật khu vực'))}</div>
             </div>
           </div>
           <div class="tags">

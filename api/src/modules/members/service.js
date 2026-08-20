@@ -1,7 +1,9 @@
 import { withActor } from '../../core/tx.js';
 import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
-import { contactStates, envelope, readContact } from '../../core/privacy.js';
+import {
+  contactStates, envelope, readContact, pickFields, CONTACT_FIELDS, PROFILE_FIELDS,
+} from '../../core/privacy.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy thành viên này.', { status: 404 });
 
@@ -35,24 +37,47 @@ function areaOf(r) {
   return r.area_id ? { id: r.area_id, name: r.area_name } : null;
 }
 
-function listRow(r, contacts) {
+// ---------------------------------------------------------------------------
+// TÁM TRƯỜNG, MỘT CỬA (việc thừa kế (a) của Task 13, Ruling T11-f).
+//
+// Trước Task 13, `job` và `area` đi thẳng từ hàng CSDL ra JSON trong khi
+// privacy_settings vẫn giữ mức riêng tư cho chúng. Đặt job='closed' rồi mở
+// danh bạ: vẫn thấy đủ. Nay cả tám trường đi qua envelope() — cùng cửa với
+// phone/zalo/messenger/address — nên chỉ còn MỘT chỗ quyết định che hay không.
+//
+// `job`/`area` vẫn nằm ở mức trên cùng của phản hồi vì đó là hình dạng frontend
+// đang đọc; giá trị của chúng LẤY TỪ BAO BÌ chứ không lấy lại từ hàng CSDL —
+// đọc lại từ `r.job` ở đây chính là cách bản vá này bị vô hiệu hoá lần sau.
+// `profile_fields` đi kèm để màn "Quyền riêng tư" có mức và trạng thái thật mà
+// hiển thị, thay vì để người dùng đoán cái nút họ vừa gạt có tác dụng gì không.
+// ---------------------------------------------------------------------------
+function profileValues(r) {
+  // price: nằm ở capabilities.price (migration 013) — chưa có endpoint năng
+  // lực nên danh bạ không mang giá trị nào. family: chưa có cột/bảng nào chứa.
+  // Cả hai vẫn đi qua đúng cửa này để khi có dữ liệu thì không ai phải nhớ nối
+  // lại; xem task-13-report.md.
+  return { job: r.job, area: areaOf(r), price: null, family: null };
+}
+
+function listRow(r, env) {
   return {
     id: r.id,
     full_name: r.full_name,
-    job: r.job,
+    job: env.job.value,
     avatar_url: r.avatar_url,
     work_status: r.work_status,
     status: r.status,
-    area: areaOf(r),
-    contacts,
+    area: env.area.value,
+    contacts: pickFields(env, CONTACT_FIELDS),
+    profile_fields: pickFields(env, PROFILE_FIELDS),
   };
 }
 
-function detailRow(r, contacts) {
+function detailRow(r, env) {
   return {
     id: r.id,
     full_name: r.full_name,
-    job: r.job,
+    job: env.job.value,
     bio: r.bio,
     avatar_url: r.avatar_url,
     cover_url: r.cover_url,
@@ -60,8 +85,9 @@ function detailRow(r, contacts) {
     status: r.status,
     birth_year: r.birth_year,
     joined_at: r.joined_at,
-    area: areaOf(r),
-    contacts,
+    area: env.area.value,
+    contacts: pickFields(env, CONTACT_FIELDS),
+    profile_fields: pickFields(env, PROFILE_FIELDS),
   };
 }
 
@@ -91,11 +117,21 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
     // Một nguồn sự thật cho vị từ lọc: cùng chuỗi WHERE dùng cho cả câu lấy
     // trang lẫn câu đếm tổng. Không có dữ liệu người dùng nào được nối vào
     // chuỗi này — chỉ tham số.
+    // BỘ LỌC CŨNG PHẢI TÔN TRỌNG MỨC RIÊNG TƯ, nếu không che giá trị chỉ là
+    // che một nửa. `?job=bác sĩ` trả về đúng những người mang nghề đó — kể cả
+    // người đã đặt job='closed' — nên bộ lọc là một kênh phụ đọc được trọn vẹn
+    // cái trường vừa bị che. Cùng hình dạng với Ruling T8-c (che câu chữ mà để
+    // hở trạng thái).
+    //
+    // Vị từ dùng CHÍNH fn_privacy_state — cùng hàm mà contactStates() và
+    // contact_read gọi — nên không có bản sao thứ hai của luật để trôi dạt.
     const where = `m.community_id = ?
         AND (?::text IS NULL OR m.status = ?::text)
         AND (?::text IS NULL OR m.work_status = ?::text)
-        AND (?::uuid IS NULL OR m.area_id = ?::uuid)
-        AND (?::text IS NULL OR m.job ILIKE '%' || ?::text || '%')
+        AND (?::uuid IS NULL OR (m.area_id = ?::uuid
+             AND fn_privacy_state(?::uuid, m.id, 'area') IN ('self','visible')))
+        AND (?::text IS NULL OR (m.job ILIKE '%' || ?::text || '%'
+             AND fn_privacy_state(?::uuid, m.id, 'job') IN ('self','visible')))
         AND (?::text IS NULL OR f_unaccent(m.full_name) ILIKE '%' || f_unaccent(?::text) || '%')`;
 
     const job = filters.job ? likeLiteral(filters.job) : null;
@@ -119,8 +155,8 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
       actor.communityId,
       status, status,
       workStatus, workStatus,
-      areaId, areaId,
-      job, job,
+      areaId, areaId, actor.id,
+      job, job, actor.id,
       q, q,
     ];
 
@@ -175,9 +211,7 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
     });
 
     return {
-      data: rows.map((r) =>
-        listRow(r, envelope(states.get(r.id), { viewerId: actor.id, targetId: r.id }))
-      ),
+      data: rows.map((r) => listRow(r, envelope(states.get(r.id), profileValues(r)))),
       meta: { page, limit, total },
     };
   });
@@ -227,7 +261,7 @@ export async function get({ actor, id }) {
       detail: { self: actor.id === m.id },
     });
 
-    return detailRow(m, envelope(states.get(m.id), { viewerId: actor.id, targetId: m.id }));
+    return detailRow(m, envelope(states.get(m.id), profileValues(m)));
   });
 }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { resetDb } from './helpers/db.js';
 import { withActor } from '../src/core/tx.js';
-import { contactStates, envelope } from '../src/core/privacy.js';
+import { contactStates, envelope, CONTACT_FIELDS } from '../src/core/privacy.js';
 
 // Vòng sửa 1 (soát xét Task 6): trước bài này, contactStates() và envelope()
 // — hàm dựng bao bì cho CẢ TRANG danh bạ bằng một truy vấn duy nhất — không
@@ -73,8 +73,13 @@ describe('T6 contactStates() — một truy vấn cho cả trang', () => {
     // LEFT JOIN không khớp -> cr.status là SQL NULL, qua driver pg thành JS
     // null (không phải undefined) -- sửa kỳ vọng cho khớp hành vi thật.
     expect(states.get(carol).phone).toMatchObject({ level: 'on_consent', requestStatus: null });
-    // Carol không cấu hình zalo/messenger/address -> không có dòng nào cho các trường đó.
-    expect(states.get(carol).zalo).toBeUndefined();
+    // Carol không cấu hình zalo/messenger/address. Từ Task 13 contactStates()
+    // sinh đủ TÁM trường cho mỗi người thay vì chỉ những trường có hàng
+    // privacy_settings: level là null (không có cấu hình) nhưng trạng thái vẫn
+    // được tính, và nó là 'closed'. Trước đây chỗ này là `undefined` và người
+    // gọi phải nhớ tự mặc định thành closed — một mặc định nằm ở phía người
+    // gọi là một mặc định sẽ có ngày ai đó quên.
+    expect(states.get(carol).zalo).toMatchObject({ level: null, state: 'closed' });
   });
 
   it('không sinh lời gọi contact_read nào — chỉ đọc privacy_settings/contact_requests', async () => {
@@ -92,9 +97,14 @@ describe('T6 contactStates() — một truy vấn cho cả trang', () => {
 describe('T6 envelope() — value luôn null, kể cả self và visible', () => {
   it('duyệt đủ sáu trạng thái: value === null ở mọi trạng thái', async () => {
     const states = await withActor(alice, (trx) => contactStates(trx, alice, [bob, carol], cid));
-    const eBob = envelope(states.get(bob), { viewerId: alice, targetId: bob });
-    const eSelf = envelope(states.get(bob), { viewerId: bob, targetId: bob });
-    const eCarol = envelope(states.get(carol), { viewerId: alice, targetId: carol });
+    // Trạng thái 'self' nay do fn_privacy_state (CSDL) quyết, nên phải hỏi với
+    // ĐÚNG người xem là bob — trước đây envelope() tự suy ra từ hai tham số
+    // viewerId/targetId, tức người gọi có thể truyền một cặp không khớp với
+    // map trạng thái mình vừa lấy về. Bỏ hai tham số đó đi là bỏ luôn cái bẫy.
+    const selfStates = await withActor(bob, (trx) => contactStates(trx, bob, [bob], cid));
+    const eBob = envelope(states.get(bob));
+    const eSelf = envelope(selfStates.get(bob));
+    const eCarol = envelope(states.get(carol));
 
     // self
     expect(eSelf.phone.state).toBe('self');
@@ -118,10 +128,17 @@ describe('T6 envelope() — value luôn null, kể cả self và visible', () =>
     expect(eCarol.zalo.state).toBe('closed');
     expect(eCarol.zalo.value).toBeNull();
 
-    // Khẳng định gộp: TOÀN BỘ giá trị trong mọi bao bì đã dựng ở trên đều null.
+    // Khẳng định gộp: TOÀN BỘ giá trị của BỐN TRƯỜNG LIÊN HỆ trong mọi bao bì
+    // đã dựng ở trên đều null, ở mọi trạng thái.
+    //
+    // Vì sao chỉ bốn trường liên hệ chứ không phải cả tám: từ Task 13 bao bì
+    // mang thêm job/area/price/family, và với chúng `value` CÓ đi kèm khi được
+    // phép — chúng là nội dung của danh bạ và không có endpoint riêng nào để
+    // đọc từng cái. Ranh giới đó là chủ ý, khai rõ ở FIELD_SPEC trong
+    // core/privacy.js và có bài riêng canh (t13-privacy-eight-fields).
     for (const env of [eBob, eSelf, eCarol]) {
-      for (const field of Object.values(env)) {
-        expect(field.value).toBeNull();
+      for (const field of CONTACT_FIELDS) {
+        expect(env[field].value, `trường liên hệ ${field}`).toBeNull();
       }
     }
   });
