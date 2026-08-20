@@ -116,3 +116,49 @@ luật duy nhất trong hệ thống mà **đường đọc được canh cực 
 đọc* thì không ai canh**. `contact_read` kiểm quyền rất cẩn thận, rồi đi hỏi
 `privacy_settings` và `contact_requests` — hai bảng mà bất kỳ câu SQL nào của `app_role`
 cũng viết được.
+
+---
+
+### 4.2 Nhóm `009`–`016` — gia nhập, việc, quan hệ, năng lực, tín hiệu, việc làm, giúp nhau
+
+30 bảng + 1 view: `join_requests`, `guarantee_quota_overrides`, `join_request_secrets`,
+`work_records`, `work_participants`, `work_confirmations`, `member_relations`,
+`member_trust_stats` (023), `capabilities`, `capability_photos`, `capability_evidence`,
+`signals`, `signal_recipients`, `signal_responses`, `signal_forwards`, `signal_options`,
+`v_signal_recipients`, `job_needs`, `ready_profiles`, `introductions`, `connections`,
+`connection_events`, `aid_requests`, `aid_offers`, `aid_slots`, `aid_slot_takers`,
+`aid_events`.
+Trigger: `trg_guarantee_quota`, `trg_member_status_gate`, `trg_referrer_frozen`,
+`trg_member_bootstrap`, `trg_capability_evidence_valid`, `trg_signal_forward_recipient`,
+`trg_aid_slot_capacity` (+ ba trigger `fn_self_only` của `026` áp lên bảng của nhóm này).
+
+| Bất biến | Bảng giữ luật | Phá được bằng gì mà không chạm bảng giữ luật | Hai đầu | Bằng chứng |
+|---|---|---|---|---|
+| Hạn mức bảo lãnh 3 người / 12 tháng trượt | `trg_guarantee_quota` trên `join_requests` (`BEFORE INSERT OR UPDATE OF status`) | ① **`UPDATE join_requests SET reject_reason_code`** — đổi `referrer_misrepresented` sang `not_ready` trả lại một suất **đốt vĩnh viễn**; trigger chỉ khai `OF status` nên không chạy (mục 5.4, đã tái hiện) · ② **`UPDATE … SET created_at`** kéo lùi ngày, cửa sổ 12 tháng tự rỗng (đã tái hiện) · ③ **`INSERT INTO guarantee_quota_overrides`** — `app_role` có `INSERT`, và **không đối tượng SQL nào** buộc hàng nới hạn mức phải đến từ một `pending_action` đã thi hành (mục 5.7, đã tái hiện: Alice tự cấp 3 suất cho Alice, `granted_by = Alice`) | ❌ | `t08-guarantee-quota` canh **đường đếm**; ba đường trên — **chưa có bài test** trước vòng này |
+| Không có bảo lãnh ẩn danh | `fn_guarantee_quota` ném `REFERRER_REQUIRED` | **`UPDATE join_requests SET referrer_id = NULL`** — không phải `UPDATE OF status` nên trigger không chạy; đơn `pending` sống tiếp mà không còn người bảo lãnh (đã tái hiện) | ❌ | `t08-guarantee-quota` (chỉ đường `INSERT`) |
+| Đơn của cộng đồng B không tiêu suất của người thuộc cộng đồng A | khóa ngoại **ghép** `jr_referrer_same_community` (009) | — (khóa ngoại chặn từ lúc ghi, không phải lúc đếm) | ✅ | `t08-guarantee-quota` (Ruling T8-d, có đột biến) |
+| `status='member'` chỉ sau khi có xác nhận đã gặp mặt | `trg_member_status_gate` (constraint trigger hoãn tới `COMMIT`, trên `members`) | Luật đọc `join_requests.met_confirmed_at` / `member_id`, mà `app_role` có `UPDATE` trên `join_requests` **không ai canh**: cùng một giao dịch tự ghi hàng rồi tự thoả cổng (đã tái hiện). Và **gỡ `met_confirmed_at` sau đó** không làm cổng chạy lại — người vẫn là `member` (đã tái hiện) | ⚠️ Đây là kiểm **THỨ TỰ** ("đã có dòng xác nhận trước khi lên member"), không phải kiểm **THẨM QUYỀN** ("ai được ghi dòng đó"). Thẩm quyền nằm ở `requireRole('approver')` của route — tầng ứng dụng | `t16-join-flow` (Ruling C11 kiểm đúng vế thứ tự ở tầng CSDL) |
+| `met_confirmed_by` / `approved_by` là người có thật, đúng vai | khóa ngoại đơn cột sang `members` | **câu hỏi 4**: khóa ngoại bắt được ô trống và ô trỏ bậy; nó **không** bắt được ô điền tên một thành viên khác. Không có `fn_self_only`, không có kiểm vai ở tầng CSDL | ❌ | **chưa có bài test** |
+| Sợi bảo lãnh là sự thật lịch sử, không sửa lại được | `trg_referrer_frozen` (`BEFORE UPDATE OF referrer_id ON members`) | Điều kiện là `OLD.status = 'member'`. **`status` có ba giá trị.** Hai câu `UPDATE` trong một giao dịch — đặt `status='left'` rồi đổi `referrer_id` — đi qua trót lọt (đã tái hiện). Đúng lúc đặc tả mục 10 nói hồ sơ người rời phải thành **bia mộ** | ❌ | **chưa có bài test** (không tệp nào nhắc `referrer_frozen`) |
+| `member_relations(kind='guarantee')` là **bản dẫn xuất** của `members.referrer_id` | `fn_member_bootstrap` (`AFTER INSERT ON members`) + `REVOKE INSERT/UPDATE/DELETE` | Chỉ có đường **sinh**, không có đường **đồng bộ lại**: đổi `referrer_id` (hợp lệ khi còn `guest`, hoặc qua đường `left` ở trên) làm hai nguồn lệch nhau vĩnh viễn — đã tái hiện: `members.referrer_id = Bob` trong khi cạnh vẫn ghi `Alice` | ❌ | **chưa có bài test** |
+| `app_role` ghi được nhưng **không đọc lại được** dữ liệu đăng ký | `REVOKE ALL` + `GRANT INSERT ON join_request_secrets` (009a); đường đọc `join_secret_consume` | Cổng `status = 'met_confirmed'` trong hàm đọc một cột mà `app_role` `UPDATE` tự do — nhưng vẫn phải **có vai `approver` đúng cộng đồng** và có `actor`, nên cổng vai mới là lớp thật | ⚠️ đủ nhờ **kiểm vai**, không nhờ cổng trạng thái | `t16-join-flow` |
+| Cạnh `worked_together` chỉ do trigger sinh, và chỉ khi **đủ mọi người** xác nhận | `fn_work_edge` (`AFTER INSERT ON work_confirmations`, `SECURITY DEFINER`) + `REVOKE INSERT/UPDATE/DELETE ON member_relations` | `work_participants` — đã vá ở `025` bằng `fn_work_participants_frozen` (Ruling T12-b) | ✅ | `t12-work-edge`, `t12-trust` (đột biến xác nhận cả hai đường thêm/xoá người) |
+| Xác nhận việc là **bút toán**: ghi rồi không sửa, không gỡ | `REVOKE UPDATE, DELETE ON work_confirmations` (011) + khóa ngoại `work_confirmations_wr_member_fkey` + `trg_wc_1_self_only` (025) | — với `app_role`. `psql` của người vận hành vẫn `UPDATE` được (không có trigger `BEFORE UPDATE` trên bảng này) | ⚠️ | `t12-work-edge`, `t13-signature-removal` |
+| Bằng chứng năng lực phải là việc **chính chủ tham gia và đã tự ký** | `trg_capability_evidence_valid` (`BEFORE INSERT OR UPDATE ON capability_evidence`) | **`UPDATE capabilities SET member_id = <người khác>`** — trigger ngồi trên bảng bằng chứng, không ngồi trên bảng năng lực; đổi chủ năng lực là đổi luôn câu trả lời của luật (mục 5.5, đã tái hiện) | ❌ | **chưa có bài test** (không tệp test nào nhắc `capability_evidence`) |
+| Chuyển tiếp tín hiệu là **nhận trách nhiệm**, do chính người đó, và chỉ người đã nhận | `signal_forwards.from_member_id NOT NULL` + `CHECK (from <> to)` + khóa ngoại ghép sang `signal_recipients` + `trg_sig_fwd_self_only` (026) + `REVOKE UPDATE, DELETE` | trigger chỉ khai `BEFORE INSERT`; `UPDATE`/`DELETE` đã bị `REVOKE` nên đường `app_role` kín, đường `psql` thì không | ⚠️ | `t13-no-anonymous` (đột biến: gỡ trigger ⇒ 4/12 đỏ) |
+| Không ai trả lời tín hiệu thay ai | `trg_sig_resp_self_only` (026, `BEFORE INSERT`) + khóa ngoại ghép sang `signal_recipients` | **`UPDATE signal_responses SET responder_id = …`** — `app_role` có đủ bốn quyền và trigger không khai `UPDATE` (mục 5.6) | ❌ | `t13-no-anonymous` canh đường `INSERT` |
+| Tự nhận suất giúp, không điền hộ | `trg_slot_self_only` (026, `BEFORE INSERT`) | **`UPDATE aid_slot_takers SET member_id = <người khác>`** — đã tái hiện: Carol sang tên suất của mình cho Bob (mục 5.6) | ❌ | `t13-no-anonymous` canh đường `INSERT` |
+| Một suất `needed` chỗ thì không quá `needed` người | `fn_aid_slot_capacity` (`BEFORE INSERT ON aid_slot_takers`, khóa tư vấn theo suất) | ① **`UPDATE aid_slot_takers SET slot_id = <suất khác>`** — đã tái hiện: suất cần 1 người có 2 người · ② **`UPDATE aid_slots SET needed = <nhỏ hơn>`** — luật đọc `needed` ở bảng khác, không ai canh việc thu nhỏ nó | ❌ | `t13-no-anonymous` canh đường `INSERT` |
+| Ba chữ ký mở kênh việc làm (giới thiệu → số điện thoại) | `CHECK intro_three_consents` (015) | **câu hỏi 4 ở dạng thuần khiết nhất**: `CHECK` bảo đảm *ba ô cùng bật*, không bảo đảm *ai bật ô nào*. Một người vừa là `introducer` vừa là `poster` tự bật cả ba rồi mở kênh và đọc được số của ứng viên (mục 5.3, đã tái hiện) | ❌ | `t13-three-consents` canh **vế `CHECK`** rất kỹ (kể cả rút lại chữ ký sau khi mở kênh); vế "ai bật cờ" — **chưa có bài test** |
+| Lời giới thiệu không ghép người của hai cộng đồng | bốn khóa ngoại **ghép** trên `introductions` | — | ✅ | `t13-three-consents` |
+| Nhiều nhất **một** phương án được chọn cho mỗi tín hiệu | `idx_sig_one_chosen` (unique một phần) | — (chỉ mục một phần được đánh giá lại ở mọi `UPDATE`) | ✅ | **chưa có bài test** |
+| Bản vá rò chéo cộng đồng của `012a` sống sót qua `CREATE OR REPLACE` ở `015` | chính hai câu kiểm trong thân `contact_read` của `015` | — bản vá bị **ghi đè trong im lặng** nếu ai đó `CREATE OR REPLACE` lại lần nữa mà quên | ⚠️ được canh bằng **bài test**, không bằng đối tượng SQL | `t13-contact-read-survives` (đột biến: xoá hai câu ⇒ 2/4 đỏ) |
+| Sổ sự kiện (`aid_events`, `connection_events`) chỉ thêm | `GRANT SELECT, INSERT` (016, 015, 024) | — | ✅ | `t10-grants` |
+| `v_signal_recipients` là VIEW chỉ đọc | `GRANT SELECT` (014, 024) | `ALTER DEFAULT PRIVILEGES` cấp cả bốn quyền cho VIEW y như cho bảng — view mới quên khai là một cửa chưa ai đếm | ✅ (024 tự kiểm phủ cả `relkind='v'`) | `t10-grants` |
+
+**Ghi chú về nhóm này.** Đây là nhóm có nhiều lỗ nhất, và chúng có một điểm chung đáng ghi
+lại: **năm trong sáu chỗ hở là trigger chỉ khai `BEFORE INSERT`.** Người viết nghĩ về hành
+động ("nhận suất", "trả lời", "chuyển tiếp") và gắn bẫy vào lúc hành động xảy ra — nhưng
+`UPDATE` biến một hàng cũ thành một hành động mới mà không đi qua `INSERT` lần nào.
+Nguyên tắc rút ra: **trigger canh danh tính hoặc canh hạn mức phải khai
+`BEFORE INSERT OR UPDATE`, trừ khi cột liên quan đã bị `REVOKE UPDATE`.**
