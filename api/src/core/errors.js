@@ -74,6 +74,22 @@ const BY_MESSAGE = {
   SIGNER_ROLE_REQUIRED:        [403, 'SIGNER_ROLE_REQUIRED', 'Bạn không có vai được ký duyệt việc này.'],
   TWO_SIGNATURES_REQUIRED:     [422, 'TWO_SIGNATURES_REQUIRED', 'Việc này cần đúng hai người khác nhau ký.'],
   CREATOR_SIGNATURE_MISSING:   [422, 'CREATOR_SIGNATURE_MISSING', 'Người đề xuất phải ký trước khi việc được thi hành.'],
+
+  // ---------------------------------------------------------------------
+  // Ba mã của migration 027 (vòng rà bất biến liên bảng, docs/RANG-BUOC.md).
+  // Khai NGAY khi trigger ra đời chứ không đợi có endpoint: một mã không map
+  // được sẽ rơi qua `return null` và người dùng thấy "Lỗi hệ thống" thay vì
+  // biết mình vướng luật nào. `t23-error-map` canh việc này bằng cách đọc
+  // thẳng `RAISE EXCEPTION` trong thư mục migration.
+  //
+  // Ba trigger còn lại của 027 cố ý DÙNG LẠI mã đã có (`SELF_ONLY`,
+  // `LOAN_GUARANTOR_IS_BORROWER`, `PHOTO_CONSENT_INCOMPLETE`, `REFERRER_FROZEN`)
+  // vì chúng cưỡng chế đúng cùng một luật, chỉ từ đầu bên kia.
+  // ---------------------------------------------------------------------
+  CAPABILITY_OWNER_FROZEN:     [409, 'CAPABILITY_OWNER_FROZEN', 'Năng lực đã dẫn bằng chứng nên không chuyển sang tên người khác được.'],
+  PENDING_ACTION_FROZEN:       [409, 'PENDING_ACTION_FROZEN', 'Việc này đã có chữ ký nên nội dung không đổi được nữa. Hãy tạo lại và ký lại từ đầu.'],
+  JOIN_REQUEST_FROZEN:         [409, 'JOIN_REQUEST_FROZEN', 'Những dữ kiện này của đơn đã cố định, không sửa lại được.'],
+  PHOTO_PEOPLE_FROZEN:         [409, 'PHOTO_PEOPLE_FROZEN', 'Không dời được người có mặt sang tấm ảnh khác. Đổi ý thì sửa câu trả lời đồng ý.'],
 };
 
 export function mapPgError(err) {

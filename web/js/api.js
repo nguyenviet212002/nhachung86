@@ -105,6 +105,15 @@
     TWO_SIGNATURES_REQUIRED: 'Việc này cần đúng hai người khác nhau ký.',
     CREATOR_SIGNATURE_MISSING: 'Người đề xuất phải ký trước khi việc được thi hành.',
 
+    // Ba mã của migration 027 (vòng rà bất biến liên bảng, docs/RANG-BUOC.md).
+    // Ba trigger khác của cùng migration cố ý dùng lại SELF_ONLY /
+    // LOAN_GUARANTOR_IS_BORROWER / PHOTO_CONSENT_INCOMPLETE / REFERRER_FROZEN
+    // đã có ở trên, nên không thêm câu mới cho chúng.
+    CAPABILITY_OWNER_FROZEN: 'Năng lực đã dẫn bằng chứng nên không chuyển sang tên người khác được.',
+    PENDING_ACTION_FROZEN:  'Việc này đã có chữ ký nên nội dung không đổi được nữa. Hãy tạo lại và ký lại từ đầu.',
+    JOIN_REQUEST_FROZEN:    'Những dữ kiện này của đơn đã cố định, không sửa lại được.',
+    PHOTO_PEOPLE_FROZEN:    'Không dời được người có mặt sang tấm ảnh khác. Đổi ý thì sửa câu trả lời đồng ý.',
+
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',
 
