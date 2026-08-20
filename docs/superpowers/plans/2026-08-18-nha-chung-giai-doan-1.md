@@ -2777,6 +2777,22 @@ git commit -m "feat(trust): canh worked_together do trigger sinh + bac uy tin mo
 
 ## Task 13: Phần lược đồ còn lại — năng lực, tín hiệu, việc làm, giúp nhau, hoạt động, ký ức, quỹ, khiếu nại, vay
 
+> **Hai việc bắt buộc thừa kế, không được hoãn thêm.**
+>
+> **(a) Bốn trường có mức riêng tư mà KHÔNG AI ĐỌC MỨC ĐÓ.** `job`, `area`, `price`, `family`
+> có hàng trong `privacy_settings`, nhưng `GET /members` trả chúng như cột thường. Kiểm chứng
+> độc lập hai lần: đặt `job` và `area` thành `closed` ⇒ danh sách **vẫn trả đủ**. Nghĩa là màn
+> "Quyền riêng tư" đang cho người dùng gạt một cái nút không có tác dụng gì — **tệ hơn không có
+> nút**, vì nó hứa một sự bảo vệ không tồn tại, và người ta sẽ dựa vào lời hứa đó mà khai thật.
+> Trong cộng đồng 52 người, `area` cộng `job` là đủ để định danh một người, nên đây không phải
+> chuyện nhỏ. Cách bịt phải đi qua cùng một cửa với bốn trường liên hệ (`contactStates`/
+> `envelope`), không phải một nhánh `if` riêng cho từng trường.
+>
+> **(b) Migration `015` sẽ `CREATE OR REPLACE` lại `contact_read` và PHẢI GIỮ hai câu kiểm cộng
+> đồng của `012a`.** Nếu không, bản vá cho lỗ rò dữ liệu chéo cộng đồng (Ruling T10-a) bị ghi đè
+> **trong im lặng** và lỗ hổng quay lại nguyên vẹn. Viết bài test canh riêng việc này, đừng chỉ
+> nhớ.
+
 **Files:**
 - Create: `api/src/db/migrations/013_capabilities.js` … `022_ops.js`, `024_indexes_and_revokes.js`
 - Modify: `api/src/db/migrations/006_privacy.js` không đổi; thêm `CREATE OR REPLACE FUNCTION contact_read` vào `015_jobs.js`
