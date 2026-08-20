@@ -18,5 +18,6 @@
   "work_records":       ["SELECT", "INSERT", "UPDATE"],
   "work_participants":  ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "work_confirmations": ["SELECT", "INSERT"],
-  "member_relations":   ["SELECT"]
+  "member_relations":   ["SELECT"],
+  "member_trust_stats": ["SELECT"]
 }
