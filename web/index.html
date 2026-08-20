@@ -1373,7 +1373,7 @@ const state = {
   // làm hỏng những màn mà mốc này không được phép chạm.
   me:null,
   regStep:'form',   // 'form' | 'otp' | 'done'
-  regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', referrer_phone:'', invite_token:'', password:'', terms:false},
+  regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', invite_token:'', password:'', terms:false},
   regResult:null
 };
 
@@ -1681,6 +1681,7 @@ function RegisterForm(){
   if(state.regStep==='otp')  return RegisterOtpForm();
   if(state.regStep==='done') return RegisterDoneHTML();
   const d = state.regDraft;
+  d.invite_token = d.invite_token || new URLSearchParams(location.search).get('invite_token') || '';
   if(!REGISTER_AREAS.length) api.get('/areas').then(r=>{
     REGISTER_AREAS=(r.data||[]).flatMap(x=>[x,...(x.children||[])]);
     const select = document.getElementById('reg-area');
@@ -1722,11 +1723,12 @@ function RegisterForm(){
       <div class="err"></div>
       <div class="hint">Chọn tên khu vực, không cần nhập mã kỹ thuật.</div>
     </div>
-    <div class="field" data-field="referrer">
-      <label>Số điện thoại người giới thiệu <span class="req">*</span></label>
-      <input class="input" id="reg-referrer" placeholder="VD: 0912345678" value="${esc(d.referrer_phone||'')}">
+    <div class="field" data-field="invite">
+      <label>Người bảo lãnh <span class="req">*</span></label>
+      ${d.invite_token
+        ? `<div class="role-hint" style="margin:0;background:var(--green-light);border-color:#a8d5b5">${ic('check',17)}<div>Đã nhận link mời của người bảo lãnh. Bạn không cần nhập số điện thoại của họ.</div></div>`
+        : `<div class="role-hint" style="margin:0">${ic('info',17)}<div>Bạn chưa mở link mời. Hãy nhờ một thành viên tạo và gửi link mời cho bạn.</div></div>`}
       <div class="err"></div>
-      <div class="hint">Link mời bảo lãnh được lấy tự động từ đường dẫn bạn mở, không cần dán mã.</div>
     </div>
     <div class="row-2">
       <div class="field" data-field="pass">
@@ -3681,6 +3683,7 @@ function PrivacyPage(){
    20. SETTINGS (CÀI ĐẶT)
    ============================================================ */
 let NOTIF_PREFS = {activity:true, message:true, project:true, email:false};
+let LIVE_INVITE_URL = '';
 function SettingsPage(){
   return `
     <div class="page-head"><div><h1>Cài đặt</h1><p>Quản lý thông tin tài khoản và tùy chọn cá nhân.</p></div></div>
@@ -3690,6 +3693,16 @@ function SettingsPage(){
     </div>
     <div class="grid" style="grid-template-columns:1.4fr 1fr;align-items:start">
       <div class="grid" style="gap:20px">
+        <div class="section-card">
+          <div class="sc-head"><h3>Mời thành viên mới</h3></div>
+          <div class="card-pad">
+            <p class="muted" style="font-size:12.5px;line-height:1.6">Mỗi thành viên có thể tạo link mời bảo lãnh. Người nhận link không cần biết hoặc nhập số điện thoại của bạn.</p>
+            ${LIVE_INVITE_URL ? `
+              <input class="input" id="invite-share-link" readonly value="${esc(LIVE_INVITE_URL)}">
+              <button class="btn btn-primary btn-block mt-12" data-action="copy-invite-link">${ic('check',15)} Sao chép link mời</button>
+            ` : `<button class="btn btn-primary btn-block mt-12" data-action="create-invite-link">${ic('send',15)} Tạo link mời</button>`}
+          </div>
+        </div>
         <div class="section-card">
           <div class="sc-head"><h3>Thông tin cá nhân</h3></div>
           <div class="card-pad">
@@ -5494,7 +5507,6 @@ async function regVerifyAndSubmit(form, code){
       birth_year: Number(d.birth_year),
       area_id: d.area_id,
       invite_token: d.invite_token,
-      referrer_phone: d.referrer_phone,
       password: d.password,
       terms: true
     });
@@ -5517,7 +5529,7 @@ async function regVerifyAndSubmit(form, code){
 function resetRegister(){
   state.regStep = 'form';
   state.regResult = null;
-  state.regDraft = {full_name:'', phone:'', birth_year:'', area_id:'', referrer_phone:'', invite_token:new URLSearchParams(location.search).get('invite_token')||'', password:'', terms:false};
+  state.regDraft = {full_name:'', phone:'', birth_year:'', area_id:'', invite_token:new URLSearchParams(location.search).get('invite_token')||'', password:'', terms:false};
 }
 
 /* ============================================================
@@ -5697,6 +5709,31 @@ document.addEventListener('click', function(e){
         input.select();
         try{ navigator.clipboard.writeText(input.value); }catch(e){}
         toast('Đã sao chép liên kết chia sẻ!');
+      }
+      break;
+    }
+    case 'create-invite-link': {
+      if(!liveMode()){
+        toast('Hãy đăng nhập bằng tài khoản thật để tạo link mời.', true);
+        break;
+      }
+      actionEl.disabled = true;
+      api.post('/guarantee-invites', {}).then(invite=>{
+        LIVE_INVITE_URL = location.origin + location.pathname + '?invite_token=' + encodeURIComponent(invite.token);
+        render();
+        toast('Đã tạo link mời. Link chỉ hiển thị ở lần tạo này.');
+      }).catch(err=>{
+        actionEl.disabled = false;
+        toast(err.message, true);
+      });
+      break;
+    }
+    case 'copy-invite-link': {
+      const input = document.getElementById('invite-share-link');
+      if(input){
+        input.select();
+        Promise.resolve(navigator.clipboard?.writeText(input.value)).catch(()=>{});
+        toast('Đã sao chép link mời.');
       }
       break;
     }
@@ -5895,7 +5932,7 @@ document.addEventListener('submit', function(e){
 
   if(form.id==='form-register'){
     e.preventDefault();
-    const name=val('reg-name'), year=val('reg-year'), area=val('reg-area'), referrer=val('reg-referrer').replace(/[\s.\-]/g,''),
+    const name=val('reg-name'), year=val('reg-year'), area=val('reg-area'),
           pass=val('reg-pass'), pass2=val('reg-pass2'), terms=document.getElementById('reg-terms').checked;
     // Máy chủ (schema.js, vnPhone) đòi ĐÚNG `^0\d{9}$` — không khoảng trắng,
     // không dấu chấm. Bản dữ liệu giả nhận `^[0-9\s]{9,11}$`, tức nhận cả
@@ -5908,13 +5945,13 @@ document.addEventListener('submit', function(e){
       ['phone', [[/^0\d{9}$/.test(phone), 'Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.']]],
       ['year', [[year==='1986', 'Nhà Chung 86 chỉ dành cho người sinh năm 1986.']]],
       ['area', [[!!area, 'Vui lòng chọn khu vực sinh sống.']]],
-      ['referrer', [[/^0\d{9}$/.test(referrer), 'Số điện thoại người giới thiệu phải có 10 chữ số.'], [!!inviteToken, 'Hãy mở đường link mời của người bảo lãnh trước khi đăng ký.']]],
+      ['invite', [[!!inviteToken, 'Hãy mở đường link mời của người bảo lãnh trước khi đăng ký.']]],
       ['pass', [[pass.length>=8, 'Mật khẩu phải có ít nhất 8 ký tự.']]],
       ['pass2', [[pass2===pass && pass2.length>0, 'Mật khẩu nhập lại không khớp.']]],
       ['terms', [[terms, 'Bạn cần đồng ý với điều khoản để tiếp tục.']]],
     ]);
     if(!ok) return;
-    state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, referrer_phone:referrer, invite_token:inviteToken, password:pass, terms:true};
+    state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, invite_token:inviteToken, password:pass, terms:true};
     regRequestOtp(form);
     return;
   }
