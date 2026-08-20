@@ -4,3 +4,4 @@ backups/
 api/node_modules/
 *.log
 .superpowers/
+api/.storage*/

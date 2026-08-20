@@ -8,6 +8,8 @@ import { router as joinRequestsRouter } from './modules/join-requests/routes.js'
 import { router as membersRouter } from './modules/members/routes.js';
 import { router as areasRouter } from './modules/areas/routes.js';
 import { router as opsRouter } from './modules/ops/routes.js';
+import { router as filesRouter } from './modules/files/routes.js';
+import { health as storageHealth } from './core/storage.js';
 
 export function buildApp() {
   const app = express();
@@ -54,7 +56,22 @@ export function buildApp() {
       }
     }
 
-    res.status(db ? 200 : 503).json({ ok: db, db, migration });
+    // Đặc tả mục 5.3 đòi `/health` trả `{ ok, db, storage, migration }`. Cột
+    // `storage` vắng mặt từ Task 1 tới Task 15 — không phải vì ai quyết định
+    // bỏ nó mà vì chưa có kho để hỏi. Nay có: một máy chủ mà CSDL sống nhưng
+    // kho ảnh chết vẫn nhận được ảnh vào bước nén rồi hỏng ở bước cuối, và
+    // `/health` nói "ok" suốt thời gian đó.
+    //
+    // `ok` KHÔNG gộp `storage` vào: kho chết là hỏng MỘT tính năng, CSDL chết
+    // là hỏng cả hệ thống. Gộp lại thì một sự cố MinIO sẽ khiến bộ điều phối
+    // khởi động lại container `api` đang phục vụ tốt mọi thứ khác.
+    //
+    // Trả BOOLEAN, cùng hình dạng với `db`, và KHÔNG kèm tên trình điều khiển:
+    // `/health` là đường công khai, và "kho này là MinIO hay là thư mục trên
+    // đĩa" là thông tin về hạ tầng, không phải thông tin về sức khoẻ.
+    const storage = await storageHealth();
+
+    res.status(db ? 200 : 503).json({ ok: db, db, storage, migration });
   });
 
   app.use('/api/v1/auth', authRouter);
@@ -62,6 +79,7 @@ export function buildApp() {
   app.use('/api/v1/areas', areasRouter);
   app.use('/api/v1/members', membersRouter);
   app.use('/api/v1/ops', opsRouter);
+  app.use('/api/v1/files', filesRouter);
 
   app.use(errorHandler);
 

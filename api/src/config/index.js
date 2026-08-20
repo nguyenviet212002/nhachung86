@@ -14,6 +14,14 @@ const schema = z.object({
   S3_ENDPOINT: z.string().url().optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
+  // Kho ảnh (Task 15). Cả bốn đều optional vì `core/storage.js` chọn trình
+  // điều khiển theo chính S3_ENDPOINT: có thì đi MinIO, không thì ghi xuống
+  // thư mục STORAGE_DIR. Không dùng NODE_ENV để chọn — một máy lập trình chưa
+  // dựng MinIO vẫn phải chạy được, và một máy production quên đặt S3_ENDPOINT
+  // phải hỏng ở chỗ nhìn thấy được chứ không âm thầm ghi ra đĩa container.
+  S3_BUCKET: z.string().default('nhachung'),
+  S3_REGION: z.string().default('us-east-1'),
+  STORAGE_DIR: z.string().default('.storage'),
   CORS_ORIGIN: z.string().default('http://localhost'),
   LOG_LEVEL: z.string().default('info'),
 });
