@@ -19,5 +19,16 @@
   "work_participants":  ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "work_confirmations": ["SELECT", "INSERT"],
   "member_relations":   ["SELECT"],
-  "member_trust_stats": ["SELECT"]
+  "member_trust_stats": ["SELECT"],
+
+  "capabilities":        ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "capability_photos":   ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "capability_evidence": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+
+  "signals":            ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_recipients":  ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_responses":   ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_options":     ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "signal_forwards":    ["SELECT", "INSERT"],
+  "v_signal_recipients": ["SELECT"]
 }

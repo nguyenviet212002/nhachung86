@@ -8,7 +8,10 @@ beforeAll(async () => { db = await resetDb(); });
 afterAll(async () => { await db.destroy(); });
 
 describe('T10 ma trận quyền của app_role', () => {
-  it('mọi bảng public đều có mặt trong expected-grants.json', async () => {
+  // relkind 'v' (VIEW) được đưa vào từ Task 13: v_signal_recipients là một cửa
+  // đọc thật sự — ALTER DEFAULT PRIVILEGES của migration 002 cấp cả bốn quyền
+  // cho view y như cho bảng, nên một view chưa khai báo là một cửa chưa ai đếm.
+  it('mọi bảng và view public đều có mặt trong expected-grants.json', async () => {
     // Phân mảnh (audit_log_2026_08, ...) bị loại khỏi bài kiểm này bằng
     // `NOT c.relispartition` — tên phân mảnh sinh theo tháng nên không thể
     // khai báo tĩnh trong expected-grants.json. Chúng có bài kiểm riêng ở
@@ -16,7 +19,7 @@ describe('T10 ma trận quyền của app_role', () => {
     const { rows } = await db.raw(`
       SELECT c.relname AS table_name
         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT c.relispartition
+       WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v') AND NOT c.relispartition
          AND c.relname <> 'knex_migrations' AND c.relname <> 'knex_migrations_lock'
     `);
     const missing = rows.map(r => r.table_name).filter(t => !(t in expected));
