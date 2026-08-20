@@ -79,6 +79,17 @@
     JOIN_SECRET_DENIED:     'Chỉ ban duyệt của chính cộng đồng này mới duyệt được đơn, và chỉ khi đơn đã có xác nhận gặp mặt.',
     JOIN_SECRET_MISSING:    'Đơn này không có dữ liệu đăng ký kèm theo nên không duyệt được.',
 
+    // Sáu mã của migration 025 (Task 12). Chưa màn nào gọi tới — endpoint việc
+    // thuộc giai đoạn sau — nhưng để sẵn ở đây vì bảng này phải khớp
+    // core/errors.js, và một mã thiếu sẽ hiện ra câu chung chung đúng lúc người
+    // dùng cần biết mình vướng luật nào. `t23-error-map.test.js` canh việc khớp.
+    WORK_PARTICIPANTS_FROZEN: 'Việc đã có người xác nhận nên không thêm bớt người tham gia được nữa.',
+    MANUAL_CREATOR_NOT_PARTICIPANT: 'Người ghi việc thủ công phải là một trong những người đã làm việc đó.',
+    MANUAL_REVIEW_BEFORE_WORK: 'Việc thủ công không thể sinh ra đã được duyệt sẵn.',
+    REVIEWER_NOT_APPROVER:  'Chỉ ban duyệt của chính cộng đồng này mới duyệt được việc thủ công.',
+    REVIEWER_IS_PARTICIPANT: 'Người tham gia không tự duyệt việc của mình được.',
+    REVIEWER_REQUIRED:      'Phải ghi rõ ai là người duyệt.',
+
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',
 
