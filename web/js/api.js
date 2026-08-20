@@ -71,7 +71,9 @@
     INVALID_REFRESH:        'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
     OTP_INVALID:            'Mã xác minh không đúng hoặc đã hết hạn.',
     OTP_LOCKED:             'Số này tạm khóa 15 phút do nhập sai nhiều lần.',
-    REFERRAL_UNAVAILABLE:   'Không dùng được người bảo lãnh này.',
+    // REFERRAL_UNAVAILABLE đã bỏ ở lượt QĐ-1: nó là câu chung cho ba nhánh
+    // hỏng của ô nhập `referrer_id`, mà ô nhập ấy không còn nữa. Bốn nhánh
+    // hỏng của link mời (INVITE_*, phía dưới) nói thật lý do.
     REFERRER_REQUIRED:      'Phải có người bảo lãnh.',
     CONTACT_NEEDS_CONSENT:  'Cần chủ hồ sơ đồng ý mới xem được.',
     CONTACT_CLOSED:         'Chủ hồ sơ đã đóng thông tin này.',

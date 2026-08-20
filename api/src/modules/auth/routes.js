@@ -79,7 +79,7 @@ router.post('/register', normalLimit, validate(schema.registerSchema), async (re
       fullName: req.body.full_name,
       birthYear: req.body.birth_year,
       areaId: req.body.area_id,
-      referrerId: req.body.referrer_id,
+      inviteToken: req.body.invite_token,
       password: req.body.password,
     });
     await padTo(startedAt, REGISTER_MIN_MS);

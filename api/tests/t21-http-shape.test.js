@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import argon2 from 'argon2';
 import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
+import { mkInvite } from './helpers/invites.js';
 import { buildApp } from '../src/app.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
 
@@ -154,7 +155,9 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
       full_name: 'Nguoi Dang Ky T21',
       birth_year: 1986,
       area_id: areaId,
-      referrer_id: referrerId,
+      // QĐ-1: đầu vào là token của một đường link mời, không phải uuid người
+      // bảo lãnh. Vỏ HTTP giữ snake_case như mọi khoá khác.
+      invite_token: (await mkInvite(db, cid, referrerId)).token,
       password: 'mat-khau-du-manh-dang-ky',
       terms: true,
     });
@@ -424,6 +427,70 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
       .send({ action_key: 'member.terminate', target_type: 'member', target_id: targetId, payload: {} });
     expect(cam.status, JSON.stringify(cam.body)).toBe(403);
     assertSnakeKeys(cam.body);
+  });
+
+  // Ba route của lượt QĐ-1 (link mời bảo lãnh). Ruling T9-e: mọi route mới phải
+  // có mặt ở đây, nếu không lớp vỏ lại hở đúng chỗ cũ.
+  it('POST /guarantee-invites trả token ĐÚNG MỘT LẦN, mọi khoá snake_case', async () => {
+    const { token } = await accessTokenForAlice();
+    const res = await supertest(api)
+      .post('/api/v1/guarantee-invites')
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(typeof res.body.token).toBe('string');
+    expect(res.body.status).toBe('open');
+    expect(res.body.created_on_behalf).toBe(false);
+    expect(res.body.createdOnBehalf, 'không rò camelCase').toBeUndefined();
+    // Băm KHÔNG ra dây: nó không giúp người dùng việc gì, mà lại là một chuỗi
+    // trông giống token đủ để đi lạc vào một ảnh chụp màn hình.
+    expect(res.body.token_hash).toBeUndefined();
+    assertSnakeKeys(res.body);
+  });
+
+  it('GET /guarantee-invites trả { data, meta } và KHÔNG có token ở bất kỳ đâu', async () => {
+    const { token } = await accessTokenForAlice();
+    const tao = await supertest(api)
+      .post('/api/v1/guarantee-invites')
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
+
+    const res = await supertest(api)
+      .get('/api/v1/guarantee-invites?page=1&limit=10')
+      .set('authorization', `Bearer ${token}`);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.meta).toMatchObject({ page: 1, limit: 10 });
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(JSON.stringify(res.body), 'token chỉ ra khỏi máy chủ đúng một lần').not.toContain(tao.body.token);
+    assertSnakeKeys(res.body);
+  });
+
+  it('POST /guarantee-invites/:id/revoke trả hàng đã thu hồi, và 400 khi thiếu lý do', async () => {
+    const { token } = await accessTokenForAlice();
+    const tao = await supertest(api)
+      .post('/api/v1/guarantee-invites')
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
+
+    const thieu = await supertest(api)
+      .post(`/api/v1/guarantee-invites/${tao.body.id}/revoke`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(thieu.status, JSON.stringify(thieu.body)).toBe(400);
+    expect(thieu.body.error.code).toBe('VALIDATION_FAILED');
+    assertSnakeKeys(thieu.body);
+
+    const res = await supertest(api)
+      .post(`/api/v1/guarantee-invites/${tao.body.id}/revoke`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ reason: 'phat nham nguoi' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.status).toBe('revoked');
+    expect(res.body.revoked_at).toBeTruthy();
+    expect(res.body.revokedAt, 'không rò camelCase').toBeUndefined();
+    assertSnakeKeys(res.body);
   });
 
   it('GET /members/:id/contacts/:field từ chối tên trường lạ ở vỏ ngoài (400, không phải 500)', async () => {

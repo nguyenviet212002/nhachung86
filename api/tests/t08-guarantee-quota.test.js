@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import supertest from 'supertest';
 import { resetDb, ownerKnex } from './helpers/db.js';
 import { patchConfig, grantQuotaOverride } from './helpers/twoPerson.js';
+import { mkInvite } from './helpers/invites.js';
+import { hashInviteToken } from '../src/modules/invites/token.js';
 import { config } from '../src/config/index.js';
 import { requestOtp, verifyOtp } from '../src/modules/auth/service.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
@@ -407,10 +409,11 @@ describe('T8 POST /auth/register — ba nhánh hỏng không phân biệt đư�
 
   it('nộp đơn hợp lệ: trả join_request_id + step, ghi join_request.created', async () => {
     const referrer = await newMember();
+    const { token } = await mkInvite(db, cid, referrer);
     const phone = '0921000001';
     const res = await supertest(app)
       .post('/api/v1/auth/register')
-      .send(body({ otp_token: await freshOtpToken(phone), phone, referrer_id: referrer }));
+      .send(body({ otp_token: await freshOtpToken(phone), phone, invite_token: token }));
 
     expect(res.status).toBe(201);
     expect(res.body.join_request_id).toMatch(/^[0-9a-f-]{36}$/);
@@ -429,87 +432,135 @@ describe('T8 POST /auth/register — ba nhánh hỏng không phân biệt đư�
     const referrer = await newMember();
     const phone = '0921000002';
     const token = await freshOtpToken(phone);
+    // HAI link khác nhau, vì mỗi link cũng chỉ dùng được một lần: nếu dùng lại
+    // cùng một link thì lần nộp thứ hai hỏng vì INVITE_ALREADY_USED và bài này
+    // không còn chứng minh được điều nó định chứng minh (vé OTP là thứ bị tiêu).
     const first = await supertest(app)
       .post('/api/v1/auth/register')
-      .send(body({ otp_token: token, phone, referrer_id: referrer }));
-    expect(first.status).toBe(201);
+      .send(body({ otp_token: token, phone, invite_token: (await mkInvite(db, cid, referrer)).token }));
+    expect(first.status, JSON.stringify(first.body)).toBe(201);
 
     const second = await supertest(app)
       .post('/api/v1/auth/register')
-      .send(body({ otp_token: token, phone, referrer_id: referrer }));
+      .send(body({ otp_token: token, phone, invite_token: (await mkInvite(db, cid, referrer)).token }));
     expect(second.status).toBe(400);
     expect(second.body.error.code).toBe('OTP_INVALID');
   });
 
-  it('ba nhánh hỏng trả CÙNG mã lỗi, CÙNG câu, và đều bị đệm tới cùng sàn thời gian', async () => {
-    // Nhánh 1: referrer_id không tồn tại.
-    const ghost = '00000000-0000-4000-8000-000000000abc';
-    // Nhánh 2: tồn tại nhưng chưa phải member.
-    const guest = await newMember('guest');
-    // Nhánh 3: là member nhưng đã hết hạn mức.
-    const exhausted = await newMember();
-    for (let i = 0; i < 3; i++) await insertJr(exhausted);
+  // VIẾT LẠI THEO QĐ-1, và lý do phải nói rõ vì bài cũ canh một luật đã hết
+  // đối tượng. Bài cũ khẳng định ba nhánh hỏng (referrer không tồn tại /
+  // không phải member / hết hạn mức) trả CÙNG một mã, CÙNG một câu — luật ấy
+  // sinh ra để bịt một MÁY DÒ: ô nhập `referrer_id` cho phép gõ thử uuid rồi
+  // đọc thông báo lỗi để biết ai là thành viên.
+  //
+  // QĐ-1 gỡ chính cái ô nhập đó. Đầu vào nay là token của một đường link do
+  // người bảo lãnh phát — 256 bit ngẫu nhiên, không dò được — nên hai nhánh
+  // "không tồn tại" và "không phải member" KHÔNG CÒN TỒN TẠI, và việc nói thật
+  // lý do với người đang cầm link không rò ra điều gì. Giữ nguyên bài cũ thì
+  // nó sẽ đỏ vì một luật đã bị chính người dùng thay, chứ không phải vì mã sai.
+  //
+  // Cái PHẢI giữ lại từ bài cũ, và bài này giữ: (a) lý do THẬT vẫn vào nhật ký
+  // dù người nộp đơn chỉ thấy một câu; (b) mọi nhánh đều bị đệm tới cùng sàn
+  // thời gian; (c) nhánh hỏng vẫn TIÊU vé OTP — nếu SAVEPOINT bị gỡ thì
+  // rollback trả lại vé và nhánh đó phân biệt được qua trạng thái.
+  it('bốn nhánh link hỏng: đúng mã lỗi, có dấu trong nhật ký, đều bị đệm tới sàn', async () => {
+    const referrer = await newMember();
+    const nguoiKhac = await newMember();
 
-    const results = [];
+    const { token: linkDaDung } = await mkInvite(db, cid, referrer);
+    await supertest(app)
+      .post('/api/v1/auth/register')
+      .send(body({ otp_token: await freshOtpToken('0922000009'), phone: '0922000009', invite_token: linkDaDung }));
+
+    const { token: linkThuHoi, id: idThuHoi } = await mkInvite(db, cid, referrer);
+    await db.raw(`UPDATE guarantee_invites SET revoked_at = now(), revoked_reason = 'phat nham' WHERE id = ?`, [
+      idThuHoi,
+    ]);
+
+    // Link hết hạn: mốc hết hạn phải tính bằng đồng hồ CỦA MÁY CHỦ, và không
+    // sửa lại được sau khi phát (trg_guarantee_invite_frozen), nên cách duy
+    // nhất là phát một link sống rất ngắn rồi đợi nó chết.
+    const { token: linkHetHan } = await mkInvite(db, cid, nguoiKhac, {
+      expiresSql: `now() + interval '10 milliseconds'`,
+    });
+    await new Promise((r) => setTimeout(r, 60));
+
+    const linkBia = 'khong-he-ton-tai-mot-token-nao-nhu-the-nay-ca';
+
+    const mong = [
+      [linkBia, 404, 'INVITE_NOT_FOUND', 'invite_not_found'],
+      [linkHetHan, 422, 'INVITE_EXPIRED', 'invite_expired'],
+      [linkThuHoi, 422, 'INVITE_REVOKED', 'invite_revoked'],
+      [linkDaDung, 409, 'INVITE_ALREADY_USED', 'invite_already_used'],
+    ];
+
+    expect(REGISTER_MIN_MS, 'đặc tả dòng 815 đòi tối thiểu 300ms').toBeGreaterThanOrEqual(300);
+
     let i = 0;
-    for (const referrerId of [ghost, guest, exhausted]) {
+    for (const [token, status, code] of mong) {
       i += 1;
       const phone = `092200000${i}`;
       const startedAt = Date.now();
       const res = await supertest(app)
         .post('/api/v1/auth/register')
-        .send(body({ otp_token: await freshOtpToken(phone), phone, referrer_id: referrerId }));
-      results.push({ res, ms: Date.now() - startedAt });
+        .send(body({ otp_token: await freshOtpToken(phone), phone, invite_token: token }));
+      expect(res.status, JSON.stringify(res.body)).toBe(status);
+      expect(res.body.error.code).toBe(code);
+      expect(Date.now() - startedAt).toBeGreaterThanOrEqual(REGISTER_MIN_MS);
+      // Token KHÔNG BAO GIỜ có mặt trong câu trả lời.
+      expect(JSON.stringify(res.body)).not.toContain(token);
     }
 
-    // Sàn thời gian phải là sàn THẬT cho MỌI nhánh. Khẳng định theo hằng số
-    // được xuất ra chứ không chép lại con số: nếu ai đó hạ sàn xuống dưới mức
-    // đặc tả đòi, dòng dưới bắt được; nếu đệm bị gỡ, ba dòng trên bắt được.
-    expect(REGISTER_MIN_MS, 'đặc tả dòng 815 đòi tối thiểu 300ms').toBeGreaterThanOrEqual(300);
-    for (const { res, ms } of results) {
-      expect(res.status).toBe(422);
-      expect(res.body.error.code).toBe('REFERRAL_UNAVAILABLE');
-      expect(ms).toBeGreaterThanOrEqual(REGISTER_MIN_MS);
-    }
-    const messages = new Set(results.map((r) => r.res.body.error.message));
-    expect(messages.size, `ba nhánh phải cùng MỘT câu, đang có: ${[...messages].join(' | ')}`).toBe(1);
-
-    // Lý do THẬT vẫn được ghi lại phía máy chủ — người nộp đơn không phân biệt
-    // được, người vận hành thì phải phân biệt được.
+    // Lý do THẬT vẫn được ghi lại phía máy chủ, và không dòng nào mang token
+    // hay băm của token.
     const { rows } = await db.raw(
-      `SELECT detail FROM audit_log WHERE action = 'join_request.denied' ORDER BY seq DESC LIMIT 3`
+      `SELECT detail FROM audit_log WHERE action = 'join_request.denied' ORDER BY seq DESC LIMIT 4`
     );
-    expect(rows.map((r) => r.detail.reason).sort()).toEqual([
-      'quota_exceeded',
-      'referrer_not_found',
-      'referrer_not_member',
-    ]);
+    expect(rows.map((r) => r.detail.reason).sort()).toEqual(
+      mong.map(([, , , reason]) => reason).sort()
+    );
+    for (const [token] of mong) {
+      expect(JSON.stringify(rows), 'token không bao giờ vào nhật ký').not.toContain(token);
+      expect(JSON.stringify(rows), 'băm của token cũng không').not.toContain(hashInviteToken(token));
+    }
 
-    // Và cả ba nhánh để lại CÙNG dấu vết trạng thái: vé OTP đã tiêu. Nếu nhánh
-    // hết hạn mức làm rollback cả giao dịch (không có SAVEPOINT), vé của nó
-    // còn dùng được — ba nhánh lại phân biệt được, chỉ khác là qua trạng thái
-    // thay vì qua câu chữ.
+    // Bốn nhánh hỏng đều TIÊU vé OTP — nếu SAVEPOINT bị gỡ thì rollback trả
+    // lại vé, và nhánh đó phân biệt được qua trạng thái thay vì qua câu chữ.
     const { rows: consumed } = await db.raw(
       `SELECT count(*)::int AS n FROM otp_challenges WHERE consumed_at IS NOT NULL AND purpose = 'register'`
     );
     expect(consumed[0].n).toBeGreaterThanOrEqual(5);
   });
 
-  it('sai năm sinh thì báo đúng lỗi đó và KHÔNG tiêu vé OTP', async () => {
+  it('hết hạn mức thì chặn NGAY LÚC PHÁT LINK, không phải lúc người ta đăng ký xong', async () => {
+    // Đây là điểm 2 của QĐ-1 nhìn từ tầng HTTP: người bảo lãnh phát tới cái
+    // link thứ tư mới bị chặn, và bị chặn TRƯỚC khi có ai kịp nhận lời hứa.
     const referrer = await newMember();
+    for (let i = 0; i < 3; i++) await mkInvite(db, cid, referrer);
+    await expect(mkInvite(db, cid, referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
+  });
+
+  it('sai năm sinh thì báo đúng lỗi đó, KHÔNG tiêu vé OTP và KHÔNG đốt link', async () => {
+    const referrer = await newMember();
+    const { token: invite, id: inviteId } = await mkInvite(db, cid, referrer);
     const phone = '0923000001';
     const token = await freshOtpToken(phone);
     const bad = await supertest(app)
       .post('/api/v1/auth/register')
-      .send(body({ otp_token: token, phone, referrer_id: referrer, birth_year: 1987 }));
+      .send(body({ otp_token: token, phone, invite_token: invite, birth_year: 1987 }));
     expect(bad.status).toBe(422);
     expect(bad.body.error.code).toBe('BIRTH_YEAR_MISMATCH');
 
-    // Lỗi gõ nhầm của người dùng không phải nhánh dò danh sách — vé phải còn.
+    // Lỗi gõ nhầm của người dùng không phải nhánh từ chối — vé phải còn, và
+    // ĐƯỜNG LINK cũng phải còn. Đốt link vì người ta gõ nhầm năm sinh là lấy
+    // mất một suất của người bảo lãnh vì lỗi của người khác.
+    const { rows: [inv] } = await db.raw(`SELECT used_at FROM guarantee_invites WHERE id = ?`, [inviteId]);
+    expect(inv.used_at, 'gõ nhầm năm sinh không được đốt link mời').toBeNull();
+
     const ok = await supertest(app)
       .post('/api/v1/auth/register')
-      .send(body({ otp_token: token, phone, referrer_id: referrer }));
-    expect(ok.status).toBe(201);
+      .send(body({ otp_token: token, phone, invite_token: invite }));
+    expect(ok.status, JSON.stringify(ok.body)).toBe(201);
   });
 });
 
@@ -535,7 +586,7 @@ describe('T8 /join-requests — cổng met_confirmed ở tầng HTTP', () => {
         full_name: 'Nguoi Duoc Bao Lanh',
         birth_year: 1986,
         area_id: areaId,
-        referrer_id: referrer,
+        invite_token: (await mkInvite(db, cid, referrer)).token,
         password: 'mat-khau-du-manh-12',
         terms: true,
       });

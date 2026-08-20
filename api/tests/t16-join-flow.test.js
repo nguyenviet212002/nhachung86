@@ -8,6 +8,7 @@ import { requestOtp, verifyOtp } from '../src/modules/auth/service.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
 import { buildApp } from '../src/app.js';
 import { withActor } from '../src/core/tx.js';
+import { mkInvite } from './helpers/invites.js';
 
 // ---------------------------------------------------------------------------
 // T16 — luồng gia nhập chạy đầu-cuối (MỐC 1).
@@ -88,17 +89,23 @@ async function freshOtpToken(phone) {
 // Nộp đơn thật qua HTTP rồi (tuỳ chọn) cho người bảo lãnh xác nhận gặp mặt.
 //
 // referrerId mặc định là `referrer` nhưng phải truyền được: hạn mức bảo lãnh là
-// 3 đơn / 12 tháng và trigger fn_guarantee_quota cưỡng chế thật, nên bài thứ tư
-// dùng chung một người bảo lãnh sẽ hỏng vì REFERRAL_UNAVAILABLE — hỏng vì lý do
-// không liên quan tới điều nó định kiểm.
+// 3 suất / 12 tháng và trigger fn_guarantee_quota cưỡng chế thật, nên bài thứ tư
+// dùng chung một người bảo lãnh sẽ hỏng vì hết hạn mức — hỏng vì lý do không
+// liên quan tới điều nó định kiểm.
+//
+// TỪ QĐ-1, `/auth/register` không nhận `referrer_id` nữa: người bảo lãnh phải
+// PHÁT MỘT LINK trước, và người nộp đơn mang token của link đó tới. Helper này
+// phát link giúp để các bài phía sau không phải dựng lại luồng ấy — bài kiểm
+// chính luồng phát link nằm ở t28.
 async function submitJoinRequest({ phone, fullName, confirmMet = true, referrerId = referrer }) {
+  const { token: inviteToken } = await mkInvite(db, cid, referrerId);
   const res = await supertest(api).post('/api/v1/auth/register').send({
     otp_token: await freshOtpToken(phone),
     phone,
     full_name: fullName,
     birth_year: 1986,
     area_id: areaId,
-    referrer_id: referrerId,
+    invite_token: inviteToken,
     password: NEW_PASSWORD,
     terms: true,
   });
@@ -246,7 +253,7 @@ describe('T16 vỏ HTTP dùng snake_case đúng như đặc tả', () => {
       full_name: 'Nop Bang Chinh Than Phan Hoi',
       birth_year: 1986,
       area_id: areaId,
-      referrer_id: await newMember('Bao Lanh Rieng'),
+      invite_token: (await mkInvite(db, cid, await newMember('Bao Lanh Rieng'))).token,
       password: NEW_PASSWORD,
       terms: true,
     });

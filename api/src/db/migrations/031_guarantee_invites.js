@@ -27,7 +27,7 @@
 //   4. Không thay thế bước xác nhận gặp mặt — migration này KHÔNG chạm
 //      `met_confirmed_at`, `met_confirmed_by` hay `trg_member_status_gate`.
 //      Đó là một khẳng định về việc KHÔNG làm gì, nên bài test canh nó
-//      (t28) chứ không phải mã.
+//      (t29) chứ không phải mã.
 export async function up(knex) {
   const user = process.env.APP_DB_USER ?? 'app_role';
 

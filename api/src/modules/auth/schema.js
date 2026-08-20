@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { inviteTokenSchema } from '../invites/schema.js';
 
 export const vnPhone = z
   .string()
@@ -50,7 +51,12 @@ export const registerSchema = z.object({
   full_name: z.string().trim().min(2).max(120),
   birth_year: z.coerce.number().int().min(1900).max(2100),
   area_id: z.string().uuid(),
-  referrer_id: z.string().uuid(),
+  // QĐ-1: KHÔNG có ô nhập người bảo lãnh nữa. `referrer_id` từng là một uuid
+  // do người nộp đơn gõ vào — tức một máy dò danh sách thành viên, và một cách
+  // khai bừa tên người khác làm người bảo lãnh cho mình. Nay nó đến từ token
+  // của đường link mà chính người bảo lãnh đã phát: người bảo lãnh phải hành
+  // động TRƯỚC, đúng thứ tự nhân quả thật ngoài đời.
+  invite_token: inviteTokenSchema,
   password: z.string().min(8, 'Mật khẩu cần ít nhất 8 ký tự'),
   terms: z.literal(true, { errorMap: () => ({ message: 'Phải đồng ý điều khoản' }) }),
 });

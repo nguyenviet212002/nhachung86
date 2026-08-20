@@ -4,9 +4,10 @@ import jwt from 'jsonwebtoken';
 import { config } from '../../config/index.js';
 import { withActor } from '../../core/tx.js';
 import { knex } from '../../db/knex.js';
-import { AppError } from '../../core/errors.js';
+import { AppError, mapPgError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 import { otpAdapter } from '../../core/otp/index.js';
+import { hashInviteToken } from '../invites/token.js';
 
 // ---------------------------------------------------------------------------
 // Băm định danh — dùng cho phone_hash trong otp_challenges, và cho hoá đơn
@@ -182,20 +183,46 @@ export async function verifyOtp({ communityId, phone, code, purpose }) {
 // Đăng ký — nộp đơn gia nhập. Việc này Task 7 cố ý để lại (nó phụ thuộc bảng
 // join_requests, migration 009) và Task 8 nhận.
 //
-// MỘT câu, MỘT mã lỗi cho cả ba nhánh hỏng (đặc tả dòng 815): referrer_id
-// không tồn tại, referrer_id không phải member, referrer_id hết hạn mức. Nếu
-// ba nhánh trả ba câu khác nhau thì form đăng ký công khai trở thành máy dò:
-// gõ thử uuid để biết ai là thành viên, rồi biết ai sắp hết suất bảo lãnh.
+// QĐ-1 ĐÃ ĐỔI ĐẦU VÀO CỦA HÀM NÀY. Trước đây người nộp đơn gõ `referrer_id`
+// (một uuid), và vì ô nhập ấy là một MÁY DÒ danh sách thành viên nên đặc tả
+// dòng 815 bắt ba nhánh hỏng phải trả CÙNG một câu: không tồn tại / không phải
+// member / hết hạn mức. Nay không còn ô nhập nào: `referrer_id` đến từ token
+// của đường link mà chính người bảo lãnh đã phát.
+//
+// Hệ quả với luật "ba nhánh giống hệt nhau": nó không còn đối tượng để bảo vệ.
+// Token 256 bit không dò được, nên người đang cầm link là người đã được trao
+// link, và nói thật với họ ("link đã có người dùng" khác "link hết hạn") không
+// rò ra điều gì về Hội. Ngược lại, gộp cả bốn nhánh thành một câu chung sẽ để
+// người bị chuyền tay một cái link đã dùng đứng trước một lời từ chối không
+// hiểu nổi — đúng chỗ QĐ-1 đòi họ phải hiểu.
+//
+// Lớp đệm thời lượng ở routes.js GIỮ NGUYÊN: nó rẻ, và nó vẫn che chênh lệch
+// giữa nhánh có chạy tiếp với nhánh dừng sớm.
+//
+// GUARANTEE_QUOTA_EXCEEDED gần như không tới được đây nữa, và đó chính là điểm
+// 2 của QĐ-1: suất bị tiêu ngay lúc PHÁT link, nên tới lúc người ta đăng ký
+// thì chỗ đã giữ sẵn. Vẫn bắt mã đó ở đây vì cửa sổ 12 tháng trượt và
+// `communities.config` đều đổi được giữa lúc phát link và lúc dùng link.
 // ---------------------------------------------------------------------------
-const REFERRAL_UNAVAILABLE_MESSAGE =
-  'Hiện chưa tiếp nhận được đơn với người bảo lãnh này. Vui lòng liên hệ trực tiếp người bảo lãnh của bạn.';
 
-function isQuotaError(err) {
-  return String(err?.message ?? '').includes('GUARANTEE_QUOTA_EXCEEDED');
+// Bốn nhánh hỏng của link mời, cộng nhánh hết hạn mức. Danh sách CHO PHÉP: một
+// mã lạ (lỗi thật của hệ thống) phải nổi lên thành 500 chứ không bị nuốt thành
+// một câu "link không dùng được".
+const INVITE_FAILURE_CODES = [
+  'INVITE_NOT_FOUND',
+  'INVITE_EXPIRED',
+  'INVITE_REVOKED',
+  'INVITE_ALREADY_USED',
+  'GUARANTEE_QUOTA_EXCEEDED',
+];
+
+function inviteFailure(err) {
+  const raw = String(err?.message ?? '');
+  return INVITE_FAILURE_CODES.find((code) => raw.includes(code)) ?? null;
 }
 
 export async function register({
-  communityId, otpToken, phone, fullName, birthYear, areaId, referrerId, password,
+  communityId, otpToken, phone, fullName, birthYear, areaId, inviteToken, password,
 }) {
   const phoneHash = hashPhone(phone);
 
@@ -259,21 +286,23 @@ export async function register({
       });
     }
 
-    // 3. Ba nhánh hỏng, CÙNG một giao dịch. MỘT truy vấn cho cả hai nhánh đầu
-    //    (không tồn tại / không phải member): hai truy vấn nối tiếp sẽ khiến
-    //    nhánh "tồn tại nhưng không phải member" tốn đúng một vòng CSDL nhiều
-    //    hơn nhánh "không tồn tại" — chênh lệch nhỏ nhưng đo được, và đó chính
-    //    là thứ mục 815 của đặc tả muốn bịt.
-    const { rows: [referrer] } = await trx.raw(
-      `SELECT id, status FROM members WHERE id = ? AND community_id = ?`,
-      [referrerId, communityId]
-    );
+    // 3. Nhận link mời rồi lập đơn — CÙNG MỘT GIAO DỊCH (QĐ-1, điểm 1).
+    //
+    //    THỨ TỰ TRONG SAVEPOINT KHÔNG TUỲ NGHI. `guarantee_invite_claim()` đặt
+    //    `used_at` TRƯỚC khi đơn được chèn, và phải như vậy: câu đếm hạn mức
+    //    tính cả link còn mở lẫn đơn đang sống, nên nếu đơn ra đời trong lúc
+    //    link vẫn còn "mở" thì MỘT lời hứa bị tính thành HAI suất. Đặt used_at
+    //    trước thì suất chuyển tay gọn từ link sang đơn, tổng không đổi.
+    //
+    //    Câu nối `used_by_join_request` chạy sau cùng, vì id của đơn chỉ có
+    //    sau khi chèn. Khoảng giữa hai câu ấy được canh bằng một ràng buộc
+    //    HOÃN TỚI COMMIT (`trg_guarantee_invite_use_complete`, migration 031):
+    //    đốt link mà không để lại đơn thì COMMIT hỏng.
     let reason = null;
-    if (!referrer) reason = 'referrer_not_found';
-    else if (referrer.status !== 'member') reason = 'referrer_not_member';
-
     let created = null;
-    if (!reason) {
+    let referrerId = null;
+    let inviteId = null;
+    {
       // SAVEPOINT: trigger fn_guarantee_quota RAISE khi hết hạn mức, và một
       // ngoại lệ chưa bắt sẽ huỷ CẢ giao dịch — kéo theo việc tiêu thụ
       // otp_token và dòng nhật ký từ chối. Khi đó nhánh "hết hạn mức" để lại
@@ -283,6 +312,15 @@ export async function register({
       // đúng câu INSERT hỏng, giao dịch ngoài sống tiếp và vẫn commit được.
       try {
         await trx.transaction(async (sp) => {
+          // Token thô KHÔNG đi xuống CSDL, chỉ băm của nó. Hàm tra hàng, khoá
+          // hàng, đánh dấu đã dùng, và RAISE đúng lý do nếu link không dùng được.
+          const { rows: [claim] } = await sp.raw(`SELECT * FROM guarantee_invite_claim(?, ?)`, [
+            hashInviteToken(inviteToken),
+            communityId,
+          ]);
+          inviteId = claim.invite_id;
+          referrerId = claim.invite_referrer_id;
+
           const { rows: [row] } = await sp.raw(
             `INSERT INTO join_requests (community_id, applicant_data, referrer_id, status, step)
              VALUES (?, ?::jsonb, ?, 'pending', 2)
@@ -312,11 +350,17 @@ export async function register({
              VALUES (?, ?, ?, ?)`,
             [row.id, communityId, phone, passwordHash]
           );
+          await sp.raw(
+            `UPDATE guarantee_invites SET used_by_join_request = ?
+              WHERE id = ? AND community_id = ?`,
+            [row.id, claim.invite_id, communityId]
+          );
           created = row;
         });
       } catch (err) {
-        if (!isQuotaError(err)) throw err;
-        reason = 'quota_exceeded';
+        const code = inviteFailure(err);
+        if (!code) throw err;
+        reason = code.toLowerCase();
       }
     }
 
@@ -326,11 +370,20 @@ export async function register({
       // không ghi ở đây thì một người dò hàng trăm uuid không để lại gì cả.
       // detail chỉ có định danh giả (HMAC), uuid và mã lý do; lý do THẬT được
       // ghi lại dù người nộp đơn chỉ nhận được một câu chung.
+      // TOKEN KHÔNG BAO GIỜ VÀO NHẬT KÝ — kể cả băm của nó. Băm là chuỗi 64
+      // hex, đúng hình dạng "định danh giả" mà `assertSafeDetail` cho qua, nên
+      // chỉ có luật ở đây ngăn nó lọt vào. `invite_id` thì được: nó là khoá của
+      // một hàng, không mở được cửa nào.
       await auditLog(trx, {
         communityId, actorId: null, action: 'join_request.denied',
-        detail: { phone_hash: phoneHash, reason, referrer_id: referrerId },
+        detail: {
+          phone_hash: phoneHash,
+          reason,
+          ...(inviteId ? { invite_id: inviteId } : {}),
+          ...(referrerId ? { referrer_id: referrerId } : {}),
+        },
       });
-      return { ok: false };
+      return { ok: false, reason };
     }
 
     await auditLog(trx, {
@@ -344,7 +397,13 @@ export async function register({
   // Ném SAU khi giao dịch đã commit (bẫy mục 3): nếu ném bên trong, rollback
   // xoá luôn dòng join_request.denied vừa ghi VÀ trả lại otp_token đã tiêu.
   if (!result.ok) {
-    throw new AppError('REFERRAL_UNAVAILABLE', REFERRAL_UNAVAILABLE_MESSAGE, { status: 422 });
+    // Dựng lại AppError từ chính bảng ánh xạ của CSDL: một mã, một câu, khai ở
+    // đúng một chỗ (`core/errors.js`), và `t23-error-map` canh việc câu ấy có
+    // mặt cả ở trình duyệt.
+    throw (
+      mapPgError(new Error(result.reason.toUpperCase())) ??
+      new AppError('INTERNAL', 'Lỗi hệ thống.', { status: 500 })
+    );
   }
   return { join_request_id: result.joinRequestId, step: result.step };
 }
