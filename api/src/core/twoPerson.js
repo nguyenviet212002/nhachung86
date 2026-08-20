@@ -46,22 +46,70 @@ async function roleFor(trx, actionKey) {
 //     thêm về sau đều làm nó chết — đây là lỗi hình dạng, không phải lỗi
 //     thiếu một dòng.
 // ---------------------------------------------------------------------------
-function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  // Date PHẢI đứng trước nhánh object, nếu không cả cơ chế chống "dữ liệu đổi
-  // giữa hai chữ ký" thành RỖNG RUỘT. `typeof new Date() === 'object'`, mà
-  // `Object.keys(date)` là mảng RỖNG — nên mọi ảnh chụp `updated_at` bị nén
-  // thành `{}`, hai lần băm luôn bằng nhau, và không thay đổi nào bị phát hiện.
-  // Bài kiểm `community.config_change` vẫn xanh vì `config` là object thường,
-  // nên nó CHE mất lỗi này. Đây đúng khuôn "canh triệu chứng, không canh nguồn"
-  // ở docs/SOAT-KIEM-THU.md: một cái lưới trông đúng mà không bắt gì.
-  if (value instanceof Date) return value.toISOString();
-  if (value && typeof value === 'object') {
+// (3) DANH SÁCH TRẮNG, KHÔNG PHẢI DANH SÁCH ĐEN — và đây mới là lỗi thật.
+//
+//     Bản đầu nén `Date` thành `{}` vì `typeof new Date() === 'object'` mà
+//     `Object.keys(date)` là mảng RỖNG. Hậu quả: mọi ảnh chụp `updated_at`
+//     thành `{}`, hai lần băm luôn bằng nhau, và cả cơ chế chống "dữ liệu đổi
+//     giữa hai chữ ký" (mục 7.3) RỖNG RUỘT. Bài kiểm `community.config_change`
+//     vẫn xanh vì `config` là object thuần, nên nó CHE mất lỗi.
+//
+//     Vá riêng `Date` là chữa triệu chứng. Lỗi thật là hàm này **gặp thứ nó
+//     không hiểu thì im lặng trả về `{}`** thay vì báo. Cả họ hàng cùng loại
+//     đang chờ, và driver `pg` sinh ra chúng hằng ngày:
+//       * `bytea` → `Buffer`  — `Object.keys()` là chỉ số byte, hình dạng không
+//         ổn định giữa các phiên bản;
+//       * `Map` / `Set`       → `Object.keys()` RỖNG, y hệt `Date`;
+//       * `BigInt`            → `JSON.stringify` ném lỗi (ít nhất còn nổ);
+//       * `undefined`         → bị `JSON.stringify` BỎ khỏi kết quả, còn `null`
+//         thì không ⇒ hai giá trị khác nhau có thể ra CÙNG một băm;
+//       * `NaN` / `Infinity`  → `JSON.stringify` biến thành `null`;
+//       * `-0`                → cùng băm với `0`.
+//
+//     Nên: nhận đúng những kiểu đã liệt kê, gặp bất kỳ thứ gì khác thì NÉM
+//     NGAY kèm đường dẫn tới trường vi phạm. Thà hỏng lúc chạy còn hơn băm ra
+//     một giá trị vô nghĩa mà không ai biết — một chữ ký tính trên giá trị vô
+//     nghĩa là một chữ ký không có nội dung.
+function canonical(value, path = '$') {
+  if (value === null) return null;
+
+  const t = typeof value;
+  if (t === 'string' || t === 'boolean') return value;
+
+  if (t === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`canonical(): ${path} là ${value} — không băm được thành giá trị có nghĩa`);
+    }
+    // -0 và 0 băm ra cùng chuỗi; chuẩn hoá để không có hai đường vào một băm.
+    return value === 0 ? 0 : value;
+  }
+
+  // Date đứng TRƯỚC nhánh object — xem ghi chú (3).
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new Error(`canonical(): ${path} là Invalid Date`);
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) return value.map((v, i) => canonical(v, `${path}[${i}]`));
+
+  if (t === 'object') {
+    // CHỈ object thuần. `Buffer`, `Map`, `Set`, và mọi thể hiện của lớp khác
+    // đều rơi vào đây và phải bị từ chối, không được lặng lẽ thành `{}`.
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) {
+      throw new Error(`canonical(): ${path} là ${value.constructor?.name ?? 'đối tượng lạ'} — chưa có luật chuẩn hoá`);
+    }
     const out = {};
-    for (const k of Object.keys(value).sort()) out[k] = canonical(value[k]);
+    for (const k of Object.keys(value).sort()) {
+      // `undefined` bị JSON.stringify bỏ đi trong khi `null` thì không, nên hai
+      // payload khác nhau có thể ra cùng một băm. Từ chối thay vì đoán ý.
+      if (value[k] === undefined) throw new Error(`canonical(): ${path}.${k} là undefined — dùng null nếu có ý là "không có"`);
+      out[k] = canonical(value[k], `${path}.${k}`);
+    }
     return out;
   }
-  return value;
+
+  throw new Error(`canonical(): ${path} có kiểu ${t} — chưa có luật chuẩn hoá`);
 }
 
 const SNAPSHOT = {
@@ -80,6 +128,12 @@ const SNAPSHOT = {
   'community.config_change': (trx, id) =>
     trx.raw(`SELECT updated_at, config FROM communities WHERE id = ?`, [id]),
 };
+
+// Xuất ra cho bài test kiểm CHÍNH đối tượng mà driver `pg` trả về. Test dựng
+// object bằng tay chỉ kiểm được những kiểu người viết test nghĩ ra — và đó
+// đúng là lý do lỗi `Date` suýt lọt: bài kiểm duy nhất chạm nhánh này dùng
+// `config`, một object thuần, nên nó không bao giờ đi qua chỗ hỏng.
+export { canonical };
 
 export async function computePayloadHash(trx, actionKey, payload, targetId) {
   const snap = SNAPSHOT[actionKey] ? await SNAPSHOT[actionKey](trx, targetId) : { rows: [] };
