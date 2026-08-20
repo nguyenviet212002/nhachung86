@@ -549,3 +549,235 @@ bằng chạy thật, không suy đoán.
 | `mọi mã máy chủ có thể gửi ra đều có câu tiếng Việt ở web/js/api.js` | So `BY_MESSAGE` (JS) với `web/js/api.js` (JS) | **T** | **Đây vẫn là phép so bảng-JS-với-bảng-JS của bản `t23` đầu tiên, chỉ dịch lên một tầng.** `serverCodes()` chỉ đọc phần tử thứ hai của `BY_MESSAGE`; **13 mã ném thẳng bằng `new AppError('…')` trong service/middleware nằm ngoài tầm nhìn của nó.** Đã kiểm chạy thật, và **có một ca đang hỏng ngay lúc này**: `BIRTH_YEAR_MISMATCH` (`api/src/modules/auth/service.js:247`) **không có câu tiếng Việt nào trong `web/js/api.js`** — người nộp đơn gõ nhầm năm sinh sẽ thấy câu chung chung đúng lúc cần biết lý do thật. `t08` có một bài đi qua HTTP khẳng định `error.code === 'BIRTH_YEAR_MISMATCH'`, nên **cả hai lưới đều xanh** trong khi người dùng thật thì không đọc được gì. |
 | `không có câu thừa ở trình duyệt cho mã máy chủ không bao giờ gửi` | Quét **toàn bộ `api/src`** tìm `'MÃ'` | **N** | Mẫu tốt cho chiều ngược lại — và đáng chú ý: **chiều này đã đọc nguồn thật (toàn bộ mã nguồn), còn chiều kia thì không.** Sửa chiều thiếu chỉ là dùng lại đúng `readAllSource()` đã có sẵn trong tệp. |
 | `AppError giữ nguyên mã được truyền vào` | Gọi thật | **N** | Bài rất hẹp nhưng có giá trị: nó khoá một hành vi mà cả hai bài trên ngầm dựa vào. |
+
+---
+
+## 3. Xếp hạng theo mức nguy hiểm
+
+### Tổng kết con số
+
+| | Số bài | Ghi chú |
+|---|---|---|
+| **Canh nguồn (N)** | ~247 | Chạy mã thật, dữ liệu thật, để CSDL tự từ chối |
+| **Nguồn cho tuyên bố chính, triệu chứng ở một khẳng định phụ (N/T)** | ~19 | Phần lớn là **mẫu regex rộng** (`/violates foreign key/i`) |
+| **Canh triệu chứng (T)** | ~12 | Bốn lưới quét mã nguồn, ba phép so bản-sao-với-bản-sao, hai phép đếm gián tiếp, hai miền lặp lấy từ mã đang kiểm, một khẳng định không thể đỏ |
+| **Xanh giả (không canh gì)** | **0** | Xem mục 5 |
+
+Nói ngắn gọn: **bộ kiểm thử này khoẻ.** Hơn 85% số bài chạy thật và để tầng dữ liệu tự
+từ chối, không bài nào tin lời hứa của tầng service khi nó nói mình đang cưỡng chế một
+nguyên tắc. Phần dưới đây nói về **12–19 bài còn lại và những chỗ không ai thả lưới** —
+đó là điểm của tài liệu này, không phải một bản đánh giá tổng thể.
+
+### Thang xếp hạng
+
+Một lỗ mù **che một NGUYÊN TẮC (1–5)** nguy hơn một lỗ mù che một chi tiết kỹ thuật, vì:
+
+- nguyên tắc là thứ cả kiến trúc này trả giá để có (`REVOKE ALL`, trigger hoãn, `SECURITY
+  DEFINER`, chuỗi băm) — mất nó là mất lý do tồn tại của phần lớn mã;
+- chi tiết kỹ thuật hỏng thì có người phàn nàn; nguyên tắc hỏng thì **im lặng**, và
+  người bị hại không biết mình bị hại.
+
+Cộng thêm hai hệ số:
+
+- **Đang hỏng thật** (không phải giả định) → nâng một bậc.
+- **Lỗ nằm ở đúng chỗ cơ chế được dựng ra để chống** → nâng một bậc. Đây là bài học `t23`:
+  một cái lưới mù trước đúng loại cá nó được căng ra để bắt còn tệ hơn không có lưới, vì
+  nó **dập tắt câu hỏi**.
+
+---
+
+### TOP 5 ĐÁNG SỬA TRƯỚC
+
+#### 1. `t11-audit-detail` — `assertSafeDetail` chỉ canh hình dạng CHỮ SỐ (nguyên tắc 4)
+
+**Vì sao đứng đầu.** `assertSafeDetail` tồn tại **không phải** để chặn kẻ tấn công — nó
+tồn tại để chặn **lập trình viên vô ý ở tương lai** (Ruling T4-a nói đúng câu đó). Ba
+đường lách đã kiểm bằng chạy thật đều là **đúng thứ một lập trình viên vô ý sẽ viết**:
+
+| Đường lách | Ví dụ | Kết quả |
+|---|---|---|
+| Khoá không bị kiểm gì cả (`z.record` chỉ ràng buộc giá trị) | `{ '0912345678': true }` | **LỌT** |
+| Số kiểu `number` (nhánh `z.number()` nhận mọi số) | `{ phone: 912345678 }` — tức `parseInt(phone)` | **LỌT** |
+| Chuỗi chữ không có chữ số vẫn là văn tự do | `{ v: 'NguyenVanA' }`, `{ v: 'so-12-ngo-4-Khoai-Chau' }` | **LỌT** |
+
+Và hậu quả không dừng ở một dòng nhật ký xấu: **cả lập luận Nghị định 13 ở mục 10 đặc tả
+dựa vào việc nhật ký bất biến KHÔNG chứa dữ liệu cá nhân** — ta giữ được nhật ký vĩnh
+viễn *vì* nó sạch. Nhiễm nó là làm sụp cái cột chống đó, và vì nhật ký bất biến nên
+**không xoá lại được**.
+
+Bài `t11` không sai; nó canh rất kỹ đúng một trục (chữ số) và bỏ trống hai trục kia
+(khoá, và chuỗi chữ thuần). Hai vòng soát xét trước (Ruling T4-a, T4-c) đều chỉ đi sâu
+thêm vào trục chữ số.
+
+**Sửa thế nào:** thêm `z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), …)` để khoá cũng
+phải là tên trường; đổi `z.number()` thành `z.number().int().max(<ngưỡng đếm hợp lý>)`
+hoặc bắt số ≥7 chữ số; và với chuỗi, chuyển từ *danh sách cho phép theo tập ký tự* sang
+*danh sách cho phép theo TẬP GIÁ TRỊ* — enum thật, tên trường thật, mã lỗi thật — vì tập
+ký tự sẽ không bao giờ phân biệt được `SELF_ONLY` với `NguyenVanA`.
+
+#### 2. `t12-trust` — hai lưới "không xếp hạng" cùng mù hai chỗ (nguyên tắc 5)
+
+**Vì sao xếp thứ hai.** Nguyên tắc 5 là nguyên tắc **ít cơ chế cưỡng chế nhất** trong
+năm: không có trigger nào, không có `REVOKE` nào: chỉ có hai bài test này. Bốn nguyên
+tắc kia có CSDL đỡ; nguyên tắc 5 **chỉ có cái lưới**.
+
+Lưới 1 (quét mã) mù trước `.orderBy('confirmed_works')` — **query builder của chính dự
+án** — và trước `ORDER BY` xuống dòng, tức cách viết SQL phổ biến nhất trong kho. Lưới 2
+(chạy thật) bịt hai lỗ đó nhưng chỉ trong `membersService.list()`.
+
+**Cả hai cùng mù ở:** (a) `web/js/` — sắp lại danh bạ trong trình duyệt là nền tảng đang
+xếp hạng người, và gốc quét là `api/src`; (b) mọi endpoint chưa tồn tại — đúng chỗ lưới 1
+được đặc tả yêu cầu để bù cho lưới 2, mà nó lại không bù được.
+
+**Sửa thế nào:** hai chữa nhỏ, không cần bài mới. (i) Đổi regex thành
+`/(order\s+by|\.orderBy\s*\()[\s\S]{0,200}?\b(confirmed_works|…)\b/i` — bắt cả knex
+builder và cả xuống dòng, giới hạn `{0,200}` thay cho `[^;\n]*` để không dương tính giả.
+(ii) Thêm `web/js` vào danh sách thư mục quét, cùng với `\.sort\(` trên các trường uy tín.
+
+#### 3. `t03-no-phone-in-members` bài 1 — danh sách CẤM bốn tên cột (nguyên tắc 4)
+
+**Vì sao xếp thứ ba dù chỉ là một bài.** Đây là **T3 của đặc tả mục 13**, tức lời hứa
+gốc: *"`SELECT * FROM members` không chứa số điện thoại ở bất kỳ vai nào."* Bài đang có
+kiểm bốn **tên** (`phone/zalo/messenger/address`). Thêm `members.so_dien_thoai`,
+`members.contact_phone`, `members.mobile`, hay một cột `lien_he jsonb` ⇒ **xanh**, và
+`app_role` có `SELECT` trên `members` nên đọc được ngay.
+
+Nó cũng **không** làm phần đặc tả đòi rõ nhất: *"duyệt cả 5 vai"* — bài chạy bằng đúng
+một vai (owner).
+
+**Sửa thế nào:** lật ngược thành **danh sách CHO PHÉP** — liệt kê tường minh mọi cột được
+có trong `members`, `toEqual` chính xác. Cột mới nào cũng phải có người quyết định thêm
+vào danh sách, đúng khuôn `t10-directory` đã dùng cho `detailRow` (`toEqual` trên
+`Object.keys()`). Đây là bản sửa **rẻ nhất** trong top 5 và bịt được nhiều nhất.
+
+#### 4. `t23-error-map` — hai lỗ, và MỘT LỖI ĐANG HỎNG NGAY BÂY GIỜ
+
+**Vì sao có mặt trong top 5 dù chỉ là chuyện thông điệp lỗi.** Đây là **lần thứ ba** cùng
+một khuôn hình trong cùng một tệp (Ruling T12-g → T13-c → hôm nay), và lần này có bằng
+chứng chạy thật chứ không phải suy đoán:
+
+- **Đang hỏng:** `BIRTH_YEAR_MISMATCH` được ném bằng `new AppError()` ở
+  `api/src/modules/auth/service.js:247` và **không có câu tiếng Việt nào** trong
+  `web/js/api.js`. Người gõ nhầm năm sinh lúc gia nhập sẽ thấy câu chung chung. `t08` có
+  hẳn một bài đi qua HTTP khẳng định `error.code === 'BIRTH_YEAR_MISMATCH'` — **hai lưới
+  cùng xanh** trong khi người dùng thật không đọc được gì.
+  Nguyên nhân: `serverCodes()` chỉ đọc `BY_MESSAGE`, còn **13 mã ném thẳng bằng
+  `new AppError('…')` nằm ngoài tầm nhìn**. Tức bài này **vẫn là phép so bảng-JS-với-
+  bảng-JS**, chỉ dịch lên một tầng so với bản đã bị sửa.
+- **Chưa hỏng nhưng sẽ hỏng:** **19 CHECK constraint** không đi qua `RAISE EXCEPTION` nên
+  vô hình với bài quét nguồn — `intro_three_consents`, `rel_canonical`,
+  `wr_manual_review`, `sig_fwd_not_self`, `cr_not_self`, `members_not_self_referrer`, và
+  13 cái nữa. Không cái nào có khoá trong `BY_MESSAGE`, và `mapPgError` chỉ xử lý riêng
+  `23505`/`23503`/`42501`, nên `23514 check_violation` rơi qua `return null` ⇒ HTTP 500
+  "Lỗi hệ thống". Chính xác chế độ hỏng tệp này ra đời để chống, chỉ khác một hình dạng
+  cú pháp.
+
+**Sửa thế nào:** cả hai đều dùng lại thứ đã có sẵn trong chính tệp. (i) Cho `serverCodes()`
+gộp thêm `[...readAllSource().matchAll(/new AppError\(\s*'([A-Z0-9_]+)'/g)]` — hàm
+`readAllSource()` đã nằm ngay dưới, bài "câu thừa" đang dùng nó. (ii) Cho
+`raisedInMigrations()` quét thêm `CONSTRAINT <ten> CHECK` và `ADD CONSTRAINT <ten>`.
+
+#### 5. `t10-grants` — `GRANT … TO PUBLIC` và quyền theo CỘT đều vô hình (nguyên tắc 4)
+
+**Vì sao trong top 5.** Ba bài của tệp này là **cửa duy nhất** canh toàn bộ ma trận
+quyền — nền móng mà nguyên tắc 4 đứng lên. Cả ba đều lọc `grantee = 'app_role'`:
+
+- `GRANT SELECT ON <bảng nhạy cảm> TO PUBLIC` ⇒ `app_role` đọc được (mọi vai đều hưởng),
+  mà `information_schema.table_privileges` với `grantee='app_role'` **không thấy gì** ⇒
+  cả ba bài xanh.
+- `GRANT SELECT (phone) ON member_contacts TO app_role` ⇒ nằm ở `column_privileges`, không
+  ở `table_privileges` ⇒ **xanh**.
+
+Vài bảng nhạy cảm có bài hành vi trực tiếp bù lại (`t03` cho `member_contacts`, `t16` cho
+`join_request_secrets`, `t12`/`t13` cho `member_relations`, `member_trust_stats`,
+`fund_entry_approvals`) — nên hôm nay lỗ này chưa mở toang. Nhưng những bảng **không ai
+nghĩ tới** (`otp_challenges`, `refresh_tokens`, `profile_views`, `join_requests`, và mọi
+bảng thêm ở giai đoạn sau) chỉ có đúng ba bài này canh.
+
+**Sửa thế nào:** bỏ bộ lọc `grantee = 'app_role'`, đọc **mọi grantee** rồi khẳng định tập
+hợp `{grantee, privilege}` khớp khai báo — `PUBLIC` xuất hiện là đỏ ngay trừ khi có người
+cố ý khai. Thêm một bài duyệt `information_schema.column_privileges` khẳng định rỗng.
+Đồng thời thêm `'m'` và `'f'` vào `relkind IN (…)`.
+
+---
+
+### Nhóm tiếp theo (đáng sửa, dưới top 5)
+
+| # | Lỗ mù | Che gì | Vì sao không nằm trong top 5 |
+|---|---|---|---|
+| 6 | **`t07` — `detail` KHÔNG nằm trong chuỗi băm `audit_log`** (cùng `community_id`, `ip`); `UPDATE audit_log SET detail = …` là vô hình với `verifyChain`, và không bài nào phát hiện. Thêm nữa, công thức digest tồn tại **hai bản sao** (trigger `007` ↔ `core/audit.js`) — sửa cùng lúc cả hai thì chuỗi vẫn "lành". | Nguyên tắc 4 (nhật ký bất biến) | Đây là phát hiện về **cơ chế**, không chỉ về bài test; sửa phải đổi công thức băm, tức migration mới — mà migration đang có người khác làm. |
+| 7 | **`t21` đang vi phạm chính luật Ruling T9-e**: 16 route, `t21` gọi tới 9. Không lưới hình dạng nào cho `POST /auth/otp/request` và **cả năm route `/join-requests`**. | Lớp vỏ HTTP — chỗ dữ liệu thật sự rời máy chủ | `t08` có kiểm nội dung (không rò số điện thoại) cho `GET /join-requests/:id`, nên phần nguy hiểm nhất đã có lưới; cái thiếu là hình dạng tên khoá. Sửa rất rẻ: thêm `assertSnakeKeys` vào các bài `t08` đã có. |
+| 8 | **`t06` bài 3 — khẳng định không thể đỏ.** `envelope()` được gọi không truyền `values`, nên `value === null` đúng ở cả hai nhánh. Bài mang tên *"value luôn null ở mọi trạng thái"* mà không thể đỏ. | Nguyên tắc 4 | Cổng `inline` **có** lưới ở `t13-privacy-eight-fields`, nên dự án không mù. Nhưng nên sửa vì một bài không thể đỏ là bài **dập tắt câu hỏi** — đúng loại tệ nhất trong ba loại đã gặp. Sửa một dòng: truyền `{ phone: '0912…' }` vào `envelope()`. |
+| 9 | **Bảy khẳng định dùng mẫu regex RỘNG** (`/violates foreign key/i`, `/duplicate key\|unique/i`) ở `t08`, `t12-work-edge` (×3), `t13-no-anonymous` (×2), `t13-three-consents`, `t16`. Chúng xanh với **bất kỳ** lỗi cùng họ nào, kể cả lỗi chẳng liên quan. | Chi tiết kỹ thuật | Task 13 đã sửa đúng một chỗ như vậy (`t13-signature-removal`) và để lại khuôn mẫu: khẳng định **tên ràng buộc đích danh**. Bảy chỗ còn lại chỉ là việc lặp lại khuôn đó. |
+| 10 | **`t08` bài "12 THÁNG TRƯỢT" phụ thuộc THÁNG CHẠY.** Lập luận đúng "vì hôm nay là tháng 8"; chạy vào tháng 1–2 thì `now() - 11 months` cùng năm dương lịch và bài không còn phân biệt hai luật. | Nguyên tắc 1 | Lỗ có **hẹn giờ** chứ chưa hỏng. Sửa: gieo theo mốc tuyệt đối (`date_trunc('year', now()) - interval '1 month'`) thay vì mốc tương đối. Kèm theo: `t12-manual-quota` **thiếu hẳn** bài đối xứng "11 tháng vẫn chặn". |
+| 11 | **`t22` chỉ kiểm `CORS_ORIGIN` của môi trường TEST.** Đặt `CORS_ORIGIN=*` trong `.env` production thì bài `not.toBe('*')` không chạm tới. | Chi tiết vận hành | Thuộc về kiểm cấu hình triển khai, không phải bộ test đơn vị. Ghi vào README/checklist vận hành (Task 19) thì đúng chỗ hơn. |
+| 12 | **`t17` — kênh phụ THỜI GIAN ở `/auth/login`.** Bài `login trả cùng một lỗi cho số lạ và mật khẩu sai` so **câu chữ**, không so **thời gian**; số lạ không chạy `argon2.verify` nên nhanh hơn hẳn. `/auth/register` có sàn 700ms; `/auth/login` không có gì. | Chống dò danh sách thành viên | Đặc tả chỉ đòi cùng thông điệp cho `login`. Nêu ra để người chủ trì quyết, không tự xếp thành lỗi. |
+| 13 | **Phép đếm gián tiếp ở `t06` và `t10.5`** — đếm *dòng nhật ký* để chứng minh *không có lời gọi `contact_read`*. Một đường đọc không ghi log làm cả hai con số đứng im. | Nguyên tắc 4 | Đã ghi "minor deferred" từ Task 6; hôm nay `app_role` không có `SELECT` trên `member_contacts` nên đường đó phải là một `SECURITY DEFINER` mới — tức phải qua migration, tức có người soát. |
+| 14 | **Ba miền lặp lấy từ chính mã đang kiểm** (`t06` `CONTACT_FIELDS`, `t13-privacy-eight-fields` ×2 với `FIELDS`). Xoá một phần tử khỏi hằng số thì vòng lặp tự co lại. | Chi tiết | `expect(FIELDS).toHaveLength(8)` và `t16` (8 hàng `privacy_settings` từ CSDL) đã bù phần lớn. |
+| 15 | **`pg_locks` được đếm TOÀN CỤM** trong hai bài chạy đua (`t08`, `t12-manual-quota`), không lọc theo khoá của chính bài đó. | Chi tiết | Vô hại khi `fileParallelism: false`. Nhưng ai bật song song lên sẽ **làm hai bài đó thành xanh giả trở lại** — đúng thứ Ruling T8-a tốn một vòng để bịt. Nên thêm comment cảnh báo ngay tại `vitest.config.js`. |
+
+---
+
+## 4. Bài nào canh nguồn TỐT — mười hai khuôn mẫu để bắt chước
+
+Đây là phần đáng đọc nhất cho người viết bài test lần sau. Mỗi mục là **một khuôn hình
+có tên**, kèm bài thật để mở ra xem.
+
+| # | Khuôn mẫu | Bài mẫu | Vì sao nó canh nguồn |
+|---|---|---|---|
+| 1 | **Kiểm KẾT QUẢ CUỐI CÙNG mà người thật sự dùng, không kiểm "đã gọi đúng hàm chưa"** | `t02` — đặt mật khẩu chứa `?`, chạy migration, rồi **mở một kết nối TCP thật bằng chính mật khẩu đó** | Không có cách nào giả vờ: hoặc đăng nhập được, hoặc không. So sánh: kiểm "câu SQL trông đúng chưa" sẽ bỏ lọt việc knex thay `?` thành `$1` **bên trong chuỗi literal**. |
+| 2 | **Tự CHỨNG MINH TIỀN ĐỀ của mình trước khi tin vào kết quả** | `t18` bài 2 — ép pool `{min:1,max:1}` rồi **đối chiếu `pg_backend_pid()`**: nếu giả định "cùng một kết nối vật lý" sai thì bài **thất bại rõ ràng**, không lặng lẽ xanh | Bài cũ không phân biệt được "dấu tự hủy đúng ngữ nghĩa" với "trúng một kết nối khác chưa từng đóng dấu". |
+| 3 | **Soi CÁI THỰC SỰ ĐƯỢC GHI RA, không mock rồi kiểm tham số truyền vào** | `t20` — dựng `pino` thật với `pinoHttpOptions` **import từ production**, ghi vào stream trong bộ nhớ, đọc chuỗi JSON cuối cùng, rồi `JSON.stringify` lại lần nữa để bắt giá trị lồng sâu | Mock rồi kiểm tham số chỉ kiểm **cái ta đưa vào**, không kiểm cái bộ tuần tự thực sự nhả ra. |
+| 4 | **Bài đồng thời phải có ĐIỂM ĐỒNG BỘ QUAN SÁT ĐƯỢC TỪ MÁY CHỦ** | `t08` và `t12-manual-quota` — đọc `pg_locks … NOT granted` bằng kết nối thứ ba, chỉ commit khi giao dịch kia **thật sự đang xếp hàng** | Xếp lịch promise trong Node **không** phải điểm đồng bộ (Ruling T8-a): bài sẽ "đúng kết quả vì lý do sai" và không phân biệt được hai lý do. |
+| 5 | **Kèm BẰNG CHỨNG ĐỐI CHỨNG rằng nguồn không rỗng** | `t08` `applicant_data không bao giờ rời máy chủ nguyên vẹn` — `not.toContain(phone)` **cộng với** một câu đọc CSDL chứng minh số điện thoại thật **đang** nằm ở `join_request_secrets` | `not.toContain` một mình xanh y hệt khi cột đã rỗng vì lý do khác. Đối chứng biến nó thành bằng chứng về **lớp lọc**. |
+| 6 | **ĐI VÒNG QUA đúng lớp mà mình không muốn phải tin** | `t10` `contact_read (tầng CSDL) tự chặn, không dựa vào service` — gọi thẳng hàm CSDL, bỏ qua service | Nếu chỉ gọi qua service, ta chỉ chứng minh service đang kiểm — mà route thứ hai viết ngày mai sẽ không có câu kiểm đó. |
+| 7 | **Khẳng định TÊN RÀNG BUỘC ĐÍCH DANH, không dùng mẫu rộng** | `t13-signature-removal` `approver của CỘNG ĐỒNG KHÁC không ký được` → `fund_entry_approvals_approver_id_community_id_fkey` | Bản đầu khớp `/foreign key\|FUND_TWO/i` và xanh với **bất kỳ** lỗi khoá ngoại nào, kể cả lỗi chẳng liên quan. Đã sửa ở Task 13; bảy chỗ khác trong bộ vẫn chưa. |
+| 8 | **Canh cả CHIỀU NGƯỢC — luật có chạm nhầm chỗ không** | `t13-fund` `bút toán CHƯA khóa vẫn sửa được`; `t12-manual-quota` `approver hợp lệ ⇒ duyệt được`; `t13-guards-ab` `đổi ý trên ảnh CHƯA duyệt thì tự do` | Thiếu vế này thì cả nhóm bài "phải bị chặn" vẫn xanh **kể cả khi trigger chặn sạch mọi thao tác** — tức luật chưa từng có cơ hội chạy đúng lần nào. |
+| 9 | **Bịt KÊNH PHỤ, không chỉ che giá trị** | `t13-privacy-eight-fields` `job closed: lọc theo nghề KHÔNG tìm thấy nữa` | Che giá trị mà để hở bộ lọc là che một nửa: `?job=Bac si` đọc lại đúng trường vừa che, chỉ khác là đọc bằng phép thử-và-loại. |
+| 10 | **Dựng ĐÚNG HÌNH DẠNG DỮ LIỆU mà lỗi cần để lộ ra** | `t12-manual-quota` `bản ghi BA NGƯỜI…` — chọn id `z` sao cho cặp `(min,max)` **khác** cặp `(x,y)`; `t12-work-edge` `ba người: thiếu MỘT người` | Một bản ghi ba người *bất kỳ* sẽ không lộ lỗi "chỉ canh cặp (min,max)". Bài test phải biết hình dạng của lỗi nó đi tìm. |
+| 11 | **Canh THUẬT TOÁN, không chỉ canh hai đầu vào dễ** | `t22` `gốc chỉ TRÙNG TIỀN TỐ vẫn bị từ chối`; `t16` `tên trường ngoài danh sách trắng bị chặn TRƯỚC format(%I)` (kèm một chuỗi tiêm SQL thật) | Hai đầu vào "hợp lệ" và "hoàn toàn lạ" xanh với cả `===` lẫn `startsWith`. Chỉ đầu vào **trùng tiền tố** phân biệt được hai thuật toán. |
+| 12 | **ÉP NHÁNH HIẾM chạy thật, thay vì tin nó có ở đó** | `t00` bài 3 — tự `REVOKE SELECT` để nhánh `catch()` thật sự chạy; `t19` bài 2 — gỡ `req.log` để kiểm đường rơi về `console.error` | Nhánh xử lý lỗi là nhánh **không bao giờ chạy trong lúc mọi thứ bình thường**, nên nó cũng là nhánh dễ hỏng nhất mà không ai biết. |
+
+Hai khuôn phụ đáng ghi thêm:
+
+- **Canh một BẢN VÁ, không canh một tính năng.** `t13-contact-read-survives` chạy
+  `resetDb()` (áp đủ 29 migration) rồi mới hỏi — nên mọi lần `CREATE OR REPLACE` về sau
+  đều phải đi qua nó. Bản vá bị ghi đè trong im lặng là chế độ hỏng riêng của
+  `CREATE OR REPLACE`, và nó cần một bài riêng.
+- **KHAI BÁO TRUNG THỰC khi một lưới chỉ canh cách viết.** `t13-contact-read-survives`
+  bài 4 và `t17` bài `mã OTP được băm bằng argon2` đều nói thẳng trong comment rằng chúng
+  canh cái gì và **không** canh cái gì. Một cái tên hứa đúng còn quý hơn một cái lưới
+  rộng — Ruling T7-b: *một bài test sai tên tệ hơn không có bài test.*
+
+---
+
+## 5. Bài XANH GIẢ: không tìm thấy — và không sửa bài nào
+
+Đề bài cho phép sửa **chỉ** những bài "thật sự không canh gì": khẳng định luôn đúng bất
+kể mã ra sao, `expect` nằm trong nhánh không bao giờ chạy, hoặc bắt ngoại lệ rồi nuốt.
+Đã soát cả 290 bài theo ba dấu hiệu đó. **Không bài nào rơi vào loại này**, nên **không
+tệp test nào bị sửa** trong task này.
+
+Ba ca **sát ranh giới** đã cân nhắc rồi loại, ghi lại để lần sau không phải cân nhắc lại:
+
+1. **`t06` bài 3 — vòng lặp cuối là một khẳng định KHÔNG THỂ ĐỎ** (`envelope()` gọi
+   không có `values` ⇒ `value` là `null` ở cả hai nhánh). Đây đúng là hình dạng đề bài
+   mô tả — nhưng nó là **một khẳng định rỗng bên trong một bài có canh thật**: sáu
+   khẳng định `state` phía trên chạy thật và đỏ được. Bài không phải xanh giả; nó là bài
+   **canh triệu chứng có một khẳng định thừa**. Đã xếp hạng 8 và nêu bản sửa một dòng.
+2. **`t13-no-anonymous`** `rows.every(r => r.response === null)` — `Array.every` xanh trên
+   mảng rỗng. Nhưng `expect(rows.map(…)).toContain(hoaNgoai)` ngay phía trên đã chứng minh
+   mảng không rỗng. Khe hở đóng.
+3. **`t07`** `logDenied ghi được dòng dù giao dịch chính vừa rollback` — bài này bắt ngoại
+   lệ rồi nuốt (`catch { }`), đúng dấu hiệu thứ ba. Nhưng nó nuốt **có chủ đích và đúng**:
+   mục đích của khối `try` là *tạo ra* một giao dịch đã rollback, không phải kiểm nó; phần
+   khẳng định nằm sau và chạy thật trên CSDL. Không phải xanh giả — chỉ là bài **không tái
+   hiện đúng hình dạng nguy hiểm** (đã ghi ở bảng và ở "minor deferred" Task 4).
+
+**Kết luận cho người đọc sáu tháng nữa:** dự án đã gặp bốn loại lỗi kiểm thử —
+**test thiếu** (Ruling T6-a), **test sai tên** (T7-b), **test canh đúng thứ cần canh mà
+vẫn không canh gì** (T8-a), và **test đo sai đại lượng** (T13-c). Ba loại đầu đã bị săn
+gần hết: lần soát này không tìm thêm được ca nào. Loại thứ tư — đo sai đại lượng — thì
+**vẫn còn sống**, và top 5 ở trên đều thuộc về nó. Nó khó thấy hơn ba loại kia vì bài
+test **trông** đúng: nó chạy, nó đỏ được, nó có tên khớp assertion. Chỉ khi hỏi *"đại
+lượng nó đo có phải là thứ ta thật sự quan tâm không"* thì khoảng cách mới hiện ra.
