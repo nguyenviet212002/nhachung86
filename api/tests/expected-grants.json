@@ -224,5 +224,56 @@
     "SELECT",
     "INSERT",
     "UPDATE"
+  ],
+  "verifications": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+  ],
+  "endorsements": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+  ],
+  "endorsement_signatures": [
+    "SELECT",
+    "INSERT"
+  ],
+  "complaints": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "complaint_events": [
+    "SELECT",
+    "INSERT"
+  ],
+  "memories": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+  ],
+  "memory_versions": [
+    "SELECT",
+    "INSERT"
+  ],
+  "memory_photos": [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE"
+  ],
+  "memory_photo_people": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
+  ],
+  "memory_consents": [
+    "SELECT",
+    "INSERT",
+    "UPDATE"
   ]
 }
