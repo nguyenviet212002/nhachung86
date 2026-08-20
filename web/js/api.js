@@ -114,6 +114,12 @@
     JOIN_REQUEST_FROZEN:    'Những dữ kiện này của đơn đã cố định, không sửa lại được.',
     PHOTO_PEOPLE_FROZEN:    'Không dời được người có mặt sang tấm ảnh khác. Đổi ý thì sửa câu trả lời đồng ý.',
 
+    // Mã của migration 028 — `communities.config` và `guarantee_quota_overrides`
+    // nay đi qua khung hai người ký, và bảo chứng đòi vai approver (QĐ-2).
+    CONFIG_CHANGE_UNSIGNED: 'Đổi chính sách của Hội phải qua một việc chờ có đủ hai người ký.',
+    QUOTA_OVERRIDE_UNSIGNED: 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.',
+    ENDORSER_ROLE_REQUIRED: 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.',
+
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',
 

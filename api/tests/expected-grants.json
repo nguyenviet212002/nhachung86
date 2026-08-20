@@ -1,5 +1,5 @@
 {
-  "communities":              ["SELECT", "INSERT", "UPDATE", "DELETE"],
+  "communities":              ["SELECT"],
   "areas":                    ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "members":                  ["SELECT", "INSERT", "UPDATE", "DELETE"],
   "member_contacts":          [],

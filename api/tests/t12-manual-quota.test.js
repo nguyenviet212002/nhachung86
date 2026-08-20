@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { resetDb, ownerKnex } from './helpers/db.js';
+import { patchConfig } from './helpers/twoPerson.js';
 import { withActor } from '../src/core/tx.js';
 
 // ---------------------------------------------------------------------------
@@ -119,14 +120,16 @@ describe('T12 lớp 2 — hạn mức 6 bản ghi manual mỗi cặp / 12 tháng
 
   it('hạn mức đọc từ communities.config, không phải hằng số trong mã', async () => {
     const [x, y] = await mkTeam(2);
-    await db.raw(`UPDATE communities SET config = config || '{"manual_pair_quota":2}'::jsonb WHERE id = ?`, [cid]);
+    // Từ migration 028, `communities.config` chỉ đổi được qua khung hai người
+    // ký (chỗ hở #22). Đây là phần DỰNG dữ liệu, nên đi qua trợ giúp.
+    await patchConfig(db, cid, { manual_pair_quota: 2 });
     try {
       await fullManual(x, y);
       await fullManual(x, y);
       const wr3 = await newManual({ createdBy: x, parts: [x, y] });
       await expect(confirmAs(x, wr3)).rejects.toThrow(/MANUAL_PAIR_QUOTA_EXCEEDED/);
     } finally {
-      await db.raw(`UPDATE communities SET config = config - 'manual_pair_quota' WHERE id = ?`, [cid]);
+      await patchConfig(db, cid, { manual_pair_quota: undefined });
     }
   });
 

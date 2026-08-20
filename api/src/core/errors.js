@@ -90,6 +90,14 @@ const BY_MESSAGE = {
   PENDING_ACTION_FROZEN:       [409, 'PENDING_ACTION_FROZEN', 'Việc này đã có chữ ký nên nội dung không đổi được nữa. Hãy tạo lại và ký lại từ đầu.'],
   JOIN_REQUEST_FROZEN:         [409, 'JOIN_REQUEST_FROZEN', 'Những dữ kiện này của đơn đã cố định, không sửa lại được.'],
   PHOTO_PEOPLE_FROZEN:         [409, 'PHOTO_PEOPLE_FROZEN', 'Không dời được người có mặt sang tấm ảnh khác. Đổi ý thì sửa câu trả lời đồng ý.'],
+
+  // ---------------------------------------------------------------------
+  // Migration 028 — ba chỗ hở mục 7 của docs/RANG-BUOC.md, nay đi qua khung
+  // hai người ký. Khai ngay khi trigger ra đời, cùng lý do đã ghi ở trên.
+  // ---------------------------------------------------------------------
+  CONFIG_CHANGE_UNSIGNED:      [422, 'CONFIG_CHANGE_UNSIGNED', 'Đổi chính sách của Hội phải qua một việc chờ có đủ hai người ký.'],
+  QUOTA_OVERRIDE_UNSIGNED:     [422, 'QUOTA_OVERRIDE_UNSIGNED', 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.'],
+  ENDORSER_ROLE_REQUIRED:      [403, 'ENDORSER_ROLE_REQUIRED', 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.'],
 };
 
 export function mapPgError(err) {

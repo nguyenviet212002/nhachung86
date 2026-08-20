@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 import supertest from 'supertest';
 import { resetDb, ownerKnex } from './helpers/db.js';
+import { patchConfig, grantQuotaOverride } from './helpers/twoPerson.js';
 import { config } from '../src/config/index.js';
 import { requestOtp, verifyOtp } from '../src/modules/auth/service.js';
 import { consoleAdapter } from '../src/core/otp/console.js';
@@ -212,22 +213,54 @@ describe('T8 hạn mức bảo lãnh — cưỡng chế ở CSDL, không phải 
 
   it('guarantee_quota_overrides nới đúng số suất đã cấp, và hết hiệu lực theo valid_until', async () => {
     const referrer = await newMember();
-    const approver = await newMember();
     for (let i = 0; i < 3; i++) await insertJr(referrer);
     await expect(insertJr(referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
 
-    const { rows: [ov] } = await db.raw(
-      `INSERT INTO guarantee_quota_overrides (community_id, referrer_id, extra_slots, reason, granted_by, valid_until)
-       VALUES (?, ?, 1, 'truong hop dac biet', ?, now() + interval '1 day') RETURNING id`,
-      [cid, referrer, approver]
-    );
+    // Từ migration 028 (chỗ hở #20 của docs/RANG-BUOC.md), hàng nới hạn mức
+    // PHẢI gắn với một hành động `guarantee.quota_override` đã thi hành — nên
+    // bài này dựng dữ liệu qua khung hai người ký thay vì INSERT trần.
+    const { overrideId } = await grantQuotaOverride(db, cid, { referrerId: referrer });
     await expect(insertJr(referrer)).resolves.toBeTruthy(); // suất thứ 4 nhờ nới lỏng
     await expect(insertJr(referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/); // suất thứ 5 thì không
 
     // Nới lỏng TỰ hết hạn: đẩy valid_until về quá khứ (chỉ owner làm được —
     // app_role bị REVOKE UPDATE, xem expected-grants.json).
-    await db.raw(`UPDATE guarantee_quota_overrides SET valid_until = now() - interval '1 second' WHERE id = ?`, [ov.id]);
+    await db.raw(`UPDATE guarantee_quota_overrides SET valid_until = now() - interval '1 second' WHERE id = ?`, [overrideId]);
     await expect(insertJr(referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
+  });
+
+  it('INSERT trần vào guarantee_quota_overrides không còn nới được suất nào (#20)', async () => {
+    const referrer = await newMember();
+    const keAn = await newMember();
+    for (let i = 0; i < 3; i++) await insertJr(referrer);
+
+    // Đúng câu đã tái hiện được ở docs/RANG-BUOC.md mục 5.4: tự cấp suất cho
+    // chính mình, `granted_by` là chính mình. Nay NOT NULL chặn ngay ở cột.
+    await expect(
+      db.raw(
+        `INSERT INTO guarantee_quota_overrides (community_id, referrer_id, extra_slots, reason, granted_by, valid_until)
+         VALUES (?, ?, 3, 'tu cap', ?, now() + interval '1 year')`,
+        [cid, referrer, referrer]
+      )
+    ).rejects.toThrow(/pending_action_id|null value/i);
+
+    // Và ngay cả khi trỏ tới một hành động CÓ THẬT nhưng chưa đủ chữ ký /
+    // chưa thi hành, COMMIT vẫn hỏng — kiểm ở tầng CSDL, không ở service.
+    const { rows: [pa] } = await db.raw(
+      `INSERT INTO pending_actions (community_id, action_key, target_type, target_id, payload, payload_hash, created_by)
+       VALUES (?, 'guarantee.quota_override', 'member', ?, '{}'::jsonb, 'x', ?) RETURNING id`,
+      [cid, referrer, keAn]
+    );
+    await expect(
+      db.transaction(async (trx) => {
+        await trx.raw(
+          `INSERT INTO guarantee_quota_overrides
+             (community_id, referrer_id, extra_slots, reason, granted_by, valid_until, pending_action_id)
+           VALUES (?, ?, 3, 'tu cap', ?, now() + interval '1 year', ?)`,
+          [cid, referrer, keAn, pa.id]
+        );
+      })
+    ).rejects.toThrow(/QUOTA_OVERRIDE_UNSIGNED/);
   });
 
   it('đơn của cộng đồng này không trỏ được người bảo lãnh sang cộng đồng khác', async () => {
@@ -256,13 +289,24 @@ describe('T8 hạn mức bảo lãnh — cưỡng chế ở CSDL, không phải 
 
   it('hạn mức đọc từ communities.config, không phải hằng số trong mã', async () => {
     const referrer = await newMember();
-    await db.raw(`UPDATE communities SET config = config || '{"guarantee_quota_per_year":1}'::jsonb WHERE id = ?`, [cid]);
+    // Từ migration 028, `communities.config` chỉ đổi được qua khung hai người
+    // ký (chỗ hở #22 — "chi 50 triệu không một chữ ký nào"). Bài này dựng dữ
+    // liệu qua đúng con đường đó; bài kiểm chính con đường ấy nằm ở t25.
+    await patchConfig(db, cid, { guarantee_quota_per_year: 1 });
     try {
       await expect(insertJr(referrer)).resolves.toBeTruthy();
       await expect(insertJr(referrer)).rejects.toThrow(/GUARANTEE_QUOTA_EXCEEDED/);
     } finally {
-      await db.raw(`UPDATE communities SET config = config - 'guarantee_quota_per_year' WHERE id = ?`, [cid]);
+      await patchConfig(db, cid, { guarantee_quota_per_year: undefined });
     }
+  });
+
+  it('UPDATE trần vào communities.config bị chặn — kể cả bằng kết nối owner (#22)', async () => {
+    await expect(
+      db.raw(`UPDATE communities SET config = config || '{"guarantee_quota_per_year":99}'::jsonb WHERE id = ?`, [cid])
+    ).rejects.toThrow(/CONFIG_CHANGE_UNSIGNED/);
+    const { rows: [c] } = await db.raw(`SELECT config FROM communities WHERE id = ?`, [cid]);
+    expect(c.config.guarantee_quota_per_year).toBeUndefined();
   });
 });
 
