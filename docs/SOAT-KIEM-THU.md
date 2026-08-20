@@ -319,3 +319,233 @@ Tệp canh nguyên tắc 2, và là một trong hai tệp **canh nguồn sạch 
 | `cạnh (B,A) khi đã có (A,B) ⇒ rel_canonical chặn` | CSDL thật, nêu **đích danh** tên ràng buộc | **N** | Chưa nghĩ ra đường lách. |
 | `người tham gia của cộng đồng KHÁC không gắn được vào bản ghi việc` | CSDL thật | **N/T** | Mẫu rộng `/violates foreign key/i` — không nêu đích danh khoá ghép nào chặn. |
 | `một việc của cộng đồng KHÁC sinh cạnh trong ĐÚNG cộng đồng đó` | CSDL thật + đối chứng đếm 0 | **N** | Chưa nghĩ ra đường lách. |
+
+### `t13-contact-read-survives.test.js` (4 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `người xem ở cộng đồng A không đọc được BẤT KỲ trường nào của người ở cộng đồng B` | Chạy `contact_read` thật **sau khi áp đủ 29 migration**, duyệt cả bốn trường | **N** | Chưa nghĩ ra đường lách. Mẫu rất tốt: nó canh một **bản vá** chứ không canh một tính năng — `resetDb()` chạy tới tệp migration cuối cùng, nên mọi lần `CREATE OR REPLACE` về sau đều phải đi qua đây. |
+| `vẫn dùng chung mã NO_TARGET với "không tồn tại"` | Thật | **N** | Chưa nghĩ ra đường lách. Nó khoá quyết định "không rò danh sách thành viên qua thông điệp lỗi". |
+| `đối chứng: cùng lời gọi đó TRONG cùng cộng đồng thì đọc được` | Thật | **N** | Đối chứng bắt buộc, comment nói rõ vì sao. |
+| `thân hàm contact_read đang chạy CÓ hai câu kiểm cộng đồng` | Đọc `pg_proc.prosrc` thật, khớp `/v_viewer_cid/` và `/IS DISTINCT FROM v_cid/` | **T** — **và tệp tự khai đúng như vậy** | Canh một **CÁCH VIẾT**. Đường lách: viết lại bằng `WHERE m.community_id = v_viewer_cid` (không có `IS DISTINCT FROM`), hoặc đổi tên biến thành `v_cid_nguoi_xem` ⇒ **đỏ dù mã đúng** (dương tính giả), hoặc giữ nguyên hai chuỗi đó trong một nhánh **không bao giờ chạy tới** ⇒ **xanh dù mã sai**. Comment của tệp đã tự nêu vai trò của nó ("lưới thứ hai, canh sự CÓ MẶT") — đây là cách khai báo trung thực đúng chuẩn, và ba bài trên mới là lưới chính. |
+
+### `t13-no-anonymous.test.js` (12 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `điền tên người khác vào from_member_id ⇒ SELF_ONLY` | CSDL thật | **N** | Chưa nghĩ ra đường lách. Đây là ca **`NOT NULL` bắt ô trống, không bắt ô điền tên người khác** (Ruling T13-b) được vá và canh đúng chỗ. |
+| `chuyển tiếp ngoài giao dịch có dấu người thực hiện ⇒ NO_ACTOR` | CSDL thật, kết nối chưa từng `set_config` | **N** | Chưa nghĩ ra đường lách. |
+| `người CHƯA NHẬN tín hiệu không chuyển tiếp được nó` | CSDL thật | **N/T** | Mẫu rộng `/foreign key\|sig_fwd_from_recipient/i` — nhánh đầu khớp bất kỳ lỗi khoá ngoại nào. |
+| `không chuyển tiếp cho chính mình` | CSDL thật, nêu **đích danh** `sig_fwd_not_self` | **N** | Chưa nghĩ ra đường lách. |
+| `chuyển tiếp hợp lệ SINH RA một điểm nhận mới, và view thấy đủ` | CSDL thật + đọc `v_signal_recipients` | **N** | Đối chứng cần thiết cho bốn bài trên. `rows.every(r => r.response === null)` sẽ **xanh trên mảng rỗng** — nhưng `toContain(hoaNgoai)` ngay trên đã chứng minh mảng không rỗng, nên khe hở này đã đóng. |
+| `chuyển tiếp không rút lại được — app_role không UPDATE/DELETE` | `app_role` thật | **N** | Chưa nghĩ ra đường lách. |
+| `trả lời thay người khác ⇒ SELF_ONLY` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `người không nhận tín hiệu thì không trả lời được` | CSDL thật, **tự tạo người hoàn toàn mới** vì Hoà đã thành điểm nhận ở bài trên | **N/T** | Mẫu rộng `/foreign key\|sig_resp_recipient/i`. Nhưng phần chọn dữ liệu là mẫu tốt: comment nêu rõ vì sao không dùng lại người cũ — đúng thứ làm bài test "đỏ vì lý do khác". |
+| `chính chủ trả lời thì được — bài trên không đỏ vì lý do sai` | CSDL thật | **N** | Đối chứng, và **tên bài nói thẳng nó là đối chứng**. Mẫu tốt. |
+| `điền hộ người khác ⇒ SELF_ONLY` (aid slot) | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `tự nhận thì được` | CSDL thật | **N** | Đối chứng. |
+| `người thứ hai vào suất chỉ cần 1 người ⇒ AID_SLOT_FULL` | CSDL thật | **N** | Không có bài "suất cần 2 thì người thứ hai vào được" — ngưỡng `needed` chỉ được thử ở đúng giá trị 1, nên cài `needed` thành hằng số 1 sẽ **không bị bắt**. Nhỏ vì `needed` là cột thật. |
+
+### `t13-signature-removal.test.js` (11 bài)
+
+Nguyên tắc 3. Comment đầu tệp tự nêu bẫy công cụ Ruling T8-g và **cả 11 bài dùng
+dạng callback** — đó là chỗ dễ hỏng nhất và nó không hỏng.
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `DELETE bị từ chối ở tầng quyền` | `app_role` thật | **N** | Chưa nghĩ ra đường lách. |
+| `UPDATE cũng bị từ chối — đổi approver_id là gỡ chữ ký bằng cách khác` | `app_role` thật | **N** | Chưa nghĩ ra đường lách. Mẫu tốt: nó nhận ra "gỡ chữ ký" có **hai** hình dạng. |
+| `xoá một trong hai chữ ký ⇒ COMMIT hỏng với FUND_TWO_APPROVERS_REQUIRED` | Owner thật, dạng callback, **và đếm lại chữ ký sau rollback** | **N** | Mẫu rất tốt: *"Bắt được ngoại lệ mà dữ liệu vẫn hỏng thì ngoại lệ đó vô nghĩa."* Rất ít bài trong bộ khẳng định cả hai vế đó. |
+| `xoá CẢ HAI chữ ký cũng hỏng` | Owner thật | **N** | Chưa nghĩ ra đường lách. |
+| `đổi approver thành người KHÔNG có vai approver cũng hỏng` | Owner thật | **N** | Chưa nghĩ ra đường lách. |
+| `thay MỘT approver bằng approver khác thì được` | Owner thật, và **tự dọn lại hiện trạng** | **N** | Đối chứng bắt buộc, comment nói đúng lý do. |
+| `bút toán lớn với 1 chữ ký không COMMIT được` | Owner thật | **N** | Chưa nghĩ ra đường lách. |
+| `người tạo tự ký không được tính` | Owner thật | **N** | Chưa nghĩ ra đường lách. |
+| `người không có vai approver không được tính` | Owner thật | **N** | Chưa nghĩ ra đường lách. |
+| `approver của CỘNG ĐỒNG KHÁC không ký được` | Owner thật, khẳng định **đích danh** `fund_entry_approvals_approver_id_community_id_fkey` | **N** | Mẫu tốt nhất bộ về "đừng dùng mẫu rộng": bản đầu khớp `/foreign key\|FUND_TWO/i` và đã bị sửa ở Task 13 vì nó xanh với **bất kỳ** lỗi khoá ngoại nào. Bảy chỗ khác trong bộ vẫn còn nguyên lỗi đó (xem xếp hạng). |
+| `bút toán NHỎ không cần chữ ký nào — ngưỡng có thật` | Owner thật | **N** | Khẳng định chỉ là `toBeTruthy()` trên id trả về; không đọc lại hàng. Nhẹ nhưng đủ. |
+
+### `t13-fund.test.js` (11 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `owner UPDATE bút toán đã khóa ⇒ FUND_ENTRY_LOCKED` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `owner DELETE bút toán đã khóa ⇒ FUND_ENTRY_LOCKED` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `không mở khóa lại được — locked là một chiều` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `không thêm được chữ ký vào bút toán đã khóa` | CSDL thật | **N** | Chưa nghĩ ra đường lách (chốt bảng A/B đúng chiều). |
+| `app_role không xoá được bút toán nào, khóa hay chưa` | `app_role` thật, cả hai hàng | **N** | Chưa nghĩ ra đường lách. |
+| `bút toán CHƯA khóa vẫn sửa được, và khóa được đúng một lần` | CSDL thật | **N** | Đối chứng bắt buộc, comment nói đúng lý do (thiếu nó thì năm bài trên xanh cả khi trigger cấm sạch mọi `UPDATE`). |
+| `hoạt động dùng quỹ ĐẦU TIÊN mở được` | CSDL thật | **N/T** | Khẳng định chỉ là `toBeTruthy()` trên id; và nó **để lại trạng thái** (`cu`) cho ba bài sau — bài giòn theo thứ tự chạy, cùng loại "minor deferred" đã ghi ở Task 7 cho `t17`. |
+| `hoạt động dùng quỹ thứ hai bị chặn khi món cũ chưa tổng kết` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `hoạt động KHÔNG dùng quỹ vẫn mở được` | CSDL thật | **N** | Đối chứng. |
+| `nộp bản tổng kết xong thì mở được ngay` | CSDL thật | **N** | Đối chứng, và nó khoá luôn tính "ngay" (không chờ tác vụ nền). |
+| `bản tổng kết không xoá được bằng app_role` | `app_role` thật | **N** | Chưa nghĩ ra đường lách. |
+
+### `t13-guards-ab.test.js` (14 bài)
+
+Khuôn "ràng buộc trên bảng A không chạy khi động vào bảng B" ở ba chỗ ngoài quỹ.
+Toàn bộ dùng dạng callback và mọi khẳng định đều theo **tên mã lỗi đích danh**.
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `gỡ một chữ ký ⇒ COMMIT hỏng, và chữ ký vẫn còn` | CSDL thật, hai vế | **N** | Chưa nghĩ ra đường lách. |
+| `thêm chữ ký thứ BA cũng hỏng — "đúng 2" chứ không phải "ít nhất 2"` | CSDL thật | **N** | Mẫu tốt: nó phân biệt hai luật rất dễ nhầm. |
+| `người được bảo chứng không tự ký cho mình` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `bảo chứng mới với 1 chữ ký không thành active được` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `bản nháp thì không cần chữ ký nào — ngưỡng có thật` | CSDL thật | **N** | Đối chứng; khẳng định chỉ `toBeTruthy()` trên id. |
+| `người trong ảnh đổi ý sang "no" ⇒ ảnh đã duyệt không đứng nữa` | CSDL thật | **N** | Chưa nghĩ ra đường lách. Đây là chỗ quyền **rút lại sự đồng ý** của Nghị định 13 được ép ở tầng dữ liệu. |
+| `gắn thêm một người CHƯA trả lời vào ảnh đã duyệt cũng bị chặn` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `duyệt một ảnh mà có người chưa trả lời ⇒ bị chặn ngay ở bảng ảnh` | CSDL thật | **N** | Chưa nghĩ ra đường lách (chiều A). |
+| `im lặng KHÔNG phải đồng ý — "no_reply" chặn y như "no"` | CSDL thật | **N** | Mẫu tốt: khoá đúng một quyết định đạo đức bằng dữ liệu. |
+| `đổi ý trên ảnh CHƯA duyệt thì tự do` | CSDL thật | **N** | Đối chứng. |
+| `gỡ chữ ký của một hành động đã thi hành ⇒ COMMIT hỏng` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `người ký phải mang đúng vai mà action_key đòi` | CSDL thật | **N** | Chỉ thử **một** `action_key` (`data.delete`); bảng ánh xạ khoá→vai không được duyệt hết. |
+| `người ký không được là ĐỐI TƯỢNG của hành động` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `thi hành mà thiếu chữ ký người tạo ⇒ hỏng` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+
+### `t13-three-consents.test.js` (9 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `không đặt được channel_opened_at khi chưa đủ ba chữ ký` | CSDL thật, thử **0/3 và 2/3** | **N** | Mẫu tốt: 2/3 là ca "gần đủ trông giống đủ", đúng chỗ dễ lọt nhất. |
+| `0/3, 1/3, 2/3 đều không đọc được số; đủ 3 thì đọc được` | Gọi `contact_read` thật, bốn nấc | **N** | Chưa nghĩ ra đường lách. Đây là bài T5 của đặc tả mục 13, thi công đúng. |
+| `kênh đi CẢ HAI CHIỀU` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `rút lại một chữ ký sau khi đã mở kênh cũng bị CHECK chặn` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `người thứ tư không hưởng lây` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `người GIỚI THIỆU cũng không tự động đọc được số của ứng viên` | Thật | **N** | Mẫu tốt: canh **ranh giới trên** của một cái cửa vừa mở, không chỉ canh cửa có mở không. |
+| `mức closed KHÔNG bị kênh lấn quyền` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `vẫn ghi đúng một dòng nhật ký cho mỗi lượt đọc, kể cả lượt được kênh mở` | Đếm thật | **N** | Chưa nghĩ ra đường lách. |
+| `không tạo nổi lời giới thiệu ghép người của hai cộng đồng` | CSDL thật | **N/T** | Mẫu rộng `/foreign key/i` — không nêu đích danh khoá ghép nào chặn. |
+
+### `t13-privacy-eight-fields.test.js` (15 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `mặc định public: danh bạ có nghề và khu vực` | `members.list()` thật | **N** | Đối chứng cho cả tệp. |
+| `job=closed ⇒ danh bạ trả job null` | Thật | **N** | Chưa nghĩ ra đường lách. Đây là Ruling T11-f được vá và canh. |
+| `area=closed ⇒ danh bạ trả area null` | Thật, kèm khẳng định `job` **không** bị che lây | **N** | Mẫu tốt: canh cả "che đúng cái cần che" lẫn "không che nhầm cái khác". |
+| `hồ sơ chi tiết che y như danh sách — không có cửa sau nào` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `chính chủ vẫn thấy hồ sơ mình dù đã đóng hết` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `job public: lọc theo nghề tìm thấy` | Thật | **N** | Đối chứng, tên bài nói thẳng nó là đối chứng. |
+| `job closed: lọc theo nghề KHÔNG tìm thấy nữa` | Thật, kèm "vẫn còn trong danh bạ khi không lọc" | **N** | Mẫu rất tốt: bịt đúng lỗ "che giá trị mà để hở bộ lọc" — bộ lọc là **kênh phụ** đọc lại chính trường vừa che, và rất ít bộ test nghĩ tới. |
+| `area closed: lọc theo khu vực KHÔNG tìm thấy nữa` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `chính chủ lọc hồ sơ mình thì vẫn ra, dù đã đóng` | Thật | **N** | Đối chứng. |
+| `bao bì có đủ tám trường, đúng hai nhóm` | So khoá bao bì với `CONTACT_FIELDS`/`PROFILE_FIELDS` **import từ chính mã đang kiểm** | **T** | **Đo bản sao thay vì đo nguồn**: hai vế của phép so cùng đến từ `core/privacy.js`. Xoá `address` khỏi `CONTACT_FIELDS` ⇒ bao bì cũng mất `address` ⇒ hai vế vẫn khớp ⇒ xanh. Chỉ có `expect(FIELDS).toHaveLength(8)` là một hằng số thật sự độc lập — và nó là thứ duy nhất giữ bài này khỏi rỗng. Nguồn thật đáng so là **8 hàng `privacy_settings` do `fn_member_bootstrap` sinh** (thứ mà `t16` có kiểm). |
+| `on_consent + đơn được duyệt mở "job" y hệt như mở "phone"` | Thật, đủ ba nấc + đối chứng bộ lọc | **N** | Mẫu rất tốt: canh **"một luật, không phải hai"** bằng cách chạy cùng kịch bản trên trường thuộc nhóm kia. |
+| `fn_privacy_state là nguồn duy nhất: cùng câu trả lời cho cả tám trường` | Gọi CSDL thật, duyệt `FIELDS` | **N/T** | Miền lặp lại lấy từ `FIELDS` (mã đang kiểm) — bỏ một trường khỏi `FIELDS` thì vòng lặp co lại. Nhưng bài trên đã khoá `FIELDS.length === 8`, nên khe hở này đã đóng một nửa. |
+| `người xem thuộc cộng đồng khác không nhận được trạng thái nào` | Thật, kèm khẳng định bao bì rỗng ⇒ `closed` | **N** | Mẫu tốt: canh **hướng thất bại** (mặc định phải đóng), không chỉ canh kết quả. |
+| `trường liên hệ không mang giá trị kể cả khi mức public` | Thật | **N** | Chưa nghĩ ra đường lách. |
+| `envelope() không cho giá trị liên hệ đi kèm dù người gọi cố truyền vào` | **Truyền thẳng `{ phone: '0912000002' }` vào `envelope()`** và khẳng định `value === null`, đồng thời `job` **thì có** giá trị | **N** | **Bài duy nhất trong cả bộ ép được nhánh `allowed === true` chạy trên một trường liên hệ.** Nó là thứ duy nhất giữ cờ `inline` khỏi thành trang trí — đúng cái lỗ mà `t06` và `t10.1` để hở. Nên ghi vào trí nhớ dự án: **cổng riêng tư quan trọng nhất của tầng JS đang treo trên một khẳng định duy nhất.** |
+
+### `t16-join-flow.test.js` (25 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `luồng đầy đủ xin mã → nộp đơn → xác nhận gặp mặt → duyệt` | HTTP thật đầu-cuối, rồi đọc lại `members`/`join_requests` từ CSDL | **N** | Chưa nghĩ ra đường lách. |
+| `hộp liên hệ do trg_member_bootstrap sinh, và số điện thoại vào đúng ô` | Đọc CSDL thật, kèm khẳng định **ba ô kia phải trống** | **N** | Mẫu tốt: canh cả "điền đúng ô" lẫn "không đoán hộ ô khác". |
+| `đúng TÁM mức riêng tư, đúng mặc định của spec dòng 852` | Đọc CSDL thật, liệt kê **cả tám** giá trị mong đợi tường minh | **N** | Đây là nguồn sự thật độc lập cho "tám trường" — thứ mà `t13-privacy-eight-fields` bài 10 thiếu. |
+| `đúng MỘT cạnh guarantee, đi từ người bảo lãnh sang người mới` | Đọc CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `mật khẩu người nộp đơn chọn sống sót qua bảng bí mật và verify được` | `argon2.verify` thật | **N** | Mẫu tốt: nó kiểm **kết quả cuối cùng có dùng được không**, không kiểm "có gọi hàm băm chưa". |
+| `bảng bí mật được ĐỐT sau khi duyệt` | Đọc CSDL thật, hai chỗ | **N** | Chưa nghĩ ra đường lách. |
+| `nhật ký ghi đủ ba việc, và không dòng nào chứa số điện thoại` | Đọc CSDL thật | **N/T** | `toContain` ba action, **không** khẳng định số lượng dòng — thừa hay lặp dòng thì không thấy. Và `not.toContain(NEW_PHONE)` lại là danh sách cấm một chuỗi. |
+| `người mới có mặt trong danh bạ` | Đọc CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `/auth/otp/verify trả otp_token, và chính khoá đó nộp thẳng được cho /auth/register` | HTTP thật, **nộp lại chính thân phản hồi** vào bước sau | **N** | Mẫu rất tốt: nối hai bước bằng chính dữ liệu chạy thật là cách duy nhất bắt được lệch quy ước tên khoá **giữa** hai endpoint. |
+| `/auth/login → /auth/refresh nối được bằng đúng tên khoá của đặc tả` | HTTP thật | **N** | Chưa nghĩ ra đường lách. |
+| `app_role KHÔNG ghi được vào member_relations` | `app_role` thật, đủ INSERT/UPDATE/DELETE, **kèm đối chứng SELECT vẫn được** | **N** | Mẫu tốt: đối chứng chống "khoá nhầm cả cửa đọc". |
+| `app_role KHÔNG đọc được join_request_secrets bằng SELECT thẳng` | `app_role` thật, 4 câu | **N** | Chưa nghĩ ra đường lách. |
+| `join_secret_consume: chỉ approver CỦA CHÍNH CỘNG ĐỒNG ĐÓ gọi được` | CSDL thật, ba vai bị từ chối + **khẳng định bí mật còn nguyên** | **N** | Mẫu tốt. |
+| `join_secret_consume: cửa chỉ mở đúng khoảnh khắc duyệt, không sớm hơn` | CSDL thật, cả "chưa tới lúc" lẫn "đã qua lúc" | **N** | Chưa nghĩ ra đường lách. |
+| `đơn chưa xác nhận gặp mặt: approve trả 422, không tạo thành viên nào` | HTTP thật + đếm `members` | **N** | Comment tự khai bài này **một mình** vẫn xanh khi trigger bị gỡ — và bài kế tiếp là vế bù (Ruling C11). Khai báo trung thực đúng chuẩn. |
+| `CSDL tự chặn: hàng members có referrer_id mà không đơn nào nối tới ⇒ COMMIT hỏng` | CSDL thật, dạng callback, + khẳng định rollback sạch | **N** | Chưa nghĩ ra đường lách. |
+| `đơn CHỈ có met_confirmed_at mới mở được cổng — nối đơn thôi chưa đủ` | CSDL thật | **N** | Mẫu tốt: phân biệt "có mối nối" với "có bằng chứng gặp mặt". |
+| `không sửa lại được referrer_id của một người đã là member` | CSDL thật, cả gán mới lẫn gán `NULL` | **N** | Chưa nghĩ ra đường lách. |
+| `cạnh guarantee chỉ tồn tại MỘT hướng` | CSDL thật, **đích danh** `rel_guarantee_one_direction` | **N** | Chưa nghĩ ra đường lách. |
+| `cạnh guarantee không nối được hai cộng đồng` | CSDL thật | **N/T** | Mẫu rộng `/rel_a_same_community\|violates foreign key/i`. |
+| `approver không ghi đè được số điện thoại đã có` | CSDL thật + đọc lại giá trị | **N** | Chưa nghĩ ra đường lách. |
+| `approver điền được ô CÒN TRỐNG, và lần đó có dấu vết` | CSDL thật, ba vế (điền được / có nhật ký / lần hai bị chặn) | **N** | Chưa nghĩ ra đường lách. |
+| `chính chủ thì sửa được bất cứ lúc nào` | CSDL thật | **N** | Đối chứng. |
+| `người ngoài không sờ được ô liên hệ của người khác` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `tên trường ngoài danh sách trắng bị chặn TRƯỚC khi chạm format(%I)` | CSDL thật, **kèm một chuỗi tiêm SQL thật** (`phone" , address = "hacked`) | **N** | Mẫu rất tốt, và nó là thứ `t05` bài `BAD_FIELD` thiếu: nó phân biệt được "chặn ở danh sách trắng" với "chết vì cú pháp". |
+
+### `t17-otp.test.js` (12 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `sai 5 lần thì challenge bị burned` | Service thật + đọc CSDL | **N** | Chưa nghĩ ra đường lách. Đây là bài chứng minh Ruling T7 (giao dịch phải commit trước khi ném). |
+| `nhật ký ghi phone_hash, không ghi số và không ghi mã` | Đọc CSDL thật, có `rows.length > 0` chống vòng lặp rỗng | **N** | `not.toContain(ALICE_PHONE)` là danh sách cấm; **không** khẳng định mã OTP vắng mặt (đặc tả T17 đòi cả hai) — mã không được giữ lại ở đâu để so, nên vế "không ghi mã" thật ra **không có ai canh**. Tên bài hứa nhiều hơn nó kiểm. |
+| `mã OTP được băm bằng argon2 trước khi lưu` | Đọc CSDL thật | **N** | Tên bài **đã được sửa cho khớp assertion** ở Ruling T7-b, và comment nói thẳng việc canh `crypto.randomInt` dựa vào soát mã. Đây là mẫu tốt của cách xử lý một thuộc tính không kiểm được bằng test. |
+| `mã OTP luôn đủ 6 chữ số, kể cả khi có số 0 đứng đầu` | Gọi `newCode()` **500 lần** + 3 vòng đi thật qua adapter | **N** | Mẫu tốt: tách "tính chất của hàm" (rẻ, 500 mẫu) khỏi "đường đi không cắt gọt" (đắt, 3 mẫu) — thay vì nới timeout khi bài chập chờn (Ruling T7-c). |
+| `3 challenge hỏng liên tiếp cùng số ⇒ khóa 15 phút` | Service thật | **N** | Khẳng định `OTP_LOCKED` xảy ra, **không** khẳng định nó **hết** sau 15 phút — nửa sau của luật ("15 phút") không có lưới nào; đặt khoá vĩnh viễn vẫn xanh. |
+| `login trả cùng một lỗi cho số lạ và mật khẩu sai` | Service thật, so cả `code` lẫn `message` | **N** | So **câu chữ**, không so **thời gian**. Số lạ không chạy `argon2.verify` nên nhanh hơn hẳn — kênh phụ thời gian còn nguyên, và không bài nào đo. (`/auth/register` có đệm; `/auth/login` thì không.) |
+| `login đúng số + mật khẩu thì thành công` | Service thật | **N** | Chưa nghĩ ra đường lách. |
+| `refresh xoay vòng: token cũ dùng lại bị thu hồi cả họ` | Service thật, ba nấc + đọc nhật ký | **N** | Mẫu tốt: canh cả "cả họ bị thu hồi", không chỉ "token cũ bị từ chối". |
+| `HTTP: POST /auth/login rồi GET /auth/me` | HTTP thật, kèm ca không có token ⇒ 401 | **N** | Chưa nghĩ ra đường lách. |
+| `HTTP: OTP request quá 5 lần/phút bị chặn RATE_LIMITED` | HTTP thật, 6 lượt | **N** | Không kiểm cửa sổ **mở lại** sau một phút; và bộ đếm theo IP hay theo số điện thoại thì bài này không phân biệt được. |
+| `verifyOtp ở cộng đồng B không tiêu thụ được challenge của A` | Service thật, hai cộng đồng, **kèm đối chứng A vẫn dùng được mã đó** | **N** | Mẫu rất tốt: đối chứng chứng minh bài đỏ vì bộ lọc chứ không vì mã sai (Ruling T7-a). |
+| `3 challenge hỏng liên tiếp ở B không khóa số đó ở A` | Service thật, hai cộng đồng | **N** | Chưa nghĩ ra đường lách. |
+
+### `t18-tx.test.js` (2 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `đặt app.actor_id trong giao dịch` | CSDL thật | **N** | Chưa nghĩ ra đường lách. |
+| `dấu không rò ra ngoài giao dịch (buộc dùng lại đúng 1 kết nối vật lý)` | Mock `db/knex.js` về pool `{min:1,max:1}`, **và tự xác nhận giả định bằng `pg_backend_pid()`** | **N** | Mẫu tốt nhất cả bộ về *"tự chứng minh tiền đề của mình trước khi tin vào kết quả"*: nếu pool không hoạt động như kỳ vọng thì bài **thất bại rõ ràng** thay vì lặng lẽ xanh. Đây đúng là thứ `t08`/`t12-manual-quota` còn thiếu ở chỗ đếm `pg_locks` toàn cụm. |
+
+### `t19-error-handler.test.js` (2 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `req.log gắn sẵn: trả 500 và gọi log.fatal thật` | `errorHandler` thật, spy đếm **số lần gọi** | **N** | Dùng `req` giả chứ không đi qua Express thật, nên nó không chứng minh `req.log` **có thật** ở production — chỗ đó do `t20` (dùng `pinoHttpOptions` thật) và `t07` (đi qua CSDL thật) bù. |
+| `req.log KHÔNG tồn tại: vẫn trả 500 và rơi về console.error, không im lặng` | Thật | **N** | Mẫu tốt: canh đúng chế độ hỏng đã cắn dự án (Ruling I1 Task 3 — `req.log?.fatal()` là no-op im lặng). |
+
+### `t20-log-redaction.test.js` (1 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `số điện thoại trong err.detail không xuất hiện ở bất kỳ đâu trong log đã ghi, nhưng code/message thì có` | Dựng **pino thật** với `pinoHttpOptions` **import từ production**, ghi vào stream trong bộ nhớ, soi **chuỗi JSON thật sự được ghi ra**, và kiểm cả **vế phải còn** (`code`, `message`, `constraint`) | **N** | Mẫu tốt nhất cả bộ cho loại "chống rò": nó **không** mock hàm log rồi kiểm tham số truyền vào (chỉ kiểm cái ta đưa vào), mà kiểm **cái thực sự được ghi**. Lỗ mù còn lại đã ghi từ Task 3: nó dựng `pino({...opts}, stream)` chứ không qua `pinoHttp()` thật, và đường rò qua `err.cause` chưa có lưới. Cũng chỉ có **một** mẫu lỗi (23514) — danh sách cho phép 9 trường được canh gián tiếp chứ không được liệt kê. |
+
+### `t21-http-shape.test.js` (11 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `POST /auth/otp/verify trả otp_token — không rò otpToken` | HTTP thật + `assertSnakeKeys` đệ quy | **N** | — |
+| `POST /auth/login trả access, refresh, member{...}` | HTTP thật | **N** | — |
+| `POST /auth/refresh NHẬN refresh_token — refreshToken không được server hiểu` | HTTP thật, **cả ca sai lẫn ca đúng** | **N** | Mẫu tốt: canh cả chiều nhận, không chỉ chiều trả; và cố ý bác bỏ "chấp nhận cả hai cho dễ". |
+| `POST /auth/register trả join_request_id, step` | HTTP thật | **N** | — |
+| `GET /auth/me trả community_id` | HTTP thật | **N** | Ruling T9-e được vá và canh. |
+| `GET /areas trả data[] với id, name, parent_id, children` | HTTP thật | **N** | Không khẳng định `lat`/`lng` vắng mặt (xem `t10-directory`). |
+| `GET /members trả { data, meta } và contacts.*.value luôn null` | HTTP thật, duyệt mọi hàng + `not.toContain(ALICE_PHONE)` | **N** | Đây là lưới **cuối cùng** ở đúng lớp vỏ cho nguyên tắc 4. |
+| `GET /members/:id trả hồ sơ + contacts, không rò email/lat/lng` | HTTP thật | **N** | Danh sách cấm 5 tên (khác `t10` dùng `toEqual` trên toàn bộ khoá) — thêm một khoá mới lọt ra vỏ thì bài này không thấy, nhưng `t10` thì thấy. Hai bài bù nhau. |
+| `GET /members/:id/contacts/:field trả { value }` | HTTP thật, `toEqual` chính xác | **N** | Chưa nghĩ ra đường lách. |
+| `GET /members/:id/contacts/:field từ chối tên trường lạ (400, không phải 500)` | HTTP thật | **N** | Mẫu tốt: nó phân biệt "chặn ở zod" với "chết ở CSDL rồi thành 500". |
+| **Cả tệp, xét theo luật Ruling T9-e** | — | **T** | **Luật "route mới phải được thêm vào t21" ĐANG BỊ VI PHẠM.** Kho có **16** route handler; `t21` gọi tới **9**. Không có lưới hình dạng nào cho: `POST /auth/otp/request`, và **cả năm route `/join-requests`** — `GET /`, `GET /:id`, `POST /:id/confirm-met`, `POST /:id/reject`, `POST /:id/approve`. `t08`/`t16` có gọi chúng qua HTTP thật nhưng **không bài nào chạy `assertSnakeKeys` trên phản hồi của chúng**, tức đúng lớp vỏ mà Ruling T9-c dựng lưới này để canh thì năm route quan trọng nhất của luồng gia nhập vẫn hở. Comment trong tệp đã tự dự báo chính xác chuyện này (*"một cái lưới rộng vẫn không bắt được con cá bơi ở khúc sông không ai thả lưới"*) — dự báo đúng, và đã thành sự thật. |
+
+### `t22-cors.test.js` (9 bài)
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `CORS_ORIGIN của môi trường test là một gốc cụ thể, không phải *` | Đọc `config` thật | **N** | Đối chứng cho cả tệp (nếu `CORS_ORIGIN` là `*` thì mọi bài dưới vô nghĩa). |
+| `preflight từ Origin ĐƯỢC PHÉP: 204, vọng lại đúng gốc` | HTTP thật | **N** | Chưa nghĩ ra đường lách. |
+| `preflight từ Origin LẠ: 403, và KHÔNG phát access-control-allow-origin` | HTTP thật | **N** | Chưa nghĩ ra đường lách. |
+| `gốc chỉ TRÙNG TIỀN TỐ vẫn bị từ chối` | HTTP thật với `ALLOWED + '.ke-gian.example.com'` | **N** | Mẫu rất tốt: nó canh **thuật toán so khớp**, không chỉ canh kết quả với hai đầu vào dễ. |
+| `yêu cầu thật từ Origin ĐƯỢC PHÉP: có header đúng gốc` | HTTP thật | **N** | Chưa nghĩ ra đường lách. |
+| `yêu cầu thật từ Origin LẠ: KHÔNG có header ⇒ trình duyệt vứt phản hồi` | HTTP thật | **N** | Mẫu tốt: comment giải thích vì sao khẳng định **sự vắng mặt của header** mới đúng cơ chế, chứ không phải mã trạng thái. |
+| `không lời gọi nào nhận được ký tự đại diện *` | HTTP thật, ba gốc | **N** | Chưa nghĩ ra đường lách. |
+| `luôn có Vary: Origin` | HTTP thật, có và không có `Origin` | **N** | Mẫu tốt: canh một cơ chế mà hậu quả nằm ở **proxy đệm**, thứ không quan sát được trong test. |
+| `không có Origin (curl, máy chủ gọi máy chủ) vẫn đi qua bình thường` | HTTP thật | **N** | Chưa nghĩ ra đường lách. |
+| **Cả tệp** | — | — | Lỗ mù chung: `ALLOWED` lấy từ `config.CORS_ORIGIN` của môi trường **test**. Không bài nào khẳng định giá trị production là `binhdan1986.com` như đặc tả mục 5.1 đòi — đặt `CORS_ORIGIN=*` trong `.env` production thì bài 1 (`not.toBe('*')`) **không chạm tới**, vì nó đọc `.env.test`. |
+
+### `t23-error-map.test.js` (5 bài)
+
+Đây là bài đã bị sửa từ "so bảng JS với bảng JS" thành "đọc thẳng nguồn" ở Ruling
+T13-c. Bản mới **thật sự canh nguồn cho đúng thứ nó đọc** — nhưng nó đọc đúng
+một hình dạng nguồn, và **hai hình dạng khác vẫn không ai canh**. Cả hai đã kiểm
+bằng chạy thật, không suy đoán.
+
+| Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
+|---|---|---|---|
+| `mọi RAISE EXCEPTION trong migration đều có mặt trong BY_MESSAGE` | **Đọc nguồn thật**: quét `RAISE EXCEPTION '<MÃ>'` trong `src/db/migrations/`, có `expect(raised.size).toBeGreaterThan(20)` chống bài rỗng | **N** cho hình dạng nó đọc | **Lỗ mù đã kiểm chạy thật: 19 CHECK constraint không đi qua `RAISE EXCEPTION` nên vô hình với bài này** — `intro_three_consents`, `rel_canonical`, `wr_manual_review`, `sig_fwd_not_self`, `cr_not_self`, `members_not_self_referrer`, `act_time_order`, `act_need_not_over`, `complaint_not_self`, `conn_not_self`, `intro_distinct_candidate`, `jr_id_cid`, `modq_decided_pair`, `pa_executed_pair`, `rel_not_self`, `report_published_pair`, `subject_key_destroy_means_gone`, `verif_not_self`, `verif_reviewer_pair`. **Không cái nào có khoá trong `BY_MESSAGE`**, và `mapPgError` chỉ xử lý riêng `23505`/`23503`/`42501` — nên `23514 check_violation` rơi qua `return null` ⇒ người dùng nhận **500 "Lỗi hệ thống"**. Đúng y hệt chế độ hỏng mà tệp này ra đời để chống, chỉ khác một hình dạng cú pháp. Ngoài ra regex đòi mã nằm **trọn trong một cặp nháy đơn**, nên `RAISE EXCEPTION 'MÃ %', x` hay `RAISE ... USING MESSAGE = …` cũng lọt. |
+| `không khoá nào là chuỗi con của khoá khác` | Kiểm một **tính chất thật** của thuật toán `raw.includes(key)` | **N/T** | Nó **tự viết lại** luật của `mapPgError` thay vì gọi `mapPgError`. Đổi `mapPgError` sang so khớp chính xác (hoặc chuẩn hoá hoa/thường) thì bài này vẫn xanh và vẫn ép một luật không còn cần — hoặc tệ hơn, bỏ sót luật mới. Vẫn là bài tốt: nó bắt được một sai lệch **thầm lặng** (dịch sai mà vẫn có câu tiếng Việt hiện ra). |
+| `mọi mã máy chủ có thể gửi ra đều có câu tiếng Việt ở web/js/api.js` | So `BY_MESSAGE` (JS) với `web/js/api.js` (JS) | **T** | **Đây vẫn là phép so bảng-JS-với-bảng-JS của bản `t23` đầu tiên, chỉ dịch lên một tầng.** `serverCodes()` chỉ đọc phần tử thứ hai của `BY_MESSAGE`; **13 mã ném thẳng bằng `new AppError('…')` trong service/middleware nằm ngoài tầm nhìn của nó.** Đã kiểm chạy thật, và **có một ca đang hỏng ngay lúc này**: `BIRTH_YEAR_MISMATCH` (`api/src/modules/auth/service.js:247`) **không có câu tiếng Việt nào trong `web/js/api.js`** — người nộp đơn gõ nhầm năm sinh sẽ thấy câu chung chung đúng lúc cần biết lý do thật. `t08` có một bài đi qua HTTP khẳng định `error.code === 'BIRTH_YEAR_MISMATCH'`, nên **cả hai lưới đều xanh** trong khi người dùng thật thì không đọc được gì. |
+| `không có câu thừa ở trình duyệt cho mã máy chủ không bao giờ gửi` | Quét **toàn bộ `api/src`** tìm `'MÃ'` | **N** | Mẫu tốt cho chiều ngược lại — và đáng chú ý: **chiều này đã đọc nguồn thật (toàn bộ mã nguồn), còn chiều kia thì không.** Sửa chiều thiếu chỉ là dùng lại đúng `readAllSource()` đã có sẵn trong tệp. |
+| `AppError giữ nguyên mã được truyền vào` | Gọi thật | **N** | Bài rất hẹp nhưng có giá trị: nó khoá một hành vi mà cả hai bài trên ngầm dựa vào. |
