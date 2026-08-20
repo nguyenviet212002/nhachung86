@@ -5603,6 +5603,16 @@ document.addEventListener('click', function(e){
       break;
     case 'open-convo-with': {
       if(liveMode()){
+        if(/^[0-9a-f-]{36}$/i.test(id) && id!==state.me.id){
+          api.post('/notifications', {
+            recipient_id:id,
+            kind:'activity',
+            title:'Có thành viên muốn kết nối',
+            body:`${CURRENT_USER.name} vừa mở cuộc trò chuyện với bạn.`,
+            target_type:'member',
+            target_id:state.me.id
+          }).catch(()=>{});
+        }
         state.activeConvo=id;
         const row=DIRECTORY.rows.find(x=>x.id===id); if(row) LIVE_CONTACTS[id]=row;
         go('messages');
