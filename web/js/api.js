@@ -120,6 +120,14 @@
     QUOTA_OVERRIDE_UNSIGNED: 'Nới hạn mức bảo lãnh phải qua một việc chờ có đủ hai người ký.',
     ENDORSER_ROLE_REQUIRED: 'Bảo chứng là việc của Ban điều hành: cả hai người ký phải là người duyệt.',
 
+    // Khung hai người ký (core/twoPerson.js, đặc tả mục 7). Năm mã này do tầng
+    // ứng dụng ném, không có trong BY_MESSAGE.
+    ACTION_NOT_AVAILABLE:   'Việc này chưa mở để ký trong giai đoạn hiện tại.',
+    PENDING_ACTION_EXPIRED: 'Việc này đã quá hạn hoặc không còn chờ ký. Hãy tạo lại.',
+    PENDING_ACTION_STALE:   'Dữ liệu liên quan đã thay đổi kể từ chữ ký đầu. Hãy tạo lại việc này và ký lại từ đầu.',
+    NEEDS_SECOND_PERSON:    'Cần một người thứ hai ký. Người đề xuất đã là chữ ký thứ nhất.',
+    REAUTH_FAILED:          'Mật khẩu không đúng. Ký một việc vận hành phải nhập lại mật khẩu.',
+
     // --- (c) Không đi qua AppError -------------------------------------
     RATE_LIMITED:           'Bạn thao tác quá nhanh, thử lại sau ít phút.',
 
