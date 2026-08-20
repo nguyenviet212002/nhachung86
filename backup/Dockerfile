@@ -16,7 +16,7 @@ ENV BACKUP_DIR=/backups
 ENV RCLONE_CONFIG=/tmp/rclone.conf
 
 WORKDIR /app
-COPY lib.sh backup.sh export-audit.sh verify-chain.sh verify.sh run-job.sh entrypoint.sh crontab /app/
+COPY lib.sh backup.sh export-audit.sh verify-chain.sh verify.sh restore.sh run-job.sh entrypoint.sh crontab /app/
 RUN chmod +x /app/*.sh && mkdir -p /backups
 
 # Không `HEALTHCHECK` ở đây: container này đúng nghĩa là ngủ giữa các lần chạy,

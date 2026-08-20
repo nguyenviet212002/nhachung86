@@ -125,6 +125,9 @@
     // Mã của migration 033 — một quyết định đã ký thi hành đúng MỘT lần.
     CONFIG_CHANGE_ALREADY_APPLIED: 'Việc đổi chính sách này đã thi hành rồi. Muốn đổi tiếp thì tạo một việc mới và ký lại từ đầu.',
 
+    // Mã của migration 032 — kết quả sao lưu là một việc đã xảy ra, chỉ ghi thêm.
+    OPS_RECORD_APPEND_ONLY: 'Kết quả sao lưu và kết quả kiểm khôi phục chỉ ghi thêm, không sửa và không xoá được.',
+
     // Mã của migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự
     // kiểm người gọi thay vì dựa vào việc chưa route nào gọi tới chúng.
     ROLE_SELF_GRANT:        'Không ai tự gán hay tự gỡ vai của chính mình — kể cả vai kỹ thuật.',

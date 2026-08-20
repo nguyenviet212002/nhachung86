@@ -5,3 +5,5 @@ api/node_modules/
 *.log
 .superpowers/
 api/.storage*/
+secrets/
+backups-test/

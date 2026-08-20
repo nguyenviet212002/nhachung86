@@ -108,6 +108,14 @@ const BY_MESSAGE = {
   CONFIG_CHANGE_ALREADY_APPLIED: [409, 'CONFIG_CHANGE_ALREADY_APPLIED', 'Việc đổi chính sách này đã thi hành rồi. Muốn đổi tiếp thì tạo một việc mới và ký lại từ đầu.'],
 
   // ---------------------------------------------------------------------
+  // Migration 032 — `backups` và `restore_tests` ghi lại một việc ĐÃ XẢY RA,
+  // nên chúng chỉ-thêm cho mọi người, kể cả kết nối chủ sở hữu mà container
+  // sao lưu dùng. Cùng họ với FUND_ENTRY_LOCKED: 409, vì dữ liệu gửi lên
+  // không sai — chỉ là thứ này không sửa lại được.
+  // ---------------------------------------------------------------------
+  OPS_RECORD_APPEND_ONLY:      [409, 'OPS_RECORD_APPEND_ONLY', 'Kết quả sao lưu và kết quả kiểm khôi phục chỉ ghi thêm, không sửa và không xoá được.'],
+
+  // ---------------------------------------------------------------------
   // Migration 029 — vai, quyền, và bốn hàm SECURITY DEFINER nay tự kiểm
   // người gọi. Khai ngay khi trigger/hàm ra đời, cùng lý do đã ghi ở trên.
   // ---------------------------------------------------------------------
