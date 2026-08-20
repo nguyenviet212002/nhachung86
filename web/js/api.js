@@ -128,6 +128,10 @@
     TRUST_RECOUNT_DENIED:   'Không tính lại uy tín cho người của Hội khác được.',
     AUDIT_ACTOR_MISMATCH:   'Dòng nhật ký phải mang tên chính người đang thực hiện việc đó.',
 
+    // Mã của migration 030 — sổ tệp. Xoá tệp là `UPDATE deleted_at`; những cột
+    // nối tấm ảnh với chủ của nó thì không sửa được.
+    FILE_IMMUTABLE:         'Những dữ kiện này của tệp đã cố định, không sửa lại được.',
+
     // Khung hai người ký (core/twoPerson.js, đặc tả mục 7). Năm mã này do tầng
     // ứng dụng ném, không có trong BY_MESSAGE.
     ACTION_NOT_AVAILABLE:   'Việc này chưa mở để ký trong giai đoạn hiện tại.',

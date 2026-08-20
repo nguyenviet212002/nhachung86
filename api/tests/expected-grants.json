@@ -68,5 +68,6 @@
   "pending_action_signatures":["SELECT", "INSERT"],
   "backups":                  ["SELECT", "INSERT"],
   "restore_tests":            ["SELECT", "INSERT"],
-  "moderation_queue":         ["SELECT", "INSERT", "UPDATE"]
+  "moderation_queue":         ["SELECT", "INSERT", "UPDATE"],
+  "files":                    ["SELECT", "INSERT", "UPDATE"]
 }

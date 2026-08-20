@@ -114,6 +114,14 @@ const BY_MESSAGE = {
   // ghi tên người khác là lịch sử giả mạo, và vì actor_id nằm trong chuỗi băm
   // nên nó sẽ là lịch sử giả mạo HỢP LỆ VĨNH VIỄN.
   AUDIT_ACTOR_MISMATCH:        [403, 'AUDIT_ACTOR_MISMATCH', 'Dòng nhật ký phải mang tên chính người đang thực hiện việc đó.'],
+
+  // ---------------------------------------------------------------------
+  // Migration 030 — sổ tệp. `app_role` có `UPDATE` trên `files` (xoá là
+  // `UPDATE deleted_at`, không phải `DELETE`), nên `trg_file_immutable` canh
+  // đúng những cột mà một câu `UPDATE` có thể dùng để mượn byte của người
+  // khác, đổi chủ tệp, hay hồi sinh tấm ảnh đã bỏ.
+  // ---------------------------------------------------------------------
+  FILE_IMMUTABLE:              [409, 'FILE_IMMUTABLE', 'Những dữ kiện này của tệp đã cố định, không sửa lại được.'],
 };
 
 export function mapPgError(err) {
