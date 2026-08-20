@@ -150,34 +150,51 @@ describe('T27-1 ma trận quyền: từng bảng, bốn câu lệnh, CHẠY TH�
       .toBeGreaterThan(60);
 
     const lech = [];
+    // `daQuet` KHÔNG phải một biến cho vui. Giao dịch dưới đây kết thúc bằng
+    // `trx.rollback()` CỐ Ý, và `rollback()` làm promise của knex bị từ chối —
+    // nên phải có một `.catch()` ở cuối. Nhưng cái `.catch()` ấy nuốt LUÔN mọi
+    // ngoại lệ khác trong thân vòng lặp: một lỗi ở bảng thứ tư làm 68 bảng còn
+    // lại KHÔNG BAO GIỜ được quét, `lech` rỗng, và bài test XANH sau khi kiểm
+    // được ba bảng. Đã tái hiện: chèn một `throw` sau bảng thứ ba rồi khai sai
+    // quyền của `profile_views` ⇒ 38/38 xanh; bỏ `throw` ra ⇒ đúng bài này đỏ.
+    // Hai khẳng định sau vòng lặp đóng cả hai đầu: ngoại lệ được ném lại, và
+    // số bảng đã chạm phải bằng đủ danh sách.
+    let daQuet = 0;
+    let loiTrongVongLap = null;
     await app.transaction(async (trx) => {
-      for (const { t, col } of tables) {
-        const want = expectedGrants[t];
-        expect(want, `bảng ${t} không có trong expected-grants.json`).toBeDefined();
-        const stmts = {
-          SELECT: `SELECT "${col}" FROM "${t}" LIMIT 0`,
-          INSERT: `INSERT INTO "${t}" DEFAULT VALUES`,
-          UPDATE: `UPDATE "${t}" SET "${col}" = "${col}" WHERE false`,
-          DELETE: `DELETE FROM "${t}" WHERE false`,
-        };
-        for (const p of PRIVS) {
-          await trx.raw(`SAVEPOINT sp`);
-          let denied = false;
-          try {
-            await trx.raw(stmts[p]);
-          } catch (e) {
-            // 42501 = insufficient_privilege. MỌI lỗi khác (ràng buộc NOT NULL,
-            // khoá ngoại, trigger) nghĩa là câu lệnh ĐÃ QUA cửa quyền.
-            denied = e?.code === '42501';
+      try {
+        for (const { t, col } of tables) {
+          const want = expectedGrants[t];
+          expect(want, `bảng ${t} không có trong expected-grants.json`).toBeDefined();
+          const stmts = {
+            SELECT: `SELECT "${col}" FROM "${t}" LIMIT 0`,
+            INSERT: `INSERT INTO "${t}" DEFAULT VALUES`,
+            UPDATE: `UPDATE "${t}" SET "${col}" = "${col}" WHERE false`,
+            DELETE: `DELETE FROM "${t}" WHERE false`,
+          };
+          for (const p of PRIVS) {
+            await trx.raw(`SAVEPOINT sp`);
+            let denied = false;
+            try {
+              await trx.raw(stmts[p]);
+            } catch (e) {
+              // 42501 = insufficient_privilege. MỌI lỗi khác (ràng buộc NOT NULL,
+              // khoá ngoại, trigger) nghĩa là câu lệnh ĐÃ QUA cửa quyền.
+              denied = e?.code === '42501';
+            }
+            await trx.raw(`ROLLBACK TO SAVEPOINT sp`);
+            const nenCo = want.includes(p);
+            if (denied === nenCo) lech.push(`${t}.${p}: khai ${nenCo ? 'CÓ' : 'KHÔNG'} nhưng thực tế ${denied ? 'BỊ TỪ CHỐI' : 'CHẠY ĐƯỢC'}`);
           }
-          await trx.raw(`ROLLBACK TO SAVEPOINT sp`);
-          const nenCo = want.includes(p);
-          if (denied === nenCo) lech.push(`${t}.${p}: khai ${nenCo ? 'CÓ' : 'KHÔNG'} nhưng thực tế ${denied ? 'BỊ TỪ CHỐI' : 'CHẠY ĐƯỢC'}`);
+          daQuet += 1;
         }
-      }
+      } catch (e) { loiTrongVongLap = e; }
       await trx.rollback().catch(() => {});
     }).catch(() => {});
 
+    if (loiTrongVongLap) throw loiTrongVongLap;
+    expect(daQuet, 'vòng quét dừng giữa chừng — những bảng còn lại KHÔNG được kiểm')
+      .toBe(tables.length);
     expect(lech, 'quyền thực thi THẬT lệch với expected-grants.json').toEqual([]);
   });
 
