@@ -39,3 +39,36 @@ export const listActionsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// ---------------------------------------------------------------------------
+// Task 16 — nhật ký, bảng điều khiển, vai.
+// ---------------------------------------------------------------------------
+
+// `action` là một khoá nghiệp vụ (`contact.read`, `join_request.approved`,
+// `role.granted`), KHÔNG phải văn bản tự do. Khoá chặt hình dạng ở đây thay vì
+// để nó đi thẳng vào một tham số SQL: tham số hoá đã chặn tiêm SQL, nhưng một
+// ô nhận chuỗi tuỳ ý ở cửa đọc nhật ký là một ô người ta sẽ gõ số điện thoại
+// vào để tìm — và tra cứu theo số điện thoại là đúng thứ mục 10 cấm.
+export const listAuditLogSchema = z.object({
+  actor_id: z.string().uuid().optional(),
+  action: z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/, 'phải là một khoá hành động').optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const verifyChainSchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+// Năm vai của nền tảng (gieo ở migration 008). Danh sách này KHỚP với bảng
+// `roles`; lệch thì zod trả VALIDATION_FAILED trước khi CSDL kịp nói
+// `BAD_ROLE` — vẫn chặn đúng, chỉ khác câu chữ.
+export const ROLE_KEYS = ['guest', 'member', 'content_ops', 'approver', 'tech'];
+
+export const roleParamSchema = z.object({
+  id: z.string().uuid(),
+  role: z.enum(ROLE_KEYS),
+});
