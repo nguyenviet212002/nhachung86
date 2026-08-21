@@ -5,6 +5,8 @@ import * as joinRequests from '../modules/join-requests/schema.js';
 import * as members from '../modules/members/schema.js';
 import * as ops from '../modules/ops/schema.js';
 import * as notifications from '../modules/notifications/schema.js';
+import * as capabilities from '../modules/capabilities/schema.js';
+import * as jobs from '../modules/jobs/schema.js';
 
 const TYPE_NAMES = {
   ZodAny: 'ZodAny',
@@ -251,8 +253,42 @@ export function buildOpenApi() {
   add('/api/v1/join-requests/{id}/reject', endpoint('POST', '/api/v1/join-requests/{id}/reject', { pathParams: joinRequests.idParamSchema, body: joinRequests.rejectSchema }));
 
   add('/api/v1/members', endpoint('GET', '/api/v1/members', { query: members.listQuerySchema }));
+  add('/api/v1/members/me',
+    endpoint('GET', '/api/v1/members/me'),
+    endpoint('PATCH', '/api/v1/members/me', { body: members.updateMeSchema }));
+  add('/api/v1/members/me/contact-requests', endpoint('GET', '/api/v1/members/me/contact-requests', { query: members.contactRequestQuerySchema }));
+  add('/api/v1/members/me/contact-requests/{id}', endpoint('PATCH', '/api/v1/members/me/contact-requests/{id}', { pathParams: members.contactRequestParamSchema, body: members.contactDecisionSchema }));
+  add('/api/v1/members/me/privacy', endpoint('GET', '/api/v1/members/me/privacy'));
+  add('/api/v1/members/me/privacy/{field}', endpoint('PATCH', '/api/v1/members/me/privacy/{field}', { pathParams: members.privacyParamSchema, body: members.privacyUpdateSchema }));
+  add('/api/v1/members/me/profile-views', endpoint('GET', '/api/v1/members/me/profile-views', { query: members.profileViewsQuerySchema }));
+  add('/api/v1/members/{id}/contact-requests', endpoint('POST', '/api/v1/members/{id}/contact-requests', { pathParams: members.idParamSchema, body: members.contactRequestSchema, response: { description: 'Created' } }));
   add('/api/v1/members/{id}', endpoint('GET', '/api/v1/members/{id}', { pathParams: members.idParamSchema }));
   add('/api/v1/members/{id}/contacts/{field}', endpoint('GET', '/api/v1/members/{id}/contacts/{field}', { pathParams: members.contactFieldParamSchema }));
+
+  add('/api/v1/capabilities',
+    endpoint('GET', '/api/v1/capabilities', { query: capabilities.listQuerySchema }),
+    endpoint('POST', '/api/v1/capabilities', { body: capabilities.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/capabilities/{id}',
+    endpoint('GET', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema }),
+    endpoint('PATCH', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema, body: capabilities.updateSchema }),
+    endpoint('DELETE', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema, response: { description: 'No content' } }));
+
+  add('/api/v1/jobs',
+    endpoint('GET', '/api/v1/jobs', { query: jobs.listQuerySchema }),
+    endpoint('POST', '/api/v1/jobs', { body: jobs.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/jobs/ready', endpoint('GET', '/api/v1/jobs/ready', { query: jobs.readyQuerySchema }));
+  add('/api/v1/jobs/ready/me',
+    endpoint('GET', '/api/v1/jobs/ready/me'),
+    endpoint('PUT', '/api/v1/jobs/ready/me', { body: jobs.readySchema }),
+    endpoint('DELETE', '/api/v1/jobs/ready/me', { response: { description: 'No content' } }));
+  add('/api/v1/jobs/connections', endpoint('GET', '/api/v1/jobs/connections', { query: jobs.readyQuerySchema }));
+  add('/api/v1/jobs/{id}',
+    endpoint('GET', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema }),
+    endpoint('PATCH', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema, body: jobs.updateSchema }),
+    endpoint('DELETE', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/jobs/{id}/applications', endpoint('POST', '/api/v1/jobs/{id}/applications', { pathParams: jobs.idParamSchema, body: jobs.applySchema, response: { description: 'Created' } }));
+  add('/api/v1/jobs/{id}/applications/{connectionId}', endpoint('PATCH', '/api/v1/jobs/{id}/applications/{connectionId}', { pathParams: jobs.applicationParamSchema, body: jobs.applicationUpdateSchema }));
+  add('/api/v1/jobs/{id}/applications/me', endpoint('DELETE', '/api/v1/jobs/{id}/applications/me', { pathParams: jobs.idParamSchema, response: { description: 'No content' } }));
 
   add('/api/v1/ops/audit-log', endpoint('GET', '/api/v1/ops/audit-log', { query: ops.listAuditLogSchema }));
   add('/api/v1/ops/audit-log/verify', endpoint('GET', '/api/v1/ops/audit-log/verify', { query: ops.verifyChainSchema }));

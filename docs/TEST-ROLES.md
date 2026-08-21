@@ -25,7 +25,38 @@ trình quản lý mật khẩu và đổi lại khi bàn giao hệ thống.
 | M05 | `m05@nhachung.invalid` | `member`, `content_ops` | đăng và điều phối nội dung |
 | M06 trở đi | `m06@nhachung.invalid` … | `member` | hội viên thường, nhắn tin/upload |
 
-Sau khi đăng nhập, giao diện hiển thị vai thật lấy từ `GET /api/v1/auth/me`. Ba nút Thành viên / Nhà tuyển dụng / Quản trị trên thanh đầu là các luồng UI demo cũ; chúng không cấp quyền backend. Tin nhắn nên kiểm tra bằng hai cửa sổ đăng nhập M01 và M06: chọn **Nhắn tin**, gửi ở cửa sổ thứ nhất, cửa sổ thứ hai nhận ngay qua SSE và phát tiếng “ting ting” sau khi người dùng đã tương tác với trang.
+Sau khi đăng nhập, giao diện hiển thị vai thật lấy từ `GET /api/v1/auth/me`. Không có vai `recruiter`: mọi tài khoản có vai `member` đều vừa là thành viên, vừa có thể đăng nhu cầu tuyển người/hợp tác, khai trạng thái sẵn sàng nhận việc và ứng tuyển tin của thành viên khác. Vai `approver`, `content_ops`, `tech` chỉ mở thêm chức năng vận hành; chúng không tạo một danh tính thứ hai.
+
+Tin nhắn nên kiểm tra bằng hai cửa sổ đăng nhập M01 và M06: chọn **Nhắn tin**, gửi ở cửa sổ thứ nhất, cửa sổ thứ hai nhận ngay qua SSE và phát tiếng “ting ting” sau khi người dùng đã tương tác với trang.
+
+## Luồng thành viên và việc làm cần kiểm tra
+
+1. Đăng nhập M01, sửa hồ sơ và đăng một năng lực.
+2. Vẫn bằng M01, vào **Việc chung → Việc làm**, đăng một nhu cầu. Không chuyển vai.
+3. Đăng nhập M06 ở cửa sổ khác, tạo hồ sơ sẵn sàng nhận việc và ứng tuyển tin của M01.
+4. M01 nhận thông báo tức thì, mở tin và chuyển ứng viên sang `Đã thống nhất`, `Đang làm`, `Đã xong` hoặc `Không thành`.
+5. M06 nhận thông báo cập nhật. Tin đã có ứng viên chỉ được đóng/hủy, không xóa để tránh mất lịch sử.
+6. M06 xin xem số điện thoại M01; M01 duyệt ở **Quyền riêng tư → Yêu cầu xem liên hệ**, sau đó M06 mới đọc được số.
+
+Các API CRUD chính:
+
+```text
+GET/PATCH                 /api/v1/members/me
+GET                       /api/v1/members/:id
+GET/PATCH                 /api/v1/members/me/privacy[/:field]
+GET                       /api/v1/members/me/profile-views
+POST                      /api/v1/members/:id/contact-requests
+GET/PATCH                 /api/v1/members/me/contact-requests[/:id]
+GET/POST                  /api/v1/capabilities
+GET/PATCH/DELETE          /api/v1/capabilities/:id
+GET/POST                  /api/v1/jobs
+GET/PATCH/DELETE          /api/v1/jobs/:id
+GET/PUT/DELETE            /api/v1/jobs/ready[/me]
+POST/DELETE               /api/v1/jobs/:id/applications[/me]
+PATCH                     /api/v1/jobs/:id/applications/:connectionId
+```
+
+Không có API xóa tài khoản thành viên trực tiếp. Việc rời cộng đồng/xóa dữ liệu cá nhân là quy trình quản trị có nhật ký, không phải nút CRUD thông thường.
 
 API kiểm thử trực tiếp:
 

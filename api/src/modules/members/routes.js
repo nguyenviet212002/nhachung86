@@ -38,10 +38,33 @@ router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next
   }
 });
 
-// CHÚ Ý CHO TASK SAU: các route `/members/me/...` của đặc tả (privacy,
-// contact-requests, profile-views, export, relations) phải khai TRƯỚC hai route
-// `/:id` bên dưới — Express chọn route đầu tiên khớp, và 'me' sẽ bị `/:id` bắt
-// mất (rồi rớt ở zod uuid thành 400) nếu khai sau.
+router.get('/me', async (req, res, next) => {
+  try { res.json(await memberService.getMe({ actor: req.actor })); } catch (err) { next(err); }
+});
+router.patch('/me', validate(schema.updateMeSchema), async (req, res, next) => {
+  try { res.json(await memberService.updateMe({ actor: req.actor, input: req.body })); } catch (err) { next(err); }
+});
+router.get('/me/contact-requests', validate(schema.contactRequestQuerySchema, 'query'), async (req, res, next) => {
+  try { res.json(await memberService.listContactRequests({ actor: req.actor, direction: req.query.direction,
+    status: req.query.status, page: req.query.page, limit: req.query.limit })); } catch (err) { next(err); }
+});
+router.patch('/me/contact-requests/:id', validate(schema.contactRequestParamSchema, 'params'), validate(schema.contactDecisionSchema), async (req, res, next) => {
+  try { res.json(await memberService.decideContactRequest({ actor: req.actor, id: req.params.id, status: req.body.status })); } catch (err) { next(err); }
+});
+router.get('/me/privacy', async (req, res, next) => {
+  try { res.json(await memberService.getPrivacy({ actor: req.actor })); } catch (err) { next(err); }
+});
+router.patch('/me/privacy/:field', validate(schema.privacyParamSchema, 'params'), validate(schema.privacyUpdateSchema), async (req, res, next) => {
+  try { res.json(await memberService.updatePrivacy({ actor: req.actor, field: req.params.field, level: req.body.level })); } catch (err) { next(err); }
+});
+router.get('/me/profile-views', validate(schema.profileViewsQuerySchema, 'query'), async (req, res, next) => {
+  try { res.json(await memberService.listProfileViews({ actor: req.actor, page: req.query.page, limit: req.query.limit })); } catch (err) { next(err); }
+});
+router.post('/:id/contact-requests', validate(schema.idParamSchema, 'params'), validate(schema.contactRequestSchema), async (req, res, next) => {
+  try { res.status(201).json(await memberService.requestContact({ actor: req.actor, targetId: req.params.id,
+    fieldKey: req.body.field_key, message: req.body.message })); } catch (err) { next(err); }
+});
+
 router.get('/:id', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try {
     res.json(await memberService.get({ actor: req.actor, id: req.params.id }));

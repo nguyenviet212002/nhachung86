@@ -1001,7 +1001,7 @@ const MEMBERS = [
 ];
 function findMember(id){ return id===CURRENT_USER.id ? CURRENT_USER : MEMBERS.find(m=>m.id===id); }
 
-const SKILLS = [
+let SKILLS = [
   {id:'sk1', ownerId:'m6', title:'Sửa chữa điện nước dân dụng', cat:'Xây dựng & Sửa chữa', desc:'Nhận gấp trong ngày, có thợ trực cuối tuần. Sửa chập cháy, thay đường nước, lắp điện nhà mới.', level:'Chuyên nghiệp'},
   {id:'sk2', ownerId:'m1', title:'Giám sát thi công nhà dân dụng', cat:'Xây dựng & Sửa chữa', desc:'Tư vấn thiết kế, giám sát thi công đảm bảo đúng tiến độ và chất lượng.', level:'Chuyên nghiệp'},
   {id:'sk3', ownerId:'m2', title:'Tư vấn sức khỏe từ xa', cat:'Y tế & Sức khoẻ', desc:'Tư vấn triệu chứng, hướng dẫn khám đúng chuyên khoa, hỗ trợ đặt lịch khám bệnh viện tỉnh.', level:'Chuyên nghiệp'},
@@ -1095,9 +1095,7 @@ let TRUST_REQUESTS = [
    ============================================================ */
 const ROLES = [
   {key:'member', short:'Thành viên', label:'Thành viên', icon:'user',
-   hint:'Bạn là người dùng thường: tìm người – năng lực, tham gia việc chung & hoạt động, phát tín hiệu khi cần giúp, ứng tuyển việc làm, chơi cờ tướng giao lưu.'},
-  {key:'poster', short:'Nhà tuyển dụng', label:'Người đăng bài / Nhà tuyển dụng', icon:'briefcase',
-   hint:'Bạn là người đăng bài: đăng tin tuyển dụng / cần hợp tác ở mục Việc làm, xem danh sách người ứng tuyển, chấp nhận hoặc từ chối, rồi trao đổi trực tiếp.'},
+   hint:'Một tài khoản thành viên có thể tìm người, đăng năng lực, đăng nhu cầu tuyển/hợp tác, ứng tuyển và tham gia mọi hoạt động chung.'},
   {key:'admin', short:'Quản trị', label:'Quản trị viên / Ban điều hành', icon:'shieldcheck',
    hint:'Bạn là ban điều hành: duyệt xác minh danh tính, kiểm duyệt tin đăng, quản lý Sổ quỹ TingTingVác (tick giải ngân) và xem nhật ký vận hành.'}
 ];
@@ -1235,21 +1233,21 @@ const JOB_TYPES = ['Toàn thời gian','Thời vụ','Hợp tác','Bán thời g
 
 /* ---- VIỆC LÀM & HỢP TÁC (nhóm 04) — dữ liệu 5 màn ---- */
 const JOB_TABS = ['Làm dài hạn','Theo vụ việc','Hợp tác góp vốn','Học nghề'];
-const JOB_NEEDS = [
+let JOB_NEEDS = [
   {id:'nd1', title:'Cần 2 thợ ốp lát làm dài hạn', area:'Khu vực 5', terms:'từ cuối tháng 8 · tính công theo mét vuông', by:'Đỗ Văn Sơn', init:'ĐS', status:'Còn 2 ngày'},
   {id:'nd2', title:'Tuyển kế toán bán thời gian', area:'Khu vực trung tâm', terms:'3 buổi mỗi tuần · làm sổ sách cửa hàng', by:'Trần Thị Lan', init:'TL', status:'Còn 5 ngày'},
   {id:'nd3', title:'Tìm người cùng góp vốn mở kho lạnh', area:'Khu vực 7', terms:'góp 2–3 người · bàn kỹ trước khi làm', by:'Bùi Đức Thắng', init:'BT', status:'Còn 9 ngày'},
   {id:'nd4', title:'Nhận một cháu học nghề cơ khí', area:'Khu vực 5', terms:'bao ăn trưa · học việc 6 tháng', by:'Đỗ Văn Sơn', init:'ĐS', status:'Đang mở'},
   {id:'nd5', title:'Cần lái xe chạy tuyến cố định', area:'Khu vực 3', terms:'bằng C · chạy ngày, nghỉ chủ nhật', by:'Phạm Văn Dũng', init:'PD', status:'Đang mở'}
 ];
-const JOB_READY = [
+let JOB_READY = [
   {name:'Mai Văn Khánh', init:'MK', job:'Ốp lát, hoàn thiện', area:'Khu vực 4', note:'nhận từ 01-09', status:'Sẵn sàng'},
   {name:'Trần Văn Hùng', init:'TH', job:'Thợ hàn, cơ khí', area:'Khu vực 5', note:'nhận việc ngay', status:'Sẵn sàng'},
   {name:'Đặng Thị Mai', init:'ĐM', job:'May đo, sửa quần áo', area:'Khu vực 4', note:'nhận tại nhà', status:'Sẵn sàng'},
   {name:'Vũ Minh Hải', init:'VH', job:'Dạy kèm cấp hai', area:'buổi tối · tối đa 4 cháu', note:'', status:'Theo hẹn'},
   {name:'Nguyễn Văn Sáng', init:'NS', job:'Điện công trình', area:'Khu vực trung tâm', note:'', status:'Sẵn sàng'}
 ];
-const JOB_CONNECTIONS = [
+let JOB_CONNECTIONS = [
   {a:'Đỗ Văn Sơn', b:'Mai Văn Khánh', sub:'Ốp lát nhà hai tầng · đang thi công ngày thứ 6', status:'Đang làm', dot:'green'},
   {a:'Trần Thị Lan', b:'Đỗ Văn Sơn', sub:'Sửa điện xưởng · đã hoàn thành, hai bên xác nhận', status:'Xong', dot:'green'},
   {a:'Phạm Văn Dũng', b:'chưa có người', sub:'Tuyển lái xe · đã 9 ngày chưa ai nhận', status:'Chờ', dot:'orange'},
@@ -1367,17 +1365,26 @@ const state = {
   skillFilter:{q:'', cat:'Tất cả'},
   toastTimer:null,
 
-  /* ---- MỐC 2: phần nối API thật. Ba màn dùng, 47 màn còn lại không đụng ---- */
-  // Danh tính THẬT trả về từ POST /auth/login. Cố ý KHÔNG ghi đè CURRENT_USER.id:
-  // 'u1' là khoá của dữ liệu giả (SKILLS.ownerId, findMember, ...), đổi nó đi là
-  // làm hỏng những màn mà mốc này không được phép chạm.
+  /* Danh tính và dữ liệu thành viên thật trả về từ API. */
   me:null,
   regStep:'form',   // 'form' | 'done'
   regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', invite_token:'', password:'', terms:false},
   regResult:null,
   joinRequests:null,
   joinRequestsLoading:false,
-  joinRequestsError:''
+  joinRequestsError:'',
+  marketLoaded:false,
+  marketLoading:false,
+  marketError:'',
+  editingJobId:null,
+  contactRequests:null,
+  contactRequestsLoading:false,
+  memberDetails:{},
+  memberDetailLoading:null,
+  memberDetailErrors:{},
+  privacyLoaded:false,
+  privacyLoading:false,
+  profileVisitors:[]
 };
 
 // Dữ liệu thật dùng chung cho topbar, thông báo và màn tin nhắn. Dữ liệu demo
@@ -1389,6 +1396,107 @@ let notificationStream = null;
 let soundEnabled = true;
 let soundUnlocked = false;
 let REGISTER_AREAS = [];
+let LIVE_JOB_DETAILS = {};
+let LIVE_FILE_URLS = {};
+let LIVE_FILE_LOADING = {};
+
+function secureImageUrl(path,fallback=AVATAR(1)){
+  if(!path) return fallback;
+  if(!String(path).startsWith('/files/')) return path;
+  if(LIVE_FILE_URLS[path]) return LIVE_FILE_URLS[path];
+  if(liveMode()&&!LIVE_FILE_LOADING[path]){
+    LIVE_FILE_LOADING[path]=true;
+    queueMicrotask(()=>api.blob(path).then(blob=>{LIVE_FILE_URLS[path]=URL.createObjectURL(blob);render();}).catch(()=>{}).finally(()=>{delete LIVE_FILE_LOADING[path];}));
+  }
+  return fallback;
+}
+
+function jobStatusLabel(status){ return ({open:'Đang mở',closed:'Đã đóng',filled:'Đã tìm được người',cancelled:'Đã hủy'})[status]||status; }
+function readyStatusLabel(status){ return ({ready:'Sẵn sàng',by_appointment:'Theo hẹn',paused:'Tạm nghỉ'})[status]||status; }
+function connectionStatusLabel(status){ return ({contacted:'Chờ xử lý',agreed:'Đã thống nhất',working:'Đang làm',done:'Đã xong',failed:'Không thành'})[status]||status; }
+
+async function ensureAreas(){
+  if(DIRECTORY.areas.length) return DIRECTORY.areas;
+  const r=await api.get('/areas');
+  DIRECTORY.areas=flattenAreas(r.data||[]);
+  return DIRECTORY.areas;
+}
+
+async function loadMarketplace(force=false){
+  if(!liveMode() || state.marketLoading || (state.marketLoaded&&!force)) return;
+  state.marketLoading=true; state.marketError='';
+  try{
+    const [caps,jobs,ready,connections]=await Promise.all([
+      api.get('/capabilities?limit=100'), api.get('/jobs?limit=100'),
+      api.get('/jobs/ready?limit=100'), api.get('/jobs/connections?limit=100')
+    ]);
+    SKILLS=(caps.data||[]).map(c=>({id:c.id,ownerId:c.member_id,title:c.title,cat:c.category||'Khác',desc:c.description||'',level:c.years_experience!=null?`${c.years_experience} năm`:'Tự khai',raw:c}));
+    CAP_NEW=(caps.data||[]).map(c=>({id:c.id,memberId:c.member_id,init:initials(c.full_name||''),title:c.title,by:`${c.full_name||'Thành viên'} · ${c.area_name||c.category||''}`,st:'Sẵn sàng',raw:c}));
+    JOB_NEEDS=(jobs.data||[]).map(j=>({id:j.id,posterId:j.poster_id,title:j.title,area:j.area_name||'Chưa nêu khu vực',terms:j.terms||j.description||'',by:j.poster_name,init:initials(j.poster_name||''),status:jobStatusLabel(j.status),raw:j}));
+    JOB_READY=(ready.data||[]).map(p=>({id:p.member_id,name:p.full_name,init:initials(p.full_name||''),job:p.headline||p.job||'',area:p.area_name||'',note:p.availability||p.note||'',status:readyStatusLabel(p.status),raw:p}));
+    JOB_CONNECTIONS=(connections.data||[]).map(c=>({id:c.id,jobId:c.job_need_id,a:c.poster_name,b:c.worker_name,sub:c.title||'Kết nối việc làm',status:connectionStatusLabel(c.status),dot:['agreed','working','done'].includes(c.status)?'green':c.status==='contacted'?'orange':'gray',raw:c}));
+    state.marketLoaded=true;
+  }catch(err){ state.marketError=err.message; }
+  finally{ state.marketLoading=false; render(); }
+}
+
+async function loadJobDetail(id,force=false){
+  if(!liveMode()||!id||(!force&&LIVE_JOB_DETAILS[id])) return;
+  try{ LIVE_JOB_DETAILS[id]=await api.get('/jobs/'+encodeURIComponent(id)); render(); }
+  catch(err){ toast(err.message,true); }
+}
+
+async function loadContactRequests(force=false){
+  if(!liveMode() || state.contactRequestsLoading || (state.contactRequests&&!force)) return;
+  state.contactRequestsLoading=true;
+  try{
+    const r=await api.get('/members/me/contact-requests?direction=incoming&status=pending&limit=30');
+    state.contactRequests=r.data||[];
+  }catch(err){ toast(err.message,true); }
+  finally{ state.contactRequestsLoading=false; render(); }
+}
+
+async function loadMemberDetail(id,force=false){
+  if(!liveMode()||!id||state.memberDetailLoading===id||(!force&&state.memberDetails[id])) return;
+  state.memberDetailLoading=id; delete state.memberDetailErrors[id];
+  try{
+    const m=await api.get('/members/'+encodeURIComponent(id));
+    state.memberDetails[id]={
+      id:m.id,name:m.full_name,job:m.job||'',area:m.area?.name||'',avatar:secureImageUrl(m.avatar_url),
+      joined:m.joined_at?new Date(m.joined_at).toLocaleDateString('vi-VN'):'—',bio:m.bio||'',hours:0,
+      verified:m.status==='member',contacts:m.contacts,profile_fields:m.profile_fields,raw:m
+    };
+  }catch(err){ state.memberDetailErrors[id]=err.message; }
+  finally{ state.memberDetailLoading=null; render(); }
+}
+
+const PRIVACY_LEVEL_FROM_API={public:'Mọi thành viên',on_consent:'Khi tôi đồng ý',closed:'Đóng'};
+const PRIVACY_LEVEL_TO_API={'Mọi thành viên':'public','Khi tôi đồng ý':'on_consent','Đóng':'closed'};
+async function loadPrivacyCenter(force=false){
+  if(!liveMode()||state.privacyLoading||(state.privacyLoaded&&!force)) return;
+  state.privacyLoading=true;
+  try{
+    const [privacy,views]=await Promise.all([api.get('/members/me/privacy'),api.get('/members/me/profile-views?limit=30')]);
+    for(const setting of privacy.data||[]){
+      const field=PRIVACY_FIELDS.find(x=>x.key===setting.field_key);
+      if(field){
+        field.val=PRIVACY_LEVEL_FROM_API[setting.level]||'Đóng';
+        field.extra=field.val==='Đóng'?'Không ai thấy':(field.val==='Khi tôi đồng ý'?(field.partial?'Che một phần':'Cần tôi duyệt'):'Đang hiển thị');
+      }
+    }
+    state.profileVisitors=(views.data||[]).map(v=>({id:v.viewer_id,name:v.viewer_name,act:'Đã xem hồ sơ',time:new Date(v.viewed_at).toLocaleString('vi-VN'),avatar:secureImageUrl(v.avatar_url)}));
+    state.privacyLoaded=true;
+  }catch(err){ toast(err.message,true); }
+  finally{state.privacyLoading=false;render();}
+}
+
+function LiveMemberPage(id){
+  if(!liveMode()) return ProfilePage(findMember(id)||CURRENT_USER,false);
+  if(!state.memberDetails[id]&&state.memberDetailLoading!==id) queueMicrotask(()=>loadMemberDetail(id));
+  if(state.memberDetailErrors[id]) return `<div class="empty">${ic('alert',34)}<p>${esc(state.memberDetailErrors[id])}</p><button class="btn btn-outline mt-12" data-action="member-detail-refresh" data-id="${esc(id)}">Thử lại</button></div>`;
+  const member=state.memberDetails[id];
+  return member?ProfilePage(member,false):`<div class="empty">${ic('refresh',34)}<p>Đang tải hồ sơ thành viên...</p></div>`;
+}
 
 function liveMode(){ return Boolean(state.me && api.isLoggedIn()); }
 function liveNotifications(){ return liveMode() ? LIVE_NOTIFICATIONS : NOTIFICATIONS; }
@@ -1482,6 +1590,8 @@ function go(route, params={}){
   closeModal();
   render();
   if(route==='admin') loadJoinRequests();
+  if(['skills','jobs','jobReady'].includes(route)) loadMarketplace();
+  if(route==='jobResult'&&params.id) loadJobDetail(params.id);
 }
 
 /* form validation helper: rules = [[fieldName, value, [ [testFn, msg], ... ]]] */
@@ -1917,9 +2027,9 @@ function Topbar(){
       <input type="text" id="global-search" placeholder="Tìm kiếm thành viên, năng lực, việc chung, hoạt động..." autocomplete="off">
       <div class="topbar-search-results" id="global-search-results"></div>
     </div>
-    <div class="role-switch" title="Các nút dưới đây là luồng demo; quyền thật lấy từ API /auth/me">
+    <div class="role-switch" title="Quyền thật lấy từ API /auth/me">
       <span style="font-size:11px;color:var(--muted);white-space:nowrap">Vai thật: ${esc(actualRoleLabel())}</span>
-      ${ROLES.map(r=>`<button class="role-chip ${state.role===r.key?'active':''}" data-action="switch-role" data-role="${r.key}">${ic(r.icon,14)}<span>${r.short}</span></button>`).join('')}
+      ${ROLES.filter(r=>r.key!=='admin'||canReadJoinRequests()).map(r=>`<button class="role-chip ${state.role===r.key?'active':''}" data-action="switch-role" data-role="${r.key}">${ic(r.icon,14)}<span>${r.short}</span></button>`).join('')}
     </div>
     <div class="topbar-right">
       <div style="position:relative">
@@ -1976,7 +2086,7 @@ function renderPage(){
     case 'relations': return RelationsPage();
     case 'mymemory': return PersonalMemoryPage();
     case 'members': return MembersPage();
-    case 'member': return ProfilePage(findMember(state.params.id)||CURRENT_USER, false);
+    case 'member': return LiveMemberPage(state.params.id);
     case 'skills': return SkillsPage();
     case 'skillDetail': return SkillDetailPage();
     case 'exhibit': return ExhibitPage();
@@ -2218,8 +2328,8 @@ function ProfilePage(u, isSelf){
           <div class="sc-head"><h3>Liên hệ</h3></div>
           <div class="card-pad" style="padding-top:6px">
             <div class="kv-row"><span class="k">Khu vực</span><span class="v">${esc(u.area)}</span></div>
-            <div class="kv-row"><span class="k">Số điện thoại</span><span class="v">${u.phone?esc(u.phone):'Cần được đồng ý'}</span></div>
-            <button class="btn btn-outline btn-sm btn-block mt-12" data-action="open-convo-with" data-id="${u.id}">Xin xem số liên hệ</button>
+            <div class="kv-row"><span class="k">Số điện thoại</span><span class="v">${u.phone?esc(u.phone):'Theo quyền riêng tư của chủ hồ sơ'}</span></div>
+            <div class="mt-12">${u.contacts?phoneCell(u):`<button class="btn btn-outline btn-sm btn-block" data-action="dir-request-phone" data-id="${u.id}">Xin xem số liên hệ</button>`}</div>
           </div>
         </div>`}
         <div class="section-card">
@@ -2490,7 +2600,7 @@ function phoneCell(m){
     case 'requested':
       return `<div class="locked-bar" style="padding:9px 11px">${ic('clock',14)}<div><p style="font-size:11.5px;margin:0">Đang chờ chủ hồ sơ trả lời</p></div></div>`;
     case 'denied':
-      return `<div class="locked-bar" style="padding:9px 11px;opacity:.55">${ic('lock',14)}<div><p style="font-size:11.5px;margin:0">Chủ hồ sơ chưa đồng ý. Có thể xin lại sau 30 ngày.</p></div></div>`;
+      return `<div class="locked-bar" style="padding:9px 11px;opacity:.55">${ic('lock',14)}<div><p style="font-size:11.5px;margin:0">Chủ hồ sơ chưa đồng ý. Có thể gửi yêu cầu mới khi cần.</p></div></div>`;
     default: // 'closed'
       return `<div class="locked-bar" style="padding:9px 11px">${ic('lock',14)}<div><p style="font-size:11.5px;margin:0">Chủ hồ sơ đã đóng thông tin này</p></div></div>`;
   }
@@ -2525,7 +2635,7 @@ function MembersPage(){
         ? `<div class="grid cards-3">${DIRECTORY.rows.map(m=>`
         <div class="card member-card">
           <div class="top">
-            <img class="av" src="${esc(m.avatar_url || AVATAR(1))}" width="52" height="52" alt="">
+            <img class="av" src="${esc(secureImageUrl(m.avatar_url))}" width="52" height="52" alt="">
             <div>
               <h4>${esc(m.full_name)}</h4>
               <div class="role">${esc(profileText(m,'job', m.job, 'Chưa cập nhật nghề nghiệp'))}</div>
@@ -2537,6 +2647,7 @@ function MembersPage(){
             <span class="badge badge-orange">${esc(m.contacts.phone.level)}</span>
           </div>
           <div class="mt-12">${phoneCell(m)}</div>
+          <button class="btn btn-outline btn-sm btn-block mt-8" data-action="nav" data-route="member" data-id="${esc(m.id)}">Xem hồ sơ</button>
         </div>`).join('')}</div>`
         : `<div class="empty">${ic('users',34)}<p>Không tìm thấy thành viên phù hợp. Thử từ khóa khác.</p></div>`));
 
@@ -2570,7 +2681,7 @@ const CAP_GROUPS = [
   {icon:'mappin', title:'Mặt bằng, kho bãi', sub:'11 địa điểm', rows:[['Kho chứa hàng khô','3 kho'],['Xưởng cơ khí','2 xưởng'],['Sân bãi đỗ xe','2 điểm'],['Phòng họp cho thuê','2 phòng'],['Bếp làm cỗ','2 bếp'],['Mặt bằng bán hàng','1 điểm'],['Nhà kho lạnh','1 kho']]},
   {icon:'clock', title:'Thời gian đóng góp', sub:'47 lượt đăng ký', rows:[['Cuối tuần','19 người'],['Buổi tối trong tuần','12 người'],['Trực điện thoại khi cần','9 người'],['Đi xa theo chuyến','7 người'],['Nhận việc gấp','14 người'],['Dạy nghề cho con em','6 người'],['Việc thiện nguyện','11 người']]}
 ];
-const CAP_NEW = [
+let CAP_NEW = [
   {init:'ĐS', title:'Kéo lại hệ thống điện xưởng nhỏ', by:'Đỗ Văn Sơn · nhận công trình dưới 200 m²', st:'Sẵn sàng'},
   {init:'NH', title:'Nhận đặt cỗ, tiệc tại nhà', by:'Ngô Thị Hiền · báo trước 3 ngày', st:'Sẵn sàng'},
   {init:'PD', title:'Chở hàng tuyến liên tỉnh', by:'Phạm Văn Dũng · xe 1,5 tấn', st:'Theo hẹn'},
@@ -2587,6 +2698,7 @@ const CAP_LACK = [
   {title:'Người nhận trông trẻ giờ hành chính', sub:'1 người hỏi · đang chờ', tag:'Đang cần'}
 ];
 function SkillsPage(){
+  if(liveMode()&&!state.marketLoaded&&!state.marketLoading) queueMicrotask(()=>loadMarketplace());
   return `
     <div class="page-head">
       <div><h1>Trung tâm năng lực và dịch vụ</h1><p>Cộng đồng đang có gì trong tay: chuyên môn, phương tiện, mặt bằng và thời gian có thể đóng góp.</p></div>
@@ -2598,7 +2710,7 @@ function SkillsPage(){
       <select class="input input-sm"><option>Nhóm: Tất cả</option></select>
       <select class="input input-sm"><option>Khu vực: Tất cả</option></select>
       ${['Đang sẵn sàng','Nhận theo hẹn','Tạm nghỉ'].map((t,i)=>`<button class="chip ${i===0?'active':''}">${t}</button>`).join('')}
-      <span style="margin-left:auto;font-size:12px;color:var(--muted)">148 năng lực · 52 người · cập nhật hôm nay</span>
+      <span style="margin-left:auto;font-size:12px;color:var(--muted)">${SKILLS.length} năng lực đang hiển thị · dữ liệu từ API</span>
     </div>
     <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:16px;align-items:start">
       ${CAP_GROUPS.map(g=>`
@@ -2609,9 +2721,9 @@ function SkillsPage(){
     <div class="grid mt-18" style="grid-template-columns:1fr 1fr;gap:18px;align-items:start">
       <div class="section-card"><div class="sc-head"><h3>Năng lực mới công bố</h3><span class="muted" style="font-size:12px">7 ngày gần đây</span></div>
         <div class="card-pad" style="padding-top:6px">${CAP_NEW.map(c=>`
-          <div class="rel-item" data-action="nav" data-route="skillDetail" style="cursor:pointer"><div class="ib-av sm">${esc(c.init)}</div>
+          <div class="rel-item" data-action="nav" data-route="skillDetail" data-id="${esc(c.id||'')}" style="cursor:pointer"><div class="ib-av sm">${esc(c.init)}</div>
             <div class="info"><b>${esc(c.title)}</b><p>${esc(c.by)}</p></div>
-            <span class="badge ${c.st==='Sẵn sàng'?'badge-green':'badge-gray'}">${esc(c.st)}</span></div>`).join('')}
+            <span class="badge ${c.st==='Sẵn sàng'?'badge-green':'badge-gray'}">${esc(c.st)}</span>${c.memberId===state.me?.id?`<button class="btn btn-outline btn-sm" data-action="cap-edit" data-id="${esc(c.id)}">Sửa</button><button class="btn btn-outline btn-sm" data-action="cap-delete" data-id="${esc(c.id)}">Xóa</button>`:''}</div>`).join('')}
         </div></div>
       <div class="section-card"><div class="sc-head"><h3>Cộng đồng đang thiếu</h3><span class="muted" style="font-size:12px">theo nhu cầu chưa có người nhận</span></div>
         <div class="card-pad" style="padding-top:6px">${CAP_LACK.map(c=>`
@@ -2625,6 +2737,11 @@ function SkillsPage(){
 
 /* 0202 — Hồ sơ năng lực */
 function SkillDetailPage(){
+  const live=SKILLS.find(s=>s.id===state.params.id)?.raw;
+  if(live) return `
+    <div class="page-head"><div><p class="crumb">Trung tâm năng lực · ${esc(live.category||'Khác')}</p><h1>${esc(live.title)}</h1></div>${live.member_id===state.me?.id?`<div class="flex gap-8"><button class="btn btn-outline" data-action="cap-edit" data-id="${esc(live.id)}">Sửa</button><button class="btn btn-danger" data-action="cap-delete" data-id="${esc(live.id)}">Xóa</button></div>`:''}</div>
+    ${sectionTabs(TABS_SKILL,'skillDetail')}
+    <div class="grid" style="grid-template-columns:1fr 320px;gap:18px;align-items:start"><div class="section-card"><div class="sc-head"><h3>Mô tả</h3></div><div class="card-pad"><p style="line-height:1.7">${esc(live.description||'Chưa có mô tả.')}</p><div class="kv-row"><span class="k">Kinh nghiệm</span><span class="v">${live.years_experience==null?'Chưa nêu':esc(live.years_experience)+' năm'}</span></div><div class="kv-row"><span class="k">Giá tham khảo</span><span class="v">${esc(live.price||'Theo quyền riêng tư / thỏa thuận')}</span></div></div></div><div class="section-card"><div class="sc-head"><h3>Thành viên</h3></div><div class="card-pad"><b>${esc(live.full_name)}</b><p class="muted">${esc(live.job||'')} · ${esc(live.area_name||'')}</p>${live.member_id!==state.me?.id?`<button class="btn btn-primary btn-block mt-12" data-action="open-convo-with" data-id="${esc(live.member_id)}">Nhắn tin</button>`:''}</div></div></div>`;
   return `
     <div class="page-head"><div><p class="crumb">Trung tâm năng lực · Chuyên môn nghề · Sửa chữa điện nước dân dụng</p><h1>Sửa chữa và lắp đặt điện nước dân dụng</h1></div></div>
     ${sectionTabs(TABS_SKILL,'skillDetail')}
@@ -3599,6 +3716,10 @@ const PRIVACY_GROUPS = [
 const PRIVACY_LEVELS = ['Mọi thành viên','Khi tôi đồng ý','Đóng'];
 const PRIVACY_FIELDS = PRIVACY_GROUPS.flatMap(g=>g.fields);
 function PrivacyPage(){
+  if(liveMode()&&!state.contactRequests&&!state.contactRequestsLoading) queueMicrotask(()=>loadContactRequests());
+  if(liveMode()&&!state.privacyLoaded&&!state.privacyLoading) queueMicrotask(()=>loadPrivacyCenter());
+  const requests=state.contactRequests||[];
+  const visitors=liveMode()?state.profileVisitors:PROFILE_VISITORS;
   return `
     <div class="page-head"><div><h1>Trung tâm quyền riêng tư</h1><p>Mặc định của Nhà Chung là đóng. Anh chị mở đến đâu thì người khác thấy đến đó — và có thể đóng lại bất cứ lúc nào.</p></div></div>
     <div class="grid" style="grid-template-columns:1fr 340px;align-items:start;gap:20px">
@@ -3619,17 +3740,30 @@ function PrivacyPage(){
           </div>`).join('')}
       </div>
       <div class="grid" style="gap:16px">
+        ${liveMode()?`<div class="section-card">
+          <div class="sc-head"><h3>Yêu cầu xem liên hệ</h3><button class="btn btn-outline btn-sm" data-action="contact-requests-refresh">Làm mới</button></div>
+          <div class="card-pad" style="padding-top:8px">
+            ${state.contactRequestsLoading?'<div class="empty"><p>Đang tải yêu cầu...</p></div>':requests.length?requests.map(r=>`
+              <div class="rel-item" style="align-items:flex-start">
+                <div class="info"><b>${esc(r.other_member_name)}</b><p>Xin xem ${r.field_key==='phone'?'số điện thoại':esc(r.field_key)}${r.message?` · ${esc(r.message)}`:''}</p></div>
+                <div class="flex gap-8">
+                  <button class="btn btn-primary btn-sm" data-action="contact-request-decision" data-id="${esc(r.id)}" data-status="approved">Đồng ý</button>
+                  <button class="btn btn-outline btn-sm" data-action="contact-request-decision" data-id="${esc(r.id)}" data-status="denied">Từ chối</button>
+                </div>
+              </div>`).join(''):'<div class="empty"><p>Không có yêu cầu nào đang chờ.</p></div>'}
+          </div>
+        </div>`:''}
         <div class="section-card">
           <div class="sc-head"><h3>Ai đã xem hồ sơ của tôi</h3></div>
           <div class="card-pad" style="padding-top:8px">
             <p class="muted" style="font-size:12px;margin-bottom:8px">Chỉ ghi lượt xem của thành viên trong cộng đồng.</p>
-            ${PROFILE_VISITORS.map(v=>`
+            ${visitors.length?visitors.map(v=>`
               <div class="rel-item">
-                <img class="av" src="${AVATAR(5+PROFILE_VISITORS.indexOf(v)*4)}" width="36" height="36">
+                <img class="av" src="${esc(v.avatar||AVATAR(5+visitors.indexOf(v)*4))}" width="36" height="36">
                 <div class="info"><b>${esc(v.name)}</b><p>${esc(v.act)}</p></div>
                 <div class="rel-meta">${esc(v.time)}</div>
-              </div>`).join('')}
-            <button class="btn btn-outline btn-sm btn-block mt-12" data-action="toast-demo" data-msg="Mở nhật ký lượt xem hồ sơ (bản demo).">Xem toàn bộ nhật ký</button>
+              </div>`).join(''):'<div class="empty"><p>Chưa có thành viên nào xem hồ sơ.</p></div>'}
+            <button class="btn btn-outline btn-sm btn-block mt-12" data-action="privacy-refresh">Làm mới nhật ký</button>
           </div>
         </div>
         <div class="rights-card">
@@ -3667,6 +3801,7 @@ function PrivacyPage(){
 let NOTIF_PREFS = {activity:true, message:true, project:true, email:false};
 let LIVE_INVITE_URL = '';
 function SettingsPage(){
+  if(liveMode()&&!DIRECTORY.areas.length) queueMicrotask(()=>ensureAreas().then(render).catch(e=>toast(e.message,true)));
   return `
     <div class="page-head"><div><h1>Cài đặt</h1><p>Quản lý thông tin tài khoản và tùy chọn cá nhân.</p></div></div>
     <div class="tabs">
@@ -3698,7 +3833,7 @@ function SettingsPage(){
                 <div class="field" data-field="email"><label>Email <span class="req">*</span></label><input class="input" id="st-email" value="${esc(CURRENT_USER.email)}"><div class="err"></div></div>
               </div>
               <div class="field" data-field="area"><label>Khu vực sinh sống</label>
-                <select class="input" id="st-area">${AREAS.map(a=>`<option ${a===CURRENT_USER.area?'selected':''}>${esc(a)}</option>`).join('')}</select>
+                <select class="input" id="st-area"><option value="">— Chọn khu vực —</option>${DIRECTORY.areas.map(a=>`<option value="${esc(a.id)}" ${state.me?.area_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>
               </div>
               <div class="field" data-field="bio"><label>Giới thiệu ngắn</label><textarea class="input" id="st-bio">${esc(CURRENT_USER.bio||'')}</textarea></div>
               <button class="btn btn-primary" type="submit">Lưu thay đổi</button>
@@ -3895,6 +4030,7 @@ function tick(kind){ return kind==='ok'?`<span style="color:#1a6b4f">${ic('check
 /* 0401 — Trung tâm việc làm và hợp tác (hub) */
 function JobsPage(){
   const dotColor = d => d==='green'?'#1a6b4f':d==='orange'?'var(--orange)':'#bbb';
+  if(liveMode()&&!state.marketLoaded&&!state.marketLoading) queueMicrotask(()=>loadMarketplace());
   return `
     <div class="page-head">
       <div><h1>Việc làm và hợp tác</h1><p>Nhu cầu đang mở, anh em đang sẵn sàng, và những kết nối đang được theo dõi.</p></div>
@@ -3907,13 +4043,14 @@ function JobsPage(){
       ${JOB_TABS.map((t,i)=>`<button class="chip ${i===0?'active':''}">${t}</button>`).join('')}
       <span style="margin-left:auto;font-size:12px;color:var(--muted)">Không xếp hạng người · không chấm điểm hồ sơ</span>
     </div>
+    ${state.marketError?`<div class="note-soft" style="color:var(--danger)">${esc(state.marketError)} <button class="btn btn-outline btn-sm" data-action="market-refresh">Thử lại</button></div>`:''}
     <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">
       <div class="section-card"><div class="sc-head"><h3>${ic('briefcase',15)} Nhu cầu đang mở</h3><span class="muted" style="font-size:12px">${JOB_NEEDS.length} nhu cầu · 2 mới trong tuần</span></div>
         <div>${JOB_NEEDS.map(n=>`
-          <div class="need-row" data-action="nav" data-route="jobResult">
+          <div class="need-row" data-action="nav" data-route="jobResult" data-id="${esc(n.id)}">
             <b>${esc(n.title)}</b>
             <p>${esc(n.area)} · ${esc(n.terms)}</p>
-            <div class="need-foot"><span class="ib-av sm">${esc(n.init)}</span>${esc(n.by)}<span class="badge ${n.status.includes('Còn')?'badge-orange':'badge-gray'}" style="margin-left:auto">${esc(n.status)}</span></div>
+             <div class="need-foot"><span class="ib-av sm">${esc(n.init)}</span>${esc(n.by)}<span class="badge ${n.status==='Đang mở'?'badge-orange':'badge-gray'}" style="margin-left:auto">${esc(n.status)}</span></div>
           </div>`).join('')}</div>
       </div>
       <div class="section-card"><div class="sc-head"><h3>${ic('user',15)} Anh em đang sẵn sàng</h3><span class="muted" style="font-size:12px">${JOB_READY.length} người tự để trạng thái</span></div>
@@ -3928,7 +4065,7 @@ function JobsPage(){
       </div>
       <div class="section-card"><div class="sc-head"><h3>${ic('arrowright',15)} Kết nối đang theo dõi</h3><span class="muted" style="font-size:12px">${JOB_CONNECTIONS.length} kết nối · 2 đã thành việc</span></div>
         <div class="card-pad" style="padding-top:6px">${JOB_CONNECTIONS.map(c=>`
-          <div class="conn-row" data-action="nav" data-route="jobResult">
+           <div class="conn-row" data-action="nav" data-route="jobResult" data-id="${esc(c.jobId||'')}">
             <span class="conn-dot" style="background:${dotColor(c.dot)}"></span>
             <div class="info"><b>${esc(c.a)} ↔ ${esc(c.b)}</b><p>${esc(c.sub)}</p></div>
             <span class="conn-status">${esc(c.status)}</span>
@@ -3941,23 +4078,26 @@ function JobsPage(){
 
 /* 0402 — Đăng một nhu cầu */
 function JobPostPage(){
+  if(liveMode()&&!DIRECTORY.areas.length) queueMicrotask(()=>ensureAreas().then(render).catch(e=>toast(e.message,true)));
+  const editing=state.editingJobId ? (LIVE_JOB_DETAILS[state.editingJobId]||JOB_NEEDS.find(x=>x.id===state.editingJobId)?.raw) : null;
+  const areaOptions=DIRECTORY.areas.map(a=>`<option value="${esc(a.id)}" ${editing?.area_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('');
   return `
-    <div class="page-head"><div><h1>Đăng một nhu cầu</h1><p>Nói rõ ngay từ đầu thì đỡ mất thời gian cả hai bên. Người đọc phải biết có hợp với mình hay không trong ba mươi giây.</p></div><span class="muted" style="font-size:12px">Bản nháp</span></div>
+    <div class="page-head"><div><h1>${editing?'Sửa nhu cầu':'Đăng một nhu cầu'}</h1><p>Mọi thành viên đều có thể đăng khi cần tuyển người hoặc hợp tác.</p></div><span class="muted" style="font-size:12px">${editing?'Đang chỉnh sửa':'Bản mới'}</span></div>
     <form id="form-job-post" novalidate>
     <div class="grid" style="grid-template-columns:1fr 1fr 340px;align-items:start;gap:18px">
       <div class="section-card"><div class="card-pad">
         <div class="col-badge">1</div><h3 style="margin-bottom:2px">Công việc</h3><p class="muted" style="font-size:12.5px;margin-bottom:14px">Viết như đang nói chuyện với anh em, không cần văn vẻ tuyển dụng.</p>
         <label class="lbl">Loại nhu cầu</label>
         <div class="seg mb-12" style="width:100%">${['Thuê làm việc','Hợp tác','Nhận học nghề'].map((o,i)=>`<button type="button" class="seg-btn ${i===0?'active':''}" data-action="pick-purpose" data-val="${o}" style="flex:1">${o}</button>`).join('')}</div>
-        <div class="field" data-field="title"><label>Tên công việc</label><input class="input" id="jp-title" placeholder="Cần 2 thợ ốp lát làm dài hạn"><div class="err"></div></div>
-        <div class="field" data-field="desc"><label>Mô tả công việc</label><textarea class="input" id="jp-desc" placeholder="Công trình nhà dân hai tầng và mấy công trình nối tiếp sau đó..."></textarea><div class="err"></div></div>
+        <div class="field" data-field="title"><label>Tên công việc</label><input class="input" id="jp-title" value="${esc(editing?.title||'')}" placeholder="Cần 2 thợ ốp lát làm dài hạn"><div class="err"></div></div>
+        <div class="field" data-field="desc"><label>Mô tả công việc</label><textarea class="input" id="jp-desc" placeholder="Công trình nhà dân hai tầng và mấy công trình nối tiếp sau đó...">${esc(editing?.description||'')}</textarea><div class="err"></div></div>
         <div class="row-2"><div class="field"><label>Thuộc nghề</label><input class="input" id="jp-job" placeholder="Xây dựng — hoàn thiện"></div>
           <div class="field"><label>Số người cần</label><input class="input" id="jp-count" placeholder="2 người"></div></div>
-        <div class="field"><label>Chế độ — nói thẳng cho rõ</label><textarea class="input" id="jp-terms" placeholder="Tính công theo mét vuông. Trả theo tuần. Có chỗ để đồ nghề, không bao ăn ở."></textarea></div>
+        <div class="field"><label>Chế độ — nói thẳng cho rõ</label><textarea class="input" id="jp-terms" placeholder="Tính công theo mét vuông. Trả theo tuần. Có chỗ để đồ nghề, không bao ăn ở.">${esc(editing?.terms||'')}</textarea></div>
       </div></div>
       <div class="section-card"><div class="card-pad">
         <div class="col-badge">2</div><h3 style="margin-bottom:2px">Điều kiện và thời hạn</h3><p class="muted" style="font-size:12.5px;margin-bottom:14px">Ghi cả điều kiện bất lợi. Giấu bây giờ thì hai tuần nữa người ta bỏ việc.</p>
-        <div class="row-2"><div class="field"><label>Khu vực làm việc</label><input class="input" id="jp-area" value="Khu vực 5"></div>
+        <div class="row-2"><div class="field"><label>Khu vực làm việc</label><select class="input" id="jp-area"><option value="">— Chọn khu vực —</option>${areaOptions}</select></div>
           <div class="field"><label>Bắt đầu</label><input class="input" id="jp-start" value="Cuối tháng 8-2026"></div></div>
         <div class="field"><label>Yêu cầu với người nhận việc</label><textarea class="input" id="jp-req" placeholder="Có kinh nghiệm ốp lát, tự lo đồ nghề cơ bản. Làm được liên tục ít nhất ba tuần."></textarea></div>
         <div class="field"><label>Điều kiện cần nói trước</label><textarea class="input" id="jp-warn" placeholder="Công trình ở ngõ nhỏ, xe tải không vào tận nơi, phải chuyển vật tư khoảng 40 m. Chưa có điện ba pha."></textarea></div>
@@ -3980,7 +4120,7 @@ function JobPostPage(){
           <div class="need-foot"><span class="ib-av sm">ĐS</span>Đỗ Văn Sơn · anh Dũng đưa vào Hội<span class="badge badge-orange" style="margin-left:auto">Còn 2 ngày</span></div>
         </div>
         <div class="soft-block mt-12" style="font-size:12.5px">Nhu cầu này sẽ hiện trong Trung tâm việc làm và gửi tới những anh em để trạng thái nhận việc đúng nghề.</div>
-        <button class="btn btn-primary btn-block mt-12" type="submit">Đăng nhu cầu</button>
+        <button class="btn btn-primary btn-block mt-12" type="submit">${editing?'Lưu thay đổi':'Đăng nhu cầu'}</button>
         <button class="btn btn-outline btn-block mt-8" type="button" data-action="toast-demo" data-msg="Đã lưu nháp nhu cầu.">Lưu nháp</button>
         <p class="muted" style="font-size:11.5px;text-align:center;margin-top:8px">Đăng rồi vẫn sửa và đóng lại được bất cứ lúc nào</p>
       </div></div>
@@ -3990,10 +4130,11 @@ function JobPostPage(){
 /* 0403 — Hồ sơ sẵn sàng làm việc */
 function JobReadyPage(){
   const P=JOB_READY_PROFILE;
+  const liveReady=JOB_READY.find(x=>x.id===state.me?.id)?.raw||null;
   const box=(title,rows)=>`<div class="section-card"><div class="sc-head" style="padding:12px 16px"><h3 style="font-size:12px;letter-spacing:.05em;color:var(--muted)">${title}</h3></div><div class="card-pad" style="padding-top:8px">${rows.map(r=>`<div class="ready-li">${tick(r[0])}<span class="rl-t">${esc(r[1])}</span>${r[2]?`<span class="rl-r">${esc(r[2])}</span>`:''}</div>`).join('')}</div></div>`;
   return `
     <div class="page-head"><div><h1>Hồ sơ sẵn sàng làm việc</h1><p>Anh chị tự công bố mình làm được gì, làm được lúc nào và với điều kiện nào.</p></div>
-      <div class="flex gap-8"><button class="btn btn-outline" data-action="toast-demo" data-msg="Xem hồ sơ như người khác thấy (demo).">Xem như người khác thấy</button><button class="btn btn-primary" data-action="toast-demo" data-msg="Đã cập nhật trạng thái nhận việc.">Cập nhật trạng thái</button></div></div>
+      <div class="flex gap-8">${liveReady?`<button class="btn btn-outline" data-action="ready-delete">Xóa trạng thái tìm việc</button>`:''}</div></div>
     <div class="grid" style="grid-template-columns:1fr 320px;align-items:start;gap:20px">
       <div class="grid" style="gap:18px">
         <div class="section-card"><div class="card-pad">
@@ -4014,8 +4155,12 @@ function JobReadyPage(){
       </div>
       <div class="grid" style="gap:16px">
         <div class="section-card"><div class="sc-head"><h3>Trạng thái của tôi</h3></div><div class="card-pad" style="padding-top:8px">
-          <div class="lbl">Tôi đang</div>
-          <div class="seg" style="width:100%">${['Nhận việc','Theo hẹn','Tạm nghỉ'].map((o,i)=>`<button class="seg-btn ${i===0?'active':''}" data-action="pick-purpose" data-val="${o}" style="flex:1">${o}</button>`).join('')}</div>
+          <form id="form-ready-profile" novalidate>
+          <div class="field" data-field="headline"><label>Tôi làm được việc gì</label><input class="input" id="ready-headline" value="${esc(liveReady?.headline||CURRENT_USER.job||'')}" placeholder="VD: Thợ điện đang nhận việc"><div class="err"></div></div>
+          <div class="field"><label>Thời gian có thể làm</label><input class="input" id="ready-availability" value="${esc(liveReady?.availability||'')}"></div>
+          <div class="field"><label>Trạng thái</label><select class="input" id="ready-status"><option value="ready" ${liveReady?.status==='ready'?'selected':''}>Sẵn sàng</option><option value="by_appointment" ${liveReady?.status==='by_appointment'?'selected':''}>Theo hẹn</option><option value="paused" ${liveReady?.status==='paused'?'selected':''}>Tạm nghỉ</option></select></div>
+          <div class="field"><label>Ghi chú</label><textarea class="input" id="ready-note">${esc(liveReady?.note||'')}</textarea></div>
+          <button class="btn btn-primary btn-block" type="submit">Lưu trạng thái nhận việc</button></form>
           <p class="muted" style="font-size:12px;line-height:1.55;margin-top:10px">Để trạng thái đúng thì anh em đỡ gọi nhầm lúc mình đang bận. Quá 30 ngày không cập nhật, hệ thống sẽ hỏi lại một lần.</p>
         </div></div>
         <div class="section-card"><div class="sc-head"><h3>Ai thấy hồ sơ này</h3></div><div class="card-pad" style="padding-top:6px">
@@ -4065,6 +4210,21 @@ function JobMatchPage(){
 
 /* 0405 — Theo dõi kết quả */
 function JobResultPage(){
+  const liveId=state.params.id;
+  if(liveMode()&&liveId){
+    const j=LIVE_JOB_DETAILS[liveId];
+    if(!j){ queueMicrotask(()=>loadJobDetail(liveId)); return `<div class="section-card"><div class="card-pad"><p>Đang tải nhu cầu việc…</p></div></div>`; }
+    const owner=j.poster_id===state.me.id;
+    const mine=(j.applications||[]).find(a=>a.worker_id===state.me.id);
+    return `
+      <div class="page-head"><div><p class="crumb">Việc làm và hợp tác</p><h1>${esc(j.title)}</h1><p>${esc(j.area_name||'Chưa nêu khu vực')} · ${esc(jobStatusLabel(j.status))}</p></div>
+        <div class="flex gap-8">${owner?`<button class="btn btn-outline" data-action="job-edit" data-id="${esc(j.id)}">Sửa</button><button class="btn btn-outline" data-action="job-close" data-id="${esc(j.id)}">Đóng tin</button><button class="btn btn-danger" data-action="job-delete" data-id="${esc(j.id)}">Xóa</button>`:j.status==='open'&&!mine?`<button class="btn btn-primary" data-action="open-modal" data-modal="applyJob" data-id="${esc(j.id)}">Ứng tuyển</button>`:mine?`<span class="badge badge-orange">${esc(connectionStatusLabel(mine.status))}</span>${mine.status==='contacted'?`<button class="btn btn-outline" data-action="job-withdraw" data-id="${esc(j.id)}">Rút ứng tuyển</button>`:''}`:''}</div></div>
+      <div class="grid" style="grid-template-columns:1fr 340px;gap:18px;align-items:start">
+        <div class="section-card"><div class="sc-head"><h3>Mô tả công việc</h3></div><div class="card-pad"><p style="line-height:1.7">${esc(j.description||'Chưa có mô tả.')}</p><div class="soft-block mt-12"><b>Điều kiện / thỏa thuận</b><p>${esc(j.terms||'Hai bên trao đổi trực tiếp.')}</p></div></div></div>
+        <div class="section-card"><div class="sc-head"><h3>Người đăng</h3></div><div class="card-pad"><b>${esc(j.poster_name)}</b><p class="muted">${esc(j.poster_job||'Thành viên')} · ${esc(j.area_name||'')}</p>${!owner?`<button class="btn btn-outline btn-block mt-12" data-action="open-convo-with" data-id="${esc(j.poster_id)}">Nhắn tin</button>`:''}</div></div>
+      </div>
+      ${owner?`<div class="section-card mt-18"><div class="sc-head"><h3>Ứng viên (${j.applications.length})</h3></div><div class="card-pad">${j.applications.length?j.applications.map(a=>`<div class="rel-item"><div class="ib-av sm">${esc(initials(a.worker_name||''))}</div><div class="info"><b>${esc(a.worker_name)}</b><p>${esc(a.worker_job||'')} · ${esc(a.note||'Không có lời nhắn')}</p></div><span class="badge badge-gray">${esc(connectionStatusLabel(a.status))}</span>${a.status==='contacted'?`<button class="btn btn-primary btn-sm" data-action="job-application" data-job="${esc(j.id)}" data-id="${esc(a.id)}" data-status="agreed">Nhận</button><button class="btn btn-outline btn-sm" data-action="job-application" data-job="${esc(j.id)}" data-id="${esc(a.id)}" data-status="failed">Từ chối</button>`:''}</div>`).join(''):`<div class="empty"><p>Chưa có ai ứng tuyển.</p></div>`}</div></div>`:''}`;
+  }
   const R=JOB_RESULT;
   return `
     <div class="page-head"><div><h1>Theo dõi kết quả</h1><p>Một kết nối đi tới đâu rồi. Kể cả khi không thành, vẫn ghi lại để sau làm khác đi.</p></div>
@@ -5296,7 +5456,7 @@ function ModalTemplates(name, params={}){
           <div class="field" data-field="name"><label>Họ và tên <span class="req">*</span></label><input class="input" id="ep-name" value="${esc(CURRENT_USER.name)}"><div class="err"></div></div>
           <div class="field" data-field="job"><label>Nghề nghiệp <span class="req">*</span></label><input class="input" id="ep-job" value="${esc(CURRENT_USER.job)}"><div class="err"></div></div>
         </div>
-        <div class="field" data-field="area"><label>Khu vực sinh sống</label><select class="input" id="ep-area">${AREAS.map(a=>`<option ${a===CURRENT_USER.area?'selected':''}>${a}</option>`).join('')}</select></div>
+        <div class="field" data-field="area"><label>Khu vực sinh sống</label><select class="input" id="ep-area"><option value="">— Chọn khu vực —</option>${DIRECTORY.areas.map(a=>`<option value="${esc(a.id)}" ${state.me?.area_id===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
         <div class="field" data-field="bio"><label>Giới thiệu ngắn <span class="req">*</span></label><textarea class="input" id="ep-bio">${esc(CURRENT_USER.bio||'')}</textarea><div class="err"></div></div>
       </div>
       <div class="modal-foot"><button class="btn btn-outline" type="button" data-close-modal>Hủy</button><button class="btn btn-primary" type="submit">Lưu hồ sơ</button></div>
@@ -5359,7 +5519,7 @@ function ModalTemplates(name, params={}){
     </form>`;
 
   if(name==='applyJob'){
-    const j = JOBS.find(x=>x.id===params.id);
+    const j = LIVE_JOB_DETAILS[params.id] || JOBS.find(x=>x.id===params.id) || JOB_NEEDS.find(x=>x.id===params.id);
     return `
     <div class="modal-head"><h3>Ứng tuyển</h3><button class="modal-close" data-close-modal>${ic('x',16)}</button></div>
     <form id="form-apply-job" novalidate data-job="${esc(params.id||'')}">
@@ -5516,12 +5676,21 @@ async function doLoginReal(form, identifier, password){
     api.setTokens(r);                       // { access, refresh } — snake_case của đặc tả
     let identity = null;
     try { identity = await api.get('/auth/me'); } catch(e) {}
-    state.me = {...r.member, ...(identity?.actor||{}), roles:identity?.actor?.roles||[]};
+    let profile = null;
+    try { profile = await api.get('/members/me'); } catch(e) {}
+    state.me = {...r.member, ...(profile||{}), ...(identity?.actor||{}), roles:identity?.actor?.roles||[]};
     try{ localStorage.setItem('nc_member', JSON.stringify(state.me)); }catch(e){}
-    // Vỏ ứng dụng (sidebar, topbar) vẫn đọc CURRENT_USER của dữ liệu giả. Chỉ
-    // đồng bộ TÊN để màn hình không xưng tên người khác; `id` giữ nguyên 'u1'
-    // vì nó là khoá của dữ liệu giả (xem chú thích ở state.me).
+    // Từ đây danh tính frontend dùng cùng UUID với backend; quyền đăng việc,
+    // sửa năng lực và hồ sơ đều so với chính id thành viên này.
+    CURRENT_USER.id = state.me.id;
     CURRENT_USER.name = r.member.full_name;
+    if(profile){
+      CURRENT_USER.job=profile.job||''; CURRENT_USER.bio=profile.bio||''; CURRENT_USER.area=profile.area?.name||'';
+      CURRENT_USER.phone=profile.contact_values?.phone||''; CURRENT_USER.email=profile.email||'';
+      if(profile.avatar_url?.startsWith('/files/')){
+        try{ CURRENT_USER.avatar=URL.createObjectURL(await api.blob(profile.avatar_url)); }catch(e){}
+      }else if(profile.avatar_url) CURRENT_USER.avatar=profile.avatar_url;
+    }
     state.user = CURRENT_USER;
     if(state.me.roles.includes('approver')){
       state.role = 'admin';
@@ -5531,10 +5700,12 @@ async function doLoginReal(form, identifier, password){
       state.route = 'members';              // vào thẳng màn đã nối API thật
     }
     resetDirectory();
+    state.marketLoaded=false; LIVE_JOB_DETAILS={};
     unlockSound();
     startRealtime();
     closeModal();
     render();
+    loadMarketplace();
     if(state.route==='admin') loadJoinRequests();
     toast(`Đăng nhập thành công! Chào mừng trở lại, ${r.member.full_name.split(' ').slice(-1)[0]}.`);
   }catch(err){
@@ -5599,6 +5770,7 @@ document.addEventListener('click', function(e){
 
   switch(action){
     case 'nav':
+      if(actionEl.dataset.route==='jobPost') state.editingJobId=null;
       go(actionEl.dataset.route, {id});
       break;
     case 'scroll-to': {
@@ -5629,11 +5801,52 @@ document.addEventListener('click', function(e){
       revealPhone(id);
       break;
     case 'dir-request-phone':
-      // Đặc tả mục 5.3 có `POST /members/:id/contact-requests`, nhưng route đó
-      // CHƯA TỒN TẠI trong api/src (Task 10 dừng ở ba route đọc). Nói thật
-      // thay vì gọi một đường 404 rồi hiện "Hệ thống đang trục trặc".
-      toast('Chức năng xin xem số liên hệ chưa được nối (POST /members/:id/contact-requests chưa có ở máy chủ).', true);
+      if(!liveMode()){ toast('Hãy đăng nhập tài khoản thật để gửi yêu cầu.',true); break; }
+      api.post(`/members/${encodeURIComponent(id)}/contact-requests`,{field_key:'phone',message:'Xin phép xem số điện thoại để liên hệ.'})
+        .then(()=>toast('Đã gửi yêu cầu tới chủ hồ sơ.'))
+        .catch(err=>toast(err.message,true));
       break;
+    case 'member-detail-refresh':
+      delete state.memberDetailErrors[id]; delete state.memberDetails[id]; loadMemberDetail(id,true);
+      break;
+    case 'contact-requests-refresh':
+      state.contactRequests=null; loadContactRequests(true);
+      break;
+    case 'contact-request-decision':
+      api.patch(`/members/me/contact-requests/${encodeURIComponent(id)}`,{status:actionEl.dataset.status})
+        .then(()=>{state.contactRequests=null;loadContactRequests(true);toast(actionEl.dataset.status==='approved'?'Đã đồng ý chia sẻ liên hệ.':'Đã từ chối yêu cầu.');})
+        .catch(err=>toast(err.message,true));
+      break;
+    case 'market-refresh': state.marketLoaded=false; loadMarketplace(true); break;
+    case 'job-edit':
+      state.editingJobId=id; go('jobPost');
+      break;
+    case 'job-close':
+      api.patch(`/jobs/${encodeURIComponent(id)}`,{status:'closed'}).then(()=>{delete LIVE_JOB_DETAILS[id];state.marketLoaded=false;loadMarketplace(true);go('jobs');toast('Đã đóng tin.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'job-delete':
+      if(confirm('Xóa nhu cầu này? Tin đã có ứng viên sẽ không được xóa để giữ lịch sử.')) api.del(`/jobs/${encodeURIComponent(id)}`).then(()=>{delete LIVE_JOB_DETAILS[id];state.marketLoaded=false;loadMarketplace(true);go('jobs');toast('Đã xóa nhu cầu.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'job-withdraw':
+      api.del(`/jobs/${encodeURIComponent(id)}/applications/me`).then(()=>{delete LIVE_JOB_DETAILS[id];loadJobDetail(id,true);toast('Đã rút ứng tuyển.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'job-application':
+      api.patch(`/jobs/${encodeURIComponent(actionEl.dataset.job)}/applications/${encodeURIComponent(id)}`,{status:actionEl.dataset.status})
+        .then(()=>{delete LIVE_JOB_DETAILS[actionEl.dataset.job];loadJobDetail(actionEl.dataset.job,true);toast('Đã cập nhật ứng viên.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'ready-delete':
+      if(confirm('Xóa trạng thái sẵn sàng nhận việc?')) api.del('/jobs/ready/me').then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã xóa trạng thái tìm việc.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'cap-delete':
+      if(confirm('Xóa năng lực này?')) api.del(`/capabilities/${encodeURIComponent(id)}`).then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã xóa năng lực.');}).catch(err=>toast(err.message,true));
+      break;
+    case 'cap-edit': {
+      const c=SKILLS.find(x=>x.id===id); if(!c) break;
+      const title=prompt('Tên năng lực',c.title); if(title===null) break;
+      const description=prompt('Mô tả năng lực',c.desc||''); if(description===null) break;
+      api.patch(`/capabilities/${encodeURIComponent(id)}`,{title,description}).then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã sửa năng lực.');}).catch(err=>toast(err.message,true));
+      break;
+    }
     case 'demo-login':
       doLogin();
       break;
@@ -5780,6 +5993,10 @@ document.addEventListener('click', function(e){
       toast('Đã đăng xuất khỏi tất cả thiết bị.');
       break;
     case 'open-modal':
+      if(actionEl.dataset.modal==='editProfile'&&liveMode()&&!DIRECTORY.areas.length){
+        ensureAreas().then(()=>openModal(ModalTemplates('editProfile',{id}))).catch(err=>toast(err.message,true));
+        break;
+      }
       openModal(ModalTemplates(actionEl.dataset.modal, {id}));
       selectedMemoryImg = MEMORY_IMG_POOL[0];
       break;
@@ -5800,13 +6017,15 @@ document.addEventListener('click', function(e){
     case 'priv-set': {
       const f = PRIVACY_FIELDS.find(x=>x.key===actionEl.dataset.key);
       if(f){
-        f.val = actionEl.dataset.val;
-        f.extra = f.val==='Đóng'?'Không ai thấy':(f.val==='Khi tôi đồng ý'?(f.partial?'Che một phần':'Cần tôi duyệt'):'Đang hiển thị');
-        render();
-        toast(`Đã đặt “${f.label}”: ${f.val}.`);
+        const save=()=>{f.val=actionEl.dataset.val;f.extra=f.val==='Đóng'?'Không ai thấy':(f.val==='Khi tôi đồng ý'?(f.partial?'Che một phần':'Cần tôi duyệt'):'Đang hiển thị');render();toast(`Đã đặt “${f.label}”: ${f.val}.`);};
+        if(liveMode()) api.patch('/members/me/privacy/'+encodeURIComponent(f.key),{level:PRIVACY_LEVEL_TO_API[actionEl.dataset.val]}).then(save).catch(err=>toast(err.message,true));
+        else save();
       }
       break;
     }
+    case 'privacy-refresh':
+      state.privacyLoaded=false; loadPrivacyCenter(true);
+      break;
     case 'toggle-lurk':
       LURK_MODE = !LURK_MODE;
       render();
@@ -5840,9 +6059,9 @@ document.addEventListener('click', function(e){
         break;
       }
       state.role = actionEl.dataset.role;
-      // điều hướng về trang phù hợp với vai trò để luồng rõ ràng
-      if(state.role==='poster') state.route='jobs';
-      else if(state.role==='admin') state.route='admin';
+      // Thành viên đồng thời là người đăng tuyển; chỉ còn chuyển giữa luồng
+      // thành viên và trang quản trị khi tài khoản có quyền thật.
+      if(state.role==='admin') state.route='admin';
       else state.route='dashboard';
       closeAllDropdowns();
       render();
@@ -5921,11 +6140,16 @@ document.addEventListener('change', function(e){
       else if(kind==='memory'){ uploadedMemoryData = data; document.querySelectorAll('.mem-pick-img').forEach(img=>img.style.border='2px solid transparent'); }
       if(liveMode()){
         api.upload('/files', file, kind==='avatar' ? {purpose:'member_avatar'} : {})
-          .then(r=>api.blob('/files/'+r.id))
-          .then(blob=>{
+          .then(async r=>({id:r.id,blob:await api.blob('/files/'+r.id)}))
+          .then(async uploaded=>{
+            const blob=uploaded.blob;
             const url=URL.createObjectURL(blob);
             if(prev){ prev.src=url; prev.style.display='block'; }
-            if(kind==='avatar') uploadedAvatarData=url; else if(kind==='memory') uploadedMemoryData=url;
+            if(kind==='avatar'){
+              uploadedAvatarData=url;
+              await api.patch('/members/me',{avatar_url:'/files/'+uploaded.id});
+              CURRENT_USER.avatar=url;
+            }else if(kind==='memory') uploadedMemoryData=url;
             toast('Đã tải ảnh lên máy chủ.');
           })
           .catch(err=>toast(err.message,true));
@@ -6049,11 +6273,10 @@ document.addEventListener('submit', function(e){
       ['phone', [[/^[0-9\s]{9,11}$/.test(phone), 'Số điện thoại không hợp lệ.']]],
       ['email', [[emailOk, 'Email không hợp lệ.']]],
     ]);
-    if(ok){
-      Object.assign(CURRENT_USER, {name,job,phone,email,area,bio});
-      toast('Đã lưu thay đổi hồ sơ.');
-      render();
-    }
+    if(ok&&liveMode()) api.patch('/members/me',{full_name:name,job,phone:phone.replace(/[\s.\-]/g,''),email,area_id:area||null,bio})
+      .then(updated=>{Object.assign(CURRENT_USER,{name:updated.full_name,job:updated.job||'',phone,email,area:DIRECTORY.areas.find(a=>a.id===updated.area_id)?.name||'',bio:updated.bio||''});Object.assign(state.me,updated);try{localStorage.setItem('nc_member',JSON.stringify(state.me));}catch(e){}toast('Đã lưu thay đổi hồ sơ.');render();})
+      .catch(err=>toast(err.message,true));
+    else if(ok){ Object.assign(CURRENT_USER, {name,job,phone,email,area,bio}); toast('Đã lưu thay đổi hồ sơ.'); render(); }
     return;
   }
 
@@ -6095,11 +6318,10 @@ document.addEventListener('submit', function(e){
       ['title', [[title.length>=4, 'Tên năng lực cần ít nhất 4 ký tự.']]],
       ['desc', [[desc.length>=15, 'Mô tả cần ít nhất 15 ký tự.']]],
     ]);
-    if(ok){
-      SKILLS.unshift({id:'sk'+Date.now(), ownerId:CURRENT_USER.id, title, cat, desc, level});
-      toast('Đã đăng năng lực mới!');
-      go('skills');
-    }
+    if(ok&&liveMode()) api.post('/capabilities',{title,category:cat,description:desc,status:'published'})
+      .then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã đăng năng lực mới!');go('skills');})
+      .catch(err=>toast(err.message,true));
+    else if(ok){ SKILLS.unshift({id:'sk'+Date.now(), ownerId:CURRENT_USER.id, title, cat, desc, level}); toast('Đã đăng năng lực mới!'); go('skills'); }
     return;
   }
 
@@ -6163,7 +6385,13 @@ document.addEventListener('submit', function(e){
       ['job', [[job.length>=2, 'Vui lòng nhập nghề nghiệp.']]],
       ['bio', [[bio.length>=10, 'Giới thiệu cần ít nhất 10 ký tự.']]],
     ]);
-    if(ok){
+    if(ok&&liveMode()){
+      api.patch('/members/me',{full_name:name,job,area_id:area||null,bio}).then(updated=>{
+        Object.assign(CURRENT_USER,{name:updated.full_name,job:updated.job||'',area:DIRECTORY.areas.find(a=>a.id===updated.area_id)?.name||'',bio:updated.bio||''});
+        Object.assign(state.me,updated);try{localStorage.setItem('nc_member',JSON.stringify(state.me));}catch(e){}
+        toast('Đã cập nhật hồ sơ.');go('profile');
+      }).catch(err=>toast(err.message,true));
+    }else if(ok){
       Object.assign(CURRENT_USER, {name,job,area,bio});
       if(uploadedAvatarData){ CURRENT_USER.avatar = uploadedAvatarData; uploadedAvatarData=null; }
       toast('Đã cập nhật hồ sơ.');
@@ -6220,7 +6448,9 @@ document.addEventListener('submit', function(e){
     e.preventDefault();
     const note=val('ap-note'); const jid=form.dataset.job;
     const ok = validateForm(form, [ ['note', [[note.length>=10, 'Lời nhắn cần ít nhất 10 ký tự.']]] ]);
-    if(ok){
+    if(ok&&liveMode()){
+      api.post(`/jobs/${encodeURIComponent(jid)}/applications`,{note}).then(()=>{closeModal();delete LIVE_JOB_DETAILS[jid];loadJobDetail(jid,true);state.marketLoaded=false;loadMarketplace(true);toast('Đã gửi ứng tuyển! Người đăng tin sẽ nhận thông báo ngay.');}).catch(err=>toast(err.message,true));
+    }else if(ok){
       const j=JOBS.find(x=>x.id===jid);
       if(j){ j.applicants.push({name:state.user.name, note, status:'Chờ duyệt', date:'2026-08-17'}); }
       closeModal();
@@ -6293,7 +6523,13 @@ document.addEventListener('submit', function(e){
     const w = WIZARDS[WIZ.name];
     if(WIZ.step < w.steps.length-1){ WIZ.step++; openModal(WizardHTML(),'modal-lg'); }
     else {
-      // hoàn tất: ghi dữ liệu thật vào danh sách tương ứng
+      // Năng lực dùng API thật khi có phiên; các wizard khác vẫn giữ dữ liệu
+      // cũ cho tới khi module tương ứng được nối.
+      if(WIZ.name==='createSkill'&&liveMode()){
+        const payload={title:val('wz-sk-title')||'Năng lực mới',description:val('wz-sk-desc')||null,category:val('wz-sk-cat')||null,price:val('wz-sk-price')||null,status:'published'};
+        api.post('/capabilities',payload).then(()=>{closeModal();WIZ.name=null;WIZ.step=0;state.marketLoaded=false;loadMarketplace(true);go('skills');toast('Đã đăng năng lực.');}).catch(err=>toast(err.message,true));
+        return;
+      }
       if(WIZ.name==='createSkill'){ CAP_NEW.unshift({init:'NH', title:val('wz-sk-title')||'Năng lực mới', by:state.user.name+' · '+(val('wz-sk-area')||'khu vực của tôi'), st:'Sẵn sàng'}); }
       if(WIZ.name==='createAidReq'){ AID_NEED.unshift({title:val('wz-aid-title')||'Việc cần giúp', sub:(val('wz-aid-when')||'chưa rõ thời gian')+' · '+(val('wz-aid-where')||''), tag:'Vừa gửi'}); }
       if(WIZ.name==='createActivity'){ ACT_UPCOMING.unshift({d:'—', m:'MỚI', title:val('wz-ac-title')||'Hoạt động mới', sub:(val('wz-ac-time')||'')+' · '+(val('wz-ac-place')||''), tag:'Vừa tạo'}); }
@@ -6311,11 +6547,22 @@ document.addEventListener('submit', function(e){
       ['title', [[title.length>=6, 'Tên công việc cần ít nhất 6 ký tự.']]],
       ['desc', [[desc.length>=15, 'Mô tả công việc cần ít nhất 15 ký tự.']]],
     ]);
-    if(ok){
-      JOB_NEEDS.unshift({id:'nd'+Date.now(), title, area:val('jp-area')||'Khu vực 5', terms:val('jp-terms')||'thỏa thuận', by:state.user.name, init:'ĐS', status:'Đang mở'});
-      toast('Đã đăng nhu cầu! Nhu cầu đang hiện trong Trung tâm việc làm.');
-      go('jobs');
-    }
+    if(ok&&liveMode()){
+      const due=val('jp-due');
+      const payload={title,description:desc,terms:val('jp-terms')||null,area_id:val('jp-area')||null,job_type:'thoi_vu',close_at:due?new Date(due+'T23:59:59+07:00').toISOString():null};
+      const call=state.editingJobId?api.patch(`/jobs/${encodeURIComponent(state.editingJobId)}`,payload):api.post('/jobs',payload);
+      call.then(j=>{state.editingJobId=null;LIVE_JOB_DETAILS={};state.marketLoaded=false;loadMarketplace(true);toast('Đã lưu nhu cầu việc.');go('jobResult',{id:j.id});}).catch(err=>toast(err.message,true));
+    }else if(ok){ JOB_NEEDS.unshift({id:'nd'+Date.now(), title, area:val('jp-area')||'Khu vực 5', terms:val('jp-terms')||'thỏa thuận', by:state.user.name, init:'ĐS', status:'Đang mở'}); toast('Đã đăng nhu cầu!'); go('jobs'); }
+    return;
+  }
+
+  if(form.id==='form-ready-profile'){
+    e.preventDefault();
+    const headline=val('ready-headline');
+    if(headline.length<3){toast('Hãy ghi rõ công việc bạn có thể nhận.',true);return;}
+    api.put('/jobs/ready/me',{headline,availability:val('ready-availability')||null,note:val('ready-note')||null,status:val('ready-status')||'ready',area_id:state.me?.area_id||null})
+      .then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã cập nhật trạng thái nhận việc.');})
+      .catch(err=>toast(err.message,true));
     return;
   }
 
@@ -6400,13 +6647,20 @@ if(api.isLoggedIn()){
     const saved = JSON.parse(localStorage.getItem('nc_member') || 'null');
     if(saved && saved.id){
       state.me = saved;
+      CURRENT_USER.id = saved.id;
       CURRENT_USER.name = saved.full_name || CURRENT_USER.name;
+      CURRENT_USER.job = saved.job || '';
+      CURRENT_USER.bio = saved.bio || '';
+      CURRENT_USER.area = saved.area?.name || '';
+      CURRENT_USER.phone = saved.contact_values?.phone || '';
+      CURRENT_USER.email = saved.email || '';
       state.user = CURRENT_USER;
       state.route = 'members';
     }
   }catch(e){}
 }
 if(liveMode()) startRealtime();
+if(liveMode()) loadMarketplace();
 
 render();
 </script>

@@ -1,5 +1,6 @@
 import { withActor } from '../../core/tx.js';
 import { AppError } from '../../core/errors.js';
+import { publishToMember } from '../../core/realtime.js';
 import { log as auditLog } from '../../core/audit.js';
 import {
   contactStates, envelope, readContact, pickFields, CONTACT_FIELDS, PROFILE_FIELDS,
@@ -52,8 +53,8 @@ function areaOf(r) {
 // hiển thị, thay vì để người dùng đoán cái nút họ vừa gạt có tác dụng gì không.
 // ---------------------------------------------------------------------------
 function profileValues(r) {
-  // price: nằm ở capabilities.price (migration 013) — chưa có endpoint năng
-  // lực nên danh bạ không mang giá trị nào. family: chưa có cột/bảng nào chứa.
+  // price nằm ở capabilities.price (migration 013), nhưng một thành viên có thể
+  // có nhiều năng lực nên danh bạ không chọn bừa một giá. family chưa có nơi lưu.
   // Cả hai vẫn đi qua đúng cửa này để khi có dữ liệu thì không ai phải nhớ nối
   // lại; xem task-13-report.md.
   return { job: r.job, area: areaOf(r), price: null, family: null };
@@ -265,6 +266,30 @@ export async function get({ actor, id }) {
   });
 }
 
+export async function getMe({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows: [m] } = await trx.raw(
+      `SELECT ${DETAIL_COLUMNS}, m.email ${FROM_MEMBERS}
+        WHERE m.id = ? AND m.community_id = ?`, [actor.id, actor.communityId]
+    );
+    if (!m) throw NOT_FOUND();
+    const states = await contactStates(trx, actor.id, [m.id], actor.communityId);
+    const contact_values = {};
+    for (const field of CONTACT_FIELDS) {
+      const r = await readContact(trx, actor.id, field);
+      contact_values[field] = r.value ?? null;
+    }
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'profile.view', targetType: 'member', targetId: actor.id, detail: { self: true } });
+    return {
+      ...detailRow(m, envelope(states.get(m.id), profileValues(m))),
+      area_id: m.area_id,
+      email: m.email,
+      contact_values,
+    };
+  });
+}
+
 /**
  * Đọc ĐÚNG MỘT trường liên hệ của ĐÚNG MỘT người — lối vào DUY NHẤT của
  * contact_read trong toàn bộ tầng ứng dụng.
@@ -307,4 +332,175 @@ export async function readContactField({ actor, id, field }) {
       : new AppError('CONTACT_NEEDS_CONSENT', 'Cần chủ hồ sơ đồng ý mới xem được.', { status: 403 });
   }
   return { value: outcome.value };
+}
+
+export async function updateMe({ actor, input }) {
+  return withActor(actor.id, async (trx) => {
+    if (Object.hasOwn(input, 'area_id') && input.area_id !== null) {
+      const { rows: [area] } = await trx.raw(
+        `SELECT id FROM areas WHERE id = ? AND community_id = ? AND is_active = true`,
+        [input.area_id, actor.communityId]
+      );
+      if (!area) throw new AppError('VALIDATION_FAILED', 'Khu vực không thuộc cộng đồng hiện tại.', { status: 422 });
+    }
+    const profileKeys = ['full_name', 'email', 'job', 'area_id', 'bio', 'work_status', 'avatar_url'];
+    const changed = profileKeys.filter((key) => Object.hasOwn(input, key));
+    const has = (key) => Object.hasOwn(input, key);
+    const { rows: [row] } = await trx.raw(
+      `UPDATE members SET
+         full_name = CASE WHEN ? THEN ? ELSE full_name END,
+         email = CASE WHEN ? THEN ? ELSE email END,
+         job = CASE WHEN ? THEN ? ELSE job END,
+         area_id = CASE WHEN ? THEN ?::uuid ELSE area_id END,
+         bio = CASE WHEN ? THEN ? ELSE bio END,
+         work_status = CASE WHEN ? THEN ? ELSE work_status END,
+         avatar_url = CASE WHEN ? THEN ? ELSE avatar_url END,
+         updated_at = now()
+       WHERE id = ? AND community_id = ? RETURNING id, full_name, email, job, area_id,
+         bio, work_status, avatar_url, updated_at`,
+      [has('full_name'), input.full_name ?? null, has('email'), input.email ?? null,
+       has('job'), input.job ?? null, has('area_id'), input.area_id ?? null,
+       has('bio'), input.bio ?? null, has('work_status'), input.work_status ?? null,
+       has('avatar_url'), input.avatar_url ?? null, actor.id, actor.communityId]
+    );
+    const contactKeys = ['phone', 'zalo', 'messenger', 'address'].filter((key) => Object.hasOwn(input, key));
+    for (const key of contactKeys) {
+      await trx.raw(`SELECT contact_upsert(?, ?, ?)`, [actor.id, key, input[key]]);
+    }
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'member.profile_updated', targetType: 'member', targetId: actor.id,
+      detail: { fields: [...changed, ...contactKeys] } });
+    return row;
+  });
+}
+
+export async function requestContact({ actor, targetId, fieldKey, message }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const { rows: [target] } = await trx.raw(
+      `SELECT id FROM members WHERE id = ? AND community_id = ? AND status = 'member'`,
+      [targetId, actor.communityId]
+    );
+    if (!target) throw NOT_FOUND();
+    if (targetId === actor.id) throw new AppError('VALIDATION_FAILED', 'Không cần xin xem thông tin của chính mình.', { status: 422 });
+    const { rows: [row] } = await trx.raw(
+      `INSERT INTO contact_requests
+        (community_id, requester_id, target_id, field_key, message)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (requester_id, target_id, field_key) DO UPDATE SET
+         message = EXCLUDED.message, status = 'pending', decided_at = NULL, updated_at = now()
+       RETURNING *`, [actor.communityId, actor.id, targetId, fieldKey, message ?? null]
+    );
+    const { rows: [notification] } = await trx.raw(
+      `INSERT INTO notifications
+        (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+       VALUES (?, ?, ?, 'system', 'Yêu cầu xem thông tin liên hệ',
+               'Một thành viên xin phép xem thông tin liên hệ của bạn.', 'notification', ?)
+       RETURNING *`, [actor.communityId, targetId, actor.id, row.id]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'contact_request.created', targetType: 'contact_request', targetId: row.id,
+      detail: { field: fieldKey, target_id: targetId } });
+    return { row, notification };
+  });
+  publishToMember(targetId, 'notification', result.notification);
+  return result.row;
+}
+
+export async function listContactRequests({ actor, direction, status, page, limit }) {
+  return withActor(actor.id, async (trx) => {
+    const offset = (page - 1) * limit;
+    const { rows } = await trx.raw(
+      `SELECT cr.id, cr.requester_id, cr.target_id, cr.field_key, cr.message,
+              cr.status, cr.decided_at, cr.created_at, cr.updated_at,
+              m.full_name AS other_member_name
+         FROM contact_requests cr
+         JOIN members m ON m.id = CASE WHEN ? = 'incoming' THEN cr.requester_id ELSE cr.target_id END
+        WHERE cr.community_id = ?
+          AND ((? = 'incoming' AND cr.target_id = ?) OR (? = 'outgoing' AND cr.requester_id = ?))
+          AND (?::text IS NULL OR cr.status = ?)
+        ORDER BY cr.updated_at DESC LIMIT ? OFFSET ?`,
+      [direction, actor.communityId, direction, actor.id, direction, actor.id,
+       status ?? null, status ?? null, limit, offset]
+    );
+    return { data: rows, meta: { page, limit } };
+  });
+}
+
+export async function decideContactRequest({ actor, id, status }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `UPDATE contact_requests SET status = ?, decided_at = now(), updated_at = now()
+        WHERE id = ? AND community_id = ? AND target_id = ? AND status = 'pending'
+        RETURNING *`, [status, id, actor.communityId, actor.id]
+    );
+    if (!row) throw new AppError('NOT_FOUND', 'Không tìm thấy yêu cầu đang chờ này.', { status: 404 });
+    const { rows: [notification] } = await trx.raw(
+      `INSERT INTO notifications
+        (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+       VALUES (?, ?, ?, 'system', 'Yêu cầu liên hệ đã được trả lời',
+               'Chủ hồ sơ vừa trả lời yêu cầu xem thông tin liên hệ của bạn.', 'notification', ?)
+       RETURNING *`, [actor.communityId, row.requester_id, actor.id, row.id]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'contact_request.decided', targetType: 'contact_request', targetId: id,
+      detail: { field: row.field_key, status } });
+    return { row, notification };
+  });
+  publishToMember(result.row.requester_id, 'notification', result.notification);
+  return result.row;
+}
+
+export async function getPrivacy({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows } = await trx.raw(
+      `SELECT fields.field_key, coalesce(ps.level, 'closed') AS level,
+              ps.created_at, ps.updated_at
+         FROM (VALUES ('phone'), ('zalo'), ('messenger'), ('address'),
+                      ('job'), ('area'), ('price'), ('family')) AS fields(field_key)
+         LEFT JOIN privacy_settings ps ON ps.member_id = ?
+          AND ps.community_id = ? AND ps.field_key = fields.field_key
+        ORDER BY fields.field_key`, [actor.id, actor.communityId]
+    );
+    return { data: rows };
+  });
+}
+
+export async function updatePrivacy({ actor, field, level }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `INSERT INTO privacy_settings (community_id, member_id, field_key, level)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (member_id, field_key) DO UPDATE
+         SET level = EXCLUDED.level, updated_at = now()
+       RETURNING field_key, level, created_at, updated_at`,
+      [actor.communityId, actor.id, field, level]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'privacy.updated', targetType: 'member', targetId: actor.id,
+      detail: { field, level } });
+    return row;
+  });
+}
+
+export async function listProfileViews({ actor, page, limit }) {
+  return withActor(actor.id, async (trx) => {
+    const offset = (page - 1) * limit;
+    const { rows } = await trx.raw(
+      `SELECT pv.id, pv.viewer_id, pv.what, pv.viewed_at,
+              m.full_name AS viewer_name, m.avatar_url
+         FROM profile_views pv
+         JOIN members m ON m.id = pv.viewer_id AND m.community_id = pv.community_id
+        WHERE pv.target_id = ? AND pv.community_id = ?
+        ORDER BY pv.viewed_at DESC LIMIT ? OFFSET ?`,
+      [actor.id, actor.communityId, limit, offset]
+    );
+    const { rows: [{ total }] } = await trx.raw(
+      `SELECT count(*)::int AS total FROM profile_views
+        WHERE target_id = ? AND community_id = ?`, [actor.id, actor.communityId]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'profile_views.list', targetType: 'member', targetId: actor.id,
+      detail: { page, limit, count: rows.length, total } });
+    return { data: rows, meta: { page, limit, total } };
+  });
 }

@@ -395,6 +395,7 @@
     get:  function (p) { return raw('GET', p); },
     post: function (p, b) { return raw('POST', p, b === undefined ? {} : b); },
     put:  function (p, b) { return raw('PUT', p, b === undefined ? {} : b); },
+    patch:function (p, b) { return raw('PATCH', p, b === undefined ? {} : b); },
     del:  function (p) { return raw('DELETE', p); },
     upload: upload,
     blob: blob,

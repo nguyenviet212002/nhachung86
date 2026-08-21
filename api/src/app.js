@@ -11,6 +11,8 @@ import { router as opsRouter } from './modules/ops/routes.js';
 import { router as filesRouter } from './modules/files/routes.js';
 import { router as invitesRouter } from './modules/invites/routes.js';
 import { notificationRouter, messageRouter } from './modules/notifications/routes.js';
+import { router as capabilitiesRouter } from './modules/capabilities/routes.js';
+import { router as jobsRouter } from './modules/jobs/routes.js';
 import { health as storageHealth } from './core/storage.js';
 import { buildOpenApi } from './openapi/build.js';
 
@@ -93,6 +95,8 @@ export function buildApp() {
   app.use('/api/v1/guarantee-invites', invitesRouter);
   app.use('/api/v1/notifications', notificationRouter);
   app.use('/api/v1/messages', messageRouter);
+  app.use('/api/v1/capabilities', capabilitiesRouter);
+  app.use('/api/v1/jobs', jobsRouter);
 
   app.use(errorHandler);
 
