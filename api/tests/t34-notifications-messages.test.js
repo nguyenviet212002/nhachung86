@@ -57,6 +57,8 @@ describe('T34 notifications and direct messages', () => {
   });
 
   it('không gửi được qua cộng đồng khác và endpoint notification ghi target an toàn', async () => {
+    await supertest(app).post('/api/v1/messages').set(auth(aliceToken))
+      .send({ recipient_id: alice, body: 'không được gửi cho chính mình' }).expect(422);
     await supertest(app).post('/api/v1/messages').set(auth(aliceToken)).send({ recipient_id: outsider, body: 'không được' }).expect(404);
     const created = await supertest(app).post('/api/v1/notifications').set(auth(aliceToken)).send({
       recipient_id: bob, kind: 'activity', title: 'Hoạt động mới', body: 'Có người vừa đăng hoạt động.', target_type: 'activity',

@@ -256,6 +256,7 @@ export function buildOpenApi() {
   add('/api/v1/members/me',
     endpoint('GET', '/api/v1/members/me'),
     endpoint('PATCH', '/api/v1/members/me', { body: members.updateMeSchema }));
+  add('/api/v1/members/me/relations', endpoint('GET', '/api/v1/members/me/relations'));
   add('/api/v1/members/me/contact-requests', endpoint('GET', '/api/v1/members/me/contact-requests', { query: members.contactRequestQuerySchema }));
   add('/api/v1/members/me/contact-requests/{id}', endpoint('PATCH', '/api/v1/members/me/contact-requests/{id}', { pathParams: members.contactRequestParamSchema, body: members.contactDecisionSchema }));
   add('/api/v1/members/me/privacy', endpoint('GET', '/api/v1/members/me/privacy'));

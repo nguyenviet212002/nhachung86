@@ -41,6 +41,9 @@ router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next
 router.get('/me', async (req, res, next) => {
   try { res.json(await memberService.getMe({ actor: req.actor })); } catch (err) { next(err); }
 });
+router.get('/me/relations', async (req, res, next) => {
+  try { res.json(await memberService.listMyRelations({ actor: req.actor })); } catch (err) { next(err); }
+});
 router.patch('/me', validate(schema.updateMeSchema), async (req, res, next) => {
   try { res.json(await memberService.updateMe({ actor: req.actor, input: req.body })); } catch (err) { next(err); }
 });

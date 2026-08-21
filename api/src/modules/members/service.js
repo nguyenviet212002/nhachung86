@@ -291,6 +291,92 @@ export async function getMe({ actor }) {
 }
 
 /**
+ * Read the relationship graph from the database source of truth.
+ *
+ * A guarantee edge is directed: member_a invited member_b. A worked-together
+ * edge is undirected, so only the member opposite the current actor is exposed.
+ * Profile fields still pass through the same privacy envelope as the directory.
+ */
+export async function listMyRelations({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows } = await trx.raw(
+      `SELECT mr.id, mr.kind, mr.member_a, mr.member_b, mr.first_work_record_id,
+              mr.established_at, other.id AS other_id, other.full_name,
+              other.job, other.avatar_url, other.work_status, other.status,
+              a.id AS area_id, a.name AS area_name,
+              wr.title AS first_work_title, wr.done_on AS first_work_done_on
+         FROM member_relations mr
+         JOIN members other
+           ON other.id = CASE WHEN mr.member_a = ? THEN mr.member_b ELSE mr.member_a END
+          AND other.community_id = mr.community_id
+         LEFT JOIN areas a
+           ON a.id = other.area_id AND a.community_id = other.community_id
+         LEFT JOIN work_records wr
+           ON wr.id = mr.first_work_record_id AND wr.community_id = mr.community_id
+        WHERE mr.community_id = ? AND (mr.member_a = ? OR mr.member_b = ?)
+        ORDER BY mr.established_at DESC, mr.id`,
+      [actor.id, actor.communityId, actor.id, actor.id]
+    );
+
+    const states = await contactStates(
+      trx,
+      actor.id,
+      [...new Set(rows.map((row) => row.other_id))],
+      actor.communityId
+    );
+    const relatedMember = (row) => {
+      const env = envelope(states.get(row.other_id), {
+        job: row.job,
+        area: areaOf(row),
+        price: null,
+        family: null,
+      });
+      return {
+        id: row.other_id,
+        full_name: row.full_name,
+        job: env.job.value,
+        area: env.area.value,
+        avatar_url: row.avatar_url,
+        work_status: row.work_status,
+        status: row.status,
+      };
+    };
+    const relation = (row) => ({
+      id: row.id,
+      kind: row.kind,
+      established_at: row.established_at,
+      first_work_record_id: row.first_work_record_id,
+      first_work_title: row.first_work_title,
+      first_work_done_on: row.first_work_done_on,
+      member: relatedMember(row),
+    });
+
+    const invitedBy = rows.filter((row) => row.kind === 'guarantee' && row.member_b === actor.id).map(relation);
+    const invitedMembers = rows.filter((row) => row.kind === 'guarantee' && row.member_a === actor.id).map(relation);
+    const workedTogether = rows.filter((row) => row.kind === 'worked_together').map(relation);
+
+    await auditLog(trx, {
+      communityId: actor.communityId,
+      actorId: actor.id,
+      action: 'member_relations.list',
+      targetType: 'member',
+      targetId: actor.id,
+      detail: {
+        invited_by: invitedBy.length,
+        invited_members: invitedMembers.length,
+        worked_together: workedTogether.length,
+      },
+    });
+
+    return {
+      invited_by: invitedBy,
+      invited_members: invitedMembers,
+      worked_together: workedTogether,
+    };
+  });
+}
+
+/**
  * Đọc ĐÚNG MỘT trường liên hệ của ĐÚNG MỘT người — lối vào DUY NHẤT của
  * contact_read trong toàn bộ tầng ứng dụng.
  *

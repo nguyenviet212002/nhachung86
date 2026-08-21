@@ -54,6 +54,7 @@ Các API CRUD chính:
 
 ```text
 GET/PATCH                 /api/v1/members/me
+GET                       /api/v1/members/me/relations
 GET                       /api/v1/members/:id
 GET/PATCH                 /api/v1/members/me/privacy[/:field]
 GET                       /api/v1/members/me/profile-views
@@ -79,3 +80,15 @@ GET  /api/v1/messages?with_member_id=<member-uuid>
 POST /api/v1/messages {"recipient_id":"<member-uuid>","body":"..."}
 POST /api/v1/notifications {"recipient_id":"<member-uuid>","kind":"activity","title":"...","body":"..."}
 ```
+
+Smoke test đăng nhập thật bằng hai tài khoản E2E, gửi tin hai chiều, đọc lại
+hai luồng, kiểm tra chặn tự gửi và hợp đồng quan hệ:
+
+```text
+node api/scripts/e2e-messaging-smoke.js
+```
+
+Script đọc `E2E_MEMBER_A_*`, `E2E_MEMBER_B_*` và tùy chọn `E2E_BASE_URL` từ
+biến môi trường; không chứa hoặc in mật khẩu. Với chứng thư HTTPS tự ký ở máy
+local, chỉ tiến trình test local mới được phép tạm đặt
+`NODE_TLS_REJECT_UNAUTHORIZED=0`; không dùng thiết lập này ở triển khai thật.

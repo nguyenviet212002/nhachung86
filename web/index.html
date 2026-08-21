@@ -1384,7 +1384,10 @@ const state = {
   memberDetailErrors:{},
   privacyLoaded:false,
   privacyLoading:false,
-  profileVisitors:[]
+  profileVisitors:[],
+  relations:null,
+  relationsLoading:false,
+  relationsError:''
 };
 
 // Dữ liệu thật dùng chung cho topbar, thông báo và màn tin nhắn. Dữ liệu demo
@@ -1499,6 +1502,12 @@ function LiveMemberPage(id){
 }
 
 function liveMode(){ return Boolean(state.me && api.isLoggedIn()); }
+function currentActorId(){ return state.me?.id || null; }
+function resetLiveMessaging(){
+  LIVE_MESSAGES = {};
+  LIVE_CONTACTS = {};
+  state.activeConvo = null;
+}
 function liveNotifications(){ return liveMode() ? LIVE_NOTIFICATIONS : NOTIFICATIONS; }
 function liveUnreadNotifications(){ return liveNotifications().filter(n=>!(n.read_at || n.read)).length; }
 function playTing(){
@@ -1522,39 +1531,90 @@ function startRealtime(){
   const token=api.accessToken(); if(!token) return;
   notificationStream = new EventSource(api.baseUrl()+'/notifications/stream?access_token='+encodeURIComponent(token));
   notificationStream.addEventListener('notification', e=>{ try{ const n=JSON.parse(e.data); LIVE_NOTIFICATIONS.unshift(n); playTing(); render(); }catch(err){} });
-  notificationStream.addEventListener('message', e=>{ try{ const m=JSON.parse(e.data); const sentByMe=m.sender_id===state.me.id; const id=sentByMe?m.recipient_id:m.sender_id; if(!(LIVE_MESSAGES[id]||[]).some(x=>x.id===m.id))(LIVE_MESSAGES[id] ||= []).push(m); LIVE_CONTACTS[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url}; playTing(); render(); }catch(err){} });
+  notificationStream.addEventListener('message', e=>{ try{
+    const m=JSON.parse(e.data), me=currentActorId();
+    if(!me || (m.sender_id!==me && m.recipient_id!==me)) return;
+    const sentByMe=m.sender_id===me, id=sentByMe?m.recipient_id:m.sender_id;
+    if(!id || id===me) return;
+    if(!(LIVE_MESSAGES[id]||[]).some(x=>x.id===m.id))(LIVE_MESSAGES[id] ||= []).push(m);
+    LIVE_CONTACTS[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url};
+    playTing(); render();
+  }catch(err){} });
   notificationStream.onerror=()=>{};
   loadLiveNotifications();
   loadLiveInbox();
 }
 async function loadLiveConversation(memberId){
-  if(!liveMode() || !memberId) return;
-  try{ const r=await api.get('/messages'+api.qs({with_member_id:memberId,limit:100})); LIVE_MESSAGES[memberId]=r.data||[]; render(); }catch(e){ toast(e.message,true); }
+  const me=currentActorId();
+  if(!liveMode() || !memberId || memberId===me) return;
+  try{
+    const r=await api.get('/messages'+api.qs({with_member_id:memberId,limit:100}));
+    LIVE_MESSAGES[memberId]=(r.data||[]).filter(m=>(m.sender_id===me&&m.recipient_id===memberId)||(m.sender_id===memberId&&m.recipient_id===me));
+    const sample=LIVE_MESSAGES[memberId][0];
+    if(sample&&!LIVE_CONTACTS[memberId]){
+      const sentByMe=sample.sender_id===me;
+      LIVE_CONTACTS[memberId]={id:memberId,full_name:sentByMe?sample.recipient_name:sample.sender_name,avatar_url:sentByMe?sample.recipient_avatar_url:sample.sender_avatar_url};
+    }
+    if(!LIVE_CONTACTS[memberId]) loadLiveContact(memberId);
+    render();
+  }catch(e){ toast(e.message,true); }
+}
+async function loadLiveContact(memberId){
+  const me=currentActorId();
+  if(!liveMode()||!memberId||memberId===me||LIVE_CONTACTS[memberId]) return;
+  try{
+    const member=await api.get('/members/'+encodeURIComponent(memberId));
+    LIVE_CONTACTS[memberId]={id:member.id,full_name:member.full_name,job:member.job||'',area:member.area,avatar_url:member.avatar_url};
+    render();
+  }catch(e){}
 }
 async function loadLiveInbox(){
   if(!liveMode()) return;
   try{
     const r=await api.get('/messages?limit=100');
-    for(const m of (r.data||[])){
-      const sentByMe=m.sender_id===state.me.id, id=sentByMe?m.recipient_id:m.sender_id;
-      if(!(LIVE_MESSAGES[id]||[]).some(x=>x.id===m.id))(LIVE_MESSAGES[id] ||= []).push(m);
-      LIVE_CONTACTS[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url};
+    const me=currentActorId(), nextMessages={}, nextContacts={};
+    if(state.activeConvo&&state.activeConvo!==me&&LIVE_CONTACTS[state.activeConvo]){
+      nextContacts[state.activeConvo]=LIVE_CONTACTS[state.activeConvo];
+      nextMessages[state.activeConvo]=LIVE_MESSAGES[state.activeConvo]||[];
     }
+    for(const m of (r.data||[])){
+      if(m.sender_id!==me && m.recipient_id!==me) continue;
+      const sentByMe=m.sender_id===me, id=sentByMe?m.recipient_id:m.sender_id;
+      if(!id || id===me) continue;
+      (nextMessages[id] ||= []).push(m);
+      nextContacts[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url};
+    }
+    LIVE_MESSAGES=nextMessages;
+    LIVE_CONTACTS=nextContacts;
+    if(state.activeConvo===me) state.activeConvo=null;
     render();
   }catch(e){}
 }
 function liveContact(memberId){
   const row=LIVE_CONTACTS[memberId] || DIRECTORY.rows.find(x=>x.id===memberId);
-  return row ? {id:row.id,name:row.full_name||row.name||'Thành viên',job:row.job||'',area:row.area_name||row.area||'',avatar:row.avatar_url||AVATAR(1)} : findMember(memberId);
+  const area=row && (row.area_name || (typeof row.area==='object' ? row.area?.name : row.area));
+  return row ? {id:row.id,name:row.full_name||row.name||'Thành viên',job:row.job||'',area:area||'',avatar:secureImageUrl(row.avatar_url,row.avatar||AVATAR(1))} : (findMember(memberId)||{id:memberId,name:'Đang tải thành viên…',job:'',area:'',avatar:AVATAR(1)});
 }
 function liveConversationSummaries(){
   if(!liveMode()) return [];
-  return Object.entries(LIVE_MESSAGES).map(([memberId,messages])=>{
+  const me=currentActorId();
+  return Object.entries(LIVE_MESSAGES).filter(([memberId])=>memberId!==me).map(([memberId,messages])=>{
     const sorted=messages.slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return {memberId,member:liveContact(memberId),last:sorted.at(-1),unread:sorted.filter(m=>m.recipient_id===state.me.id&&!m.read_at).length};
   }).filter(x=>x.last).sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
 }
-function isLiveConvo(){ return liveMode() && Boolean(LIVE_CONTACTS[state.activeConvo] || (state.activeConvo && state.activeConvo.includes('-'))); }
+function isLiveConvo(){
+  return liveMode() && state.activeConvo!==currentActorId()
+    && Boolean(LIVE_CONTACTS[state.activeConvo] || (state.activeConvo && /^[0-9a-f-]{36}$/i.test(state.activeConvo)));
+}
+
+async function loadMyRelations(force=false){
+  if(!liveMode() || state.relationsLoading || (state.relations&&!force)) return;
+  state.relationsLoading=true; state.relationsError='';
+  try{ state.relations=await api.get('/members/me/relations'); }
+  catch(err){ state.relationsError=err.message; }
+  finally{ state.relationsLoading=false; render(); }
+}
 
 /* Danh bạ thật (GET /members). Đây là kho DUY NHẤT của màn "Con người" sau
    MỐC 2 — hằng số MEMBERS bên trên vẫn còn vì 47 màn khác đang dựa vào nó. */
@@ -1602,6 +1662,7 @@ function go(route, params={}){
   closeModal();
   render();
   if(route==='admin') loadJoinRequests();
+  if(route==='relations') loadMyRelations();
   if(['skills','jobs','jobReady'].includes(route)) loadMarketplace();
   if(route==='jobResult'&&params.id) loadJobDetail(params.id);
 }
@@ -2254,9 +2315,11 @@ function buildTimeline(u){
   return items.reverse();
 }
 function ProfilePage(u, isSelf){
+  if(isSelf&&liveMode()&&!state.relations&&!state.relationsLoading) queueMicrotask(()=>loadMyRelations());
+  const inviterName=liveMode()?(state.relations?.invited_by?.[0]?.member?.full_name||''):RELATIONS.referrer.name;
   const mySkills = SKILLS.filter(s=>s.ownerId===u.id);
   const workingBadge = '<span class="badge badge-green">Đang nhận việc</span>';
-  const refBadge = isSelf ? `<span class="badge badge-orange">${ic('shieldcheck',12)} Nguồn giới thiệu đã xác minh</span>` : '';
+  const refBadge = isSelf&&inviterName ? `<span class="badge badge-orange">${ic('shieldcheck',12)} Nguồn giới thiệu đã xác minh</span>` : '';
   const scopeRows = [
     ['Họ tên, nghề','Mọi thành viên',''],
     ['Khu vực','Mọi thành viên',''],
@@ -2279,7 +2342,7 @@ function ProfilePage(u, isSelf){
           <div class="flex gap-8 mt-8" style="flex-wrap:wrap">
             ${workingBadge}
             ${refBadge}
-            <span class="badge badge-gray">Vào cộng đồng ${esc(u.joined||'—')}${isSelf?` · ${esc(RELATIONS.referrer.name)} đưa vào`:''}</span>
+            <span class="badge badge-gray">Vào cộng đồng ${esc(u.joined||'—')}${isSelf&&inviterName?` · ${esc(inviterName)} đưa vào`:''}</span>
           </div>
         </div>
         ${isSelf
@@ -2353,7 +2416,42 @@ function ProfilePage(u, isSelf){
   `;
 }
 
+function relationMemberRow(relation, description){
+  const member=relation.member, area=member.area?.name||'', when=relation.established_at?new Date(relation.established_at).toLocaleDateString('vi-VN'):'';
+  return `<a href="#" class="rel-item" data-action="nav" data-route="member" data-id="${esc(member.id)}" style="text-decoration:none;color:inherit">
+    <img class="av" src="${esc(secureImageUrl(member.avatar_url))}" width="40" height="40">
+    <div class="info"><b>${esc(member.full_name)}</b><p>${esc([member.job,area].filter(Boolean).join(' · ')||description)}</p></div>
+    <div class="rel-meta">${esc(when)}<br><span>${esc(description)}</span></div>
+  </a>`;
+}
+
 function RelationsPage(){
+  if(!liveMode()) return DemoRelationsPage();
+  if(!state.relations&&!state.relationsLoading) queueMicrotask(()=>loadMyRelations());
+  if(state.relationsError) return `<div class="empty">${ic('alert',34)}<p>${esc(state.relationsError)}</p><button class="btn btn-outline mt-12" data-action="relations-reload">Thử lại</button></div>`;
+  if(!state.relations) return `<div class="empty">${ic('refresh',34)}<p>Đang tải quan hệ thật của bạn...</p></div>`;
+  const R=state.relations;
+  const section=(title,items,description,empty)=>`<div class="section-card">
+    <div class="sc-head"><h3>${esc(title)}</h3><span class="badge badge-gray">${items.length}</span></div>
+    <div class="card-pad" style="padding-top:10px">${items.length?items.map(x=>relationMemberRow(x,description)).join(''):`<p class="muted">${esc(empty)}</p>`}</div>
+  </div>`;
+  return `<div class="page-head">
+    <div><h1>Quan hệ của tôi</h1><p>Dữ liệu thật từ sợi mời gia nhập và các việc đã được hai bên xác nhận.</p></div>
+    <button class="btn btn-outline" data-action="relations-reload">${ic('refresh',15)} Làm mới</button>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start;gap:20px">
+    <div class="grid" style="gap:16px">
+      ${section('Người đã mời tôi',R.invited_by||[],'Đã mời tôi vào cộng đồng','Không có dữ liệu người mời.')}
+      ${section('Tôi đã mời vào cộng đồng',R.invited_members||[],'Do tôi mời vào cộng đồng','Bạn chưa mời thành viên nào đã được duyệt.')}
+    </div>
+    <div class="grid" style="gap:16px">
+      ${section('Đã cùng làm việc',R.worked_together||[],'Hai bên đã xác nhận việc chung','Chưa có việc chung được cả hai bên xác nhận.')}
+      <div class="note-soft">${ic('info',16)} Quan hệ mời có hướng: người mời là <b>member_a</b>, người được mời là <b>member_b</b>. Màn này chỉ đọc dữ liệu đã có, không tự suy đoán hay tạo thêm quan hệ.</div>
+    </div>
+  </div>`;
+}
+
+function DemoRelationsPage(){
   const R=RELATIONS;
   // layout coordinates in a 720x470 viewBox
   const cx=360, cy=235;
@@ -3300,11 +3398,12 @@ function MessagesPage(){
     return `<div class="page-head"><div><h1>Tin nhắn</h1><p>Chọn nút “Nhắn tin” trong hồ sơ một thành viên để bắt đầu cuộc trò chuyện realtime.</p></div></div>`;
   }
   if(isLiveConvo()){
-    const memberId=state.activeConvo, m=liveContact(memberId), msgs=LIVE_MESSAGES[memberId]||[];
+    const memberId=state.activeConvo, m=liveContact(memberId), msgs=LIVE_MESSAGES[memberId]||[], conversations=liveConversationSummaries();
     return `
     <div class="page-head"><div><h1>Tin nhắn</h1><p>Tin nhắn realtime giữa các thành viên. Khi có tin mới, màn hình sẽ cập nhật và phát tiếng “ting ting”.</p></div></div>
     <div class="msg-shell">
-      <div class="msg-list"><div class="msg-item active"><img class="av" src="${m.avatar}" width="42" height="42"><div class="t"><div class="r1"><b>${esc(m.name)}</b></div><p>${msgs.length?esc(msgs[msgs.length-1].body):'Chưa có tin nhắn'}</p></div></div></div>
+      <div class="msg-list">${conversations.length?conversations.map(c=>`<div class="msg-item ${c.memberId===memberId?'active':''}" data-action="switch-live-convo" data-id="${esc(c.memberId)}">
+        <img class="av" src="${esc(c.member.avatar)}" width="42" height="42"><div class="t"><div class="r1"><b>${esc(c.member.name)}</b></div><p>${c.last.sender_id===currentActorId()?'Bạn: ':''}${esc(c.last.body)}</p></div>${c.unread?`<span class="badge badge-orange" style="align-self:center">${c.unread}</span>`:''}</div>`).join(''):`<div class="msg-item active"><img class="av" src="${esc(m.avatar)}" width="42" height="42"><div class="t"><div class="r1"><b>${esc(m.name)}</b></div><p>Chưa có tin nhắn</p></div></div>`}</div>
       <div class="msg-thread"><div class="th-head"><img class="av" src="${m.avatar}" width="38" height="38"><div><b style="font-size:14px;display:block">${esc(m.name)}</b><span class="muted" style="font-size:11.5px">${esc(m.job)} · ${esc(m.area)}</span></div></div>
         <div class="th-body" id="thread-body">${msgs.map(x=>`<div class="bubble ${x.sender_id===state.me.id?'out':'in'}">${esc(x.body)}<span class="tm">${esc(x.created_at||'')}</span></div>`).join('')}</div>
         <form class="th-foot" id="form-send-msg"><input class="input" id="msg-text" placeholder="Nhập tin nhắn..."><button class="btn btn-primary btn-icon" type="submit">${ic('send',16)}</button></form>
@@ -5683,10 +5782,11 @@ async function doLoginReal(form, identifier, password){
   try{
     const r = await api.post('/auth/login', {identifier, password});
     api.setTokens(r);                       // { access, refresh } — snake_case của đặc tả
-    let identity = null;
-    try { identity = await api.get('/auth/me'); } catch(e) {}
-    let profile = null;
-    try { profile = await api.get('/members/me'); } catch(e) {}
+    const [identity,profile] = await Promise.all([api.get('/auth/me'),api.get('/members/me')]);
+    if(!identity?.actor?.id || !profile?.id || identity.actor.id!==profile.id || (r.member?.id&&r.member.id!==profile.id)){
+      throw new Error('Danh tính phiên đăng nhập không đồng nhất. Vui lòng đăng nhập lại.');
+    }
+    resetLiveMessaging(); LIVE_NOTIFICATIONS=[]; state.relations=null;
     state.me = {...r.member, ...(profile||{}), ...(identity?.actor||{}), roles:identity?.actor?.roles||[]};
     try{ localStorage.setItem('nc_member', JSON.stringify(state.me)); }catch(e){}
     // Từ đây danh tính frontend dùng cùng UUID với backend; quyền đăng việc,
@@ -5889,7 +5989,7 @@ document.addEventListener('click', function(e){
       if(!notice) break;
       if(liveMode()&&!notice.read_at) api.post('/notifications/'+encodeURIComponent(id)+'/read').then(r=>{notice.read_at=r.read_at;render();}).catch(()=>{});
       if(notice.target_type==='post'&&notice.target_id) go('jobResult',{id:notice.target_id});
-      else if(notice.target_type==='message'&&notice.actor_id){state.activeConvo=notice.actor_id;go('messages');loadLiveConversation(notice.actor_id);}
+      else if(notice.target_type==='message'&&notice.actor_id&&notice.actor_id!==currentActorId()){state.activeConvo=notice.actor_id;go('messages');loadLiveConversation(notice.actor_id);}
       else if(notice.target_type==='member'&&notice.target_id){go(notice.target_id===state.me?.id?'profile':'member',{id:notice.target_id});}
       else if(notice.target_type==='notification') go('privacy');
       closeAllDropdowns();
@@ -5901,6 +6001,10 @@ document.addEventListener('click', function(e){
       break;
     case 'open-convo-with': {
       if(liveMode()){
+        if(!id || id===currentActorId()){
+          toast('Không thể mở cuộc trò chuyện với chính tài khoản đang đăng nhập.', true);
+          break;
+        }
         if(/^[0-9a-f-]{36}$/i.test(id) && id!==state.me.id){
           api.post('/notifications', {
             recipient_id:id,
@@ -5912,7 +6016,8 @@ document.addEventListener('click', function(e){
           }).catch(()=>{});
         }
         state.activeConvo=id;
-        const row=DIRECTORY.rows.find(x=>x.id===id); if(row) LIVE_CONTACTS[id]=row;
+        const row=DIRECTORY.rows.find(x=>x.id===id) || state.memberDetails[id]?.raw;
+        if(row) LIVE_CONTACTS[id]=row; else loadLiveContact(id);
         go('messages');
         loadLiveConversation(id);
         break;
@@ -5976,6 +6081,18 @@ document.addEventListener('click', function(e){
       }
       break;
     }
+    case 'switch-live-convo':
+      if(liveMode()&&id&&id!==currentActorId()){
+        state.activeConvo=id;
+        render();
+        loadLiveConversation(id);
+      }
+      break;
+    case 'relations-reload':
+      state.relations=null;
+      loadMyRelations(true);
+      render();
+      break;
     case 'create-invite-link': {
       if(!liveMode()){
         toast('Hãy đăng nhập bằng tài khoản thật để tạo link mời.', true);
@@ -6006,6 +6123,7 @@ document.addEventListener('click', function(e){
       api.clearTokens();
       try{ localStorage.removeItem('nc_member'); }catch(e){}
       state.me = null; state.user = null; state.route='landing';
+      state.relations=null; LIVE_NOTIFICATIONS=[]; resetLiveMessaging();
       resetDirectory(); closeModal(); render();
       toast('Bạn đã đăng xuất khỏi Nhà Chung 86.');
       break;
@@ -6263,6 +6381,10 @@ document.addEventListener('submit', function(e){
     const text = val('msg-text');
     if(!text) return;
     if(isLiveConvo()){
+      if(state.activeConvo===currentActorId()){
+        toast('Không thể gửi tin nhắn cho chính tài khoản đang đăng nhập.', true);
+        return;
+      }
       api.post('/messages', {recipient_id:state.activeConvo, body:text}).then(m=>{
         (LIVE_MESSAGES[state.activeConvo] ||= []).push(m);
         const input=document.getElementById('msg-text'); if(input) input.value='';
@@ -6653,34 +6775,42 @@ api.onAuthLost(function(){
   if(!state.me) return;                 // đang dùng tài khoản demo, không đụng
   try{ localStorage.removeItem('nc_member'); }catch(e){}
   state.me = null; state.user = null; state.route = 'landing';
+  state.relations=null; LIVE_NOTIFICATIONS=[]; resetLiveMessaging();
   resetDirectory(); closeModal(); render();
   toast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.', true);
 });
 
-/* Khôi phục phiên sau khi tải lại trang. KHÔNG gọi /auth/me để kiểm trước:
-   token có còn sống hay không sẽ lộ ra ở lời gọi thật đầu tiên (GET /areas),
-   và nếu chết thì api.js tự làm mới, tự xoá, tự gọi onAuthLost ở trên.
-   Lý do phải tự nhớ `member`: GET /auth/me chỉ trả { id, community_id, roles }
-   — không có `full_name` — nên không khôi phục được tên người dùng từ đó. */
-if(api.isLoggedIn()){
+/* Khôi phục phiên bằng danh tính gắn trong token và hồ sơ thật. `nc_member` chỉ là
+   cache hiển thị, tuyệt đối không còn là nguồn UUID vì nó có thể thuộc phiên cũ. */
+async function restoreLiveSession(){
   try{
-    const saved = JSON.parse(localStorage.getItem('nc_member') || 'null');
-    if(saved && saved.id){
-      state.me = saved;
-      CURRENT_USER.id = saved.id;
-      CURRENT_USER.name = saved.full_name || CURRENT_USER.name;
-      CURRENT_USER.job = saved.job || '';
-      CURRENT_USER.bio = saved.bio || '';
-      CURRENT_USER.area = saved.area?.name || '';
-      CURRENT_USER.phone = saved.contact_values?.phone || '';
-      CURRENT_USER.email = saved.email || '';
-      state.user = CURRENT_USER;
-      state.route = 'members';
-    }
-  }catch(e){}
+    const [identity,profile]=await Promise.all([api.get('/auth/me'),api.get('/members/me')]);
+    if(!identity?.actor?.id || !profile?.id || identity.actor.id!==profile.id) throw new Error('SESSION_IDENTITY_MISMATCH');
+    resetLiveMessaging(); LIVE_NOTIFICATIONS=[]; state.relations=null;
+    state.me={...profile,...identity.actor,roles:identity.actor.roles||[]};
+    try{ localStorage.setItem('nc_member',JSON.stringify(state.me)); }catch(e){}
+    CURRENT_USER.id=profile.id;
+    CURRENT_USER.name=profile.full_name||CURRENT_USER.name;
+    CURRENT_USER.job=profile.job||'';
+    CURRENT_USER.bio=profile.bio||'';
+    CURRENT_USER.area=profile.area?.name||'';
+    CURRENT_USER.phone=profile.contact_values?.phone||'';
+    CURRENT_USER.email=profile.email||'';
+    if(profile.avatar_url) CURRENT_USER.avatar=secureImageUrl(profile.avatar_url,CURRENT_USER.avatar);
+    state.user=CURRENT_USER;
+    state.role=state.me.roles.includes('approver')?'admin':'member';
+    state.route=state.role==='admin'?'admin':'members';
+    resetDirectory(); state.marketLoaded=false; LIVE_JOB_DETAILS={};
+    render(); startRealtime(); loadMarketplace();
+    if(state.route==='admin') loadJoinRequests();
+  }catch(e){
+    stopRealtime(); api.clearTokens();
+    try{ localStorage.removeItem('nc_member'); }catch(err){}
+    state.me=null; state.user=null; state.route='landing';
+    resetLiveMessaging(); render();
+  }
 }
-if(liveMode()) startRealtime();
-if(liveMode()) loadMarketplace();
+if(api.isLoggedIn()) restoreLiveSession();
 
 render();
 </script>
