@@ -14,6 +14,7 @@ const BY_MESSAGE = {
   SELF_ONLY:                   [403, 'SELF_ONLY', 'Việc này chỉ chính người đó làm được, không ai điền hộ.'],
   NO_ACTOR:                    [500, 'INTERNAL', 'Lỗi hệ thống.'],
   MEMBER_NEEDS_MET_CONFIRMATION: [422, 'MET_CONFIRMATION_REQUIRED', 'Chưa có xác nhận đã gặp mặt nên chưa thể thành thành viên.'],
+  MEMBER_NEEDS_APPROVED_JOIN_REQUEST: [422, 'JOIN_APPROVAL_REQUIRED', 'Chưa có đơn gia nhập đã được ban duyệt phê duyệt.'],
   SUMMARY_REQUIRED:            [422, 'SUMMARY_REQUIRED', 'Còn hoạt động dùng quỹ chưa có tổng kết.'],
   FUND_ENTRY_LOCKED:           [409, 'FUND_ENTRY_LOCKED', 'Bút toán đã khóa. Hãy ghi bút toán điều chỉnh mới.'],
   FUND_TWO_APPROVERS_REQUIRED: [422, 'TWO_APPROVERS_REQUIRED', 'Bút toán từ một triệu đồng trở lên cần hai người duyệt.'],
@@ -27,7 +28,7 @@ const BY_MESSAGE = {
   // join_secret_consume (migration 009a). Không có trong bảng mục 5.1 của spec
   // vì hàm này ra đời sau bảng đó — cùng khuôn CONTACT_WRITE_DENIED: một quyết
   // định về QUYỀN nằm trong CSDL chứ không phải trong route.
-  JOIN_SECRET_DENIED:          [403, 'JOIN_SECRET_DENIED', 'Chỉ ban duyệt của chính cộng đồng này mới duyệt được đơn, và chỉ khi đơn đã có xác nhận gặp mặt.'],
+  JOIN_SECRET_DENIED:          [403, 'JOIN_SECRET_DENIED', 'Chỉ ban duyệt của chính cộng đồng này mới xử lý được dữ liệu của đơn đang chờ duyệt.'],
   JOIN_SECRET_MISSING:         [422, 'JOIN_SECRET_MISSING', 'Đơn này không có dữ liệu đăng ký kèm theo nên không duyệt được.'],
   // Sáu mã của migration 025 (Task 12). Thêm NGAY khi trigger ra đời, không đợi
   // tới lúc dựng endpoint: một mã không map được sẽ rơi qua `return null` và

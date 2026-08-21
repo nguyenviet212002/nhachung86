@@ -18,14 +18,13 @@ export const confirmMetSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày gặp mặt phải có dạng YYYY-MM-DD')
     .refine((s) => !Number.isNaN(Date.parse(s)), 'Ngày gặp mặt không hợp lệ')
     .refine((s) => Date.parse(`${s}T23:59:59Z`) <= Date.now() + 86_400_000, 'Ngày gặp mặt không được ở tương lai'),
-  // Ghi chú tối thiểu 20 ký tự: cổng met_confirmed tồn tại để buộc một người
-  // CỤ THỂ nói ra một điều CỤ THỂ. Một dấu tích chuột không phải lời khai.
+  // Endpoint này chỉ còn là bản ghi gặp mặt tuỳ chọn cho dữ liệu cũ/nhu cầu
+  // nội bộ; kết quả của nó không còn là điều kiện để approver duyệt đơn.
   note: z.string().trim().min(20, 'Ghi chú cần ít nhất 20 ký tự'),
 });
 
-// Đặc tả dòng 857: approve nhận { note? }. Ghi chú là tuỳ chọn ở đây (khác
-// confirm-met và reject) vì "đồng ý" không cần giải trình — chính lời khai gặp
-// mặt ở met_note mới là bằng chứng, và nó đã được ghi ở bước trước.
+// Approve nhận { note? }; ban duyệt có thể quyết định trực tiếp từ trạng thái
+// pending. Ghi chú vẫn là tuỳ chọn, còn quyết định được giữ trong audit_log.
 export const approveSchema = z.object({
   note: z.string().trim().min(1).max(1000).optional(),
 });

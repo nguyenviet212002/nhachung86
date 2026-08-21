@@ -40,7 +40,7 @@ const apiJsSrc = readFileSync(fileURLToPath(new URL('../../web/js/api.js', impor
 // Mã mà máy chủ THẬT SỰ gửi ra dây là phần tử thứ hai của mỗi dòng BY_MESSAGE —
 // KHÔNG phải khoá. Khoá là tên ngoại lệ PostgreSQL (thứ `mapPgError` đi tìm
 // trong chuỗi lỗi thô); mã gửi ra client có thể khác hẳn, ví dụ
-// `NO_ACTOR` → `INTERNAL`, `MEMBER_NEEDS_MET_CONFIRMATION` → `MET_CONFIRMATION_REQUIRED`.
+// Ví dụ: `NO_ACTOR` → `INTERNAL`, lỗi constraint đơn chưa duyệt → `JOIN_APPROVAL_REQUIRED`.
 // So nhầm hai thứ này sẽ cho ra một bài test xanh mà canh sai đối tượng.
 function serverCodes() {
   const block = errorsSrc.slice(errorsSrc.indexOf('const BY_MESSAGE'), errorsSrc.indexOf('export function mapPgError'));

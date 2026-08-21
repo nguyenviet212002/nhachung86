@@ -1320,7 +1320,7 @@ FUND.disbursed = FUND.ledger.reduce((s,l)=>s + (l.repaid?0:l.amount), 0);
 
 /* ---- QUAN HỆ CỦA TÔI (chỉ vẽ quan hệ đã xảy ra thật) ---- */
 const RELATIONS = {
-  referrer: {id:'m5', name:'Lê Quốc Bảo', job:'Doanh nhân', area:'Xã Ân Thi', date:'14-07-2024', note:'Đã xác nhận gặp mặt'},
+  referrer: {id:'m5', name:'Lê Quốc Bảo', job:'Doanh nhân', area:'Xã Ân Thi', date:'14-07-2024', note:'Qua link mời bảo lãnh'},
   broughtIn: [
     {id:'m8', name:'Hoàng Văn Duy', job:'Marketing', area:'TP. Hưng Yên', date:'09-2024'},
     {id:'m11', name:'Phan Thị Thu', job:'Đầu bếp', area:'Xã Tiên Lữ', date:'10-2024'}
@@ -1675,8 +1675,7 @@ function LoginForm(){
 
    Kết thúc luồng KHÔNG phải là "đăng nhập xong": /auth/register tạo một ĐƠN
    GIA NHẬP (`join_request_id`, `step`), người nộp vẫn chưa là thành viên cho
-   tới khi người bảo lãnh xác nhận đã gặp mặt và ban duyệt phê duyệt (đặc tả
-   mục "Gia nhập"). Bản dữ liệu giả trước đây cho vào thẳng bảng nhà — sai
+   tới khi ban duyệt phê duyệt. Bản dữ liệu giả trước đây cho vào thẳng bảng nhà — sai
    hẳn mô hình.
 --------------------------------------------------------------------------- */
 function RegisterForm(){
@@ -1758,8 +1757,8 @@ function RegisterDoneHTML(){
     <div class="feat-ic g" style="margin:0 auto 14px">${ic('check',20)}</div>
     <h4 style="font-size:16px;margin:0 0 8px">Đã nhận đơn gia nhập</h4>
     <p class="muted" style="font-size:13px;line-height:1.7;margin:0 0 14px">
-      Đơn của bạn đang ở bước <b>${esc(state.regResult.step)}</b>. Người bảo lãnh cần xác nhận đã gặp mặt bạn,
-      sau đó ban duyệt mới phê duyệt. Bạn chưa đăng nhập được cho tới khi đơn được duyệt.
+      Đơn của bạn đang ở bước <b>${esc(state.regResult.step)}</b> và đã được chuyển thẳng tới ban duyệt.
+      Bạn chưa đăng nhập được cho tới khi đơn được phê duyệt.
     </p>
     <div class="locked-bar" style="padding:11px 13px;text-align:left">${ic('info',15)}<div><p style="font-size:11.5px;margin:0">Mã đơn: <code>${esc(state.regResult.join_request_id)}</code></p></div></div>
     <button class="btn btn-outline btn-block mt-12" type="button" data-close-modal>Đóng</button>
@@ -3415,7 +3414,7 @@ const TABS_TRUST = [{key:'trust',label:'Xác minh và tin cậy',icon:'shieldche
 const VERIFY_REQ = [
   {init:'TH',name:'Trần Văn Hùng',what:'xin xác minh bằng lái hạng C',sub:'Đã nộp ảnh bằng lái · Ban điều hành xem rồi trả lại, không lưu ảnh',tags:['Có bằng, còn hạn','Không xác minh tay nghề'],tag:'Đang xem',time:'còn 3 ngày'},
   {init:'NH',name:'Ngô Thị Hiền',what:'xin xác nhận giấy phép an toàn thực phẩm',sub:'Đã có giấy của xã · cần đối chiếu bản gốc',tags:['Có giấy phép','Không xác minh chất lượng món ăn'],tag:'Chờ bản gốc',time:'còn 5 ngày'},
-  {init:'BT',name:'Bùi Đức Thắng',what:'xin xác minh nguồn gia nhập',sub:'Người đưa vào chưa xác nhận đã gặp mặt · đã nhắc một lần',tags:['Chưa xác minh được'],tag:'Thiếu bước',time:'quá hạn 2 ngày',late:1},
+  {init:'BT',name:'Bùi Đức Thắng',what:'xin xét duyệt đơn gia nhập',sub:'Đơn đang chờ Ban điều hành quyết định',tags:['Chờ ban duyệt'],tag:'Đang chờ',time:'quá hạn 2 ngày',late:1},
   {init:'MK',name:'Mai Văn Khánh',what:'xin xác nhận 4 việc đã làm',sub:'Cả 4 việc đều có hai bên bấm xác nhận trong sổ',tags:['Có trong sổ, đối chiếu được'],tag:'Đủ căn cứ',time:'chờ duyệt',ok:1}
 ];
 function TrustPage(){
@@ -4623,7 +4622,7 @@ function JoinFlowPage(){
           <div class="field"><label>Khu vực sinh sống</label><select class="input" id="jn-area">${AREAS.map(a=>`<option>${a}</option>`).join('')}</select></div></div>
         <div class="field" data-field="can"><label>Tôi làm được việc gì cho anh em <span class="req">*</span></label><textarea class="input" id="jn-can" placeholder="Sửa chập cháy, thay đường nước, lắp điện nhà mới. Việc gấp thì buổi tối tôi vẫn sang được."></textarea><div class="err"></div></div>
         <div class="row-2"><div class="field" data-field="phone"><label>Số điện thoại <span class="req">*</span></label><input class="input" id="jn-phone" placeholder="0943 881 638"><div class="err"></div></div>
-          <div class="field"><label>Người giới thiệu</label><input class="input" id="jn-ref" value="Phạm Văn Dũng — đã xác nhận" readonly></div></div>
+          <div class="field"><label>Người giới thiệu</label><input class="input" id="jn-ref" value="Phạm Văn Dũng — qua link mời" readonly></div></div>
         <div class="soft-block" style="background:var(--cream-2)">
           <label class="recip-row" style="border:0;padding:6px 0"><input type="checkbox" id="jn-ok1"><div><b style="font-weight:500;font-size:12.5px">Tôi xác nhận những thông tin trên là đúng và tôi tự chịu trách nhiệm về các cam kết của mình.</b></div></label>
           <label class="recip-row" style="border:0;padding:6px 0"><input type="checkbox" id="jn-ok2"><div><b style="font-weight:500;font-size:12.5px">Tôi đồng ý để Hội thu thập và sử dụng thông tin trên nhằm lập danh bạ nội bộ và kết nối trong cộng đồng. Tôi có thể yêu cầu xem, sửa, ẩn hoặc xóa bất cứ lúc nào.</b></div></label>
@@ -4633,10 +4632,10 @@ function JoinFlowPage(){
       </div></div>
       <div class="grid" style="gap:16px">
         <div class="section-card"><div class="sc-head" style="display:block"><h3>Điều kiện của cộng đồng</h3></div><div class="card-pad" style="padding-top:10px">
-          ${['Sinh năm Bính Dần 1986','Có một thành viên đứng ra giới thiệu và xác nhận đã gặp mặt','Đồng ý điều lệ và nếp sinh hoạt chung','Không dùng cộng đồng để huy động vốn, vay mượn hay bán hàng đa cấp'].map(t=>`<div class="opt-li ok">${tick('ok')} ${t}</div>`).join('')}
+          ${['Sinh năm Bính Dần 1986','Có link mời của một thành viên bảo lãnh','Đồng ý điều lệ và nếp sinh hoạt chung','Không dùng cộng đồng để huy động vốn, vay mượn hay bán hàng đa cấp'].map(t=>`<div class="opt-li ok">${tick('ok')} ${t}</div>`).join('')}
         </div></div>
         <div class="rights-card"><div class="rc-title">TRẠNG THÁI HỒ SƠ</div>
-          ${[['Xong','Người giới thiệu đã xác nhận',1],['Đang làm','Điền hồ sơ tối thiểu',2],['Chưa tới','Chọn quyền riêng tư từng trường',0],['Chưa tới','Ban điều hành xác minh — trong 7 ngày',0]].map(s=>`
+          ${[['Xong','Đã nhận link mời bảo lãnh',1],['Đang làm','Điền hồ sơ tối thiểu',2],['Chưa tới','Chọn quyền riêng tư từng trường',0],['Chưa tới','Ban điều hành xét duyệt',0]].map(s=>`
           <div class="flex gap-8 mt-8" style="align-items:flex-start"><span class="badge ${s[2]===1?'badge-green':s[2]===2?'badge-orange':'badge-gray'}" style="flex:none">${s[0]}</span><span style="font-size:12px;color:#D4D4D4;line-height:1.45">${s[1]}</span></div>`).join('')}
         </div>
         <div class="section-card"><div class="sc-head" style="display:block"><h3>Khi được nhận</h3></div><div class="card-pad" style="padding-top:10px">
@@ -4663,7 +4662,7 @@ const MOD_QUEUE = [
 function hasActualRole(role){ return Boolean(state.me?.roles?.includes(role)); }
 function canReadJoinRequests(){ return hasActualRole('approver') || hasActualRole('content_ops'); }
 function joinStatusLabel(status){
-  return ({pending:'Chờ gặp mặt',met_confirmed:'Đã xác nhận gặp mặt',approved:'Đã duyệt',rejected:'Đã từ chối',draft:'Bản nháp'})[status] || status;
+  return ({pending:'Chờ ban duyệt',met_confirmed:'Sẵn sàng duyệt',approved:'Đã duyệt',rejected:'Đã từ chối',draft:'Bản nháp'})[status] || status;
 }
 function joinStatusClass(status){
   return status==='approved' ? 'badge-green' : status==='rejected' ? 'badge-danger' : status==='met_confirmed' ? 'badge-orange' : 'badge-gray';
@@ -4708,7 +4707,7 @@ function JoinRejectModal(id){
   <form id="form-join-reject" data-id="${esc(id)}" novalidate>
     <div class="modal-body">
       <div class="field" data-field="reason"><label>Lý do <span class="req">*</span></label>
-        <select class="input" id="join-reject-reason"><option value="not_ready">Chưa sẵn sàng</option><option value="no_meeting">Không gặp mặt</option><option value="referrer_misrepresented">Người bảo lãnh khai sai</option><option value="other">Lý do khác</option></select><div class="err"></div></div>
+        <select class="input" id="join-reject-reason"><option value="not_ready">Chưa sẵn sàng</option><option value="referrer_misrepresented">Người bảo lãnh khai sai</option><option value="other">Lý do khác</option></select><div class="err"></div></div>
       <div class="field" data-field="note"><label>Ghi chú <span class="req">*</span></label><textarea class="input" id="join-reject-note" placeholder="Nêu rõ lý do, tối thiểu 20 ký tự"></textarea><div class="err"></div></div>
     </div>
     <div class="modal-foot"><button class="btn btn-outline" type="button" data-close-modal>Hủy</button><button class="btn btn-primary" type="submit">Xác nhận từ chối</button></div>
@@ -4728,10 +4727,10 @@ function JoinRequestsPanel(){
       <div style="flex:1;min-width:0"><div class="flex gap-8" style="align-items:center;flex-wrap:wrap"><b>${esc(j.applicant?.full_name||'Chưa có tên')}</b><span class="badge ${joinStatusClass(j.status)}">${esc(joinStatusLabel(j.status))}</span></div>
         <p>Sinh năm ${esc(j.applicant?.birth_year||'—')} · gửi ${esc(joinDate(j.created_at))}</p>
         <p style="font-family:monospace;font-size:11px">Mã đơn: ${esc(j.id)}</p>
-        ${j.status==='pending'?`<div class="q-miss">${ic('info',12)} Người bảo lãnh phải xác nhận đã gặp mặt trước; quản trị không được xác nhận hộ.</div>`:''}
+        ${j.status==='pending'?`<div class="q-miss">${ic('info',12)} Link mời đã xác định người bảo lãnh; ban duyệt có thể quyết định trực tiếp.</div>`:''}
       </div>
       <div class="flex gap-8" style="flex:none;flex-wrap:wrap;justify-content:flex-end">
-        ${j.status==='met_confirmed'&&hasActualRole('approver')?`<button class="btn btn-primary btn-sm" data-action="join-approve" data-id="${esc(j.id)}">Duyệt thành viên</button>`:''}
+        ${(j.status==='pending'||j.status==='met_confirmed')&&hasActualRole('approver')?`<button class="btn btn-primary btn-sm" data-action="join-approve" data-id="${esc(j.id)}">Duyệt thành viên</button>`:''}
         ${(j.status==='pending'||j.status==='met_confirmed')&&hasActualRole('approver')?`<button class="btn btn-outline btn-sm" data-action="join-reject" data-id="${esc(j.id)}">Từ chối</button>`:''}
       </div>
     </div>`).join('')}
@@ -4911,39 +4910,38 @@ function BackupPage(){
 function BottleneckPage(){
   if(state.role!=='admin') return roleGate('Trang điều phối luồng việc chỉ dành cho ban điều hành.');
   return `
-    <div class="page-head"><div><h1>Luồng việc đang tắc</h1><p>Chỗ nào nghẽn, vì sao, ai gỡ và trong bao lâu.</p></div><span class="muted" style="font-size:12px">1 điểm tắc</span></div>
+    <div class="page-head"><div><h1>Luồng việc đang tắc</h1><p>Chỗ nào nghẽn, vì sao, ai gỡ và trong bao lâu.</p></div><span class="muted" style="font-size:12px">Không còn điểm tắc xác nhận gặp mặt</span></div>
     ${sectionTabs(TABS_OPS,'bottleneck')}
     <div class="grid" style="grid-template-columns:1fr 320px;align-items:start;gap:20px">
       <div class="section-card"><div class="card-pad">
         <div class="ib-l" style="margin-bottom:12px">LUỒNG KẾT NẠP THÀNH VIÊN — TỪ ĐỀ XUẤT TỚI THÀNH VIÊN CHÍNH THỨC</div>
         <div class="funnel">
-          ${[['7','Đề xuất','từ người bảo lãnh',0],['4','Chờ xác nhận','đã gặp mặt',1],['2','Chờ điền','hồ sơ',0],['3','Khách mời','60 ngày',0],['52','Thành viên','chính thức',0]].map((f,i)=>`
+          ${[['7','Có link mời','từ người bảo lãnh',0],['4','Chờ duyệt','Ban điều hành',1],['52','Thành viên','chính thức',0]].map((f,i)=>`
             ${i?'<span class="fn-arrow">'+ic('arrowright',16)+'</span>':''}
             <div class="fn-box ${f[3]?'stuck':''}"><b>${f[0]}</b><span>${f[1]}</span><em>${f[2]}</em></div>`).join('')}
         </div>
-        <div class="soft-block mt-16" style="background:var(--orange-light-2);border:1px solid var(--orange-light)"><b>Điểm tắc: 4 hồ sơ đứng ở bước xác nhận gặp mặt, trung bình 9 ngày</b><p style="font-size:12.5px;margin-top:5px;line-height:1.55">Quy chế cho phép 7 ngày. Bước này chiếm 68% tổng thời gian kết nạp.</p></div>
-        <div class="ib-l mt-16" style="margin-bottom:8px">NGUYÊN NHÂN — HỎI TỪNG NGƯỜI BẢO LÃNH</div>
-        ${[['user','Hai người bảo lãnh chưa sắp xếp gặp được','Cả hai đều bận việc, hẹn cuối tuần · đây là nguyên nhân thật, không phải lười','2 hồ sơ'],
-           ['clock','Một người không biết mình phải xác nhận','Thông báo gửi qua email, anh ấy không dùng email · lỗi của hệ thống','1 hồ sơ'],
-           ['alert','Một người đã hết quota bảo lãnh trong năm','Đã bảo lãnh 3 người · cần Ban điều hành xét riêng','1 hồ sơ']].map(c=>`
+        <div class="soft-block mt-16" style="background:var(--green-light);border:1px solid #a8d5b5"><b>Đã gỡ bước xác nhận gặp mặt</b><p style="font-size:12.5px;margin-top:5px;line-height:1.55">Đơn có link mời hợp lệ được chuyển thẳng tới Ban điều hành xét duyệt.</p></div>
+        <div class="ib-l mt-16" style="margin-bottom:8px">CÁC ĐIỂM CÒN PHẢI KIỂM TRA</div>
+        ${[['user','Link mời xác định đúng người bảo lãnh','Quan hệ bảo lãnh và hạn mức vẫn được giữ nguyên','Bắt buộc'],
+           ['clock','Ban điều hành xử lý đơn đang chờ','Không cần đợi hành động bổ sung từ người bảo lãnh','Trực tiếp'],
+           ['alert','Hạn mức bảo lãnh trong năm','Tối đa theo chính sách hiện hành của cộng đồng','Vẫn áp dụng']].map(c=>`
           <div class="ev-work"><div class="ev-thumb">${ic(c[0],14)}</div><div class="info"><b>${c[1]}</b><p>${c[2]}</p></div><span class="conn-status">${c[3]}</span></div>`).join('')}
         <div class="ib-l mt-16" style="margin-bottom:10px">PHƯƠNG ÁN GỠ — CHỌN MỘT</div>
-        ${[['Nhắc bằng Zalo thay vì email, và cho phép xác nhận bằng một tin nhắn','Gỡ được 3 trên 4 hồ sơ · không phải sửa quy chế, chỉ đổi cách nhắc','Anh Lê Quang Minh làm · trong 2 ngày','Đã chọn',1],
-           ['Rút hạn xác nhận từ 7 ngày xuống 3 ngày','Không gỡ được nguyên nhân thật · chỉ làm người bảo lãnh thêm áp lực','Cần sửa quy chế · phải họp Ban điều hành','',0],
-           ['Bỏ hẳn bước xác nhận gặp mặt cho nhanh','Không được — đây là điều bất biến của cộng đồng, không đánh đổi vì tốc độ','','',0]
+        ${[['Duyệt trực tiếp từ hàng chờ quản trị','Approver xem hồ sơ và quyết định ngay','Đang áp dụng','Đã chọn',1],
+           ['Giữ link mời bảo lãnh','Không cho đăng ký tự do; vẫn ghi rõ ai mời ai','Đang áp dụng','Bắt buộc',1]
           ].map(o=>`<div class="fix-card ${o[4]?'on':''}"><b>${o[0]}</b><p>${o[1]}</p>${o[2]?`<div class="flex-between mt-8" style="align-items:center"><span style="font-size:11.5px;color:var(--muted)">${o[2]}</span>${o[3]?`<span class="badge badge-green">${o[3]}</span>`:''}</div>`:''}</div>`).join('')}
       </div></div>
       <div class="grid" style="gap:16px">
         <div class="section-card"><div class="sc-head" style="display:block"><h3>Thời gian từng bước</h3><span class="muted" style="font-size:12px">trung bình 30 ngày gần đây</span></div>
           <div class="card-pad" style="padding-top:6px">
-            ${[['Đề xuất → xác nhận gặp mặt','9,1 ngày'],['Xác nhận → điền hồ sơ','2,4 ngày'],['Điền hồ sơ → duyệt','1,8 ngày'],['Khách mời → chính thức','60 ngày · theo quy chế'],['Tổng, không tính 60 ngày','13,3 ngày']].map(r=>`<div class="kv-row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}
-            <p class="muted" style="font-size:11.5px;margin-top:8px">Mục tiêu: dưới 10 ngày. Gỡ được bước đầu là đạt.</p>
+            ${[['Nhận link → gửi đơn','ngay lập tức'],['Gửi đơn → Ban duyệt','theo hàng chờ'],['Ban duyệt → thành viên','ngay khi phê duyệt']].map(r=>`<div class="kv-row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}
+            <p class="muted" style="font-size:11.5px;margin-top:8px">Không còn thời gian chờ xác nhận gặp mặt.</p>
           </div></div>
         <div class="section-card"><div class="sc-head" style="display:block"><h3>Ai chịu trách nhiệm</h3><span class="muted" style="font-size:12px">từng bước một</span></div>
           <div class="card-pad" style="padding-top:6px">
-            ${[['Bước xác nhận gặp mặt','người bảo lãnh'],['Nhắc người bảo lãnh','thư ký'],['Duyệt hồ sơ','Ban điều hành'],['Gỡ điểm tắc lần này','Lê Quang Minh']].map(r=>`<div class="kv-row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}
+            ${[['Phát link mời','người bảo lãnh'],['Gửi đơn','người đăng ký'],['Duyệt hoặc từ chối','Ban điều hành']].map(r=>`<div class="kv-row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}
           </div></div>
-        <div class="rights-card"><div class="rc-title">TẮC VÌ HỆ THỐNG, ĐỪNG ĐỔ CHO NGƯỜI</div><p style="font-size:12.5px;color:#D4D4D4;line-height:1.6;margin:0">Ba trên bốn hồ sơ tắc vì hệ thống nhắc sai kênh, không phải vì anh em thờ ơ. Rút ngắn hạn hay trách móc đều không gỡ được. Sửa cách nhắc thì gỡ được ngay.</p></div>
+        <div class="rights-card"><div class="rc-title">QUYẾT ĐỊNH CÓ NGƯỜI CHỊU TRÁCH NHIỆM</div><p style="font-size:12.5px;color:#D4D4D4;line-height:1.6;margin:0">Approver trực tiếp phê duyệt hoặc từ chối; mọi hành động vẫn được ghi vào nhật ký kiểm toán.</p></div>
       </div>
     </div>`;
 }

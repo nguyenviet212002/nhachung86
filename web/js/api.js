@@ -57,6 +57,7 @@
     MANUAL_PAIR_QUOTA_EXCEEDED: 'Hai người đã ghi quá số việc thủ công cho phép trong 12 tháng.',
     SELF_ONLY:                  'Việc này chỉ chính người đó làm được, không ai điền hộ.',
     MET_CONFIRMATION_REQUIRED:  'Chưa có xác nhận đã gặp mặt nên chưa thể thành thành viên.',
+    JOIN_APPROVAL_REQUIRED:     'Chưa có đơn gia nhập đã được ban duyệt phê duyệt.',
     SUMMARY_REQUIRED:           'Còn hoạt động dùng quỹ chưa có tổng kết.',
     FUND_ENTRY_LOCKED:          'Bút toán đã khóa. Hãy ghi bút toán điều chỉnh mới.',
     TWO_APPROVERS_REQUIRED:     'Bút toán từ một triệu đồng trở lên cần hai người duyệt.',
@@ -86,7 +87,7 @@
     CONTACT_NEEDS_CONSENT:  'Cần chủ hồ sơ đồng ý mới xem được.',
     CONTACT_CLOSED:         'Chủ hồ sơ đã đóng thông tin này.',
     PHOTO_CONSENT_INCOMPLETE: 'Còn người có mặt trong ảnh chưa đồng ý.',
-    JOIN_SECRET_DENIED:     'Chỉ ban duyệt của chính cộng đồng này mới duyệt được đơn, và chỉ khi đơn đã có xác nhận gặp mặt.',
+    JOIN_SECRET_DENIED:     'Chỉ ban duyệt của chính cộng đồng này mới xử lý được dữ liệu của đơn đang chờ duyệt.',
     JOIN_SECRET_MISSING:    'Đơn này không có dữ liệu đăng ký kèm theo nên không duyệt được.',
 
     // Sáu mã của migration 025 (Task 12). Chưa màn nào gọi tới — endpoint việc

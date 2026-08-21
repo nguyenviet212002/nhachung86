@@ -150,7 +150,7 @@ tự từ chối**, chứ không kiểm rằng service có gọi đúng hàm.
 | `guarantee_quota_overrides nới đúng số suất, hết hiệu lực theo valid_until` | Thật, ba giai đoạn | **N** | Chưa nghĩ ra đường lách. |
 | `đơn của cộng đồng này không trỏ được người bảo lãnh sang cộng đồng khác` | `INSERT` thật | **N/T** | Khẳng định `toThrow(/jr_referrer_same_community\|violates foreign key/i)` — **nhánh thứ hai là mẫu rộng**. Đổi khoá ghép về đơn cột mà câu vẫn hỏng vì **một** khoá ngoại khác (vd. `community_id`) ⇒ vẫn xanh. Đúng loại lỗi đã bị sửa ở `t13-signature-removal`. |
 | `hạn mức đọc từ communities.config, không phải hằng số trong mã` | Đổi `config` thật rồi thử | **N** | Chưa nghĩ ra đường lách. Mẫu tốt: phân biệt được "đọc cấu hình" với "hằng số tình cờ bằng 3". |
-| `members.status=member khi chưa có xác nhận gặp mặt ⇒ hỏng lúc COMMIT` | Dạng **callback** `db.transaction(...)`, còn khẳng định `insertResolved === true` để chứng minh hỏng đúng ở COMMIT | **N** | Chưa nghĩ ra đường lách. Ruling C11 được thi công đúng. |
+| `members.status=member khi chưa có đơn được duyệt ⇒ hỏng lúc COMMIT` | Dạng **callback** `db.transaction(...)`, còn khẳng định `insertResolved === true` để chứng minh hỏng đúng ở COMMIT | **N** | Migration 036 thay bằng cổng đơn `approved`; vẫn kiểm đúng thời điểm COMMIT. |
 | `đặt join_requests.member_id trong CÙNG giao dịch thì COMMIT qua được` | Thật | **N** | Đối chứng cho bài trên — không có nó thì bài trên xanh cả khi trigger chặn **mọi** lượt. |
 | `đổi referrer_id của một hàng status=member ⇒ REFERRER_FROZEN` | Thật, kèm đối chứng `guest` vẫn đổi được | **N** | Chưa nghĩ ra đường lách. |
 | `nộp đơn hợp lệ: trả join_request_id + step, ghi join_request.created` | Qua HTTP thật (supertest), đọc `audit_log` thật | **N** | `expect(JSON.stringify(detail)).not.toContain(phone)` là **danh sách cấm một chuỗi**: ghi số đã băm/đảo/cắt vào `detail` thì vẫn xanh. Nhỏ, vì `assertSafeDetail` chắn phía sau. |
@@ -441,7 +441,7 @@ Toàn bộ dùng dạng callback và mọi khẳng định đều theo **tên m�
 
 | Tên bài | Canh gì | N/T | Lỗ mù cụ thể |
 |---|---|---|---|
-| `luồng đầy đủ xin mã → nộp đơn → xác nhận gặp mặt → duyệt` | HTTP thật đầu-cuối, rồi đọc lại `members`/`join_requests` từ CSDL | **N** | Chưa nghĩ ra đường lách. |
+| `luồng đầy đủ xin mã → nộp đơn pending → ban duyệt phê duyệt trực tiếp` | HTTP thật đầu-cuối, rồi đọc lại `members`/`join_requests` từ CSDL | **N** | Không gọi `confirm-met`, nên canh đúng yêu cầu bỏ bước người bảo lãnh xác nhận. |
 | `hộp liên hệ do trg_member_bootstrap sinh, và số điện thoại vào đúng ô` | Đọc CSDL thật, kèm khẳng định **ba ô kia phải trống** | **N** | Mẫu tốt: canh cả "điền đúng ô" lẫn "không đoán hộ ô khác". |
 | `đúng TÁM mức riêng tư, đúng mặc định của spec dòng 852` | Đọc CSDL thật, liệt kê **cả tám** giá trị mong đợi tường minh | **N** | Đây là nguồn sự thật độc lập cho "tám trường" — thứ mà `t13-privacy-eight-fields` bài 10 thiếu. |
 | `đúng MỘT cạnh guarantee, đi từ người bảo lãnh sang người mới` | Đọc CSDL thật | **N** | Chưa nghĩ ra đường lách. |
@@ -454,10 +454,10 @@ Toàn bộ dùng dạng callback và mọi khẳng định đều theo **tên m�
 | `app_role KHÔNG ghi được vào member_relations` | `app_role` thật, đủ INSERT/UPDATE/DELETE, **kèm đối chứng SELECT vẫn được** | **N** | Mẫu tốt: đối chứng chống "khoá nhầm cả cửa đọc". |
 | `app_role KHÔNG đọc được join_request_secrets bằng SELECT thẳng` | `app_role` thật, 4 câu | **N** | Chưa nghĩ ra đường lách. |
 | `join_secret_consume: chỉ approver CỦA CHÍNH CỘNG ĐỒNG ĐÓ gọi được` | CSDL thật, ba vai bị từ chối + **khẳng định bí mật còn nguyên** | **N** | Mẫu tốt. |
-| `join_secret_consume: cửa chỉ mở đúng khoảnh khắc duyệt, không sớm hơn` | CSDL thật, cả "chưa tới lúc" lẫn "đã qua lúc" | **N** | Chưa nghĩ ra đường lách. |
-| `đơn chưa xác nhận gặp mặt: approve trả 422, không tạo thành viên nào` | HTTP thật + đếm `members` | **N** | Comment tự khai bài này **một mình** vẫn xanh khi trigger bị gỡ — và bài kế tiếp là vế bù (Ruling C11). Khai báo trung thực đúng chuẩn. |
+| `join_secret_consume: sau khi duyệt xong không đọc lần hai` | CSDL thật | **N** | Canh việc bí mật bị đốt sau duyệt. |
+| `đơn pending được approver duyệt trực tiếp, không gọi confirm-met` | HTTP thật + đếm `members` + kiểm `met_confirmed_at IS NULL` | **N** | Chứng minh bước gặp mặt không còn là điều kiện ngầm. |
 | `CSDL tự chặn: hàng members có referrer_id mà không đơn nào nối tới ⇒ COMMIT hỏng` | CSDL thật, dạng callback, + khẳng định rollback sạch | **N** | Chưa nghĩ ra đường lách. |
-| `đơn CHỈ có met_confirmed_at mới mở được cổng — nối đơn thôi chưa đủ` | CSDL thật | **N** | Mẫu tốt: phân biệt "có mối nối" với "có bằng chứng gặp mặt". |
+| `chỉ nối member_id vào đơn pending chưa đủ — đơn phải được ban duyệt phê duyệt` | CSDL thật | **N** | Phân biệt "có mối nối" với "đã có quyết định phê duyệt". |
 | `không sửa lại được referrer_id của một người đã là member` | CSDL thật, cả gán mới lẫn gán `NULL` | **N** | Chưa nghĩ ra đường lách. |
 | `cạnh guarantee chỉ tồn tại MỘT hướng` | CSDL thật, **đích danh** `rel_guarantee_one_direction` | **N** | Chưa nghĩ ra đường lách. |
 | `cạnh guarantee không nối được hai cộng đồng` | CSDL thật | **N/T** | Mẫu rộng `/rel_a_same_community\|violates foreign key/i`. |

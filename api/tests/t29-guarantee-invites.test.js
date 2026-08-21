@@ -407,8 +407,8 @@ describe('T29 điểm 3 — thu hồi được, suất trả lại NGAY', () => 
 });
 
 // ===========================================================================
-describe('T29 điểm 4 — link KHÔNG thay thế bước xác nhận gặp mặt', () => {
-  it('dùng link xong: đơn ở pending, met_confirmed_at vẫn NULL', async () => {
+describe('T29 điểm 4 — link tạo đơn pending để ban duyệt quyết định trực tiếp', () => {
+  it('dùng link xong: đơn ở pending và không tự bịa dữ liệu gặp mặt', async () => {
     const referrer = await newMember();
     const { token } = await mkInvite(db, cid, referrer);
     const { joinRequestId } = await claimAndApply(token);
@@ -423,7 +423,7 @@ describe('T29 điểm 4 — link KHÔNG thay thế bước xác nhận gặp m�
     expect(jr.met_on).toBeNull();
   });
 
-  it('người bảo lãnh lỡ phát link nhầm vẫn chặn được ở bước sau, và chỉ họ chặn được', async () => {
+  it('nếu vẫn ghi nhận gặp mặt tuỳ chọn thì chỉ đúng người bảo lãnh được ghi', async () => {
     const referrer = await newMember();
     const stranger = await newMember();
     const approver = await newMember();
@@ -431,8 +431,8 @@ describe('T29 điểm 4 — link KHÔNG thay thế bước xác nhận gặp m�
     const { token } = await mkInvite(db, cid, referrer);
     const { joinRequestId } = await claimAndApply(token);
 
-    // Ngay cả ban duyệt cũng không xác nhận gặp mặt hộ được — lời khai "tôi đã
-    // gặp người này" chỉ có nghĩa khi nó đến từ đúng người đã đứng ra bảo lãnh.
+    // Đây không còn là cổng duyệt. Nếu dùng bản ghi tuỳ chọn này, lời khai chỉ
+    // có nghĩa khi đến từ đúng người đã đứng ra bảo lãnh.
     for (const [ai, who] of [[stranger, 'người lạ'], [approver, 'ban duyệt']]) {
       const res = await supertest(api)
         .post(`/api/v1/join-requests/${joinRequestId}/confirm-met`)
@@ -441,12 +441,11 @@ describe('T29 điểm 4 — link KHÔNG thay thế bước xác nhận gặp m�
       expect(res.status, `${who} không được xác nhận hộ: ${JSON.stringify(res.body)}`).toBe(403);
     }
 
-    // Và người bảo lãnh CHẶN được: từ chối vẫn là một quyết định riêng.
     const { rows: [jr] } = await db.raw(`SELECT met_confirmed_at FROM join_requests WHERE id = ?`, [joinRequestId]);
     expect(jr.met_confirmed_at).toBeNull();
   });
 
-  it('đơn sinh từ link vẫn không thành thành viên khi chưa có xác nhận gặp mặt', async () => {
+  it('đơn sinh từ link vẫn không tự thành thành viên khi chưa được ban duyệt', async () => {
     const referrer = await newMember();
     const { token } = await mkInvite(db, cid, referrer);
     await claimAndApply(token);
@@ -459,7 +458,7 @@ describe('T29 điểm 4 — link KHÔNG thay thế bước xác nhận gặp m�
           [cid, referrer]
         );
       })
-    ).rejects.toThrow(/MEMBER_NEEDS_MET_CONFIRMATION/);
+    ).rejects.toThrow(/MEMBER_NEEDS_APPROVED_JOIN_REQUEST/);
   });
 });
 

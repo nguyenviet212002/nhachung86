@@ -86,7 +86,8 @@ async function freshOtpToken(phone) {
   return otpToken;
 }
 
-// Nộp đơn thật qua HTTP rồi (tuỳ chọn) cho người bảo lãnh xác nhận gặp mặt.
+// Nộp đơn thật qua HTTP. Link mời xác định người bảo lãnh; đơn pending được
+// chuyển thẳng tới ban duyệt, không cần người bảo lãnh xác nhận thêm.
 //
 // referrerId mặc định là `referrer` nhưng phải truyền được: hạn mức bảo lãnh là
 // 3 suất / 12 tháng và trigger fn_guarantee_quota cưỡng chế thật, nên bài thứ tư
@@ -97,7 +98,7 @@ async function freshOtpToken(phone) {
 // PHÁT MỘT LINK trước, và người nộp đơn mang token của link đó tới. Helper này
 // phát link giúp để các bài phía sau không phải dựng lại luồng ấy — bài kiểm
 // chính luồng phát link nằm ở t28.
-async function submitJoinRequest({ phone, fullName, confirmMet = true, referrerId = referrer }) {
+async function submitJoinRequest({ phone, fullName, referrerId = referrer }) {
   const { token: inviteToken } = await mkInvite(db, cid, referrerId);
   const res = await supertest(api).post('/api/v1/auth/register').send({
     otp_token: await freshOtpToken(phone),
@@ -112,25 +113,18 @@ async function submitJoinRequest({ phone, fullName, confirmMet = true, referrerI
   expect(res.status, JSON.stringify(res.body)).toBe(201);
   const id = res.body.join_request_id;
 
-  if (confirmMet) {
-    const met = await supertest(api)
-      .post(`/api/v1/join-requests/${id}/confirm-met`)
-      .set('Authorization', `Bearer ${accessTokenFor(referrerId)}`)
-      .send({ met_on: '2026-08-01', note: 'Toi da gap mat nguoi nay tai nha van hoa xa.' });
-    expect(met.status, JSON.stringify(met.body)).toBe(200);
-  }
   return id;
 }
 
 // ---------------------------------------------------------------------------
 describe('T16 duyệt xong: hộp liên hệ, 8 mức riêng tư, đúng MỘT cạnh guarantee', () => {
-  it('luồng đầy đủ xin mã → nộp đơn → xác nhận gặp mặt → duyệt', async () => {
+  it('luồng đầy đủ xin mã → nộp đơn pending → ban duyệt phê duyệt trực tiếp', async () => {
     jrApproved = await submitJoinRequest({ phone: NEW_PHONE, fullName: 'Nguoi Moi Gia Nhap' });
 
     const res = await supertest(api)
       .post(`/api/v1/join-requests/${jrApproved}/approve`)
       .set('Authorization', `Bearer ${accessTokenFor(approver)}`)
-      .send({ note: 'Ho so day du, nguoi bao lanh da xac nhan gap mat.' });
+      .send({ note: 'Ho so day du, ban dieu hanh phe duyet truc tiep.' });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     memberId = res.body.member_id;
     expect(memberId).toBeTruthy();
@@ -341,28 +335,17 @@ describe('T16 hai bảng nằm ngoài tầm với của app_role', () => {
     expect(rows[0].n).toBe(1);
   });
 
-  it('join_secret_consume: cửa chỉ mở đúng khoảnh khắc duyệt, không sớm hơn', async () => {
-    // Đơn còn 'pending' (chưa ai xác nhận gặp mặt). approve() đã chặn ở tầng
-    // ứng dụng, nhưng cổng này nằm trong CSDL để một route khác viết sau —
-    // hoặc một kết nối app_role bị chiếm — cũng không mở sớm được.
-    const jr = await submitJoinRequest({
-      phone: '0961000010', fullName: 'Don Con Cho Gap Mat', confirmMet: false,
-      referrerId: await newMember('Bao Lanh Rieng'),
-    });
-    await expect(withActor(approver, (trx) => trx.raw(`SELECT * FROM join_secret_consume(?)`, [jr])))
-      .rejects.toThrow(/JOIN_SECRET_DENIED/);
-
-    // ...và sau khi đơn đã được duyệt xong thì cửa đóng lại, không đọc lần hai.
+  it('join_secret_consume: sau khi duyệt xong thì bí mật đã bị xoá, không đọc lần hai', async () => {
     await expect(withActor(approver, (trx) => trx.raw(`SELECT * FROM join_secret_consume(?)`, [jrApproved])))
       .rejects.toThrow(/JOIN_SECRET_DENIED/);
   });
 });
 
 // ---------------------------------------------------------------------------
-describe('T16 cổng met_confirmed — chặn ở CẢ tầng ứng dụng lẫn tầng CSDL', () => {
-  it('đơn chưa xác nhận gặp mặt: approve trả 422, không tạo thành viên nào', async () => {
+describe('T16 cổng phê duyệt trực tiếp — ứng dụng và CSDL cùng giữ quyết định', () => {
+  it('đơn pending được approver duyệt trực tiếp, không gọi confirm-met', async () => {
     const jr = await submitJoinRequest({
-      phone: '0961000002', fullName: 'Chua Gap Mat', confirmMet: false,
+      phone: '0961000002', fullName: 'Duyet Truc Tiep',
       referrerId: await newMember('Bao Lanh Rieng'),
     });
     const before = (await db.raw(`SELECT count(*)::int AS n FROM members WHERE community_id = ?`, [cid])).rows[0].n;
@@ -371,11 +354,13 @@ describe('T16 cổng met_confirmed — chặn ở CẢ tầng ứng dụng lẫn
       .post(`/api/v1/join-requests/${jr}/approve`)
       .set('Authorization', `Bearer ${accessTokenFor(approver)}`)
       .send({});
-    expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe('MET_CONFIRMATION_REQUIRED');
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
 
     const after = (await db.raw(`SELECT count(*)::int AS n FROM members WHERE community_id = ?`, [cid])).rows[0].n;
-    expect(after).toBe(before);
+    expect(after).toBe(before + 1);
+    const { rows: [saved] } = await db.raw(`SELECT status, met_confirmed_at FROM join_requests WHERE id = ?`, [jr]);
+    expect(saved.status).toBe('approved');
+    expect(saved.met_confirmed_at).toBeNull();
   });
 
   // Ruling C11: bài trên MỘT MÌNH chỉ chạm chốt chặn viết trong approve(), nên
@@ -392,33 +377,31 @@ describe('T16 cổng met_confirmed — chặn ở CẢ tầng ứng dụng lẫn
       db.transaction(async (trx) => {
         await trx.raw(
           `INSERT INTO members (community_id, full_name, status, referrer_id)
-           VALUES (?, 'Lot Cong Met Confirmed', 'member', ?)`, [cid, referrer]);
+           VALUES (?, 'Lot Cong Phe Duyet', 'member', ?)`, [cid, referrer]);
         // Cố ý KHÔNG đặt join_requests.member_id. Câu INSERT trên chạy trót
         // lọt; chỉ tới lệnh COMMIT trigger hoãn mới soi và ném.
       })
-    ).rejects.toThrow(/MEMBER_NEEDS_MET_CONFIRMATION/);
+    ).rejects.toThrow(/MEMBER_NEEDS_APPROVED_JOIN_REQUEST/);
 
     const { rows } = await db.raw(
-      `SELECT count(*)::int AS n FROM members WHERE full_name = 'Lot Cong Met Confirmed'`);
+      `SELECT count(*)::int AS n FROM members WHERE full_name = 'Lot Cong Phe Duyet'`);
     expect(rows[0].n, 'giao dịch phải bị cuộn lại hoàn toàn').toBe(0);
   });
 
-  it('đơn CHỈ có met_confirmed_at mới mở được cổng — nối đơn thôi chưa đủ', async () => {
-    // Đơn ở trạng thái 'pending' (chưa ai xác nhận gặp mặt) nhưng vẫn được nối
-    // member_id: cổng phải đọc met_confirmed_at, không phải chỉ sự tồn tại của
-    // mối nối.
+  it('chỉ nối member_id vào đơn pending chưa đủ — đơn phải được ban duyệt phê duyệt', async () => {
+    const directReferrer = await newMember('Bao Lanh Rieng');
     const jr = await submitJoinRequest({
-      phone: '0961000003', fullName: 'Noi Don Nhung Chua Gap', confirmMet: false,
-      referrerId: await newMember('Bao Lanh Rieng'),
+      phone: '0961000003', fullName: 'Noi Don Nhung Chua Duyet',
+      referrerId: directReferrer,
     });
     await expect(
       db.transaction(async (trx) => {
         const { rows: [m] } = await trx.raw(
           `INSERT INTO members (community_id, full_name, status, referrer_id)
-           VALUES (?, 'Noi Don Nhung Chua Gap', 'member', ?) RETURNING id`, [cid, referrer]);
+           VALUES (?, 'Noi Don Nhung Chua Duyet', 'member', ?) RETURNING id`, [cid, directReferrer]);
         await trx.raw(`UPDATE join_requests SET member_id = ? WHERE id = ?`, [m.id, jr]);
       })
-    ).rejects.toThrow(/MEMBER_NEEDS_MET_CONFIRMATION/);
+    ).rejects.toThrow(/MEMBER_NEEDS_APPROVED_JOIN_REQUEST/);
   });
 });
 

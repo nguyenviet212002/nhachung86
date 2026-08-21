@@ -313,7 +313,7 @@ describe('T8 hạn mức bảo lãnh — cưỡng chế ở CSDL, không phải 
 });
 
 // ---------------------------------------------------------------------------
-describe('T8 cổng met_confirmed và sợi bảo lãnh đóng băng', () => {
+describe('T8 cổng đơn đã phê duyệt và sợi bảo lãnh đóng băng', () => {
   // CẢNH BÁO cho người viết bài test sau (tự vấp, mất một vòng): dạng giao
   // dịch THỦ CÔNG của knex (`const trx = await db.transaction()` rồi
   // `trx.commit()`) NUỐT lỗi của lệnh COMMIT — `trx.commit()` resolve bình
@@ -324,7 +324,7 @@ describe('T8 cổng met_confirmed và sợi bảo lãnh đóng băng', () => {
   // xanh cả khi trigger bị gỡ. Dạng callback (`db.transaction(async trx =>
   // ...)`) reject đúng như mong đợi — và đó cũng là dạng core/tx.js dùng, nên
   // mã production không dính bẫy này.
-  it('members.status=member khi chưa có xác nhận gặp mặt ⇒ hỏng lúc COMMIT, không phải lúc ghi', async () => {
+  it('members.status=member khi chưa có đơn được duyệt ⇒ hỏng lúc COMMIT, không phải lúc ghi', async () => {
     const referrer = await newMember();
     let insertResolved = false;
     await expect(
@@ -337,7 +337,7 @@ describe('T8 cổng met_confirmed và sợi bảo lãnh đóng băng', () => {
         );
         insertResolved = true;
       })
-    ).rejects.toThrow(/MEMBER_NEEDS_MET_CONFIRMATION/);
+    ).rejects.toThrow(/MEMBER_NEEDS_APPROVED_JOIN_REQUEST/);
     expect(insertResolved, 'câu ghi phải qua được, chỉ COMMIT mới hỏng').toBe(true);
 
     const { rows } = await db.raw(`SELECT id FROM members WHERE full_name = 'Nguoi moi'`);
@@ -346,11 +346,7 @@ describe('T8 cổng met_confirmed và sợi bảo lãnh đóng băng', () => {
 
   it('đặt join_requests.member_id trong CÙNG giao dịch thì COMMIT qua được', async () => {
     const referrer = await newMember();
-    const { rows: [jr] } = await insertJr(referrer, 'met_confirmed');
-    await db.raw(`UPDATE join_requests SET met_confirmed_at = now(), met_confirmed_by = ? WHERE id = ?`, [
-      referrer,
-      jr.id,
-    ]);
+    const { rows: [jr] } = await insertJr(referrer, 'pending');
 
     await expect(
       db.transaction(async (trx) => {
@@ -565,7 +561,7 @@ describe('T8 POST /auth/register — ba nhánh hỏng không phân biệt đư�
 });
 
 // ---------------------------------------------------------------------------
-describe('T8 /join-requests — cổng met_confirmed ở tầng HTTP', () => {
+describe('T8 /join-requests — bản ghi gặp mặt tuỳ chọn và quyết định HTTP', () => {
   let app, referrer, stranger, approver, jrId;
 
   beforeAll(async () => {
@@ -737,7 +733,7 @@ describe('T8 /join-requests — cổng met_confirmed ở tầng HTTP', () => {
       .set('Authorization', `Bearer ${accessTokenFor(approver)}`)
       .send({});
     expect(res.status).toBe(422);
-    expect(res.body.error.code).toBe('MET_CONFIRMATION_REQUIRED');
+    expect(res.body.error.code).toBe('INVALID_STATE');
 
     const { rows: after } = await db.raw(`SELECT count(*)::int AS n FROM members WHERE community_id = ?`, [cid]);
     expect(after[0].n).toBe(before[0].n);

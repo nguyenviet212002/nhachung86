@@ -220,7 +220,7 @@ export async function approve({ actor, id, note }) {
   return withActor(actor.id, async (trx) => {
     // FOR UPDATE: hai approver bấm duyệt cùng lúc thì người thứ hai đợi, rồi
     // đọc lại status='approved' và dừng ở cổng bên dưới. Không có FOR UPDATE
-    // thì cả hai cùng thấy 'met_confirmed' và cùng tạo một hàng members.
+    // thì cả hai cùng thấy một đơn đang chờ và cùng tạo một hàng members.
     const { rows: [jr] } = await trx.raw(
       `SELECT * FROM join_requests WHERE id = ? AND community_id = ? FOR UPDATE`,
       [id, actor.communityId]
@@ -229,10 +229,8 @@ export async function approve({ actor, id, note }) {
     // rollback không xoá mất dòng nhật ký nào (bẫy 1). Dòng "từ chối" do
     // errorHandler ghi bằng giao dịch RIÊNG mở sau khi giao dịch này đã cuộn.
     if (!jr) throw NOT_FOUND();
-    if (jr.status !== 'met_confirmed') {
-      throw new AppError('MET_CONFIRMATION_REQUIRED', 'Chưa có xác nhận đã gặp mặt nên chưa duyệt được.', {
-        status: 422,
-      });
+    if (!['pending', 'met_confirmed'].includes(jr.status)) {
+      throw new AppError('INVALID_STATE', 'Đơn này không còn ở trạng thái có thể duyệt.', { status: 422 });
     }
 
     const d = jr.applicant_data;
@@ -241,7 +239,7 @@ export async function approve({ actor, id, note }) {
     // (Ruling T8-f, migration 009a) — chúng ở join_request_secrets, bảng mà
     // app_role không có một quyền đọc nào. Hàm SECURITY DEFINER dưới đây tự
     // kiểm actor là approver CỦA CHÍNH CỘNG ĐỒNG NÀY, tự kiểm đơn đang ở
-    // 'met_confirmed', tự ghi nhật ký, rồi XOÁ hàng bí mật: từ đây trở đi số
+    // 'pending' hoặc 'met_confirmed', tự ghi nhật ký, rồi XOÁ hàng bí mật: từ đây trở đi số
     // điện thoại chỉ còn tồn tại ở member_contacts, nơi có ba mức riêng tư canh.
     const { rows: [secret] } = await trx.raw(`SELECT * FROM join_secret_consume(?)`, [id]);
 
@@ -260,8 +258,8 @@ export async function approve({ actor, id, note }) {
     //    còn trống, đúng một lần, và lần đó để lại dòng contact.written.
     await trx.raw(`SELECT contact_upsert(?, 'phone', ?)`, [m.id, secret.phone]);
 
-    // 3. Nối đơn với người vừa tạo — cổng met_confirmed kiểm lúc COMMIT dựa
-    //    vào chính cột này.
+    // 3. Nối đơn với người vừa tạo. Constraint hoãn kiểm lúc COMMIT rằng đơn
+    //    này đã thành approved và referrer khớp với thành viên vừa tạo.
     await trx.raw(
       `UPDATE join_requests
           SET member_id = ?, status = 'approved', approved_by = ?,
