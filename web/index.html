@@ -1374,7 +1374,10 @@ const state = {
   me:null,
   regStep:'form',   // 'form' | 'done'
   regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', invite_token:'', password:'', terms:false},
-  regResult:null
+  regResult:null,
+  joinRequests:null,
+  joinRequestsLoading:false,
+  joinRequestsError:''
 };
 
 // Dữ liệu thật dùng chung cho topbar, thông báo và màn tin nhắn. Dữ liệu demo
@@ -1478,6 +1481,7 @@ function go(route, params={}){
   window.scrollTo(0,0);
   closeModal();
   render();
+  if(route==='admin') loadJoinRequests();
 }
 
 /* form validation helper: rules = [[fieldName, value, [ [testFn, msg], ... ]]] */
@@ -4655,12 +4659,93 @@ const MOD_QUEUE = [
   {title:'Ảnh trong kho có mặt người chưa hỏi ý kiến',sub:'3 người trong ảnh chưa được hỏi · anh Sáng báo',time:'còn 1 ngày',acts:[['Tạm ẩn ảnh',1],['Đi hỏi',0]]},
   {title:'Đề nghị chấm dứt tư cách một thành viên',sub:'Hồ sơ VV-2026-0009 · cần hai người duyệt và biên bản họp Ban điều hành',note:'Anh chị không đủ quyền cho việc này — chỉ Chủ trì và Ban điều hành',time:'còn 5 ngày',locked:1}
 ];
+
+function hasActualRole(role){ return Boolean(state.me?.roles?.includes(role)); }
+function canReadJoinRequests(){ return hasActualRole('approver') || hasActualRole('content_ops'); }
+function joinStatusLabel(status){
+  return ({pending:'Chờ gặp mặt',met_confirmed:'Đã xác nhận gặp mặt',approved:'Đã duyệt',rejected:'Đã từ chối',draft:'Bản nháp'})[status] || status;
+}
+function joinStatusClass(status){
+  return status==='approved' ? 'badge-green' : status==='rejected' ? 'badge-danger' : status==='met_confirmed' ? 'badge-orange' : 'badge-gray';
+}
+function joinDate(value){
+  if(!value) return '';
+  try{ return new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short'}).format(new Date(value)); }
+  catch(e){ return String(value); }
+}
+async function loadJoinRequests(force=false){
+  if(!liveMode() || !canReadJoinRequests() || state.joinRequestsLoading) return;
+  if(state.joinRequests && !force) return;
+  state.joinRequestsLoading=true;
+  state.joinRequestsError='';
+  if(state.route==='admin') render();
+  try{
+    const r=await api.get('/join-requests?limit=100');
+    state.joinRequests=r.data||[];
+  }catch(err){
+    state.joinRequestsError=err.message;
+  }finally{
+    state.joinRequestsLoading=false;
+    if(state.route==='admin') render();
+  }
+}
+async function approveJoinRequest(id, button){
+  if(!hasActualRole('approver')){ toast('Tài khoản này không có quyền duyệt đơn.',true); return; }
+  if(!confirm('Duyệt đơn này và tạo tài khoản thành viên chính thức?')) return;
+  if(button) button.disabled=true;
+  try{
+    await api.post(`/join-requests/${encodeURIComponent(id)}/approve`, {note:'Duyệt từ bảng quản trị'});
+    toast('Đã duyệt đơn và tạo tài khoản thành viên.');
+    state.joinRequests=null;
+    await loadJoinRequests(true);
+  }catch(err){
+    if(button) button.disabled=false;
+    toast(err.message,true);
+  }
+}
+function JoinRejectModal(id){
+  return `<div class="modal-head"><h3>Từ chối đơn gia nhập</h3><button class="modal-close" data-close-modal>${ic('x',16)}</button></div>
+  <form id="form-join-reject" data-id="${esc(id)}" novalidate>
+    <div class="modal-body">
+      <div class="field" data-field="reason"><label>Lý do <span class="req">*</span></label>
+        <select class="input" id="join-reject-reason"><option value="not_ready">Chưa sẵn sàng</option><option value="no_meeting">Không gặp mặt</option><option value="referrer_misrepresented">Người bảo lãnh khai sai</option><option value="other">Lý do khác</option></select><div class="err"></div></div>
+      <div class="field" data-field="note"><label>Ghi chú <span class="req">*</span></label><textarea class="input" id="join-reject-note" placeholder="Nêu rõ lý do, tối thiểu 20 ký tự"></textarea><div class="err"></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" type="button" data-close-modal>Hủy</button><button class="btn btn-primary" type="submit">Xác nhận từ chối</button></div>
+  </form>`;
+}
+function JoinRequestsPanel(){
+  if(!liveMode()) return `<div class="note-soft">${ic('info',16)} Hãy đăng nhập bằng tài khoản quản trị thật để tải danh sách đơn.</div>`;
+  if(!canReadJoinRequests()) return `<div class="note-soft">${ic('lock',16)} Tài khoản này không có vai người duyệt hoặc điều phối nội dung.</div>`;
+  if(state.joinRequests===null && !state.joinRequestsLoading) setTimeout(()=>loadJoinRequests(),0);
+  const rows=state.joinRequests||[];
+  return `<div class="section-card mb-20">
+    <div class="sc-head"><div><h3>Đơn gia nhập thật</h3><span class="muted" style="font-size:12px">Dữ liệu trực tiếp từ API · ${rows.length} đơn</span></div><button class="btn btn-outline btn-sm" data-action="join-refresh">Làm mới</button></div>
+    ${state.joinRequestsLoading?`<div class="card-pad muted">Đang tải đơn gia nhập…</div>`:''}
+    ${state.joinRequestsError?`<div class="card-pad" style="color:var(--danger)">${esc(state.joinRequestsError)}</div>`:''}
+    ${!state.joinRequestsLoading&&!state.joinRequestsError&&!rows.length?`<div class="card-pad muted">Chưa có đơn nào.</div>`:''}
+    ${rows.map(j=>`<div class="queue-row">
+      <div style="flex:1;min-width:0"><div class="flex gap-8" style="align-items:center;flex-wrap:wrap"><b>${esc(j.applicant?.full_name||'Chưa có tên')}</b><span class="badge ${joinStatusClass(j.status)}">${esc(joinStatusLabel(j.status))}</span></div>
+        <p>Sinh năm ${esc(j.applicant?.birth_year||'—')} · gửi ${esc(joinDate(j.created_at))}</p>
+        <p style="font-family:monospace;font-size:11px">Mã đơn: ${esc(j.id)}</p>
+        ${j.status==='pending'?`<div class="q-miss">${ic('info',12)} Người bảo lãnh phải xác nhận đã gặp mặt trước; quản trị không được xác nhận hộ.</div>`:''}
+      </div>
+      <div class="flex gap-8" style="flex:none;flex-wrap:wrap;justify-content:flex-end">
+        ${j.status==='met_confirmed'&&hasActualRole('approver')?`<button class="btn btn-primary btn-sm" data-action="join-approve" data-id="${esc(j.id)}">Duyệt thành viên</button>`:''}
+        ${(j.status==='pending'||j.status==='met_confirmed')&&hasActualRole('approver')?`<button class="btn btn-outline btn-sm" data-action="join-reject" data-id="${esc(j.id)}">Từ chối</button>`:''}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
 function AdminPage(){
   if(state.role!=='admin') return roleGate('Trang vận hành chỉ dành cho ban điều hành. Hãy chuyển sang vai trò “Quản trị” ở góc trên bên phải.');
+  if(liveMode()&&!canReadJoinRequests()) return roleGate('Tài khoản thật này không có quyền đọc danh sách đơn gia nhập.');
   return `
     <div class="page-head"><div><h1>Bảng kiểm duyệt</h1><p>Nội dung chờ xem, ai xử lý, hạn bao lâu — và hành động nào anh chị được phép làm.</p></div>
       <div class="flex gap-8"><button class="btn btn-outline" data-action="toast-demo" data-msg="Xem quy tắc nội dung (demo).">Quy tắc nội dung</button><button class="btn btn-primary" data-action="toast-demo" data-msg="Bạn đã nhận trực kiểm duyệt tuần này.">Nhận việc trực</button></div></div>
     ${sectionTabs(TABS_OPS,'admin')}
+    ${JoinRequestsPanel()}
+    <div class="note-soft mb-20">${ic('info',16)} Phần “Hàng chờ kiểm duyệt” bên dưới vẫn là dữ liệu minh họa; khối “Đơn gia nhập thật” phía trên mới ghi vào hệ thống.</div>
     <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
       ${[['4','đang chờ xem'],['1','quá hạn 24 giờ'],['2,4 giờ','xử lý trung bình'],['1','cần hai người duyệt']].map(s=>`<div class="fund-stat"><div class="v">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('')}
     </div>
@@ -5440,12 +5525,19 @@ async function doLoginReal(form, identifier, password){
     // vì nó là khoá của dữ liệu giả (xem chú thích ở state.me).
     CURRENT_USER.name = r.member.full_name;
     state.user = CURRENT_USER;
-    state.route = 'members';                // vào thẳng màn đã nối API thật
+    if(state.me.roles.includes('approver')){
+      state.role = 'admin';
+      state.route = 'admin';
+      state.joinRequests = null;
+    }else{
+      state.route = 'members';              // vào thẳng màn đã nối API thật
+    }
     resetDirectory();
     unlockSound();
     startRealtime();
     closeModal();
     render();
+    if(state.route==='admin') loadJoinRequests();
     toast(`Đăng nhập thành công! Chào mừng trở lại, ${r.member.full_name.split(' ').slice(-1)[0]}.`);
   }catch(err){
     busy(form, false);
@@ -5745,6 +5837,10 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'switch-role':
+      if(actionEl.dataset.role==='admin' && liveMode() && !canReadJoinRequests()){
+        toast('Tài khoản này không có quyền quản trị thật.',true);
+        break;
+      }
       state.role = actionEl.dataset.role;
       // điều hướng về trang phù hợp với vai trò để luồng rõ ràng
       if(state.role==='poster') state.route='jobs';
@@ -5752,7 +5848,18 @@ document.addEventListener('click', function(e){
       else state.route='dashboard';
       closeAllDropdowns();
       render();
+      if(state.role==='admin') loadJoinRequests();
       toast(`Đang xem với vai trò: ${curRoleLabel()}.`);
+      break;
+    case 'join-refresh':
+      state.joinRequests=null;
+      loadJoinRequests(true);
+      break;
+    case 'join-approve':
+      approveJoinRequest(id,actionEl);
+      break;
+    case 'join-reject':
+      openModal(JoinRejectModal(id));
       break;
     case 'chess-cell':
       xqMove(+actionEl.dataset.r, +actionEl.dataset.c);
@@ -5894,6 +6001,18 @@ document.addEventListener('submit', function(e){
     if(!ok) return;
     state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, invite_token:inviteToken, password:pass, terms:true};
     regSubmit(form);
+    return;
+  }
+
+  if(form.id==='form-join-reject'){
+    e.preventDefault();
+    const note=val('join-reject-note'), reason=val('join-reject-reason'), requestId=form.dataset.id;
+    const ok=validateForm(form,[['note',[[note.length>=20,'Ghi chú cần ít nhất 20 ký tự.']]]]);
+    if(!ok) return;
+    busy(form,true,'Đang từ chối…');
+    api.post(`/join-requests/${encodeURIComponent(requestId)}/reject`,{reason_code:reason,note})
+      .then(async()=>{ closeModal(); toast('Đã từ chối đơn gia nhập.'); state.joinRequests=null; await loadJoinRequests(true); })
+      .catch(err=>{ busy(form,false); toast(err.message,true); });
     return;
   }
 

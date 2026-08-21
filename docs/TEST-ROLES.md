@@ -2,6 +2,20 @@
 
 Sau khi `migrate` và `seed`, 52 tài khoản mẫu dùng chung `SEED_PASSWORD` của lần triển khai. Không ghi mật khẩu thật vào repository.
 
+## Tài khoản quản trị cho database đang chạy
+
+Nếu database không dùng bộ seed 52 người, người vận hành có thể nâng thành viên
+`approver` đầu tiên thành tài khoản quản trị gốc bằng lệnh sau. Lệnh gán đủ bốn
+vai thật (`member`, `content_ops`, `approver`, `tech`), đổi mật khẩu và ghi sự
+kiện `admin.bootstrap` vào nhật ký; mật khẩu không được lưu trong repository.
+
+```text
+docker compose exec -T -e ADMIN_EMAIL=admin@nhachung.local -e ADMIN_GENERATE_PASSWORD=true api npm run admin:bootstrap
+```
+
+Kết quả JSON in mật khẩu sinh ngẫu nhiên đúng một lần. Hãy cất mật khẩu đó ở
+trình quản lý mật khẩu và đổi lại khi bàn giao hệ thống.
+
 | Mã | Đăng nhập mẫu | Vai trò thật | Dùng để kiểm tra |
 |---|---|---|---|
 | M01 | `m01@nhachung.invalid` | `member`, `approver`, `tech` | toàn quyền vận hành mẫu, ký duyệt |
