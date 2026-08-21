@@ -31,11 +31,8 @@ router.post('/otp/verify', otpLimit, validate(schema.otpVerifySchema), async (re
       code: req.body.code,
       purpose: req.body.purpose,
     });
-    // snake_case ở LỚP VỎ HTTP, camelCase ở trong JS. Đặc tả dòng 773 nói đầu
-    // ra là `{ otp_token }`, và chính `/auth/register` (dòng 774) nhận lại khóa
-    // `otp_token` — trả `{ otpToken }` là bắt client tự dịch giữa hai quy ước
-    // trong cùng một luồng ba bước. Phát hiện khi chạy MỐC 1 bằng curl thật:
-    // mọi bài test trước đều gọi thẳng service nên không bài nào đi qua vỏ này.
+    // snake_case ở lớp vỏ HTTP, camelCase ở trong JS. Vé này vẫn được dùng cho
+    // đặt lại mật khẩu; client đăng ký mới không còn phải gọi endpoint OTP.
     res.json({ otp_token: result.otpToken });
   } catch (err) {
     next(err);

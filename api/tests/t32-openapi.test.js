@@ -9,8 +9,10 @@ describe('OpenAPI contract', () => {
     expect(response.status).toBe(200);
     expect(response.body.openapi).toBe('3.1.0');
     expect(response.body.components.securitySchemes.bearerAuth.scheme).toBe('bearer');
-    expect(response.body.paths['/api/v1/auth/register'].post.requestBody.content['application/json'].schema.required)
-      .toEqual(expect.arrayContaining(['otp_token', 'phone', 'invite_token', 'terms']));
+    const registerRequired = response.body.paths['/api/v1/auth/register']
+      .post.requestBody.content['application/json'].schema.required;
+    expect(registerRequired).toEqual(expect.arrayContaining(['phone', 'invite_token', 'terms']));
+    expect(registerRequired).not.toContain('otp_token');
     expect(response.body.paths['/api/v1/members/{id}/contacts/{field}'].get.parameters)
       .toEqual(expect.arrayContaining([
         expect.objectContaining({ name: 'id', in: 'path', required: true }),

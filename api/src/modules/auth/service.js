@@ -225,18 +225,17 @@ export async function register({
   communityId, otpToken, phone, fullName, birthYear, areaId, inviteToken, password,
 }) {
   const phoneHash = hashPhone(phone);
-
   let claims = null;
-  try {
-    claims = jwt.verify(otpToken, config.JWT_SECRET);
-  } catch {
-    claims = null;
-  }
-  // Đối chiếu `ph` với số vừa gửi lên: nếu không, ai có một otp_token hợp lệ
-  // của SỐ CỦA CHÍNH MÌNH đều khai được số của người khác vào applicant_data,
-  // và Task 9 sẽ đem số đó gắn vào hồ sơ người mới qua contact_upsert.
-  if (!claims || claims.typ !== 'otp' || claims.purpose !== 'register' || claims.ph !== phoneHash || !claims.ch) {
-    throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+  if (otpToken) {
+    try {
+      claims = jwt.verify(otpToken, config.JWT_SECRET);
+    } catch {
+      claims = null;
+    }
+    // Client cũ đã gửi vé thì vẫn phải dùng một vé hợp lệ đúng số điện thoại.
+    if (!claims || claims.typ !== 'otp' || claims.purpose !== 'register' || claims.ph !== phoneHash || !claims.ch) {
+      throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+    }
   }
 
   // Băm mật khẩu TRƯỚC khi mở giao dịch, và trên MỌI nhánh — argon2 là phần
@@ -246,18 +245,19 @@ export async function register({
   const passwordHash = await argon2.hash(password);
 
   const result = await withActor(null, async (trx) => {
-    // 1. Tiêu thụ otp_token. Điều kiện consumed_at IS NULL làm lần nộp thứ hai
-    //    cùng vé không tìm thấy hàng nào để cập nhật.
-    const { rows: [consumed] } = await trx.raw(
-      `UPDATE otp_challenges SET consumed_at = now()
-        WHERE id = ? AND community_id = ? AND purpose = 'register'
-          AND status = 'used' AND consumed_at IS NULL
-        RETURNING id`,
-      [claims.ch, communityId]
-    );
-    if (!consumed) {
-      // Ném ngay: chưa ghi gì nên rollback không xoá mất dòng nhật ký nào.
-      throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+    // Client cũ có gửi otp_token thì tiêu thụ đúng một lần. Luồng đăng ký mới
+    // không gửi vé và đi thẳng qua link mời bảo lãnh.
+    if (claims) {
+      const { rows: [consumed] } = await trx.raw(
+        `UPDATE otp_challenges SET consumed_at = now()
+          WHERE id = ? AND community_id = ? AND purpose = 'register'
+            AND status = 'used' AND consumed_at IS NULL
+          RETURNING id`,
+        [claims.ch, communityId]
+      );
+      if (!consumed) {
+        throw new AppError('OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn.', { status: 400 });
+      }
     }
 
     // 2. Năm sinh đọc từ communities.config, KHÔNG cứng trong mã (đặc tả dòng

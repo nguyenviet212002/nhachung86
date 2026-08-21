@@ -1372,7 +1372,7 @@ const state = {
   // 'u1' là khoá của dữ liệu giả (SKILLS.ownerId, findMember, ...), đổi nó đi là
   // làm hỏng những màn mà mốc này không được phép chạm.
   me:null,
-  regStep:'form',   // 'form' | 'otp' | 'done'
+  regStep:'form',   // 'form' | 'done'
   regDraft:{full_name:'', phone:'', birth_year:'', area_id:'', invite_token:'', password:'', terms:false},
   regResult:null
 };
@@ -1666,10 +1666,8 @@ function LoginForm(){
 }
 
 /* ---------------------------------------------------------------------------
-   ĐĂNG KÝ — ba bước, đúng như đặc tả mục 5.3:
-     POST /auth/otp/request  →  nhập mã 6 số  →  POST /auth/otp/verify
-                             →  POST /auth/register
-   Bước nhập mã là THAY ĐỔI GIAO DIỆN DUY NHẤT của MỐC 2.
+   ĐĂNG KÝ — gửi thẳng đơn gia nhập qua POST /auth/register.
+   Link mời bảo lãnh vẫn bắt buộc; OTP đã bỏ khỏi luồng đăng ký.
 
    Kết thúc luồng KHÔNG phải là "đăng nhập xong": /auth/register tạo một ĐƠN
    GIA NHẬP (`join_request_id`, `step`), người nộp vẫn chưa là thành viên cho
@@ -1678,7 +1676,6 @@ function LoginForm(){
    hẳn mô hình.
 --------------------------------------------------------------------------- */
 function RegisterForm(){
-  if(state.regStep==='otp')  return RegisterOtpForm();
   if(state.regStep==='done') return RegisterDoneHTML();
   const d = state.regDraft;
   d.invite_token = d.invite_token || new URLSearchParams(location.search).get('invite_token') || '';
@@ -1746,26 +1743,8 @@ function RegisterForm(){
       <label class="checkrow"><input type="checkbox" id="reg-terms" ${d.terms?'checked':''}> Tôi đồng ý với Điều khoản sử dụng và Quy tắc cộng đồng Nhà Chung 86</label>
       <div class="err"></div>
     </div>
-    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Gửi mã xác minh</button>
+    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Gửi đơn gia nhập</button>
     <p class="muted" style="font-size:12.5px;text-align:center;margin-top:16px">Đã có tài khoản? <a href="#" style="color:var(--orange-dark);font-weight:700" data-action="auth-tab" data-tab="login">Đăng nhập</a></p>
-  </form>`;
-}
-
-function RegisterOtpForm(){
-  return `
-  <form id="form-register-otp" novalidate>
-    <div class="locked-bar" style="padding:11px 13px;margin-bottom:16px">${ic('message',15)}<div><p style="font-size:12px;margin:0">Chúng tôi vừa gửi mã 6 số tới <b>${esc(state.regDraft.phone)}</b>. Mã sống 5 phút.</p></div></div>
-    <div class="field" data-field="code">
-      <label>Mã xác minh 6 số <span class="req">*</span></label>
-      <input class="input" id="reg-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" style="letter-spacing:8px;font-size:20px;text-align:center">
-      <div class="err"></div>
-      <div class="hint">Nhập sai 5 lần thì mã chết, phải xin mã mới.</div>
-    </div>
-    <button class="btn btn-primary btn-block btn-lg mt-12" type="submit">Xác minh và gửi đơn gia nhập</button>
-    <div class="flex gap-8 mt-12">
-      <button class="btn btn-outline" style="flex:1" type="button" data-action="reg-back">Sửa thông tin</button>
-      <button class="btn btn-outline" style="flex:1" type="button" data-action="reg-resend">Gửi lại mã</button>
-    </div>
   </form>`;
 }
 
@@ -5475,33 +5454,13 @@ async function doLoginReal(form, identifier, password){
 }
 
 /* ---------------------------------------------------------------------------
-   ĐĂNG KÝ THẬT — ba lời gọi, mỗi lời gọi một bước
+   ĐĂNG KÝ THẬT — gửi đơn trực tiếp bằng link mời bảo lãnh
 --------------------------------------------------------------------------- */
-async function regRequestOtp(form){
-  busy(form, true, 'Đang gửi mã…');
-  try{
-    await api.post('/auth/otp/request', {phone: state.regDraft.phone, purpose:'register'});
-    state.regStep = 'otp';
-    openModal(AuthModalHTML());
-    toast('Đã gửi mã xác minh 6 số.');
-  }catch(err){
-    busy(form, false);
-    toast(err.message, true);
-  }
-}
-
-async function regVerifyAndSubmit(form, code){
-  busy(form, true, 'Đang xác minh…');
+async function regSubmit(form){
+  busy(form, true, 'Đang gửi đơn…');
   const d = state.regDraft;
   try{
-    // Bước 2: đổi mã 6 số lấy vé otp_token (5 phút, dùng ĐÚNG MỘT lần).
-    const v = await api.post('/auth/otp/verify', {phone:d.phone, code, purpose:'register'});
-
-    // Bước 3: nộp đơn. `phone` gửi lại ở đây KHÔNG thừa — máy chủ đối chiếu nó
-    // với claim `ph` trong otp_token (đặc tả mục 5.3, sửa ở Task 8), vì hệ
-    // thống chỉ lưu HMAC của số nên không suy ngược ra được từ vé.
     const r = await api.post('/auth/register', {
-      otp_token: v.otp_token,
       phone: d.phone,
       full_name: d.full_name,
       birth_year: Number(d.birth_year),
@@ -5517,12 +5476,6 @@ async function regVerifyAndSubmit(form, code){
   }catch(err){
     busy(form, false);
     toast(err.message, true);
-    // Vé OTP chỉ dùng được một lần: nếu hỏng ở bước /auth/register thì mã cũ
-    // đã cháy, phải quay lại xin mã mới chứ không cho gõ lại mã cũ.
-    if(err.code && err.code !== 'OTP_INVALID' && err.code !== 'VALIDATION_FAILED'){
-      state.regStep = 'form';
-      openModal(AuthModalHTML());
-    }
   }
 }
 
@@ -5572,18 +5525,6 @@ document.addEventListener('click', function(e){
       state.authTab = actionEl.dataset.tab;
       if(state.regStep==='done') resetRegister();
       openModal(AuthModalHTML());
-      break;
-    /* ---- MỐC 2: bước nhập mã 6 số của màn đăng ký ---- */
-    case 'reg-back':
-      state.regStep = 'form';
-      openModal(AuthModalHTML());
-      break;
-    case 'reg-resend':
-      // Xin mã MỚI, không gửi lại mã cũ: mỗi challenge có vòng đời 5 phút và
-      // bộ đếm sai riêng, "gửi lại" mã cũ sẽ làm bộ đếm đó vô nghĩa.
-      api.post('/auth/otp/request', {phone: state.regDraft.phone, purpose:'register'})
-        .then(()=>toast('Đã gửi mã mới.'))
-        .catch(err=>toast(err.message, true));
       break;
     /* ---- MỐC 2: màn danh bạ ---- */
     case 'dir-reload':
@@ -5952,15 +5893,7 @@ document.addEventListener('submit', function(e){
     ]);
     if(!ok) return;
     state.regDraft = {full_name:name, phone, birth_year:year, area_id:area, invite_token:inviteToken, password:pass, terms:true};
-    regRequestOtp(form);
-    return;
-  }
-
-  if(form.id==='form-register-otp'){
-    e.preventDefault();
-    const code = val('reg-otp');
-    const ok = validateForm(form, [['code', [[/^\d{6}$/.test(code), 'Mã xác minh gồm đúng 6 chữ số.']]]]);
-    if(ok) regVerifyAndSubmit(form, code);
+    regSubmit(form);
     return;
   }
 

@@ -1,11 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import jwt from 'jsonwebtoken';
 import supertest from 'supertest';
 import { resetDb, ownerKnex } from './helpers/db.js';
 import { mkInvite } from './helpers/invites.js';
 import { config } from '../src/config/index.js';
-import { requestOtp, verifyOtp } from '../src/modules/auth/service.js';
-import { consoleAdapter } from '../src/core/otp/console.js';
 import { hashInviteToken, newInviteToken } from '../src/modules/invites/token.js';
 import { withActor } from '../src/core/tx.js';
 import { buildApp } from '../src/app.js';
@@ -600,6 +598,31 @@ describe('T29 đường dự phòng — phải để lại dấu vết, không �
 
 // ===========================================================================
 describe('T29 token — chỉ băm được lưu, và băm cũng không ra khỏi máy chủ', () => {
+  it('đăng ký trực tiếp bằng link mời, không cần otp_token', async () => {
+    const referrer = await newMember();
+    const { token } = await mkInvite(db, cid, referrer);
+
+    const res = await supertest(api).post('/api/v1/auth/register').send({
+      phone: '0975000099',
+      full_name: 'Nguoi Dang Ky Khong OTP',
+      birth_year: 1986,
+      area_id: areaId,
+      invite_token: token,
+      password: 'mat-khau-du-manh-t29',
+      terms: true,
+    });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body).toMatchObject({ step: 2 });
+    expect(res.body.join_request_id).toBeTruthy();
+
+    const { rows: [request] } = await db.raw(
+      `SELECT status, referrer_id FROM join_requests WHERE id = ?`,
+      [res.body.join_request_id]
+    );
+    expect(request).toMatchObject({ status: 'pending', referrer_id: referrer });
+  });
+
   it('token thô không nằm ở đâu trong CSDL, và cột từ chối nhận nó', async () => {
     const referrer = await newMember();
     const res = await supertest(api)
@@ -648,19 +671,8 @@ describe('T29 token — chỉ băm được lưu, và băm cũng không ra khỏ
   it('token không có mặt trong thông báo lỗi của /auth/register', async () => {
     const phone = '0975000001';
     const bia = 'day-la-mot-token-hoan-toan-bia-khong-co-that';
-    let code;
-    const spy = vi.spyOn(consoleAdapter, 'send').mockImplementation(async (a) => {
-      code = a.code;
-    });
-    try {
-      await requestOtp({ communityId: cid, phone, purpose: 'register' });
-    } finally {
-      spy.mockRestore();
-    }
-    const { otpToken } = await verifyOtp({ communityId: cid, phone, code, purpose: 'register' });
 
     const res = await supertest(api).post('/api/v1/auth/register').send({
-      otp_token: otpToken,
       phone,
       full_name: 'Nguoi Cam Link Bia',
       birth_year: 1986,
