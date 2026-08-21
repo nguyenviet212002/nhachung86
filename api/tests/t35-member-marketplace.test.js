@@ -103,6 +103,10 @@ describe('T35 thành viên và tuyển dụng dùng chung một tài khoản mem
     jobId = created.body.id;
     expect(created.body.poster_id).toBe(poster);
 
+    const newJobNotices = await supertest(app).get('/api/v1/notifications?unread_only=true')
+      .set(auth(workerToken)).expect(200);
+    expect(newJobNotices.body.data.some((x) => x.target_id === jobId && x.title === 'Có nhu cầu việc mới')).toBe(true);
+
     const jobs = await supertest(app).get('/api/v1/jobs').set(auth(workerToken)).expect(200);
     expect(jobs.body.data.some((x) => x.id === jobId)).toBe(true);
   });

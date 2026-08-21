@@ -1,5 +1,17 @@
 # Tài khoản mẫu và vai trò kiểm thử
 
+## Ba tài khoản E2E trên stack cục bộ hiện tại
+
+Ba tài khoản dưới đây đã được tạo và chạy trọn luồng thật ngày 21-08-2026. Mật khẩu nằm trong `.env` cục bộ qua các biến `E2E_*_PASSWORD`; không chép mật khẩu vào Git.
+
+| Tài khoản | Đăng nhập | Vai trò | Dùng để kiểm tra |
+|---|---|---|---|
+| Admin E2E | `admin.e2e@nhachung.local` hoặc `0908601000` | `member`, `content_ops`, `approver`, `tech` | duyệt đơn, đăng tin, gửi thông báo |
+| Thành viên A | `0908601001` | `member` | đăng năng lực/việc, nhắn B, xử lý ứng viên |
+| Thành viên B | `0908601002` | `member` | nhận thông báo, ứng tuyển, nhắn lại A |
+
+Dữ liệu E2E được giữ lại để thử trực tiếp trên trình duyệt: một tin admin đang mở, một tin A đã có ứng viên B và đã đóng, một năng lực của A, hồ sơ sẵn sàng nhận việc của B, tin nhắn hai chiều và các thông báo liên quan.
+
 Sau khi `migrate` và `seed`, 52 tài khoản mẫu dùng chung `SEED_PASSWORD` của lần triển khai. Không ghi mật khẩu thật vào repository.
 
 ## Tài khoản quản trị cho database đang chạy

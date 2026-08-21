@@ -72,7 +72,7 @@ export async function get({ actor, id }) {
 }
 
 export async function create({ actor, input }) {
-  return withActor(actor.id, async (trx) => {
+  const result = await withActor(actor.id, async (trx) => {
     await ensureArea(trx, actor, input.area_id);
     const { rows: [row] } = await trx.raw(
       `INSERT INTO job_needs
@@ -85,8 +85,22 @@ export async function create({ actor, input }) {
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'job.created', targetType: 'job_need', targetId: row.id,
       detail: { job_type: row.job_type, status: row.status } });
-    return row;
+    const { rows: notifications } = await trx.raw(
+      `INSERT INTO notifications
+        (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+       SELECT ?, m.id, ?, 'content', 'Có nhu cầu việc mới',
+              'Một thành viên vừa đăng nhu cầu tuyển người hoặc hợp tác.', 'post', ?
+         FROM members m
+        WHERE m.community_id = ? AND m.status = 'member' AND m.id <> ?
+       RETURNING *`,
+      [actor.communityId, actor.id, row.id, actor.communityId, actor.id]
+    );
+    return { row, notifications };
   });
+  for (const notification of result.notifications) {
+    publishToMember(notification.recipient_id, 'notification', notification);
+  }
+  return result.row;
 }
 
 async function owned(trx, actor, id, lock = false) {

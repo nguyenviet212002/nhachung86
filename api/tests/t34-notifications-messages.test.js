@@ -50,6 +50,8 @@ describe('T34 notifications and direct messages', () => {
 
     const messages = await supertest(app).get(`/api/v1/messages?with_member_id=${alice}&limit=10`).set(auth(bobToken)).expect(200);
     expect(messages.body.data.at(-1).body).toBe('Chào Bob từ T34');
+    expect(messages.body.data.at(-1).sender_name).toBe('Alice T34');
+    expect(messages.body.data.at(-1).recipient_name).toBe('Bob T34');
     const read = await supertest(app).post(`/api/v1/notifications/${notices.body.data[0].id}/read`).set(auth(bobToken)).expect(200);
     expect(read.body.read_at).toBeTruthy();
   });

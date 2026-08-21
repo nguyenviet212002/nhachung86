@@ -54,7 +54,7 @@ export async function markRead({ actor, id }) {
 
 async function assertRecipient(trx, actor, recipientId) {
   const { rows: [row] } = await trx.raw(
-    `SELECT id, full_name FROM members WHERE id = ? AND community_id = ? AND status = 'member'`,
+    `SELECT id, full_name, avatar_url FROM members WHERE id = ? AND community_id = ? AND status = 'member'`,
     [recipientId, actor.communityId]
   );
   requireMember(row);
@@ -84,6 +84,10 @@ export async function createNotification({ actor, input }) {
 export async function sendMessage({ actor, recipientId, body }) {
   const result = await withActor(actor.id, async (trx) => {
     const recipient = await assertRecipient(trx, actor, recipientId);
+    const { rows: [sender] } = await trx.raw(
+      `SELECT id, full_name, avatar_url FROM members WHERE id = ? AND community_id = ?`,
+      [actor.id, actor.communityId]
+    );
     const { rows: [message] } = await trx.raw(
       `INSERT INTO direct_messages (community_id, sender_id, recipient_id, body)
        VALUES (?, ?, ?, ?) RETURNING id, community_id, sender_id, recipient_id, body, created_at, read_at`,
@@ -98,7 +102,17 @@ export async function sendMessage({ actor, recipientId, body }) {
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'message.sent', targetType: 'message', targetId: message.id,
       detail: { recipient: recipientId } });
-    return { message, notification, recipient };
+    return {
+      message: {
+        ...message,
+        sender_name: sender.full_name,
+        sender_avatar_url: sender.avatar_url,
+        recipient_name: recipient.full_name,
+        recipient_avatar_url: recipient.avatar_url,
+      },
+      notification,
+      recipient,
+    };
   });
   publishToMember(result.recipient.id, 'message', result.message);
   publishToMember(result.recipient.id, 'notification', result.notification);
@@ -110,20 +124,29 @@ export async function listMessages({ actor, withMemberId, page, limit }) {
     const offset = (page - 1) * limit;
     if (!withMemberId) {
       const { rows } = await trx.raw(
-        `SELECT id, sender_id, recipient_id, body, created_at, read_at
-           FROM direct_messages
-          WHERE community_id = ? AND (sender_id = ? OR recipient_id = ?)
-          ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        `SELECT dm.id, dm.sender_id, dm.recipient_id, dm.body, dm.created_at, dm.read_at,
+                s.full_name AS sender_name, s.avatar_url AS sender_avatar_url,
+                r.full_name AS recipient_name, r.avatar_url AS recipient_avatar_url
+           FROM direct_messages dm
+           JOIN members s ON s.id = dm.sender_id AND s.community_id = dm.community_id
+           JOIN members r ON r.id = dm.recipient_id AND r.community_id = dm.community_id
+          WHERE dm.community_id = ? AND (dm.sender_id = ? OR dm.recipient_id = ?)
+          ORDER BY dm.created_at DESC LIMIT ? OFFSET ?`,
         [actor.communityId, actor.id, actor.id, limit, offset]
       );
       return { data: rows.reverse(), meta: { page, limit } };
     }
     await assertRecipient(trx, actor, withMemberId);
     const { rows } = await trx.raw(
-      `SELECT id, sender_id, recipient_id, body, created_at, read_at
-         FROM direct_messages
-        WHERE community_id = ? AND ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
-        ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT dm.id, dm.sender_id, dm.recipient_id, dm.body, dm.created_at, dm.read_at,
+              s.full_name AS sender_name, s.avatar_url AS sender_avatar_url,
+              r.full_name AS recipient_name, r.avatar_url AS recipient_avatar_url
+         FROM direct_messages dm
+         JOIN members s ON s.id = dm.sender_id AND s.community_id = dm.community_id
+         JOIN members r ON r.id = dm.recipient_id AND r.community_id = dm.community_id
+        WHERE dm.community_id = ?
+          AND ((dm.sender_id = ? AND dm.recipient_id = ?) OR (dm.sender_id = ? AND dm.recipient_id = ?))
+        ORDER BY dm.created_at DESC LIMIT ? OFFSET ?`,
       [actor.communityId, actor.id, withMemberId, withMemberId, actor.id, limit, offset]
     );
     await trx.raw(

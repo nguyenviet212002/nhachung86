@@ -1522,7 +1522,7 @@ function startRealtime(){
   const token=api.accessToken(); if(!token) return;
   notificationStream = new EventSource(api.baseUrl()+'/notifications/stream?access_token='+encodeURIComponent(token));
   notificationStream.addEventListener('notification', e=>{ try{ const n=JSON.parse(e.data); LIVE_NOTIFICATIONS.unshift(n); playTing(); render(); }catch(err){} });
-  notificationStream.addEventListener('message', e=>{ try{ const m=JSON.parse(e.data); const id=m.sender_id===state.me.id?m.recipient_id:m.sender_id; (LIVE_MESSAGES[id] ||= []).push(m); playTing(); render(); }catch(err){} });
+  notificationStream.addEventListener('message', e=>{ try{ const m=JSON.parse(e.data); const sentByMe=m.sender_id===state.me.id; const id=sentByMe?m.recipient_id:m.sender_id; if(!(LIVE_MESSAGES[id]||[]).some(x=>x.id===m.id))(LIVE_MESSAGES[id] ||= []).push(m); LIVE_CONTACTS[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url}; playTing(); render(); }catch(err){} });
   notificationStream.onerror=()=>{};
   loadLiveNotifications();
   loadLiveInbox();
@@ -1535,12 +1535,24 @@ async function loadLiveInbox(){
   if(!liveMode()) return;
   try{
     const r=await api.get('/messages?limit=100');
-    for(const m of (r.data||[])){ const id=m.sender_id===state.me.id?m.recipient_id:m.sender_id; (LIVE_MESSAGES[id] ||= []).push(m); }
+    for(const m of (r.data||[])){
+      const sentByMe=m.sender_id===state.me.id, id=sentByMe?m.recipient_id:m.sender_id;
+      if(!(LIVE_MESSAGES[id]||[]).some(x=>x.id===m.id))(LIVE_MESSAGES[id] ||= []).push(m);
+      LIVE_CONTACTS[id]={id,full_name:sentByMe?m.recipient_name:m.sender_name,avatar_url:sentByMe?m.recipient_avatar_url:m.sender_avatar_url};
+    }
+    render();
   }catch(e){}
 }
 function liveContact(memberId){
   const row=LIVE_CONTACTS[memberId] || DIRECTORY.rows.find(x=>x.id===memberId);
   return row ? {id:row.id,name:row.full_name||row.name||'Thành viên',job:row.job||'',area:row.area_name||row.area||'',avatar:row.avatar_url||AVATAR(1)} : findMember(memberId);
+}
+function liveConversationSummaries(){
+  if(!liveMode()) return [];
+  return Object.entries(LIVE_MESSAGES).map(([memberId,messages])=>{
+    const sorted=messages.slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    return {memberId,member:liveContact(memberId),last:sorted.at(-1),unread:sorted.filter(m=>m.recipient_id===state.me.id&&!m.read_at).length};
+  }).filter(x=>x.last).sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
 }
 function isLiveConvo(){ return liveMode() && Boolean(LIVE_CONTACTS[state.activeConvo] || (state.activeConvo && state.activeConvo.includes('-'))); }
 
@@ -2020,6 +2032,7 @@ function Topbar(){
   const nUnread = unreadNotifCount();
   const mUnread = unreadMsgCount();
   const notices = liveNotifications();
+  const liveConvos = liveConversationSummaries();
   return `
   <header class="topbar">
     <div class="topbar-search">
@@ -2037,9 +2050,9 @@ function Topbar(){
         <div class="dropdown" id="dd-notif" style="width:340px">
           <div class="dd-head flex-between"><b style="font-size:13.5px">Thông báo</b><a href="#" data-action="mark-all-read" style="font-size:12px;font-weight:700;color:var(--orange-dark)">Đánh dấu đã đọc</a></div>
           ${notices.slice(0,6).map(n=>`
-            <div class="dd-item">
+            <div class="dd-item" data-action="open-notification" data-id="${esc(n.id||'')}" style="cursor:pointer">
               ${!(n.read_at || n.read)?'<span class="dot-unread"></span>':'<span style="width:7px"></span>'}
-              <div><p>${esc(n.body || n.text)}</p><small>${esc(n.created_at || n.time || '')}</small></div>
+              <div><p><b>${esc(n.title||'Thông báo')}</b><br>${esc(n.body || n.text)}</p><small>${esc(n.created_at || n.time || '')}</small></div>
             </div>`).join('')}
         </div>
       </div>
@@ -2047,11 +2060,7 @@ function Topbar(){
         <button class="ico-btn" data-action="toggle-dd" data-dd="mail">${ic('mail',17)}${mUnread?`<span class="bd">${mUnread}</span>`:''}</button>
         <div class="dropdown" id="dd-mail" style="width:320px">
           <div class="dd-head"><b style="font-size:13.5px">Tin nhắn gần đây</b></div>
-          ${CONVERSATIONS.slice(0,4).map(c=>{const m=findMember(c.with);const last=c.msgs[c.msgs.length-1];return `
-          <div class="dd-item" data-action="open-convo" data-id="${c.id}" style="cursor:pointer">
-            <img class="av" src="${m.avatar}" width="34" height="34">
-            <div><p><b>${esc(m.name)}</b></p><small>${esc(last.text.slice(0,38))}${last.text.length>38?'…':''}</small></div>
-          </div>`}).join('')}
+          ${(liveMode()?liveConvos.slice(0,4).map(c=>`<div class="dd-item" data-action="open-convo-with" data-id="${esc(c.memberId)}" style="cursor:pointer"><img class="av" src="${esc(c.member?.avatar||AVATAR(1))}" width="34" height="34"><div><p><b>${esc(c.member?.name||'Thành viên')}</b>${c.unread?` <span class="badge badge-orange">${c.unread}</span>`:''}</p><small>${esc(c.last.body.slice(0,38))}${c.last.body.length>38?'…':''}</small></div></div>`):CONVERSATIONS.slice(0,4).map(c=>{const m=findMember(c.with);const last=c.msgs[c.msgs.length-1];return `<div class="dd-item" data-action="open-convo" data-id="${c.id}" style="cursor:pointer"><img class="av" src="${m.avatar}" width="34" height="34"><div><p><b>${esc(m.name)}</b></p><small>${esc(last.text.slice(0,38))}${last.text.length>38?'…':''}</small></div></div>`})).join('')}
           <div class="dd-foot" data-action="nav" data-route="messages" style="cursor:pointer">Xem tất cả tin nhắn</div>
         </div>
       </div>
@@ -5875,6 +5884,17 @@ document.addEventListener('click', function(e){
       render();
       toast('Đã đánh dấu tất cả thông báo là đã đọc.');
       break;
+    case 'open-notification': {
+      const notice=liveNotifications().find(n=>n.id===id);
+      if(!notice) break;
+      if(liveMode()&&!notice.read_at) api.post('/notifications/'+encodeURIComponent(id)+'/read').then(r=>{notice.read_at=r.read_at;render();}).catch(()=>{});
+      if(notice.target_type==='post'&&notice.target_id) go('jobResult',{id:notice.target_id});
+      else if(notice.target_type==='message'&&notice.actor_id){state.activeConvo=notice.actor_id;go('messages');loadLiveConversation(notice.actor_id);}
+      else if(notice.target_type==='member'&&notice.target_id){go(notice.target_id===state.me?.id?'profile':'member',{id:notice.target_id});}
+      else if(notice.target_type==='notification') go('privacy');
+      closeAllDropdowns();
+      break;
+    }
     case 'open-convo':
       state.activeConvo = id;
       go('messages');
