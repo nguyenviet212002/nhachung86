@@ -23,6 +23,7 @@ router.post('/', validate(schema.createSchema), async (req, res, next) => {
   try {
     const result = await inviteService.create({
       actor: req.actor,
+      inviterNote: req.body.inviter_note,
       referrerId: req.body.referrer_id,
       onBehalfReasonCode: req.body.on_behalf_reason_code,
       onBehalfReason: req.body.on_behalf_reason,

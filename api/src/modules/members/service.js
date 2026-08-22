@@ -92,6 +92,137 @@ function detailRow(r, env) {
   };
 }
 
+async function profileExtras(trx, member) {
+  const { rows: capabilities } = await trx.raw(
+    `SELECT id, title, description, category, years_experience, created_at, updated_at
+       FROM capabilities
+      WHERE community_id = ? AND member_id = ? AND status = 'published'
+      ORDER BY updated_at DESC, id`,
+    [member.community_id, member.id]
+  );
+
+  const { rows: [referrer] } = await trx.raw(
+    `SELECT r.id, r.full_name, r.avatar_url,
+            source.inviter_note, source.introduced_at,
+            source.note_author_id, note_author.full_name AS note_author_name
+       FROM members subject
+       JOIN members r
+         ON r.id = subject.referrer_id AND r.community_id = subject.community_id
+       LEFT JOIN LATERAL (
+         SELECT gi.inviter_note, gi.created_by AS note_author_id,
+                coalesce(gi.created_at, jr.created_at) AS introduced_at
+           FROM join_requests jr
+           LEFT JOIN guarantee_invites gi
+             ON gi.used_by_join_request = jr.id AND gi.community_id = jr.community_id
+          WHERE jr.member_id = subject.id
+            AND jr.referrer_id = subject.referrer_id
+            AND jr.community_id = subject.community_id
+            AND jr.status = 'approved'
+          ORDER BY jr.updated_at DESC, jr.id DESC
+          LIMIT 1
+       ) source ON true
+       LEFT JOIN members note_author
+         ON note_author.id = source.note_author_id
+        AND note_author.community_id = subject.community_id
+      WHERE subject.id = ? AND subject.community_id = ?`,
+    [member.id, member.community_id]
+  );
+
+  const { rows: [ready] } = await trx.raw(
+    `SELECT status, headline, availability, note, updated_at
+       FROM ready_profiles WHERE member_id = ? AND community_id = ?`,
+    [member.id, member.community_id]
+  );
+  const { rows: [activeConnection] } = await trx.raw(
+    `SELECT c.id, c.status, c.poster_id, c.worker_id, c.updated_at,
+            j.id AS job_id, j.title AS job_title
+       FROM connections c
+       LEFT JOIN job_needs j ON j.id = c.job_need_id AND j.community_id = c.community_id
+      WHERE c.community_id = ? AND (c.poster_id = ? OR c.worker_id = ?)
+        AND c.status IN ('agreed', 'working')
+      ORDER BY CASE c.status WHEN 'working' THEN 0 ELSE 1 END, c.updated_at DESC
+      LIMIT 1`,
+    [member.community_id, member.id, member.id]
+  );
+
+  let workSummary;
+  if (activeConnection) {
+    workSummary = {
+      status: activeConnection.status,
+      source: 'connection',
+      role: activeConnection.worker_id === member.id ? 'worker' : 'poster',
+      connection_id: activeConnection.id,
+      job_id: activeConnection.job_id,
+      job_title: activeConnection.job_title,
+      updated_at: activeConnection.updated_at,
+    };
+  } else if (ready) {
+    workSummary = { ...ready, source: 'ready_profile' };
+  } else {
+    workSummary = { status: member.work_status, source: 'member_profile' };
+  }
+
+  const { rows: history } = await trx.raw(
+    `SELECT kind, target_id, title, occurred_at, status
+       FROM (
+         SELECT 'joined'::text AS kind, m.id AS target_id,
+                'Gia nhập cộng đồng'::text AS title,
+                coalesce(m.joined_at, m.created_at) AS occurred_at,
+                m.status::text AS status
+           FROM members m WHERE m.id = ? AND m.community_id = ?
+         UNION ALL
+         SELECT 'capability', c.id, c.title, c.created_at, c.status
+           FROM capabilities c
+          WHERE c.member_id = ? AND c.community_id = ? AND c.status = 'published'
+         UNION ALL
+         SELECT 'work_completed', wr.id, wr.title, wr.done_on::timestamptz, 'confirmed'
+           FROM work_participants wp
+           JOIN work_records wr
+             ON wr.id = wp.work_record_id AND wr.community_id = wp.community_id
+          WHERE wp.member_id = ? AND wp.community_id = ?
+            AND NOT EXISTS (
+              SELECT 1 FROM work_participants expected
+               WHERE expected.work_record_id = wr.id
+                 AND NOT EXISTS (
+                   SELECT 1 FROM work_confirmations confirmed
+                    WHERE confirmed.work_record_id = expected.work_record_id
+                      AND confirmed.member_id = expected.member_id
+                 )
+            )
+         UNION ALL
+         SELECT 'activity', a.id, a.title, ap.joined_at, a.status
+           FROM activity_participants ap
+           JOIN activities a ON a.id = ap.activity_id AND a.community_id = ap.community_id
+          WHERE ap.member_id = ? AND ap.community_id = ? AND a.status <> 'cancelled'
+         UNION ALL
+         SELECT 'job_posted', j.id, j.title, j.created_at, j.status
+           FROM job_needs j WHERE j.poster_id = ? AND j.community_id = ?
+         UNION ALL
+         SELECT 'job_connection', c.id, coalesce(j.title, 'Kết nối việc làm'),
+                c.updated_at, c.status
+           FROM connections c
+           LEFT JOIN job_needs j ON j.id = c.job_need_id AND j.community_id = c.community_id
+          WHERE c.community_id = ? AND (c.poster_id = ? OR c.worker_id = ?)
+            AND c.status IN ('agreed', 'working', 'done')
+       ) events
+      ORDER BY occurred_at DESC, target_id
+      LIMIT 20`,
+    [member.id, member.community_id,
+     member.id, member.community_id,
+     member.id, member.community_id,
+     member.id, member.community_id,
+     member.id, member.community_id,
+     member.community_id, member.id, member.id]
+  );
+
+  return {
+    capabilities,
+    referrer: referrer ?? null,
+    work_summary: workSummary,
+    participation_history: history,
+  };
+}
+
 // ILIKE '%' || ? || '%' là tham số hóa (không phải nối chuỗi), nên KHÔNG có lỗ
 // tiêm SQL. Nhưng `%` và `_` do người dùng gõ vẫn là KÝ TỰ ĐẠI DIỆN của chính
 // LIKE: một chữ `%` biến bộ lọc "nghề" thành "khớp tất cả", tức bộ lọc im lặng
@@ -262,7 +393,10 @@ export async function get({ actor, id }) {
       detail: { self: actor.id === m.id },
     });
 
-    return detailRow(m, envelope(states.get(m.id), profileValues(m)));
+    return {
+      ...detailRow(m, envelope(states.get(m.id), profileValues(m))),
+      ...(await profileExtras(trx, { ...m, community_id: actor.communityId })),
+    };
   });
 }
 
@@ -283,6 +417,7 @@ export async function getMe({ actor }) {
       action: 'profile.view', targetType: 'member', targetId: actor.id, detail: { self: true } });
     return {
       ...detailRow(m, envelope(states.get(m.id), profileValues(m))),
+      ...(await profileExtras(trx, { ...m, community_id: actor.communityId })),
       area_id: m.area_id,
       email: m.email,
       contact_values,
@@ -428,6 +563,22 @@ export async function updateMe({ actor, input }) {
         [input.area_id, actor.communityId]
       );
       if (!area) throw new AppError('VALIDATION_FAILED', 'Khu vực không thuộc cộng đồng hiện tại.', { status: 422 });
+    }
+    if (Object.hasOwn(input, 'avatar_url') && input.avatar_url !== null) {
+      const match = /^\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.avatar_url);
+      if (!match) {
+        throw new AppError('VALIDATION_FAILED', 'Ảnh đại diện phải là ảnh đã tải lên hệ thống.', { status: 422 });
+      }
+      const { rows: [file] } = await trx.raw(
+        `SELECT id FROM files
+          WHERE id = ? AND community_id = ? AND owner_id = ?
+            AND attached_type = 'member_avatar' AND attached_id = ?
+            AND deleted_at IS NULL AND purged_at IS NULL`,
+        [match[1], actor.communityId, actor.id, actor.id]
+      );
+      if (!file) {
+        throw new AppError('VALIDATION_FAILED', 'Ảnh đại diện không thuộc hồ sơ của bạn.', { status: 422 });
+      }
     }
     const profileKeys = ['full_name', 'email', 'job', 'area_id', 'bio', 'work_status', 'avatar_url'];
     const changed = profileKeys.filter((key) => Object.hasOwn(input, key));

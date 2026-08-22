@@ -423,11 +423,9 @@ textarea.input{resize:vertical;min-height:90px}
 .switch input:checked + .slider{background:var(--orange)}
 .switch input:checked + .slider::before{transform:translateX(18px)}
 
-.profile-cover{height:150px;border-radius:var(--r-lg);background:linear-gradient(120deg,#141414,#333);position:relative;overflow:hidden}
-.profile-cover img{width:100%;height:100%;object-fit:cover;opacity:.85}
-.profile-head{display:flex;align-items:flex-end;gap:16px;margin-top:-44px;padding:0 22px}
+.profile-head{display:flex;align-items:center;gap:16px;margin-top:0}
 .profile-head .av{border:4px solid #fff;box-shadow:var(--sh-md)}
-.profile-head .info{background:#fff;flex:1;border-radius:var(--r-lg);padding:14px 18px;box-shadow:var(--sh-sm);display:flex;align-items:center;gap:14px;margin-top:44px}
+.profile-head .info{background:#fff;flex:1;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 18px;box-shadow:var(--sh-sm);display:flex;align-items:center;gap:14px}
 .profile-head h2{font-size:19px}
 .profile-head .role{font-size:13px;color:var(--muted);margin-top:2px}
 
@@ -1101,11 +1099,6 @@ const ROLES = [
 ];
 function curRole(){ return ROLES.find(r=>r.key===state.role)||ROLES[0]; }
 function curRoleLabel(){ return curRole().label; }
-const REAL_ROLE_LABELS = { member:'Thành viên', content_ops:'Điều phối nội dung', approver:'Người duyệt', tech:'Kỹ thuật', guest:'Khách' };
-function actualRoleLabel(){
-  const roles=state.me?.roles||[];
-  return roles.length ? roles.map(r=>REAL_ROLE_LABELS[r]||r).join(' · ') : curRoleLabel();
-}
 
 /* ---- TÍN HIỆU: một nhu cầu khởi phát và lan đi qua 7 chặng ---- */
 const SIGNAL_STEPS = ['Khởi tạo','Tiếp nhận','Lan truyền','Phản hồi','Hội tụ','Hành động','Ký ức'];
@@ -1409,9 +1402,17 @@ function secureImageUrl(path,fallback=AVATAR(1)){
   if(LIVE_FILE_URLS[path]) return LIVE_FILE_URLS[path];
   if(liveMode()&&!LIVE_FILE_LOADING[path]){
     LIVE_FILE_LOADING[path]=true;
-    queueMicrotask(()=>api.blob(path).then(blob=>{LIVE_FILE_URLS[path]=URL.createObjectURL(blob);render();}).catch(()=>{}).finally(()=>{delete LIVE_FILE_LOADING[path];}));
+    queueMicrotask(()=>api.blob(path).then(blob=>{
+      LIVE_FILE_URLS[path]=URL.createObjectURL(blob);
+      if(state.me?.avatar_url===path) CURRENT_USER.avatar=LIVE_FILE_URLS[path];
+      render();
+    }).catch(()=>{}).finally(()=>{delete LIVE_FILE_LOADING[path];}));
   }
   return fallback;
+}
+
+function profileAvatar(member,fallback=AVATAR(1)){
+  return secureImageUrl(member?.avatar_url||member?.raw?.avatar_url,member?.avatar||fallback);
 }
 
 function jobStatusLabel(status){ return ({open:'Đang mở',closed:'Đã đóng',filled:'Đã tìm được người',cancelled:'Đã hủy'})[status]||status; }
@@ -1465,9 +1466,12 @@ async function loadMemberDetail(id,force=false){
   try{
     const m=await api.get('/members/'+encodeURIComponent(id));
     state.memberDetails[id]={
-      id:m.id,name:m.full_name,job:m.job||'',area:m.area?.name||'',avatar:secureImageUrl(m.avatar_url),
+      id:m.id,name:m.full_name,job:m.job||'',area:m.area?.name||'',avatar_url:m.avatar_url,
+      avatar:secureImageUrl(m.avatar_url),work_status:m.work_status,work_summary:m.work_summary,
       joined:m.joined_at?new Date(m.joined_at).toLocaleDateString('vi-VN'):'—',bio:m.bio||'',hours:0,
-      verified:m.status==='member',contacts:m.contacts,profile_fields:m.profile_fields,raw:m
+      verified:m.status==='member',contacts:m.contacts,profile_fields:m.profile_fields,
+      capabilities:m.capabilities||[],referrer:m.referrer||null,
+      participation_history:m.participation_history||[],raw:m
     };
   }catch(err){ state.memberDetailErrors[id]=err.message; }
   finally{ state.memberDetailLoading=null; render(); }
@@ -2083,7 +2087,6 @@ function Sidebar(){
       <img class="av" src="${state.user.avatar}" width="36" height="36" alt="">
       <div style="min-width:0">
         <b style="color:#fff;font-size:13.5px;display:block">${esc(state.user.name)}</b>
-        <i style="font-style:normal;font-size:11px;color:#8E8E8E">${esc(actualRoleLabel())}</i>
       </div>
     </a>
   </aside>`;
@@ -2100,10 +2103,6 @@ function Topbar(){
       ${ic('search',16)}
       <input type="text" id="global-search" placeholder="Tìm kiếm thành viên, năng lực, việc chung, hoạt động..." autocomplete="off">
       <div class="topbar-search-results" id="global-search-results"></div>
-    </div>
-    <div class="role-switch" title="Quyền thật lấy từ API /auth/me">
-      <span style="font-size:11px;color:var(--muted);white-space:nowrap">Vai thật: ${esc(actualRoleLabel())}</span>
-      ${ROLES.filter(r=>r.key!=='admin'||canReadJoinRequests()).map(r=>`<button class="role-chip ${state.role===r.key?'active':''}" data-action="switch-role" data-role="${r.key}">${ic(r.icon,14)}<span>${r.short}</span></button>`).join('')}
     </div>
     <div class="topbar-right">
       <div style="position:relative">
@@ -2128,7 +2127,7 @@ function Topbar(){
       <div style="position:relative">
         <div class="who" data-action="toggle-dd" data-dd="user">
           <img class="av" src="${state.user.avatar}" width="34" height="34">
-          <div><b>${esc(state.user.name)}</b><span>${esc(actualRoleLabel())}</span></div>
+          <div><b>${esc(state.user.name)}</b></div>
           ${ic('chevrondown',15)}
         </div>
         <div class="dropdown" id="dd-user" style="width:210px">
@@ -2314,12 +2313,57 @@ function buildTimeline(u){
   if(u.verified) items.push('Hoàn tất xác minh danh tính tại Trung tâm tin cậy');
   return items.reverse();
 }
+
+function profileCapabilities(u){
+  if(liveMode()) return (u.capabilities||[]).map(s=>({
+    id:s.id,title:s.title,desc:s.description||'',cat:s.category||'',
+    level:s.years_experience==null?'':`${s.years_experience} năm kinh nghiệm`
+  }));
+  return SKILLS.filter(s=>s.ownerId===u.id);
+}
+
+function profileWorkBadge(u){
+  const summary=u.work_summary||{status:u.work_status||'paused'};
+  const workerLabels={
+    working:'Đang làm việc',agreed:'Đã nhận việc',ready:'Đang nhận việc',
+    available:'Đang nhận việc',by_appointment:'Nhận việc theo hẹn',paused:'Tạm nghỉ nhận việc'
+  };
+  const posterLabels={working:'Đang có người thực hiện',agreed:'Đã thống nhất người làm'};
+  const label=(summary.role==='poster'?posterLabels[summary.status]:null)
+    ||workerLabels[summary.status]||'Chưa đặt trạng thái công việc';
+  const detail=summary.job_title?` · ${summary.job_title}`:'';
+  const tone=summary.status==='paused'?'badge-gray':'badge-green';
+  return `<span class="badge ${tone}">${esc(label+detail)}</span>`;
+}
+
+function profileHistory(u){
+  if(!liveMode()) return MEMORY_LOG.slice(0,4).map(m=>({title:m.title,occurred_at:m.date}));
+  return u.participation_history||[];
+}
+
+function historyTitle(item){
+  const prefix={
+    joined:'Gia nhập cộng đồng',capability:'Công bố năng lực',work_completed:'Hoàn thành công việc',
+    activity:'Tham gia hoạt động',job_posted:'Đăng nhu cầu công việc',job_connection:'Kết nối công việc'
+  }[item.kind];
+  if(item.kind==='joined') return prefix;
+  return [prefix,item.title].filter(Boolean).join(': ');
+}
+
+function historyDate(value){
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?String(value||'—'):date.toLocaleDateString('vi-VN',{month:'2-digit',year:'numeric'});
+}
+
 function ProfilePage(u, isSelf){
   if(isSelf&&liveMode()&&!state.relations&&!state.relationsLoading) queueMicrotask(()=>loadMyRelations());
-  const inviterName=liveMode()?(state.relations?.invited_by?.[0]?.member?.full_name||''):RELATIONS.referrer.name;
-  const mySkills = SKILLS.filter(s=>s.ownerId===u.id);
-  const workingBadge = '<span class="badge badge-green">Đang nhận việc</span>';
-  const refBadge = isSelf&&inviterName ? `<span class="badge badge-orange">${ic('shieldcheck',12)} Nguồn giới thiệu đã xác minh</span>` : '';
+  const referrer=liveMode()?(u.referrer||null):{full_name:RELATIONS.referrer.name,inviter_note:ENDORSEMENT.text,introduced_at:ENDORSEMENT.date};
+  const inviterName=referrer?.full_name||'';
+  const noteAuthor=referrer?.note_author_name||inviterName;
+  const mySkills=profileCapabilities(u);
+  const history=profileHistory(u);
+  const workingBadge=profileWorkBadge(u);
+  const refBadge=inviterName ? `<span class="badge badge-orange">${ic('shieldcheck',12)} Người giới thiệu: ${esc(inviterName)}</span>` : '';
   const scopeRows = [
     ['Họ tên, nghề','Mọi thành viên',''],
     ['Khu vực','Mọi thành viên',''],
@@ -2329,12 +2373,8 @@ function ProfilePage(u, isSelf){
     ['Gia đình','Không ai thấy','Đang đóng'],
   ];
   return `
-    <div class="profile-cover">
-      <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=60" alt="Ảnh bìa nghề nghiệp">
-      <span class="cover-tag">Ảnh bìa nghề nghiệp — do chính chủ đăng</span>
-    </div>
     <div class="profile-head">
-      <img class="av" src="${u.avatar}" width="88" height="88">
+      <img class="av" src="${esc(profileAvatar(u))}" width="88" height="88">
       <div class="info">
         <div style="flex:1">
           <h2>${esc(u.name)}</h2>
@@ -2342,7 +2382,7 @@ function ProfilePage(u, isSelf){
           <div class="flex gap-8 mt-8" style="flex-wrap:wrap">
             ${workingBadge}
             ${refBadge}
-            <span class="badge badge-gray">Vào cộng đồng ${esc(u.joined||'—')}${isSelf&&inviterName?` · ${esc(inviterName)} đưa vào`:''}</span>
+            <span class="badge badge-gray">Vào cộng đồng ${esc(u.joined||'—')}</span>
           </div>
         </div>
         ${isSelf
@@ -2362,7 +2402,8 @@ function ProfilePage(u, isSelf){
               ${mySkills.map(s=>`
               <div class="skill-mini">
                 <b>${esc(s.title)}</b>
-                <p>${esc(s.desc)}</p>
+                ${(s.cat||s.level)?`<span class="muted" style="font-size:11.5px;display:block;margin:4px 0">${esc([s.cat,s.level].filter(Boolean).join(' · '))}</span>`:''}
+                <p>${esc(s.desc||'Chưa có mô tả chi tiết.')}</p>
               </div>`).join('')}
             </div>` : `<div class="empty">${ic('star',30)}<p>${isSelf?'Bạn chưa chia sẻ năng lực nào.':'Thành viên chưa chia sẻ năng lực nào.'}</p></div>`}
             ${isSelf?`<a href="#" class="btn btn-outline btn-sm mt-12" data-action="open-modal" data-modal="createSkill">${ic('plus',14)} Thêm năng lực</a>`:''}
@@ -2372,10 +2413,10 @@ function ProfilePage(u, isSelf){
         <div class="section-card">
           <div class="sc-head"><h3>Ghi chú giới thiệu</h3><span class="muted" style="font-size:12px">Do người đưa vào viết · không sửa được</span></div>
           <div class="card-pad" style="padding-top:14px">
-            <div class="endorse">
-              <p>“${esc(ENDORSEMENT.text)}”</p>
-              <div class="by">— ${esc(ENDORSEMENT.by)}, ngày ${esc(ENDORSEMENT.date)}</div>
-            </div>
+            ${referrer?.inviter_note?`<div class="endorse">
+              <p>“${esc(referrer.inviter_note)}”</p>
+              <div class="by">— Do ${esc(noteAuthor)} viết khi gửi link mời${referrer.introduced_at?`, ngày ${esc(new Date(referrer.introduced_at).toLocaleDateString('vi-VN'))}`:''}</div>
+            </div>`:`<div class="empty" style="padding:20px">${ic('info',24)}<p>${inviterName?'Người giới thiệu chưa để lại ghi chú trong link mời này.':'Hồ sơ không có nguồn giới thiệu.'}</p></div>`}
           </div>
         </div>
       </div>
@@ -2407,8 +2448,8 @@ function ProfilePage(u, isSelf){
         <div class="section-card">
           <div class="sc-head"><h3>Lịch sử tham gia</h3>${isSelf?`<a href="#" data-action="nav" data-route="mymemory">Sổ ký ức</a>`:''}</div>
           <div class="card-pad" style="padding-top:8px">
-            ${MEMORY_LOG.slice(0,4).map(m=>`
-              <div class="hist-row"><span class="d">${esc(m.date.slice(3))}</span><span class="t">${esc(m.title)}</span></div>`).join('')}
+            ${history.length?history.slice(0,8).map(item=>`
+              <div class="hist-row"><span class="d">${esc(historyDate(item.occurred_at))}</span><span class="t">${esc(historyTitle(item))}</span></div>`).join(''):`<div class="empty" style="padding:20px">${ic('clock',24)}<p>Chưa có hoạt động nào được hệ thống ghi nhận.</p></div>`}
           </div>
         </div>
       </div>
@@ -3908,6 +3949,7 @@ function PrivacyPage(){
    ============================================================ */
 let NOTIF_PREFS = {activity:true, message:true, project:true, email:false};
 let LIVE_INVITE_URL = '';
+let LIVE_INVITE_NOTE = '';
 function SettingsPage(){
   if(liveMode()&&!DIRECTORY.areas.length) queueMicrotask(()=>ensureAreas().then(render).catch(e=>toast(e.message,true)));
   return `
@@ -3923,9 +3965,13 @@ function SettingsPage(){
           <div class="card-pad">
             <p class="muted" style="font-size:12.5px;line-height:1.6">Mỗi thành viên có thể tạo link mời bảo lãnh. Người nhận link không cần biết hoặc nhập số điện thoại của bạn.</p>
             ${LIVE_INVITE_URL ? `
+              <div class="soft-block" style="margin:12px 0"><b>Ghi chú gửi cùng lời mời</b><p style="font-size:12.5px;margin-top:5px">${esc(LIVE_INVITE_NOTE)}</p></div>
               <input class="input" id="invite-share-link" readonly value="${esc(LIVE_INVITE_URL)}">
               <button class="btn btn-primary btn-block mt-12" data-action="copy-invite-link">${ic('check',15)} Sao chép link mời</button>
-            ` : `<button class="btn btn-primary btn-block mt-12" data-action="create-invite-link">${ic('send',15)} Tạo link mời</button>`}
+            ` : `<div class="field mt-12"><label>Ghi chú về người bạn mời <span class="req">*</span></label>
+              <textarea class="input" id="invite-note" maxlength="1000" placeholder="Ví dụ: Tôi đã làm việc cùng bạn này nhiều năm, biết rõ nghề nghiệp và trực tiếp gửi lời mời."></textarea>
+              <div class="hint">Ghi chú này sẽ hiện nguyên văn trên hồ sơ người được mời và không sửa lại được.</div>
+            </div><button class="btn btn-primary btn-block mt-12" data-action="create-invite-link">${ic('send',15)} Tạo link mời</button>`}
           </div>
         </div>
         <div class="section-card">
@@ -5553,12 +5599,12 @@ function ModalTemplates(name, params={}){
       <div class="modal-body">
         <div class="field"><label>Ảnh đại diện</label>
           <div class="flex gap-12" style="align-items:center">
-            <img id="ep-avatar-preview" src="${CURRENT_USER.avatar}" width="64" height="64" style="border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+            <img id="ep-avatar-preview" src="${esc(profileAvatar(CURRENT_USER))}" width="64" height="64" style="border-radius:50%;object-fit:cover;border:2px solid var(--border)">
             <label class="btn btn-outline btn-sm" style="cursor:pointer">${ic('upload',14)} Tải ảnh từ máy
               <input type="file" accept="image/*" data-img-input="avatar" data-img-preview="ep-avatar-preview" style="display:none">
             </label>
           </div>
-          <p style="font-size:11.5px;color:var(--muted);margin-top:6px">Ảnh được xử lý ngay trên máy bạn, chỉ để xem trước — chưa tải lên máy chủ nào.</p>
+          <p style="font-size:11.5px;color:var(--muted);margin-top:6px">Ảnh được nén, tải lên kho riêng và lưu vào hồ sơ. Tải lại trang vẫn giữ nguyên.</p>
         </div>
         <div class="row-2">
           <div class="field" data-field="name"><label>Họ và tên <span class="req">*</span></label><input class="input" id="ep-name" value="${esc(CURRENT_USER.name)}"><div class="err"></div></div>
@@ -5777,6 +5823,28 @@ function busy(form, on, label){
   else if(btn.dataset.label){ btn.textContent = btn.dataset.label; }
 }
 
+function applyProfileToCurrentUser(profile){
+  if(!profile) return;
+  Object.assign(CURRENT_USER,{
+    id:profile.id,name:profile.full_name||CURRENT_USER.name,job:profile.job||'',bio:profile.bio||'',
+    area:profile.area?.name||'',phone:profile.contact_values?.phone||'',email:profile.email||'',
+    joined:profile.joined_at?new Date(profile.joined_at).toLocaleDateString('vi-VN'):'—',
+    verified:profile.status==='member',avatar_url:profile.avatar_url||null,
+    work_status:profile.work_status,work_summary:profile.work_summary,
+    capabilities:profile.capabilities||[],referrer:profile.referrer||null,
+    participation_history:profile.participation_history||[]
+  });
+  CURRENT_USER.avatar=secureImageUrl(profile.avatar_url,CURRENT_USER.avatar);
+}
+
+async function refreshCurrentProfile(){
+  const profile=await api.get('/members/me');
+  state.me={...state.me,...profile};
+  applyProfileToCurrentUser(profile);
+  try{localStorage.setItem('nc_member',JSON.stringify(state.me));}catch(e){}
+  return profile;
+}
+
 async function doLoginReal(form, identifier, password){
   busy(form, true, 'Đang đăng nhập…');
   try{
@@ -5791,15 +5859,7 @@ async function doLoginReal(form, identifier, password){
     try{ localStorage.setItem('nc_member', JSON.stringify(state.me)); }catch(e){}
     // Từ đây danh tính frontend dùng cùng UUID với backend; quyền đăng việc,
     // sửa năng lực và hồ sơ đều so với chính id thành viên này.
-    CURRENT_USER.id = state.me.id;
-    CURRENT_USER.name = r.member.full_name;
-    if(profile){
-      CURRENT_USER.job=profile.job||''; CURRENT_USER.bio=profile.bio||''; CURRENT_USER.area=profile.area?.name||'';
-      CURRENT_USER.phone=profile.contact_values?.phone||''; CURRENT_USER.email=profile.email||'';
-      if(profile.avatar_url?.startsWith('/files/')){
-        try{ CURRENT_USER.avatar=URL.createObjectURL(await api.blob(profile.avatar_url)); }catch(e){}
-      }else if(profile.avatar_url) CURRENT_USER.avatar=profile.avatar_url;
-    }
+    applyProfileToCurrentUser(profile);
     state.user = CURRENT_USER;
     if(state.me.roles.includes('approver')){
       state.role = 'admin';
@@ -6098,8 +6158,15 @@ document.addEventListener('click', function(e){
         toast('Hãy đăng nhập bằng tài khoản thật để tạo link mời.', true);
         break;
       }
+      const inviterNote=(document.getElementById('invite-note')?.value||'').trim();
+      if(inviterNote.length<10){
+        toast('Hãy ghi ít nhất 10 ký tự về người bạn đang mời.', true);
+        document.getElementById('invite-note')?.focus();
+        break;
+      }
       actionEl.disabled = true;
-      api.post('/guarantee-invites', {}).then(invite=>{
+      api.post('/guarantee-invites', {inviter_note:inviterNote}).then(invite=>{
+        LIVE_INVITE_NOTE=invite.inviter_note||inviterNote;
         LIVE_INVITE_URL = location.origin + location.pathname + '?invite_token=' + encodeURIComponent(invite.token);
         render();
         toast('Đã tạo link mời. Link chỉ hiển thị ở lần tạo này.');
@@ -6121,6 +6188,7 @@ document.addEventListener('click', function(e){
     case 'logout':
       stopRealtime();
       api.clearTokens();
+      LIVE_INVITE_URL=''; LIVE_INVITE_NOTE='';
       try{ localStorage.removeItem('nc_member'); }catch(e){}
       state.me = null; state.user = null; state.route='landing';
       state.relations=null; LIVE_NOTIFICATIONS=[]; resetLiveMessaging();
@@ -6285,10 +6353,15 @@ document.addEventListener('change', function(e){
             if(prev){ prev.src=url; prev.style.display='block'; }
             if(kind==='avatar'){
               uploadedAvatarData=url;
-              await api.patch('/members/me',{avatar_url:'/files/'+uploaded.id});
+              const avatarPath='/files/'+uploaded.id;
+              const updated=await api.patch('/members/me',{avatar_url:avatarPath});
+              LIVE_FILE_URLS[avatarPath]=url;
+              CURRENT_USER.avatar_url=avatarPath;
               CURRENT_USER.avatar=url;
+              state.me={...state.me,...updated,avatar_url:avatarPath};
+              try{localStorage.setItem('nc_member',JSON.stringify(state.me));}catch(e){}
             }else if(kind==='memory') uploadedMemoryData=url;
-            toast('Đã tải ảnh lên máy chủ.');
+            toast(kind==='avatar'?'Đã lưu ảnh đại diện. Tải lại trang vẫn giữ nguyên.':'Đã tải ảnh lên máy chủ.');
           })
           .catch(err=>toast(err.message,true));
       }
@@ -6461,7 +6534,7 @@ document.addEventListener('submit', function(e){
       ['desc', [[desc.length>=15, 'Mô tả cần ít nhất 15 ký tự.']]],
     ]);
     if(ok&&liveMode()) api.post('/capabilities',{title,category:cat,description:desc,status:'published'})
-      .then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã đăng năng lực mới!');go('skills');})
+      .then(async()=>{await refreshCurrentProfile();state.marketLoaded=false;loadMarketplace(true);toast('Đã đăng năng lực mới!');go('skills');})
       .catch(err=>toast(err.message,true));
     else if(ok){ SKILLS.unshift({id:'sk'+Date.now(), ownerId:CURRENT_USER.id, title, cat, desc, level}); toast('Đã đăng năng lực mới!'); go('skills'); }
     return;
@@ -6669,7 +6742,7 @@ document.addEventListener('submit', function(e){
       // cũ cho tới khi module tương ứng được nối.
       if(WIZ.name==='createSkill'&&liveMode()){
         const payload={title:val('wz-sk-title')||'Năng lực mới',description:val('wz-sk-desc')||null,category:val('wz-sk-cat')||null,price:val('wz-sk-price')||null,status:'published'};
-        api.post('/capabilities',payload).then(()=>{closeModal();WIZ.name=null;WIZ.step=0;state.marketLoaded=false;loadMarketplace(true);go('skills');toast('Đã đăng năng lực.');}).catch(err=>toast(err.message,true));
+        api.post('/capabilities',payload).then(async()=>{await refreshCurrentProfile();closeModal();WIZ.name=null;WIZ.step=0;state.marketLoaded=false;loadMarketplace(true);go('skills');toast('Đã đăng năng lực.');}).catch(err=>toast(err.message,true));
         return;
       }
       if(WIZ.name==='createSkill'){ CAP_NEW.unshift({init:'NH', title:val('wz-sk-title')||'Năng lực mới', by:state.user.name+' · '+(val('wz-sk-area')||'khu vực của tôi'), st:'Sẵn sàng'}); }
@@ -6693,7 +6766,7 @@ document.addEventListener('submit', function(e){
       const due=val('jp-due');
       const payload={title,description:desc,terms:val('jp-terms')||null,area_id:val('jp-area')||null,job_type:'thoi_vu',close_at:due?new Date(due+'T23:59:59+07:00').toISOString():null};
       const call=state.editingJobId?api.patch(`/jobs/${encodeURIComponent(state.editingJobId)}`,payload):api.post('/jobs',payload);
-      call.then(j=>{state.editingJobId=null;LIVE_JOB_DETAILS={};state.marketLoaded=false;loadMarketplace(true);toast('Đã lưu nhu cầu việc.');go('jobResult',{id:j.id});}).catch(err=>toast(err.message,true));
+      call.then(async j=>{await refreshCurrentProfile();state.editingJobId=null;LIVE_JOB_DETAILS={};state.marketLoaded=false;loadMarketplace(true);toast('Đã lưu nhu cầu việc.');go('jobResult',{id:j.id});}).catch(err=>toast(err.message,true));
     }else if(ok){ JOB_NEEDS.unshift({id:'nd'+Date.now(), title, area:val('jp-area')||'Khu vực 5', terms:val('jp-terms')||'thỏa thuận', by:state.user.name, init:'ĐS', status:'Đang mở'}); toast('Đã đăng nhu cầu!'); go('jobs'); }
     return;
   }
@@ -6703,7 +6776,7 @@ document.addEventListener('submit', function(e){
     const headline=val('ready-headline');
     if(headline.length<3){toast('Hãy ghi rõ công việc bạn có thể nhận.',true);return;}
     api.put('/jobs/ready/me',{headline,availability:val('ready-availability')||null,note:val('ready-note')||null,status:val('ready-status')||'ready',area_id:state.me?.area_id||null})
-      .then(()=>{state.marketLoaded=false;loadMarketplace(true);toast('Đã cập nhật trạng thái nhận việc.');})
+      .then(async()=>{await refreshCurrentProfile();state.marketLoaded=false;loadMarketplace(true);toast('Đã cập nhật trạng thái nhận việc.');render();})
       .catch(err=>toast(err.message,true));
     return;
   }
@@ -6775,6 +6848,7 @@ api.onAuthLost(function(){
   if(!state.me) return;                 // đang dùng tài khoản demo, không đụng
   try{ localStorage.removeItem('nc_member'); }catch(e){}
   state.me = null; state.user = null; state.route = 'landing';
+  LIVE_INVITE_URL=''; LIVE_INVITE_NOTE='';
   state.relations=null; LIVE_NOTIFICATIONS=[]; resetLiveMessaging();
   resetDirectory(); closeModal(); render();
   toast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.', true);
@@ -6789,14 +6863,7 @@ async function restoreLiveSession(){
     resetLiveMessaging(); LIVE_NOTIFICATIONS=[]; state.relations=null;
     state.me={...profile,...identity.actor,roles:identity.actor.roles||[]};
     try{ localStorage.setItem('nc_member',JSON.stringify(state.me)); }catch(e){}
-    CURRENT_USER.id=profile.id;
-    CURRENT_USER.name=profile.full_name||CURRENT_USER.name;
-    CURRENT_USER.job=profile.job||'';
-    CURRENT_USER.bio=profile.bio||'';
-    CURRENT_USER.area=profile.area?.name||'';
-    CURRENT_USER.phone=profile.contact_values?.phone||'';
-    CURRENT_USER.email=profile.email||'';
-    if(profile.avatar_url) CURRENT_USER.avatar=secureImageUrl(profile.avatar_url,CURRENT_USER.avatar);
+    applyProfileToCurrentUser(profile);
     state.user=CURRENT_USER;
     state.role=state.me.roles.includes('approver')?'admin':'member';
     state.route=state.role==='admin'?'admin':'members';

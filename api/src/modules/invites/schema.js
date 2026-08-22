@@ -25,6 +25,7 @@ export const inviteTokenSchema = z
 // (migration 031), vì zod chỉ canh một đường vào là route.
 export const createSchema = z
   .object({
+    inviter_note: z.string().trim().min(10, 'Ghi chú giới thiệu cần ít nhất 10 ký tự').max(1000),
     referrer_id: z.string().uuid().optional(),
     on_behalf_reason_code: z.enum(ON_BEHALF_REASON_CODES).optional(),
     on_behalf_reason: z.string().trim().min(20, 'Lý do phát hộ cần ít nhất 20 ký tự').max(1000).optional(),

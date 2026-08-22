@@ -32,6 +32,7 @@ function toRow(r) {
     created_on_behalf: r.created_by !== r.referrer_id,
     on_behalf_reason_code: r.on_behalf_reason_code,
     on_behalf_reason: r.on_behalf_reason,
+    inviter_note: r.inviter_note,
     status: inviteStatus(r),
     created_at: r.created_at,
     expires_at: r.expires_at,
@@ -55,7 +56,7 @@ function toRow(r) {
  * tới lúc đó giao dịch chưa ghi được gì; dòng "từ chối" do errorHandler ghi
  * bằng một giao dịch RIÊNG mở sau khi giao dịch này đã cuộn xong.
  */
-export async function create({ actor, referrerId, onBehalfReasonCode, onBehalfReason }) {
+export async function create({ actor, inviterNote, referrerId, onBehalfReasonCode, onBehalfReason }) {
   const target = referrerId ?? actor.id;
   const onBehalf = target !== actor.id;
   const token = newInviteToken();
@@ -63,8 +64,9 @@ export async function create({ actor, referrerId, onBehalfReasonCode, onBehalfRe
   const row = await withActor(actor.id, async (trx) => {
     const { rows: [inv] } = await trx.raw(
       `INSERT INTO guarantee_invites
-         (community_id, referrer_id, token_hash, created_by, on_behalf_reason_code, on_behalf_reason)
-       VALUES (?, ?, ?, ?, ?, ?)
+         (community_id, referrer_id, token_hash, created_by, on_behalf_reason_code,
+          on_behalf_reason, inviter_note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
       [
         actor.communityId,
@@ -73,6 +75,7 @@ export async function create({ actor, referrerId, onBehalfReasonCode, onBehalfRe
         actor.id,
         onBehalf ? (onBehalfReasonCode ?? null) : null,
         onBehalf ? (onBehalfReason ?? null) : null,
+        inviterNote,
       ]
     );
 
@@ -97,8 +100,9 @@ export async function create({ actor, referrerId, onBehalfReasonCode, onBehalfRe
             referrer_id: target,
             reason_code: onBehalfReasonCode ?? null,
             reason_length: (onBehalfReason ?? '').length,
+            note_length: inviterNote.length,
           }
-        : { referrer_id: target },
+        : { referrer_id: target, note_length: inviterNote.length },
     });
 
     return inv;

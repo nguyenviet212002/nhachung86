@@ -473,6 +473,7 @@ describe('T29 đường dự phòng — phải để lại dấu vết, không �
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${accessTokenFor(approver)}`)
       .send({
+        inviter_note: 'Tôi đã làm việc cùng người này nhiều năm và trực tiếp gửi lời mời.',
         referrer_id: referrer,
         on_behalf_reason_code: 'khong_mo_duoc_link',
         on_behalf_reason: 'anh ay khong mo duoc duong link tren dien thoai cua minh',
@@ -509,7 +510,7 @@ describe('T29 đường dự phòng — phải để lại dấu vết, không �
     const tuPhat = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${accessTokenFor(referrer)}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và mời người này tham gia cộng đồng.' });
     expect(tuPhat.status, JSON.stringify(tuPhat.body)).toBe(201);
     expect(tuPhat.body.created_on_behalf).toBe(false);
 
@@ -568,6 +569,7 @@ describe('T29 đường dự phòng — phải để lại dấu vết, không �
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${accessTokenFor(nguoiThuong)}`)
       .send({
+        inviter_note: 'Tôi trực tiếp biết và mời người này tham gia cộng đồng.',
         referrer_id: referrer,
         on_behalf_reason_code: 'khac',
         on_behalf_reason: 'toi tot bung nen phat ho anh ay mot cai link',
@@ -627,7 +629,7 @@ describe('T29 token — chỉ băm được lưu, và băm cũng không ra khỏ
     const res = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${accessTokenFor(referrer)}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và mời người này tham gia cộng đồng.' });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const token = res.body.token;
     expect(typeof token).toBe('string');
@@ -655,7 +657,7 @@ describe('T29 token — chỉ băm được lưu, và băm cũng không ra khỏ
     const tao = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${accessTokenFor(referrer)}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và mời người này tham gia cộng đồng.' });
     expect(tao.status, JSON.stringify(tao.body)).toBe(201);
 
     const res = await supertest(api)

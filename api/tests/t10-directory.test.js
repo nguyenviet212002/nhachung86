@@ -142,9 +142,11 @@ describe('T10.1 danh sách KHÔNG BAO GIỜ trả value, kể cả trường m�
     for (const f of Object.values(profile.contacts)) expect(f.value).toBeNull();
 
     // Vỏ HTTP chỉ được chứa những khoá đã có người quyết định đưa ra. Danh sách
-    // này là bản sao tường minh của members/service.js#detailRow.
+    // này là bản sao tường minh của detailRow + profileExtras trong service.
     expect(Object.keys(profile).sort()).toEqual(
-      ['area', 'avatar_url', 'bio', 'birth_year', 'contacts', 'cover_url', 'full_name', 'id', 'job', 'joined_at', 'profile_fields', 'status', 'work_status'].sort()
+      ['area', 'avatar_url', 'bio', 'birth_year', 'capabilities', 'contacts', 'cover_url',
+       'full_name', 'id', 'job', 'joined_at', 'participation_history', 'profile_fields',
+       'referrer', 'status', 'work_status', 'work_summary'].sort()
     );
     for (const forbidden of ['email', 'lat', 'lng', 'password_hash', 'erased_at', 'community_id', 'referrer_id']) {
       expect(profile[forbidden], `hồ sơ không được chứa ${forbidden}`).toBeUndefined();

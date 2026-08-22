@@ -436,7 +436,7 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     const res = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${token}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và gửi link mời cho người này.' });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(typeof res.body.token).toBe('string');
     expect(res.body.status).toBe('open');
@@ -453,7 +453,7 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     const tao = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${token}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và gửi link mời cho người này.' });
     expect(tao.status, JSON.stringify(tao.body)).toBe(201);
 
     const res = await supertest(api)
@@ -471,7 +471,7 @@ describe('T21 vỏ HTTP: hình dạng phản hồi khớp đặc tả mục 5 (s
     const tao = await supertest(api)
       .post('/api/v1/guarantee-invites')
       .set('authorization', `Bearer ${token}`)
-      .send({});
+      .send({ inviter_note: 'Tôi trực tiếp biết và gửi link mời cho người này.' });
     expect(tao.status, JSON.stringify(tao.body)).toBe(201);
 
     const thieu = await supertest(api)
