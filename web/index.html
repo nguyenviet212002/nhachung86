@@ -82,24 +82,8 @@ const JOBS=[
   turn:{q:'Đang chờ thêm người nhận',d:'Hạn nhận: 27-08 · còn 5 ngày',a:[['Tôi nhận việc','p']]},
   ev:[['19-08','Trần Thị Lan đăng việc']],pp:[[5,'Trần Thị Lan','Người đăng việc','']]},
 ];
-const PEOPLE=[
- {id:1,n:'Đỗ Văn Sơn',j:'Điện nước dân dụng',ar:'Xã Bắc Thái Ninh',ng:'Điện — nước dân dụng',s:'Nhận việc',w:4,a:12,by:'Phạm Văn Dũng',jn:'07-2026',
-  bd:'Nhận sửa chập cháy, thay đường nước, lắp điện nhà mới và kéo lại hệ thống cho xưởng nhỏ. Khảo sát trước rồi báo giá, báo thế nào làm thế ấy.',
-  sk:['Sửa chữa điện nước dân dụng','Lắp điện nhà mới','Kéo lại hệ thống điện xưởng'],
-  wk:[['08-2026','Sửa hệ thống điện xưởng may — chị Trần Thị Lan xác nhận'],['07-2026','Lắp điện nhà mới hai tầng — anh Nguyễn Hữu Tuấn xác nhận']]},
- {id:2,n:'Mai Văn Khánh',j:'Ốp lát, hoàn thiện',ar:'Xã Yên Mỹ',ng:'Xây dựng — hoàn thiện',s:'Nhận việc',w:6,a:52,by:'Phạm Văn Dũng',jn:'05-2026',
-  bd:'Ốp lát sàn tường 12 năm, cán nền chống thấm, dẫn tổ 3–5 người. Nhận việc dài ngày, làm liên tục.',
-  sk:['Ốp lát sàn, tường','Cán nền, chống thấm','Dẫn tổ 3–5 người'],
-  wk:[['09-2026','Ốp lát nhà hai tầng — anh Đỗ Văn Sơn xác nhận'],['06-2026','Cán nền sân thượng — chị Lan xác nhận']]},
- {id:3,n:'Trần Thị Lan',j:'Cửa hàng vật liệu',ar:'Xã Văn Giang',ng:'Nghề khác',s:'Nhận việc',w:3,a:5,by:'Lê Quang Minh',jn:'04-2026',
-  bd:'Bán gạch, xi măng, sắt thép. Giao trong khu vực trong ngày. Cho anh em trong Hội mượn giàn giáo không lấy phí.',
-  sk:['Vật liệu xây dựng','Cho mượn giàn giáo','Thiết bị điện, dây dẫn'],wk:[['08-2026','Cấp vật liệu công trình anh Sơn — hai bên xác nhận']]},
- {id:4,n:'Phạm Văn Dũng',j:'Vận tải hàng hóa',ar:'Xã Khoái Châu',ng:'Vận tải, chở hàng',s:'Bận đến cuối tuần',w:5,a:33,by:'—',jn:'03-2026',
-  bd:'Xe tải 1,5 tấn, chạy tuyến liên tỉnh. Cho anh em mượn xe khi cần chuyển nhà.',sk:['Chở hàng tuyến liên tỉnh','Cho mượn xe tải 1,5 tấn'],
-  wk:[['08-2026','Chở đồ giúp chuyển nhà — chị Lan xác nhận']]},
- {id:5,n:'Ngô Thị Hiền',j:'Nấu cỗ, tiệc tại nhà',ar:'Xã Phù Cừ',ng:'Thực phẩm, nấu cỗ',s:'Nhận việc',w:2,a:47,by:'Trần Thị Lan',jn:'06-2026',
-  bd:'Nhận đặt cỗ từ 5 mâm, báo trước ba ngày. Nấu giúp khi nhà có việc, không lấy công.',sk:['Nấu cỗ, tiệc tại nhà','Nấu giúp khi nhà có việc'],wk:[]},
-];
+// PEOPLE (mảng giả cho "Con người") đã bỏ: V.nguoi (js/screens/nguoi.js) đọc
+// GET /members thật, không còn nơi nào trong file này đọc PEOPLE nữa.
 const AID=[
  {id:1,t:'Một gia đình cần người trông cụ nằm viện',s:'Gấp',d:'Ba ngày cuối tuần · Ban điều hành giữ kín danh tính',urg:1,turn:{q:'Chưa ai nhận. Ban điều hành đang tìm người',d:'Rất gấp · quá hạn 6 giờ',a:[['Tôi nhận trông một ca','p']]}},
  {id:2,t:'Cần người biết chữ Hán đọc giúp gia phả',s:'Không gấp',d:'Ai rảnh thì nhận',turn:{q:'Chưa ai nhận sau 9 ngày',d:'Không có hạn',a:[['Tôi nhận','p']]}},
@@ -260,22 +244,8 @@ V.viechoi=()=>{const L=applyF(JOBS,j=>({text:j.t+' '+j.by+' '+j.ar+' '+j.ng,nghe
   <div class="row" style="margin-top:10px"><button class="bt s" onclick="alert('Mở Zalo')">Nhắn Zalo</button><button class="bt s" onclick="alert('Gọi 09•• ••• 638')">Gọi điện</button></div>
   <div class="nt">Nhà Chung chỉ ghi lại việc. Giá cả và tiến độ là thỏa thuận riêng giữa hai bên — nền tảng không giữ tiền, không đứng giữa.</div>`})};
 
-V.nguoi=()=>{const L=applyF(PEOPLE,p=>({text:p.n+' '+p.j+' '+p.ar+' '+p.ng,nghe:p.ng,kv:p.ar}));
- return split({title:'Con người',sub:'52 thành viên · hiện theo mức mỗi người cho phép',items:L.length?L:PEOPLE,
- fbar:filterBar(['nghe','kv'],PEOPLE.length,L.length),
- row:(p,on)=>`<button class="it ${on?'on':''}" onclick="go('nguoi',${p.id})"><div class="r1"><img src="${av(p.a)}" style="width:34px;height:34px;border-radius:50%" alt=""><span class="t">${p.n}</span><span class="tg ${p.s==='Nhận việc'?'g':''}">${p.s}</span></div><div class="r2" style="margin-left:43px">${p.j} · ${p.ar}</div><div class="r3" style="margin-left:43px">Đã làm ${p.w} việc trong Hội</div></button>`,
- detail:p=>`<div class="cov"><img src="${PL[(p.id-1)%PL.length]}" alt=""></div>
-  <div style="display:flex;gap:17px;align-items:flex-end;padding-left:6px"><img class="ava-b" src="${av(p.a)}" alt="">
-  <div class="sp"><h1>${p.n}</h1><div class="sub">${p.j} · ${p.ar}</div>
-   <div style="margin-top:9px"><span class="tg ${p.s==='Nhận việc'?'g':''}">${p.s}</span></div>
-   <div style="font-size:13.5px;color:var(--fnt);margin-top:9px">Vào Hội ${p.jn}${p.by!=='—'?` · ${p.by} đưa vào`:''} · đã làm ${p.w} việc</div>
-   <div class="row" style="margin-top:13px"><button class="bt p" onclick="alert('Đã gửi lời xin. ${p.n} sẽ trả lời.')">Xin xem số điện thoại</button><button class="bt" onclick="go('tinnhan')">Nhắn tin</button><button class="bt" onclick="alert('Mời vào việc')">Mời vào một việc</button></div></div></div>
-  <div class="sc">LÀM ĐƯỢC GÌ</div><p style="font-size:15px;line-height:1.65;color:var(--body)">${p.bd}</p>
-  <div class="g3" style="margin-top:14px">${p.sk.map((s,i)=>`<div class="bx pcard" style="padding:13px"><img src="${PL[i%PL.length]}" alt=""><b style="font-size:14.5px">${s}</b></div>`).join('')}</div>
-  <div style="margin-top:16px"><div class="kv"><span class="k">Khu vực nhận</span><span class="v">${p.ar} và lân cận</span></div><div class="kv"><span class="k">Số điện thoại</span><span class="v" style="color:var(--mut)">09•• ••• 638 — cần ${p.n} đồng ý</span></div></div>
-  <div class="sc">VIỆC ĐÃ LÀM TRONG HỘI <i>hai bên cùng xác nhận</i></div>
-  ${p.wk.length?p.wk.map(w=>`<div class="tl"><span class="d">${w[0]}</span><span>${w[1]}</span></div>`).join(''):'<div class="em">Chưa có việc nào được ghi vào sổ.</div>'}
-  <div class="nt">Hội xác minh ${p.n} là người thật và do ai đưa vào. Hội không xác minh tay nghề — điều đó anh chị tự xem và tự quyết.</div>`})};
+// V.nguoi thật (GET /members) định nghĩa ở js/screens/nguoi.js, nạp SAU khối
+// script này nên ghi đè đúng chỗ này — xem chú thích cạnh thẻ <script> đó.
 
 V.nangluc=()=>{const C=[['Chuyên môn nghề',62,['Điện — nước dân dụng · 9 người','Xây dựng, sửa chữa · 14 người','Cơ khí, cửa sắt · 6 người','Kế toán, thuế · 4 người','Dạy kèm, đào tạo · 5 người','Thực phẩm, nấu cỗ · 7 người']],['Phương tiện',28,['Xe tải 1,5 tấn · 3 xe','Xe bán tải · 2 xe','Máy trộn bê tông · 2 máy','Giàn giáo, cốp pha · 4 bộ','Xe khách 16 chỗ · 1 xe']],['Mặt bằng, kho bãi',11,['Kho chứa hàng khô · 3 kho','Xưởng cơ khí · 2 xưởng','Bếp làm cỗ · 2 bếp','Nhà kho lạnh · 1 kho']],['Thời gian đóng góp',47,['Cuối tuần · 19 người','Buổi tối trong tuần · 12 người','Nhận việc gấp · 14 người','Dạy nghề cho con em · 6 người']]];
  return `<div class="one wide"><div class="hd"><div class="sp"><h1>Năng lực của Hội</h1><div class="sub">Cộng đồng đang có gì trong tay.</div></div><button class="bt p" onclick="alert('Thêm năng lực')">+ Thêm năng lực của tôi</button></div>
@@ -817,6 +787,13 @@ function doiVai(v){S.vai=v;S.r=(v==='tq')?'quy':(v==='bdh')?'duyet':(v==='kt')?'
 function sbOp(){document.getElementById('sb').classList.add('op');document.getElementById('scr').classList.add('on')}
 function sbCl(){document.getElementById('sb').classList.remove('op');document.getElementById('scr').classList.remove('on')}
 </script>
+<!-- Sau khối script ở trên (định nghĩa V{} với các renderer còn là mock) —
+     ghi đè V.nguoi bằng bản gọi GET /members thật. Phải nạp sau khối đó (V
+     phải tồn tại trước) và trước auth.js (bootstrap gọi go()/paint() ngay khi
+     tải xong, phải thấy V.nguoi bản thật, không phải bản mock vừa bị ghi đè
+     lại nếu thứ tự ngược lại). Task 5–8 sẽ thêm các tệp screens/*.js khác
+     cùng quy tắc nạp SAU khối script, TRƯỚC auth.js. -->
+<script src="js/screens/nguoi.js"></script>
 <!-- Sau router.js, và sau khối script ở trên (định nghĩa V{}/NAV_/paint()'s
      app screens) — bootstrap của auth.js gọi go()/paint() ngay khi tải xong,
      nên phải chạy SAU khi mọi V.* đã có mặt, không phải ngay-sau-router.js
