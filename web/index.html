@@ -807,6 +807,11 @@ function sbCl(){document.getElementById('sb').classList.remove('op');document.ge
      VC_JOB_TYPE_LABEL của viechoi.js nên phải nạp sau nó. -->
 <script src="js/screens/viechoi.js"></script>
 <script src="js/forms/taoviec.js"></script>
+<!-- Cùng quy tắc — ghi đè MD.nhanviec (mock) bằng bản gửi thật lên POST
+     /jobs/:id/applications. Đọc lại VC (state của viechoi.js: applyState/
+     applyError) và ngEsc()/vcCount() (vcCount định nghĩa ở taoviec.js) nên
+     phải nạp sau cả hai. -->
+<script src="js/forms/nhanviec.js"></script>
 <!-- Sau router.js, và sau khối script ở trên (định nghĩa V{}/NAV_/paint()'s
      app screens) — bootstrap của auth.js gọi go()/paint() ngay khi tải xong,
      nên phải chạy SAU khi mọi V.* đã có mặt, không phải ngay-sau-router.js
