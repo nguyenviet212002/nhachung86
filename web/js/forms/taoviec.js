@@ -63,7 +63,7 @@ var TV = { idemKey: null, data: {}, errors: {}, submitting: false, generalError:
 
 function vcDefaultData() {
   return {
-    job_type: '', title: '', description: '', profession: NGHE[0], people_needed: '',
+    job_type: '', title: '', description: '', profession: '', people_needed: '',
     area_name: '', terms: '', start_at: '', start_note: '', close_at: '',
     requirements: '', warnings: '', contact_owner: '',
     visibility: 'profession', contact_policy: 'approval', show_phone: false
@@ -119,12 +119,18 @@ function vcCount(id, cntId, max) {
 function vcHasAnyData() {
   var d = TV.data;
   return !!((d.title && d.title.trim()) || (d.description && d.description.trim()) ||
+    (d.profession && d.profession.trim()) ||
     (d.people_needed && String(d.people_needed).trim()) || (d.terms && d.terms.trim()) ||
     d.start_at || d.close_at || (d.start_note && d.start_note.trim()) ||
     (d.requirements && d.requirements.trim()) || (d.warnings && d.warnings.trim()) ||
     (d.contact_owner && d.contact_owner.trim()) || d.job_type || d.area_name);
-  // profession/visibility/contact_policy/show_phone cố ý KHÔNG tính: luôn có
-  // giá trị mặc định ngay cả khi người dùng chưa chạm vào form.
+  // visibility/contact_policy/show_phone cố ý KHÔNG tính: đó là những lựa
+  // chọn có nghĩa dù người dùng chưa chạm form (ai thấy/ai liên hệ/hiện số
+  // điện thoại luôn CÓ một giá trị hợp lệ, không phải "chưa chọn gì"). Ngược
+  // lại, KHÔNG có "nghề mặc định hợp lý" — trước đây profession mặc định
+  // NGHE[0] ('Xây dựng — hoàn thiện') và bị gộp vào nhóm này, khiến việc dán
+  // nhãn sai nghề không tính là "có dữ liệu". Sửa: profession giờ mặc định
+  // rỗng (giống area_id) nên tự nhiên rơi vào nhánh có tính ở trên.
 }
 
 function vcNonEmpty(v) { v = (v == null ? '' : String(v)).trim(); return v ? v : undefined; }
@@ -265,7 +271,7 @@ MD.taoviec = function () {
         '<textarea class="in" id="tv_desc" maxlength="5000" placeholder="Công trình nhà dân hai tầng, phần ốp lát khoảng 3 tuần. Cần một tổ 2–3 người làm được liên tục. Vật tư chủ nhà lo, chỉ tính công.">' + ngEsc(d.description) + '</textarea>') +
       '<div class="r2c">' +
       vcFd('profession', 'Thuộc nghề <span style="color:var(--fnt);font-weight:400">— không bắt buộc</span>',
-        '<select class="in" id="tv_profession">' + vcOptSelect(NGHE, d.profession) + '</select>') +
+        '<select class="in" id="tv_profession"><option value="">— Chưa chọn —</option>' + vcOptSelect(NGHE, d.profession) + '</select>') +
       vcFd('people_needed', 'Cần mấy người',
         '<input class="in" id="tv_people" type="number" min="1" max="1000" value="' + ngEsc(d.people_needed) + '">') +
       '</div>';
