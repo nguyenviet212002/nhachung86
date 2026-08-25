@@ -760,6 +760,24 @@ textarea.input{resize:vertical;min-height:90px}
 /* Khối thẻ xếp hai cột — khớp .g2 trong thiet-ke-mau.html. auto-fit tự về 1
    cột khi khung hẹp hơn 2×360px, không cần media query riêng. */
 .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start}
+
+/* --- Khung hai cột: danh sách trái + chi tiết phải -----------------------
+   Chọn một dòng ở khung trái đổi nội dung khung phải TẠI CHỖ (không go(),
+   không window.scrollTo) nên khung trái không mất vị trí đang cuộn. Điện
+   thoại hẹp thì chỉ hiện một khung tại một thời điểm, có nút quay lại. */
+.split{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:0 28px;align-items:start}
+.split-list{min-width:0}
+.split-list .lcard{margin-bottom:8px}
+.split-detail{min-width:0;border-left:1px solid var(--border);padding-left:28px;min-height:280px}
+.split-detail-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:70px 20px;color:var(--muted);text-align:center;font-size:15px}
+.split-back{display:none}
+@media(max-width:860px){
+  .split{grid-template-columns:1fr}
+  .split-detail{display:none;border-left:0;padding-left:0}
+  .split.has-sel .split-list{display:none}
+  .split.has-sel .split-detail{display:block}
+  .split-back{display:inline-flex;margin-bottom:14px}
+}
 .home-todo,.home-person{display:flex;width:100%;align-items:center;gap:12px;padding:13px 2px;border:0;border-bottom:1px solid var(--border-2);background:transparent;cursor:pointer;text-align:left;color:var(--ink)}
 .home-todo:last-child,.home-person:last-child{border-bottom:0}
 .home-todo>div,.home-person>div{flex:1;min-width:0}
@@ -1199,6 +1217,7 @@ html,body{ max-width:100%; overflow-x:hidden; }
 
 .lcard{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;padding:16px 18px;margin-bottom:10px;border:1px solid var(--border);border-radius:13px;background:#fff;color:var(--ink);cursor:pointer;min-height:auto}
 .lcard:hover{border-color:var(--orange)}
+.lcard.active{border-color:var(--orange);background:var(--orange-light-2)}
 .lcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .lcard-top b{font-size:17px;line-height:1.35;font-weight:700}
 .lcard-line,.lcard-foot{font-size:15px;color:var(--muted);line-height:1.45}
@@ -1731,7 +1750,17 @@ const state = {
   projectModerationError:'',
   myProjects:null,
   myProjectsLoading:false,
-  myProjectsError:''
+  myProjectsError:'',
+
+  /* Hai khung danh sách+chi tiết: chọn tại chỗ, không điều hướng rời khỏi
+     danh sách, để khung trái giữ nguyên vị trí cuộn. */
+  selectedMemberId:null,
+  selectedJobId:null,
+
+  /* Khoá Idempotency-Key giữ qua các lần gửi lại của CÙNG một ý định tạo mới;
+     xoá khi thành công. */
+  jobPostIdemKey:null,
+  applyIdemKeys:{}
 };
 
 // Dữ liệu thật dùng chung cho topbar, thông báo và màn tin nhắn. Dữ liệu demo
@@ -5488,10 +5517,12 @@ function PeopleHubPage(){
     <div class="hub-filters"><label class="hub-search">${ic('search',17)}<input id="people-q" value="${esc(state.memberFilter.q||'')}" placeholder="Tìm tên, nghề, hoặc việc cần làm…"></label></div>`;
   if(tab==='job')   return head+PeopleByTrade();
   if(tab==='ready') return head+PeopleReady();
-  if(tab==='near')  return head+PeopleNear();
-  return head+PeopleList(DIRECTORY.rows||[]);
+  if(tab==='near')  return head+PeopleSplit(peopleNearRows());
+  return head+PeopleSplit(peopleAllRows());
 }
 
+/* Thẻ trong danh sách — bấm chọn tại chỗ, đổ hồ sơ sang khung phải, KHÔNG
+   điều hướng rời màn (route 'member' vẫn sống riêng cho việc dán link). */
 function personCard(m){
   const ready=JOB_READY.find(r=>r.id===m.id);
   const caps=SKILLS.filter(c=>c.ownerId===m.id).length;
@@ -5500,13 +5531,34 @@ function personCard(m){
     status:ready?'Đang nhận việc':null, statusTone:'green',
     line:[m.job||'Chưa ghi nghề',m.area_name].filter(Boolean).join(' · '),
     foot:caps?`${caps} năng lực đã công bố`:'Chưa công bố năng lực nào',
-    route:'member',id:m.id});
+    action:'select-member', active:state.selectedMemberId===m.id, id:m.id});
 }
-function PeopleList(rows){
-  if(liveMode()&&!DIRECTORY.loaded) return EmptyLine('Đang tải danh bạ…');
-  if(DIRECTORY.error) return EmptyLine('Không đọc được danh bạ: '+DIRECTORY.error);
-  if(!rows.length) return EmptyLine('Không tìm thấy ai khớp.','Bỏ bộ lọc và xem tất cả','members',{tab:'all'});
-  return rows.map(personCard).join('');
+function peopleAllRows(){
+  if(liveMode()&&!DIRECTORY.loaded) return {empty:EmptyLine('Đang tải danh bạ…')};
+  if(DIRECTORY.error) return {empty:EmptyLine('Không đọc được danh bạ: '+DIRECTORY.error)};
+  const rows=DIRECTORY.rows||[];
+  if(!rows.length) return {empty:EmptyLine('Không tìm thấy ai khớp.','Bỏ bộ lọc và xem tất cả','members',{tab:'all'})};
+  return {rows};
+}
+function peopleNearRows(){
+  const myArea=state.me?.area_id||state.me?.area?.id;
+  if(!myArea) return {empty:EmptyLine('Hồ sơ của bạn chưa ghi khu vực nên chưa lọc được người gần nhà.','Cập nhật hồ sơ','profile')};
+  const rows=(DIRECTORY.rows||[]).filter(m=>m.area_id===myArea);
+  if(!rows.length) return {empty:EmptyLine('Chưa thấy ai cùng khu vực với bạn trong trang này.','Xem tất cả','members',{tab:'all'})};
+  return {rows};
+}
+/* Khung hai cột dùng chung cho mọi tab liệt kê thành viên. `empty` (nếu có)
+   thay cho toàn bộ khung — không dựng danh sách trái rỗng kèm khung phải trống. */
+function PeopleSplit({rows, empty}){
+  if(empty) return empty;
+  const sel=state.selectedMemberId;
+  const detail=sel
+    ? LiveMemberPage(sel)
+    : `<div class="split-detail-empty">${ic('users',40)}<p>Chọn một người ở danh sách bên trái để xem hồ sơ.</p></div>`;
+  return `<div class="split${sel?' has-sel':''}">
+    <div class="split-list">${rows.map(personCard).join('')}</div>
+    <div class="split-detail">${sel?`<button class="split-back btn btn-outline btn-sm" data-action="select-member" data-id="">← Danh bạ</button>`:''}${detail}</div>
+  </div>`;
 }
 function PeopleByTrade(){
   const groups={};
@@ -5525,13 +5577,6 @@ function PeopleReady(){
     title:p.name||'Thành viên', status:'Đang nhận việc', statusTone:'green',
     line:[p.job,p.area].filter(Boolean).join(' · ')||'Chưa ghi công việc nhận được',
     foot:p.note||'', route:'jobReady', id:p.id})).join('');
-}
-function PeopleNear(){
-  const myArea=state.me?.area_id||state.me?.area?.id;
-  if(!myArea) return EmptyLine('Hồ sơ của bạn chưa ghi khu vực nên chưa lọc được người gần nhà.','Cập nhật hồ sơ','profile');
-  const rows=(DIRECTORY.rows||[]).filter(m=>m.area_id===myArea);
-  if(!rows.length) return EmptyLine('Chưa thấy ai cùng khu vực với bạn trong trang này.','Xem tất cả','members',{tab:'all'});
-  return rows.map(personCard).join('');
 }
 
 /* ===========================================================================
@@ -5566,9 +5611,13 @@ function EmptyLine(text, linkText, route, params){
     : ''}</p>`;
 }
 
-/* --- Thẻ danh sách: tối đa 3 dòng, bấm cả thẻ ---------------------------- */
-function ListCard({ title, status, statusTone, line, foot, route, id, tab }){
-  return `<button class="lcard" data-action="nav" data-route="${esc(route)}"${id ? ` data-id="${esc(id)}"` : ''}${tab ? ` data-tab="${esc(tab)}"` : ''}>
+/* --- Thẻ danh sách: tối đa 3 dòng, bấm cả thẻ -----------------------------
+   Mặc định điều hướng sang route khác (data-action="nav"). Truyền `action`
+   khác (vd. 'select-member') để chọn tại chỗ trong khung .split thay vì rời
+   màn; `active` tô viền cam cho dòng đang được chọn. */
+function ListCard({ title, status, statusTone, line, foot, route, id, tab, action, active }){
+  const act = action || 'nav';
+  return `<button class="lcard${active ? ' active' : ''}" data-action="${esc(act)}"${act === 'nav' ? ` data-route="${esc(route)}"` : ''}${id ? ` data-id="${esc(id)}"` : ''}${tab ? ` data-tab="${esc(tab)}"` : ''}>
     <span class="lcard-top"><b>${esc(title)}</b>${status ? `<em class="tag tag-${statusTone || 'gray'}">${esc(status)}</em>` : ''}</span>
     ${line ? `<span class="lcard-line">${esc(line)}</span>` : ''}
     ${foot ? `<span class="lcard-foot">${esc(foot)}</span>` : ''}
@@ -7347,6 +7396,7 @@ function updateGlobalSearch(q){
 function doLogin(){
   state.user = CURRENT_USER;
   state.route = 'mywork';
+  state.selectedMemberId = null; state.selectedJobId = null;
   closeModal();
   render();
   toast(`Đăng nhập thành công! Chào mừng trở lại, ${CURRENT_USER.name.split(' ').slice(-1)[0]}.`);
@@ -7410,6 +7460,7 @@ async function doLoginReal(form, identifier, password){
     }
     resetDirectory();
     state.marketLoaded=false; LIVE_JOB_DETAILS={};
+    state.selectedMemberId=null; state.selectedJobId=null;
     unlockSound();
     startRealtime();
     closeModal();
@@ -7520,7 +7571,7 @@ document.addEventListener('click', function(e){
       if(DIRECTORY.requesting[id]) break;
       DIRECTORY.requesting[id]=true;
       rerenderPreservingFocus();
-      api.post(`/members/${encodeURIComponent(id)}/contact-requests`,{field_key:'phone',message:'Xin phép xem số điện thoại để liên hệ.'})
+      api.post(`/members/${encodeURIComponent(id)}/contact-requests`,{field_key:'phone',message:'Xin phép xem số điện thoại để liên hệ.'},api.newIdemKey())
         .then(()=>{
           const row=DIRECTORY.rows.find(m=>m.id===id);
           if(row?.contacts?.phone){ row.contacts.phone.state='requested'; row.contacts.phone.request_status='pending'; }
@@ -7532,6 +7583,17 @@ document.addEventListener('click', function(e){
       break;
     case 'member-detail-refresh':
       delete state.memberDetailErrors[id]; delete state.memberDetails[id]; loadMemberDetail(id,true);
+      break;
+    /* Chọn tại chỗ trong khung hai cột — KHÔNG dùng go(), để không reset cuộn
+       trang và khung danh sách bên trái đứng nguyên chỗ vừa bấm. */
+    case 'select-member':
+      state.selectedMemberId = id || null;
+      render();
+      break;
+    case 'select-job':
+      state.selectedJobId = id || null;
+      if(state.selectedJobId) loadJobDetail(state.selectedJobId);
+      render();
       break;
     case 'profile-refresh':
       refreshCurrentProfile().then(()=>{render();toast('Đã làm mới lịch sử từ API.');}).catch(err=>toast(err.message,true));
@@ -8431,7 +8493,8 @@ document.addEventListener('submit', function(e){
     const note=val('ap-note'); const jid=form.dataset.job;
     const ok = validateForm(form, [ ['note', [[note.length>=10, 'Lời nhắn cần ít nhất 10 ký tự.']]] ]);
     if(ok&&liveMode()){
-      api.post(`/jobs/${encodeURIComponent(jid)}/applications`,{note}).then(()=>{closeModal();delete LIVE_JOB_DETAILS[jid];loadJobDetail(jid,true);state.marketLoaded=false;loadMarketplace(true);toast('Đã gửi ứng tuyển! Người đăng tin sẽ nhận thông báo ngay.');}).catch(err=>toast(err.message,true));
+      state.applyIdemKeys[jid]=state.applyIdemKeys[jid]||api.newIdemKey();
+      api.post(`/jobs/${encodeURIComponent(jid)}/applications`,{note},state.applyIdemKeys[jid]).then(()=>{delete state.applyIdemKeys[jid];closeModal();delete LIVE_JOB_DETAILS[jid];loadJobDetail(jid,true);state.marketLoaded=false;loadMarketplace(true);toast('Đã gửi ứng tuyển! Người đăng tin sẽ nhận thông báo ngay.');}).catch(err=>toast(err.message,true));
     }else if(ok){
       const j=JOBS.find(x=>x.id===jid);
       if(j){ j.applicants.push({name:state.user.name, note, status:'Chờ duyệt', date:'2026-08-17'}); }
@@ -8557,8 +8620,14 @@ document.addEventListener('submit', function(e){
         contact_policy:val('jp-contact-policy')||'approval',visibility:val('jp-visibility')||'community',show_phone:Boolean(document.getElementById('jp-phone')?.checked),
         allow_introductions:Boolean(document.getElementById('jp-intro')?.checked),share_to_facebook:Boolean(document.getElementById('jp-facebook')?.checked),
         job_type:val('jp-type')||'thoi_vu',close_at:due?new Date(due+'T23:59:59+07:00').toISOString():null};
-      const call=state.editingJobId?api.patch(`/jobs/${encodeURIComponent(state.editingJobId)}`,payload):api.post('/jobs',payload);
-      call.then(async j=>{await uploadJobImages(j.id); JOB_UPLOADS=[]; await refreshCurrentProfile();state.editingJobId=null;LIVE_JOB_DETAILS={};state.marketLoaded=false;loadMarketplace(true);toast('Đã phát việc và lưu đầy đủ thông tin/ảnh.');go('jobResult',{id:j.id});}).catch(err=>toast(err.message,true));
+      let call;
+      if(state.editingJobId){
+        call=api.patch(`/jobs/${encodeURIComponent(state.editingJobId)}`,payload);
+      }else{
+        state.jobPostIdemKey=state.jobPostIdemKey||api.newIdemKey();
+        call=api.post('/jobs',payload,state.jobPostIdemKey);
+      }
+      call.then(async j=>{state.jobPostIdemKey=null;await uploadJobImages(j.id); JOB_UPLOADS=[]; await refreshCurrentProfile();state.editingJobId=null;LIVE_JOB_DETAILS={};state.marketLoaded=false;loadMarketplace(true);toast('Đã phát việc và lưu đầy đủ thông tin/ảnh.');go('jobResult',{id:j.id});}).catch(err=>toast(err.message,true));
     }else if(ok){ JOB_NEEDS.unshift({id:'nd'+Date.now(), title, area:val('jp-area')||'Khu vực 5', terms:val('jp-terms')||'thỏa thuận', by:state.user.name, init:'ĐS', status:'Đang mở'}); toast('Đã đăng nhu cầu!'); go('jobs'); }
     return;
   }
@@ -8660,12 +8729,14 @@ async function restoreLiveSession(){
     await loadOpsPermissions();             // nạp trước khi quyết định vào màn nào
     state.route=isOperator()?'admin':'mywork';
     resetDirectory(); state.marketLoaded=false; LIVE_JOB_DETAILS={};
+    state.selectedMemberId=null; state.selectedJobId=null;
     render(); startRealtime(); loadMarketplace();
     if(state.route==='admin') loadJoinRequests();
   }catch(e){
     stopRealtime(); api.clearTokens();
     try{ localStorage.removeItem('nc_member'); }catch(err){}
     state.me=null; state.user=null; state.route='landing';
+    state.selectedMemberId=null; state.selectedJobId=null;
     resetLiveMessaging(); resetLiveProjects(); render();
   }
 }
