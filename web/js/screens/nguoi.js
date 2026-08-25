@@ -101,10 +101,41 @@ var NG = {
   lastKey: null
 };
 
+// ----------------------------------------------------------------------------
+// fpick() (ui.js) là bộ chọn ĐA GIÁ TRỊ dùng chung cho mọi khoá facet: bấm một
+// tuỳ chọn thì thêm/bớt nó khỏi mảng S.f[k], filterBar() tô ✓ và vẽ một chip
+// cho MỌI giá trị trong mảng đó. Đúng cho loai/tt/khan (applyF() cục bộ ở
+// index.html hiểu "khớp MỘT TRONG các giá trị đã chọn") — nhưng GET /members
+// chỉ nhận một `job`, một `area_id` (ngFiltersFromS() bên dưới chỉ lấy phần
+// tử ĐẦU của S.f.nghe/S.f.kv). Để nguyên fpick() gốc thì người dùng chọn được
+// hai nghề, ô tích hiện CẢ HAI đã chọn, nhưng chỉ nghề đầu tiên thật sự lọc —
+// giao diện nói dối về việc gì đang có hiệu lực, và bỏ chọn nghề đầu khiến kết
+// quả nhảy sang nghề thứ hai không ai giải thích.
+//
+// Sửa bằng cách bọc fpick() TOÀN CỤC (không sửa ui.js — filterBar()/FSET vẫn
+// y nguyên) nhưng CHỈ đổi hành vi khi đang ở màn "Con người" VÀ đúng hai khoá
+// nghe/kv: ép về đơn chọn (chọn giá trị mới thay hẳn giá trị cũ, bấm lại giá
+// trị đang chọn thì bỏ chọn). Màn khác (vd. "Việc trong Hội"/"Giúp nhau" cũng
+// dùng khoá nghe/kv nhưng lọc client-side qua applyF(), thật sự đa chọn) đi
+// qua nhánh gốc y hệt trước, không bị ảnh hưởng.
+var ngOrigFpick = window.fpick;
+window.fpick = function (k, v) {
+  if (S.r === 'nguoi' && (k === 'nghe' || k === 'kv')) {
+    var cur = S.f[k];
+    S.f[k] = (cur.length === 1 && cur[0] === v) ? [] : [v];
+    paint();
+    return;
+  }
+  return ngOrigFpick(k, v);
+};
+
 // S.f là bộ lọc dùng chung của mọi màn danh sách (state.js) — FSET đa chọn
 // (mảng), còn GET /members chỉ nhận một `job`/một `area_id`. Lấy lựa chọn đầu
 // tiên của mỗi ô làm giá trị lọc gửi lên máy chủ; UI đa chọn vẫn giữ nguyên,
 // chỉ phần dịch sang tham số API là đơn-giá-trị theo đúng những gì API nhận.
+// Ở đúng hai khoá nghe/kv, wrapper fpick() ở trên đã ép mảng còn tối đa một
+// phần tử khi đang ở màn này, nên "phần tử đầu" và "phần tử duy nhất" là một —
+// UI (✓/chip) và giá trị thật sự gửi lên máy chủ khớp nhau.
 function ngFiltersFromS() {
   var jobTerm = (S.f.nghe && S.f.nghe.length) ? S.f.nghe[0] : undefined;
   var areaName = (S.f.kv && S.f.kv.length) ? S.f.kv[0] : undefined;

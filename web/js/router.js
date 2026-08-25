@@ -1,5 +1,12 @@
 function go(r,id){if(r!==S.r)S.tab=0;S.r=r;S.id=id||null;location.hash=r+(id?'/'+id:'');sbCl();paint();}
 
+// id từ hash luôn là CHUỖI. Mọi mảng giả còn lại (JOBS/AID/ACTS/...) dùng id
+// SỐ nguyên nhỏ và so khớp bằng ===, nên phải ép về số để chúng còn tìm thấy
+// mục đã chọn — nhưng dữ liệu thật (vd. GET /members) dùng uuid, và `+uuid`
+// ra NaN. parseRouteId giữ số khi ép được, giữ nguyên chuỗi khi không — vá cho
+// CẢ HAI loại id cùng đi qua chỗ này mà không đổi hành vi của id số.
+function parseRouteId(id){if(!id)return null;var n=+id;return isNaN(n)?id:n;}
+
 // Route nào không cần đăng nhập vẫn xem được — chỉ 'login' hiện tại.
 var PUBLIC_ROUTES=['login'];
 
@@ -24,10 +31,10 @@ window.addEventListener('hashchange',()=>{
   // giống hệt guardedGo() — đây là đường vòng còn lại để tới một route cần
   // đăng nhập mà không qua nav.
   if(PUBLIC_ROUTES.indexOf(r)===-1 && !api.isLoggedIn()){
-    S.afterLogin={route:r,id:id?+id:null};
+    S.afterLogin={route:r,id:parseRouteId(id)};
     go('login',null);
     return;
   }
-  S.r=r;S.id=id?+id:null;paint();
+  S.r=r;S.id=parseRouteId(id);paint();
 });
-const[r0,i0]=location.hash.slice(1).split('/');if(r0)  {S.r=r0;S.id=i0?+i0:null}
+const[r0,i0]=location.hash.slice(1).split('/');if(r0)  {S.r=r0;S.id=parseRouteId(i0)}
