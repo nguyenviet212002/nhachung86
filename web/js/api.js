@@ -81,6 +81,12 @@
     FORBIDDEN:              'Bạn không có quyền làm việc này.',
     NOT_FOUND:              'Không tìm thấy dữ liệu này.',
     INVALID_STATE:          'Việc này không còn ở trạng thái thực hiện được nữa.',
+    // Ném từ jobs/service.js's apply() — mỗi thành viên chỉ ứng tuyển một
+    // nhu cầu việc đúng một lần (ràng buộc duy nhất connections). Không phải
+    // ca hiếm: VC.applyState (web/js/screens/viechoi.js) chỉ sống trong bộ
+    // nhớ phiên, tải lại trang hoặc mở phiên mới thì nút "Nhận việc" lại hiện
+    // cho việc đã ứng tuyển rồi — bấm lại là gặp đúng mã này.
+    ALREADY_APPLIED:        'Bạn đã ứng tuyển nhu cầu này.',
     INVALID_CREDENTIALS:    'Số điện thoại/email hoặc mật khẩu không đúng.',
     INVALID_REFRESH:        'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
     OTP_INVALID:            'Mã xác minh không đúng hoặc đã hết hạn.',
