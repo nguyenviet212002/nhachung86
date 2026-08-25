@@ -133,8 +133,15 @@ const CHO_DUYET=[
 const FSET={
  nghe:{l:'Nghề',o:[['Xây dựng — hoàn thiện',14],['Điện — nước dân dụng',9],['Cơ khí, cửa sắt',6],['Vận tải, chở hàng',7],['Kế toán, thuế',4],['Thực phẩm, nấu cỗ',7],['Dạy kèm, đào tạo',5],['Tư vấn pháp lý',2],['Nông nghiệp',5],['May mặc',4],['Y tế, sức khoẻ',3],['Nghề khác',6]]},
  kv:{l:'Khu vực',o:[['Xã Bắc Thái Ninh',8],['Xã Yên Mỹ',6],['Xã Khoái Châu',5],['Xã Ân Thi',4],['Xã Kim Động',4],['Xã Phù Cừ',3],['Xã Tiên Lữ',3],['Xã Văn Giang',5],['Xã Tân Hưng',4],['Xã Bảo Khê',3],['TP. Hưng Yên',5],['Khu trung tâm',2]]},
- loai:{l:'Loại việc',o:[['Có trả công',3],['Nhờ giúp',2],['Việc của Hội',1]]},
- tt:{l:'Trạng thái',o:[['Đang mở',2],['Có người nhận',1],['Đang làm',1],['Xong',0]]},
+ // loai/tt vốn là hai bộ nhãn CHO MOCK "Việc trong Hội" (Có trả công/Nhờ
+ // giúp/Việc của Hội · Đang mở/Có người nhận/Đang làm/Xong) — không khớp
+ // enum thật của GET /jobs (job_type: dai_han/thoi_vu/hop_tac/hoc_nghe ·
+ // status: open/closed/filled/cancelled). web/js/screens/viechoi.js (đọc
+ // /jobs thật, nạp sau khối này) dịch NHÃN dưới đây sang enum snake_case —
+ // đổi nhãn ngay tại đây để mock và bản thật nói cùng một khái niệm, không
+ // còn "Có trả công" tồn tại song song với "Dài hạn" nghĩa khác hẳn.
+ loai:{l:'Loại việc',o:[['Dài hạn',''],['Thời vụ',''],['Hợp tác',''],['Học nghề','']]},
+ tt:{l:'Trạng thái',o:[['Đang mở',''],['Đã đóng',''],['Đã nhận đủ người',''],['Đã hủy','']]},
  khan:{l:'Mức khẩn',o:[['Gấp',1],['Có hẹn',1],['Không gấp',1]]}
 };
 const SORTS={moi:'Mới nhất',han:'Sắp hết hạn',gan:'Gần tôi nhất',it:'Ít người nhận nhất'};
@@ -794,6 +801,12 @@ function sbCl(){document.getElementById('sb').classList.remove('op');document.ge
      lại nếu thứ tự ngược lại). Task 5–8 sẽ thêm các tệp screens/*.js khác
      cùng quy tắc nạp SAU khối script, TRƯỚC auth.js. -->
 <script src="js/screens/nguoi.js"></script>
+<!-- Cùng quy tắc nạp SAU khối script V{} và SAU nguoi.js (viechoi.js dùng lại
+     ngEsc()/ngAvatar() của nguoi.js) — ghi đè V.viechoi/MD.taoviec bằng bản
+     gọi GET /jobs, POST /jobs thật. taoviec.js (form đăng việc) đọc lại
+     VC_JOB_TYPE_LABEL của viechoi.js nên phải nạp sau nó. -->
+<script src="js/screens/viechoi.js"></script>
+<script src="js/forms/taoviec.js"></script>
 <!-- Sau router.js, và sau khối script ở trên (định nghĩa V{}/NAV_/paint()'s
      app screens) — bootstrap của auth.js gọi go()/paint() ngay khi tải xong,
      nên phải chạy SAU khi mọi V.* đã có mặt, không phải ngay-sau-router.js
