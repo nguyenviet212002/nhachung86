@@ -812,6 +812,14 @@ function sbCl(){document.getElementById('sb').classList.remove('op');document.ge
      applyError) và ngEsc()/vcCount() (vcCount định nghĩa ở taoviec.js) nên
      phải nạp sau cả hai. -->
 <script src="js/forms/nhanviec.js"></script>
+<!-- Cùng quy tắc nạp SAU khối script V{} — ghi đè V.viec (mặc định sau đăng
+     nhập, S.r='viec' ở state.js) bằng bản ghép bốn nguồn thật (GET /jobs?mine
+     =true, /jobs/connections, /members/me/contact-requests, /guarantee-
+     invites) thay mock cũ. Đọc lại ngEsc()/NG_CONTACT_NOUN của nguoi.js nên
+     phải nạp sau nó; không phụ thuộc gì ở viechoi.js/taoviec.js/nhanviec.js
+     nhưng đặt sau cùng cho nhất quán thứ tự "mỗi màn ghi đè xong mới tới màn
+     kế". -->
+<script src="js/screens/viec.js"></script>
 <!-- Sau router.js, và sau khối script ở trên (định nghĩa V{}/NAV_/paint()'s
      app screens) — bootstrap của auth.js gọi go()/paint() ngay khi tải xong,
      nên phải chạy SAU khi mọi V.* đã có mặt, không phải ngay-sau-router.js
