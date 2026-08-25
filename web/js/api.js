@@ -312,7 +312,7 @@
   // ------------------------------------------------------------------------
   // Lời gọi
   // ------------------------------------------------------------------------
-  function raw(method, path, body, allowRetry, idemKey) {
+  function raw(method, path, body, allowRetry, idemKey, signal) {
     if (allowRetry === undefined) allowRetry = true;
 
     var headers = {};
@@ -324,11 +324,22 @@
     // renew() (dòng dưới) sẽ vô tình sinh khoá khác, mất hết tác dụng.
     if (idemKey) headers['idempotency-key'] = idemKey;
 
-    return fetch(BASE + path, {
+    var fetchOpts = {
       method: method,
       headers: headers,
       body: body === undefined ? undefined : JSON.stringify(body)
-    }).catch(function () {
+    };
+    // Chỉ gắn khoá `signal` khi thật sự có AbortSignal — một số engine ném
+    // lỗi nếu truyền `signal: undefined` tường minh vào fetch().
+    if (signal) fetchOpts.signal = signal;
+
+    return fetch(BASE + path, fetchOpts).catch(function (err) {
+      // Hủy có chủ đích (AbortController, dùng bởi các màn danh sách khi đổi
+      // bộ lọc/điều hướng đi) không phải lỗi mạng: giữ nguyên hình dạng
+      // DOMException('AbortError') để nơi gọi phân biệt được và im lặng bỏ
+      // qua, thay vì biến nó thành ApiError('NETWORK', …) và hiện thông báo
+      // "Không kết nối được máy chủ" sai sự thật.
+      if (err && err.name === 'AbortError') throw err;
       // fetch chỉ reject khi mạng hỏng / bị chặn — biến nó thành cùng một
       // hình dạng lỗi với mọi thứ khác để nơi gọi chỉ phải bắt một loại.
       throw ApiError('NETWORK', null, null, 0);
@@ -337,7 +348,7 @@
 
       if (res.status === 401 && canRefresh) {
         return renew().then(function (ok) {
-          if (ok) return raw(method, path, body, false, idemKey); // thử lại ĐÚNG MỘT lần, CÙNG khoá
+          if (ok) return raw(method, path, body, false, idemKey, signal); // thử lại ĐÚNG MỘT lần, CÙNG khoá
           return finish(res);                            // renew() đã xoá token + báo onAuthLost
         });
       }
@@ -401,8 +412,91 @@
     return parts.length ? '?' + parts.join('&') : '';
   }
 
+  // ------------------------------------------------------------------------
+  // GET: signal, cache 60s cho vài đường ít đổi, gộp lời gọi trùng, thử lại
+  // khi mất mạng. Chỉ áp cho GET (an toàn để lặp lại) — không đụng tới
+  // raw()'s 401/refresh branch hay renew() ở trên; mọi thứ dưới đây chỉ GỌI
+  // raw(), không sửa nó thêm nữa.
+  // ------------------------------------------------------------------------
+
+  // Wrapper mỏng: chỉ để đặt tên rõ ràng ở chỗ gọi (get) là "GET có thể có
+  // AbortSignal", không thêm hành vi gì khác ngoài raw().
+  function rawWithSignal(method, path, body, signal) {
+    return raw(method, path, body, true, undefined, signal);
+  }
+
+  // --- Cache 60 giây cho hai đường gần như không đổi trong một phiên -------
+  // /areas: danh sách khu vực hành chính, tĩnh.
+  // /ops/permissions: quyền vận hành của người đang đăng nhập, chỉ đổi khi
+  // ai đó gán/gỡ vai — không đáng để gọi lại mỗi lần chuyển màn.
+  var GET_CACHE_PATHS = ['/areas', '/ops/permissions'];
+  var getCache = {}; // path -> { at, promise }
+
+  function cachedGet(path) {
+    var hit = getCache[path];
+    if (hit && (Date.now() - hit.at) < 60000) return hit.promise;
+    var p = rawWithSignal('GET', path, undefined, undefined);
+    getCache[path] = { at: Date.now(), promise: p };
+    p.catch(function () { delete getCache[path]; }); // không cache lời gọi hỏng
+    return p;
+  }
+
+  // --- Gộp lời gọi GET trùng đường dẫn nổ ra trong cùng một khoảnh khắc ----
+  // (ví dụ nhiều mảnh giao diện cùng đọc `/members` khi vào một màn). Giữ
+  // promise chung 300ms sau khi đã có kết quả, đủ để hứng các lời gọi bắn ra
+  // gần như đồng thời mà không giữ mãi một câu trả lời cũ.
+  var inFlight = {}; // path -> promise
+
+  function dedupedGet(path) {
+    if (inFlight[path]) return inFlight[path];
+    var p = rawWithSignal('GET', path, undefined, undefined);
+    inFlight[path] = p;
+    p['finally'](function () {
+      setTimeout(function () { delete inFlight[path]; }, 300);
+    });
+    return p;
+  }
+
+  // --- Thử lại khi mất mạng: chỉ GET (đọc, lặp lại vô hại). Không áp cho
+  // POST/PATCH/DELETE ở đây — khoá idempotency đã lo việc bấm lại an toàn
+  // cho các lời gọi đó, tự động lặp lại một lời gọi ĐỔI dữ liệu ở tầng nền
+  // là rủi ro đúng-sai mà đặc tả không yêu cầu. Bị hủy có chủ đích
+  // (AbortError) thì KHÔNG thử lại — promise gốc từ `factory` đã ném thẳng
+  // AbortError (không phải ApiError('NETWORK')) nên nhánh dưới tự động bỏ
+  // qua nó.
+  var RETRY_DELAYS_MS = [1000, 3000];
+
+  function withNetworkRetry(factory, attempt) {
+    attempt = attempt || 0;
+    return factory().catch(function (err) {
+      if (err && err.code === 'NETWORK' && attempt < RETRY_DELAYS_MS.length) {
+        return new Promise(function (resolve) {
+          setTimeout(resolve, RETRY_DELAYS_MS[attempt]);
+        }).then(function () {
+          return withNetworkRetry(factory, attempt + 1);
+        });
+      }
+      throw err;
+    });
+  }
+
   window.api = {
-    get:  function (p) { return raw('GET', p); },
+    // opts = { signal } (tùy chọn, mặc định {} — lời gọi một-tham-số cũ vẫn
+    // chạy y hệt trước). Có `signal`: bỏ qua cache VÀ gộp trùng, vì nơi gọi
+    // đang tự quản việc hủy cho đúng lời gọi đó — gộp nó vào lời gọi khác sẽ
+    // hủy nhầm phần người khác đang chờ. Không thử lại mạng cho nhánh này:
+    // một màn danh sách đã tự bắn lại lời gọi mới mỗi khi bộ lọc đổi, nên
+    // thử lại nền ở đây chỉ giữ lại một AbortController đã lỗi thời.
+    get: function (p, opts) {
+      opts = opts || {};
+      if (opts.signal) return rawWithSignal('GET', p, undefined, opts.signal);
+
+      var basePath = p.split('?')[0];
+      if (GET_CACHE_PATHS.indexOf(basePath) !== -1) {
+        return withNetworkRetry(function () { return cachedGet(p); });
+      }
+      return withNetworkRetry(function () { return dedupedGet(p); });
+    },
     // idemKey (tham số thứ 3) là tùy chọn — chỉ 9 điểm tạo-tài-nguyên nghiệp vụ
     // (đăng việc, nhận việc, đăng năng lực, mời vào Hội, tải ảnh, ...) cần
     // truyền vào. Không truyền thì hành vi giống hệt trước, không phá gì.
