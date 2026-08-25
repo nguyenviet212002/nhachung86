@@ -73,6 +73,11 @@
     // --- (b) Lỗi do tầng ứng dụng ném, không có trong bảng 5.1 ----------
     VALIDATION_FAILED:      'Dữ liệu gửi lên chưa hợp lệ. Xem lại các ô được tô đỏ.',
     UNAUTHENTICATED:        'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
+    // requireAuth (middleware/auth.js) tách hai lý do access token hỏng.
+    // raw() vẫn thử làm mới bằng refresh token cho cả hai như nhau — câu này
+    // chỉ hiện ra khi refresh CŨNG hỏng, tức phiên thật sự đã hết.
+    TOKEN_EXPIRED:           'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
+    TOKEN_INVALID:           'Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại.',
     FORBIDDEN:              'Bạn không có quyền làm việc này.',
     NOT_FOUND:              'Không tìm thấy dữ liệu này.',
     INVALID_STATE:          'Việc này không còn ở trạng thái thực hiện được nữa.',
@@ -307,12 +312,17 @@
   // ------------------------------------------------------------------------
   // Lời gọi
   // ------------------------------------------------------------------------
-  function raw(method, path, body, allowRetry) {
+  function raw(method, path, body, allowRetry, idemKey) {
     if (allowRetry === undefined) allowRetry = true;
 
     var headers = {};
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (access) headers['authorization'] = 'Bearer ' + access;
+    // Khoá do NƠI GỌI sinh ra một lần khi mở form/bấm nút, giữ nguyên qua mọi
+    // lần bấm lại của CÙNG một ý định, và chỉ đổi khi người dùng bắt đầu một
+    // ý định mới. api.js không tự bịa khoá — bịa ở đây nghĩa là gọi lại do
+    // renew() (dòng dưới) sẽ vô tình sinh khoá khác, mất hết tác dụng.
+    if (idemKey) headers['idempotency-key'] = idemKey;
 
     return fetch(BASE + path, {
       method: method,
@@ -327,7 +337,7 @@
 
       if (res.status === 401 && canRefresh) {
         return renew().then(function (ok) {
-          if (ok) return raw(method, path, body, false); // thử lại ĐÚNG MỘT lần
+          if (ok) return raw(method, path, body, false, idemKey); // thử lại ĐÚNG MỘT lần, CÙNG khoá
           return finish(res);                            // renew() đã xoá token + báo onAuthLost
         });
       }
@@ -393,7 +403,10 @@
 
   window.api = {
     get:  function (p) { return raw('GET', p); },
-    post: function (p, b) { return raw('POST', p, b === undefined ? {} : b); },
+    // idemKey (tham số thứ 3) là tùy chọn — chỉ 9 điểm tạo-tài-nguyên nghiệp vụ
+    // (đăng việc, nhận việc, đăng năng lực, mời vào Hội, tải ảnh, ...) cần
+    // truyền vào. Không truyền thì hành vi giống hệt trước, không phá gì.
+    post: function (p, b, idemKey) { return raw('POST', p, b === undefined ? {} : b, true, idemKey); },
     put:  function (p, b) { return raw('PUT', p, b === undefined ? {} : b); },
     patch:function (p, b) { return raw('PATCH', p, b === undefined ? {} : b); },
     del:  function (p) { return raw('DELETE', p); },
@@ -408,6 +421,15 @@
     onAuthLost: function (fn) { onAuthLost = fn; },
 
     qs: qs,
+    // Sinh khoá idempotency mới. Gọi ĐÚNG MỘT LẦN khi mở form/bấm nút mở ra
+    // một ý định tạo mới; giữ khoá đó qua mọi lần submit lại (kể cả do lỗi
+    // mạng) tới khi thành công hoặc người dùng huỷ, rồi bỏ đi.
+    newIdemKey: function () {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      // Máy cũ không có randomUUID: đủ ngẫu nhiên cho mục đích chống double-submit,
+      // không cần đạt chuẩn UUID thật.
+      return 'idem-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    },
     // Xuất ra để bài test / màn hình dùng chung đúng một bảng, không chép lại.
     MESSAGES: MESSAGES,
     messageFor: function (code) { return MESSAGES[code] || FALLBACK; }
