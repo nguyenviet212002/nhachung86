@@ -778,6 +778,15 @@ textarea.input{resize:vertical;min-height:90px}
   .split.has-sel .split-detail{display:block}
   .split-back{display:inline-flex;margin-bottom:14px}
 }
+
+/* Thẻ việc trong khung .split: ảnh nhỏ trái, vạch đỏ trái cho việc gấp. */
+.jlc{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:14px;margin-bottom:8px;border:1px solid var(--border);border-radius:13px;background:#fff;cursor:pointer}
+.jlc:hover{border-color:var(--orange)}
+.jlc.active{border-color:var(--orange);background:var(--orange-light-2)}
+.jlc.is-urgent{border-left:4px solid var(--danger)}
+.jlc-img{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:#F0EFEC}
+.jlc-img-empty{display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.jlc-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .home-todo,.home-person{display:flex;width:100%;align-items:center;gap:12px;padding:13px 2px;border:0;border-bottom:1px solid var(--border-2);background:transparent;cursor:pointer;text-align:left;color:var(--ink)}
 .home-todo:last-child,.home-person:last-child{border-bottom:0}
 .home-todo>div,.home-person>div{flex:1;min-width:0}
@@ -5438,8 +5447,7 @@ function WorkHubPage(){
   }
   const tab=activeTab(WORK_TABS,'need');
   const head=`
-    <div class="page-head"><div><h1>Việc trong Hội</h1></div>
-      <button class="btn btn-dark btn-sm" data-action="open-modal" data-modal="pickWorkKind">${ic('plus',15)} Đăng việc</button></div>
+    <div class="page-head"><div><h1>Việc trong Hội</h1></div></div>
     ${PageTabs(WORK_TABS.map(t=>({...t,count:workTabCount(t.key)})),tab,'work')}`;
 
   if(tab==='hoi')  return head+WorkTabProjects();
@@ -5452,7 +5460,30 @@ function workTabCount(key){
   return null;
 }
 
-/* Thẻ 1 — Cần người: việc có trả công, nguồn job_needs. */
+/* Gấp = hạn nhận người còn trong vòng 2 ngày. Vạch đỏ trái, khớp bản mẫu. */
+function jobIsUrgent(j){
+  const iso=j.raw?.close_at; if(!iso) return false;
+  const days=Math.ceil((new Date(iso)-Date.now())/86400000);
+  return days>=0&&days<=2;
+}
+/* Thẻ việc trong khung trái: ảnh nhỏ bên trái, bấm chọn tại chỗ (không rời
+   màn) để đổ chi tiết sang khung phải — cùng cơ chế với personCard(). */
+function JobListCard(j,active){
+  const need=Number(j.raw?.people_needed||0), recv=jobV2Received(j);
+  const bits=[j.area,need?`cần ${need} người`:null,recv?`${recv} người đã nhận`:null,jobV2Deadline(j)!=='Không đặt hạn'?jobV2Deadline(j):null].filter(Boolean);
+  const img=j.images&&j.images[0];
+  const thumb=img?`<img class="jlc-img" src="${esc(secureImageUrl('/files/'+img.id))}" alt="">`:`<span class="jlc-img jlc-img-empty">${ic('briefcase',18)}</span>`;
+  return `<button class="jlc${jobIsUrgent(j)?' is-urgent':''}${active?' active':''}" data-action="select-job" data-id="${esc(j.id)}">
+    ${thumb}
+    <span class="jlc-body">
+      <span class="lcard-top"><b>${esc(j.title)}</b><em class="tag tag-green">Đang mở</em></span>
+      <span class="lcard-line">${esc(bits.join(' · '))}</span>
+      <span class="lcard-foot">${esc(j.by||'Thành viên')}</span>
+    </span>
+  </button>`;
+}
+/* Thẻ 1 — Cần người: việc có trả công, nguồn job_needs. Danh sách trái +
+   chi tiết phải, cùng khung .split với màn Con người. */
 function WorkTabNeed(){
   if(liveMode()&&!state.marketLoaded) return EmptyLine('Đang tải việc đang cần người…');
   const q=String(state.jobFilter.q||'').trim().toLowerCase();
@@ -5467,11 +5498,14 @@ function WorkTabNeed(){
   if(!rows.length) return filters+EmptyLine(
     open.length?'Không có việc nào khớp bộ lọc.':'Chưa có việc nào đang cần người.',
     open.length?null:'Đăng một việc','jobPost');
-  return filters+rows.map(j=>{
-    const need=Number(j.raw?.people_needed||0), recv=jobV2Received(j);
-    const bits=[j.area,need?`cần ${need} người`:null,recv?`${recv} người đã nhận`:null,jobV2Deadline(j)!=='Không đặt hạn'?jobV2Deadline(j):null].filter(Boolean);
-    return ListCard({title:j.title,status:'Đang mở',statusTone:'green',line:bits.join(' · '),foot:j.by||'Thành viên',route:'jobResult',id:j.id});
-  }).join('');
+  const sel=state.selectedJobId;
+  const detail=sel
+    ? JobDetailWorkspacePage(sel)
+    : `<div class="split-detail-empty">${ic('briefcase',40)}<p>Chọn một việc ở danh sách bên trái để xem chi tiết.</p></div>`;
+  return filters+`<div class="split${sel?' has-sel':''}">
+    <div class="split-list">${rows.map(j=>JobListCard(j,j.id===sel)).join('')}</div>
+    <div class="split-detail">${sel?`<button class="split-back btn btn-outline btn-sm" data-action="select-job" data-id="">← Việc trong Hội</button>`:''}${detail}</div>
+  </div>`;
 }
 
 /* Thẻ 2 — Việc của Hội: nguồn projects. */
@@ -5902,8 +5936,8 @@ function NextActionCard(next){
    - người đã nhận việc: theo dõi và cập nhật đúng phần của mình
    - người ngoài: đọc mô tả và ứng tuyển; API không trả danh sách ứng viên cho vai này
      nên không dựng bảng "Người tham gia" rỗng để họ hiểu nhầm là chưa ai ứng tuyển. */
-function JobDetailWorkspacePage(){
-  const id=state.params.id;
+function JobDetailWorkspacePage(idOverride){
+  const id=idOverride||state.params.id;
   if(!liveMode()) return EmptyLine('Đăng nhập để xem chi tiết việc.');
   if(!id) return EmptyLine('Không rõ bạn muốn xem việc nào.','Về việc của tôi','mywork');
   const j=LIVE_JOB_DETAILS[id];
