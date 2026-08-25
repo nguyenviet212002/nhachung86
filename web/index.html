@@ -10,7 +10,7 @@
 <body>
 <div class="scr" id="scr" onclick="sbCl()"></div>
 <div class="ov" id="ov" onclick="if(event.target===this)dong()"></div>
-<div class="app">
+<div class="app" id="app">
   <aside class="sb" id="sb">
     <div class="sbh"><div class="mk">86</div><div><b>Nhà Chung 86</b><i>BÍNH DẦN 1986</i></div></div>
     <nav class="sbn" id="nav"></nav>
@@ -23,13 +23,17 @@
       <div style="flex:1"></div>
       <div class="vsw" id="vsw"></div>
       <button class="bt p s" onclick="mo('taoviec')" id="qa">+ Đăng việc</button>
-      <button class="ib" onclick="go('thongbao')" aria-label="Thông báo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="b">2</span></button>
-      <button class="ib" onclick="go('tinnhan')" aria-label="Tin nhắn"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-      <button class="who" onclick="go('hoso')"><img src="https://i.pravatar.cc/80?img=13" alt=""><div><b>Nguyễn Việt</b><i>Thành viên</i></div></button>
+      <button class="ib" onclick="guardedGo('thongbao')" aria-label="Thông báo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="b">2</span></button>
+      <button class="ib" onclick="guardedGo('tinnhan')" aria-label="Tin nhắn"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="who" onclick="guardedGo('hoso')"><img src="https://i.pravatar.cc/80?img=13" alt=""><div><b>Nguyễn Việt</b><i>Thành viên</i></div></button>
     </header>
     <div class="body" id="body"></div>
   </div>
 </div>
+<!-- Màn đăng nhập vẽ vào đây, thay cho toàn bộ #app (sidebar+top bar), khi
+     chưa đăng nhập — xem paint() trong js/ui.js và renderLogin() trong
+     js/auth.js. -->
+<div id="auth" style="display:none"></div>
 <script src="js/api.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ui.js"></script>
@@ -812,7 +816,12 @@ function vhint(){const v=vaiNow();return `<div class="vhint">👤<div><b>Anh đa
 function doiVai(v){S.vai=v;S.r=(v==='tq')?'quy':(v==='bdh')?'duyet':(v==='kt')?'quyen':'viec';S.id=null;S.tab=0;paint()}
 function sbOp(){document.getElementById('sb').classList.add('op');document.getElementById('scr').classList.add('on')}
 function sbCl(){document.getElementById('sb').classList.remove('op');document.getElementById('scr').classList.remove('on')}
-paint();
 </script>
+<!-- Sau router.js, và sau khối script ở trên (định nghĩa V{}/NAV_/paint()'s
+     app screens) — bootstrap của auth.js gọi go()/paint() ngay khi tải xong,
+     nên phải chạy SAU khi mọi V.* đã có mặt, không phải ngay-sau-router.js
+     theo đúng nghĩa đen (đặt sớm hơn sẽ vỡ vì V.viec chưa tồn tại lúc paint()
+     chạy nhánh đã đăng nhập). -->
+<script src="js/auth.js"></script>
 </body>
 </html>

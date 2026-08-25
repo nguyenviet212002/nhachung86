@@ -30,8 +30,20 @@ function mo(n){S.md=n;S.wz=1;const o=document.getElementById('ov');o.innerHTML=(
 function dong(){document.getElementById('ov').classList.remove('on');document.body.style.overflow='';S.md=null}
 function wz(d){S.wz=Math.max(1,Math.min(3,S.wz+d));document.getElementById('ov').innerHTML=MD[S.md]()}
 function paint(){
+ // Chưa đăng nhập (hoặc bị đá về màn đăng nhập): thay hẳn khung ứng dụng
+ // (sidebar/top bar) bằng màn đăng nhập, không vẽ nav/vsw/body của app — nav
+ // vẽ theo NAV_()/CAN vốn giả định đã có một người đang đăng nhập.
+ if(S.r==='login'){
+  document.getElementById('app').style.display='none';
+  const a=document.getElementById('auth');
+  a.style.display='block';
+  a.innerHTML=renderLogin();
+  return;
+ }
+ document.getElementById('app').style.display='';
+ document.getElementById('auth').style.display='none';
  document.getElementById('vsw').innerHTML=ROLES.map(r=>`<button class="${S.vai===r.k?'on':''}" onclick="doiVai('${r.k}')" title="${r.d}">${r.s}</button>`).join('');
- document.getElementById('nav').innerHTML=NAV_().map(g=>`${g.g?`<div class="cap">${g.g}</div>`:''}${g.items.map(it=>`<a class="nv ${S.r===it.r?'on':''}" onclick="go('${it.r}')">${ic(it.i)}<span>${it.l}</span>${it.n?`<span class="n">${it.n}</span>`:it.dt?'<span class="dt"></span>':''}</a>`).join('')}`).join('');
+ document.getElementById('nav').innerHTML=NAV_().map(g=>`${g.g?`<div class="cap">${g.g}</div>`:''}${g.items.map(it=>`<a class="nv ${S.r===it.r?'on':''}" onclick="guardedGo('${it.r}')">${ic(it.i)}<span>${it.l}</span>${it.n?`<span class="n">${it.n}</span>`:it.dt?'<span class="dt"></span>':''}</a>`).join('')}`).join('');
  const b=document.getElementById('body');
  b.className='body'+(SPLIT.includes(S.r)?' split':'')+(S.id?' sel':'');
  b.innerHTML=(V[S.r]||V.viec)();
