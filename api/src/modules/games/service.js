@@ -230,9 +230,9 @@ export async function resign({ actor, id }) {
        VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
       [actor.communityId, winnerId, actor.id, id]
     );
-    return { winnerId, notification };
+    return { winnerId, winnerSide: rules.opp(mySide), notification };
   });
-  publishToGame(id, 'game_end', { winner: result.winnerId, reason: 'resign' });
+  publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
   publishToMember(result.winnerId, 'notification', result.notification);
   return { id, status: 'finished' };
 }
