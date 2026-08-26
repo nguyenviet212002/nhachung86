@@ -142,6 +142,13 @@ export async function get({ actor, id }) {
   });
 }
 
+// Chỉ kiểm tồn tại + đúng cộng đồng, không cần trả bàn cờ/biên bản — dùng cho
+// route SSE (GET /:id/stream), nơi phải xác nhận TRƯỚC khi mở kết nối chứ
+// không phải sau (đã gửi header rồi thì không next(e) được nữa).
+export async function assertVisible({ actor, id }) {
+  return withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
+}
+
 export async function move({ actor, id, from, to }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);

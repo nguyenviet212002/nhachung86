@@ -46,7 +46,10 @@ router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next
 router.get('/:id', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.get({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
-router.get('/:id/stream', validate(schema.idParamSchema, 'params'), (req, res) => {
+router.get('/:id/stream', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try {
+    await service.assertVisible({ actor: req.actor, id: req.params.id });
+  } catch (e) { return next(e); }
   res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
   res.flushHeaders?.();
   res.write(`event: ready\ndata: ${JSON.stringify({ game_id: req.params.id })}\n\n`);

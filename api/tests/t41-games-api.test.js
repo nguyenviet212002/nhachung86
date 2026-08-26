@@ -184,4 +184,25 @@ describe('T41 games API — chơi thật', () => {
       .send({ from: { r: 9, c: 0 }, to: { r: 8, c: 0 } }).expect(409);
     await supertest(app).post(`/api/v1/games/${gameId}/resign`).set(auth(bobToken)).expect(409);
   });
+
+  it('GET /:id/stream từ chối ván không tồn tại và ván ở cộng đồng khác bằng 404, không mở kết nối treo', async () => {
+    await supertest(app).get('/api/v1/games/00000000-0000-0000-0000-000000000000/stream')
+      .set(auth(bobToken)).expect(404);
+
+    const { rows: [otherCommunity] } = await db.raw(
+      `INSERT INTO communities (code, name) VALUES ('t41-games-other', 'T41 Games Other') RETURNING id`
+    );
+    const { rows: [otherMember] } = await db.raw(
+      `INSERT INTO members (community_id, full_name, status) VALUES (?, ?, 'member') RETURNING id`,
+      [otherCommunity.id, 'Outsider T41']
+    );
+    const outsiderToken = jwt.sign(
+      { sub: otherMember.id, cid: otherCommunity.id, typ: 'access' },
+      config.JWT_SECRET, { expiresIn: '15m' }
+    );
+    // gameId (Bob vs Carol) belongs to `cid`, not `otherCommunity.id` — a
+    // member of a different community must not be able to open the SSE
+    // stream and receive its live moves.
+    await supertest(app).get(`/api/v1/games/${gameId}/stream`).set(auth(outsiderToken)).expect(404);
+  });
 });
