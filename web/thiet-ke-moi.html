@@ -3482,7 +3482,7 @@ function challengeSearchInput(){
   CHALLENGE_TIMER = setTimeout(async ()=>{
     let res; try{ res = await api.get('/members?q='+encodeURIComponent(q)+'&limit=8'); }catch(e){ return; }
     const items = (res&&res.data||[]).filter(m=>!DATA.me||m.id!==DATA.me.id);
-    box.innerHTML = items.length ? items.map(m=>`<button type="button" onclick="pickChallengeOpponent('${esc(m.id)}','${esc(m.full_name)}')" style="display:block;width:100%;text-align:left;padding:9px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><b style="font-size:14px">${esc(m.full_name)}</b>${m.job?`<div style="font-size:12px;color:var(--muted)">${esc(m.job)}</div>`:''}</button>`).join('')
+    box.innerHTML = items.length ? items.map(m=>`<button type="button" data-id="${esc(m.id)}" data-name="${esc(m.full_name)}" onclick="pickChallengeOpponent(this.dataset.id,this.dataset.name)" style="display:block;width:100%;text-align:left;padding:9px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><b style="font-size:14px">${esc(m.full_name)}</b>${m.job?`<div style="font-size:12px;color:var(--muted)">${esc(m.job)}</div>`:''}</button>`).join('')
       : '<p style="font-size:13px;color:var(--muted);padding:8px">Không tìm thấy ai.</p>';
   }, 350);
 }
