@@ -3436,7 +3436,7 @@ function chessGridSvg(){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   V.cotuongOnline — thách đấu & xem trực tiếp giữa 2 tài khoản thật.
+   V['cotuong-online'] — thách đấu & xem trực tiếp giữa 2 tài khoản thật.
    Khác V.cotuong (pass-and-play, giữ nguyên không đổi): màn này chỉ liệt kê
    và điều hướng — bàn cờ thật vẽ ở V['cotuong-van'] (Task 7).
    ══════════════════════════════════════════════════════════════ */
@@ -3459,7 +3459,7 @@ function gameRow(g){
       <div class="co">${mine?'Ván của bạn · ':''}${statusLabel}</div></div>
   </a>`;
 }
-V.cotuongOnline = ()=>{
+V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
     return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu và xem trực tiếp.</p></div></div>
     <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
@@ -3482,7 +3482,7 @@ function challengeSearchInput(){
   CHALLENGE_TIMER = setTimeout(async ()=>{
     let res; try{ res = await api.get('/members?q='+encodeURIComponent(q)+'&limit=8'); }catch(e){ return; }
     const items = (res&&res.data||[]).filter(m=>!DATA.me||m.id!==DATA.me.id);
-    box.innerHTML = items.length ? items.map(m=>`<button type="button" onclick='pickChallengeOpponent(${JSON.stringify(m.id)},${JSON.stringify(m.full_name)})' style="display:block;width:100%;text-align:left;padding:9px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><b style="font-size:14px">${esc(m.full_name)}</b>${m.job?`<div style="font-size:12px;color:var(--muted)">${esc(m.job)}</div>`:''}</button>`).join('')
+    box.innerHTML = items.length ? items.map(m=>`<button type="button" onclick="pickChallengeOpponent('${esc(m.id)}','${esc(m.full_name)}')" style="display:block;width:100%;text-align:left;padding:9px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><b style="font-size:14px">${esc(m.full_name)}</b>${m.job?`<div style="font-size:12px;color:var(--muted)">${esc(m.job)}</div>`:''}</button>`).join('')
       : '<p style="font-size:13px;color:var(--muted);padding:8px">Không tìm thấy ai.</p>';
   }, 350);
 }
