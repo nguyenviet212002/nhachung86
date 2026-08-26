@@ -7,6 +7,7 @@ import * as ops from '../modules/ops/schema.js';
 import * as notifications from '../modules/notifications/schema.js';
 import * as capabilities from '../modules/capabilities/schema.js';
 import * as jobs from '../modules/jobs/schema.js';
+import * as games from '../modules/games/schema.js';
 
 const TYPE_NAMES = {
   ZodAny: 'ZodAny',
@@ -290,6 +291,21 @@ export function buildOpenApi() {
   add('/api/v1/jobs/{id}/applications', endpoint('POST', '/api/v1/jobs/{id}/applications', { pathParams: jobs.idParamSchema, body: jobs.applySchema, response: { description: 'Created' } }));
   add('/api/v1/jobs/{id}/applications/{connectionId}', endpoint('PATCH', '/api/v1/jobs/{id}/applications/{connectionId}', { pathParams: jobs.applicationParamSchema, body: jobs.applicationUpdateSchema }));
   add('/api/v1/jobs/{id}/applications/me', endpoint('DELETE', '/api/v1/jobs/{id}/applications/me', { pathParams: jobs.idParamSchema, response: { description: 'No content' } }));
+
+  add('/api/v1/games',
+    endpoint('GET', '/api/v1/games', { query: games.listQuerySchema }));
+  add('/api/v1/games/challenges',
+    endpoint('POST', '/api/v1/games/challenges', { body: games.challengeSchema, response: { description: 'Created' } }));
+  add('/api/v1/games/challenges/{id}/accept',
+    endpoint('POST', '/api/v1/games/challenges/{id}/accept', { pathParams: games.idParamSchema }));
+  add('/api/v1/games/challenges/{id}/decline',
+    endpoint('POST', '/api/v1/games/challenges/{id}/decline', { pathParams: games.idParamSchema }));
+  add('/api/v1/games/{id}',
+    endpoint('GET', '/api/v1/games/{id}', { pathParams: games.idParamSchema }));
+  add('/api/v1/games/{id}/moves',
+    endpoint('POST', '/api/v1/games/{id}/moves', { pathParams: games.idParamSchema, body: games.moveSchema }));
+  add('/api/v1/games/{id}/resign',
+    endpoint('POST', '/api/v1/games/{id}/resign', { pathParams: games.idParamSchema }));
 
   add('/api/v1/ops/audit-log', endpoint('GET', '/api/v1/ops/audit-log', { query: ops.listAuditLogSchema }));
   add('/api/v1/ops/audit-log/verify', endpoint('GET', '/api/v1/ops/audit-log/verify', { query: ops.verifyChainSchema }));
