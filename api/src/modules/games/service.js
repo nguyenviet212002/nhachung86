@@ -107,10 +107,125 @@ export async function declineChallenge({ actor, id }) {
   return { id, status: 'finished' };
 }
 
-// isWatchingGame/loadGame/GAME_SELECT được Task 5 tái dùng — không xoá dù
-// chưa thấy import ở nơi khác trong task này.
-export { loadGame, GAME_SELECT };
+export async function list({ actor, status, mine, page, limit }) {
+  return withActor(actor.id, async (trx) => {
+    const statuses = (status ?? 'active').split(',').map((s) => s.trim()).filter(Boolean);
+    const where = ['g.community_id = ?', 'g.status = ANY(?)'];
+    const params = [actor.communityId, statuses];
+    if (mine) { where.push('(g.red_member_id = ? OR g.black_member_id = ?)'); params.push(actor.id, actor.id); }
+    const clause = where.join(' AND ');
+    const offset = (page - 1) * limit;
+    const { rows } = await trx.raw(
+      `SELECT g.id, g.status, g.turn, g.created_at, g.started_at,
+              g.red_member_id, r.full_name AS red_name, r.avatar_url AS red_avatar_url,
+              g.black_member_id, b.full_name AS black_name, b.avatar_url AS black_avatar_url
+         FROM games g
+         JOIN members r ON r.id = g.red_member_id AND r.community_id = g.community_id
+         JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id
+        WHERE ${clause} ORDER BY g.created_at DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    const { rows: [{ total }] } = await trx.raw(`SELECT count(*)::int AS total FROM games g WHERE ${clause}`, params);
+    return { data: rows, meta: { page, limit, total } };
+  });
+}
 
-// TẠM — Task 5 thay thế bằng bản đầy đủ (list/get thật đọc DB).
-export async function list() { throw new AppError('NOT_FOUND', 'Chưa cài đặt.', { status: 501 }); }
-export async function get() { throw new AppError('NOT_FOUND', 'Chưa cài đặt.', { status: 501 }); }
+export async function get({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const { rows: moves } = await trx.raw(
+      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, created_at
+         FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
+      [id]
+    );
+    return { ...game, moves };
+  });
+}
+
+export async function move({ actor, id, from, to }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (mySide !== game.turn) throw FORBIDDEN('Chưa tới lượt bạn.');
+    const piece = game.board[from.r]?.[from.c];
+    if (!piece || piece.side !== mySide) {
+      throw new AppError('VALIDATION_FAILED', 'Ô xuất phát không có quân của bạn.', { status: 422 });
+    }
+    const legal = rules.legalMoves(game.board, from.r, from.c);
+    if (!legal.some((m) => m.r === to.r && m.c === to.c)) {
+      throw new AppError('VALIDATION_FAILED', 'Nước đi không hợp lệ.', { status: 422 });
+    }
+    const applied = rules.applyMove(game.board, from, to);
+    const newTurn = applied.gameOver ? game.turn : rules.opp(mySide);
+    const winnerId = applied.gameOver ? (applied.winner === 'r' ? game.red_member_id : game.black_member_id) : null;
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET board = ?::jsonb, turn = ?, status = ?, winner_member_id = ?, end_reason = ?,
+              finished_at = CASE WHEN ? THEN now() ELSE finished_at END
+        WHERE id = ? AND status = 'active' AND turn = ? RETURNING *`,
+      [JSON.stringify(applied.board), newTurn, applied.gameOver ? 'finished' : 'active',
+       winnerId, applied.gameOver ? applied.reason : null, applied.gameOver, id, mySide]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    const { rows: [seqRow] } = await trx.raw(`SELECT COALESCE(MAX(seq), 0) + 1 AS seq FROM game_moves WHERE game_id = ?`, [id]);
+    await trx.raw(
+      `INSERT INTO game_moves (community_id, game_id, seq, side, from_r, from_c, to_r, to_c, captured_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [actor.communityId, id, seqRow.seq, mySide, from.r, from.c, to.r, to.c, applied.captured?.type ?? null]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.move', targetType: 'game', targetId: id,
+      detail: { side: mySide, from_r: from.r, from_c: from.c, to_r: to.r, to_c: to.c } });
+
+    const opponentId = mySide === 'r' ? game.black_member_id : game.red_member_id;
+    let notification = null;
+    if (!isWatchingGame(id, opponentId)) {
+      const title = applied.gameOver ? 'Ván cờ đã kết thúc' : 'Đến lượt bạn đi';
+      const body = applied.gameOver
+        ? (applied.winner === mySide ? 'Bạn đã thắng.' : 'Đối thủ đã thắng.')
+        : 'Đối thủ vừa đi một nước, tới lượt bạn.';
+      const { rows: [n] } = await trx.raw(
+        `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'game_turn', ?, ?, 'game', ?) RETURNING *`,
+        [actor.communityId, opponentId, actor.id, title, body, id]
+      );
+      notification = n;
+    }
+    return { board: applied.board, turn: newTurn, gameOver: applied.gameOver, winner: applied.winner,
+      reason: applied.reason, captured: applied.captured, opponentId, notification };
+  });
+
+  publishToGame(id, 'move', { board: result.board, turn: result.turn, last_move: { from, to },
+    captured: result.captured ? result.captured.type : null });
+  if (result.gameOver) publishToGame(id, 'game_end', { winner: result.winner, reason: result.reason });
+  if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
+  return { board: result.board, turn: result.turn, status: result.gameOver ? 'finished' : 'active' };
+}
+
+export async function resign({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    const winnerId = mySide === 'r' ? game.black_member_id : game.red_member_id;
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'resign', winner_member_id = ?, finished_at = now()
+        WHERE id = ? AND status = 'active' RETURNING *`,
+      [winnerId, id]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.resign', targetType: 'game', targetId: id, detail: { side: mySide } });
+    const { rows: [notification] } = await trx.raw(
+      `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+       VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
+      [actor.communityId, winnerId, actor.id, id]
+    );
+    return { winnerId, notification };
+  });
+  publishToGame(id, 'game_end', { winner: result.winnerId, reason: 'resign' });
+  publishToMember(result.winnerId, 'notification', result.notification);
+  return { id, status: 'finished' };
+}

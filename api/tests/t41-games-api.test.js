@@ -130,3 +130,58 @@ describe('T41 games API — thách đấu / nhận / từ chối', () => {
     )).rejects.toMatchObject({ code: '23505' });
   });
 });
+
+describe('T41 games API — chơi thật', () => {
+  let gameId;
+
+  it('chuẩn bị một ván active giữa Bob (đỏ) và Carol (đen)', async () => {
+    const created = await supertest(app).post('/api/v1/games/challenges').set(auth(bobToken))
+      .send({ opponent_member_id: carol }).expect(201);
+    gameId = created.body.id;
+    await supertest(app).post(`/api/v1/games/challenges/${gameId}/accept`).set(auth(carolToken)).expect(200);
+  });
+
+  it('danh sách ván đang mở (GET /games?status=active) thấy được ván này kể cả người ngoài cuộc', async () => {
+    const list = await supertest(app).get('/api/v1/games?status=active').set(auth(aliceToken)).expect(200);
+    expect(list.body.data.some((g) => g.id === gameId)).toBe(true);
+  });
+
+  it('người ngoài cuộc xem được chi tiết ván nhưng không đi được quân', async () => {
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.turn).toBe('r');
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(aliceToken))
+      .send({ from: { r: 6, c: 0 }, to: { r: 5, c: 0 } }).expect(403);
+  });
+
+  it('sai lượt thì bị từ chối; đúng lượt, đúng luật thì đi được và đổi lượt', async () => {
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(carolToken))
+      .send({ from: { r: 3, c: 0 }, to: { r: 4, c: 0 } }).expect(403);
+    const moved = await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(bobToken))
+      .send({ from: { r: 6, c: 0 }, to: { r: 5, c: 0 } }).expect(200);
+    expect(moved.body.turn).toBe('b');
+    expect(moved.body.board[5][0]).toEqual({ side: 'r', type: 'soldier' });
+  });
+
+  it('nước đi phi luật bị từ chối (422), không đổi lượt', async () => {
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(carolToken))
+      .send({ from: { r: 0, c: 0 }, to: { r: 5, c: 5 } }).expect(422);
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(carolToken)).expect(200);
+    expect(detail.body.turn).toBe('b');
+  });
+
+  it('xin thua kết thúc ván, người xin thua không phải người thắng', async () => {
+    const resigned = await supertest(app).post(`/api/v1/games/${gameId}/resign`).set(auth(carolToken)).expect(200);
+    expect(resigned.body.status).toBe('finished');
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(bobToken)).expect(200);
+    expect(detail.body.status).toBe('finished');
+    expect(detail.body.winner_member_id).toBe(bob);
+    expect(detail.body.end_reason).toBe('resign');
+    expect(detail.body.moves.length).toBe(1);
+  });
+
+  it('ván đã xong thì không đi/xin thua thêm được nữa', async () => {
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(bobToken))
+      .send({ from: { r: 9, c: 0 }, to: { r: 8, c: 0 } }).expect(409);
+    await supertest(app).post(`/api/v1/games/${gameId}/resign`).set(auth(bobToken)).expect(409);
+  });
+});
