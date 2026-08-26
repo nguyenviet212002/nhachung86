@@ -102,4 +102,31 @@ describe('T41 games API — thách đấu / nhận / từ chối', () => {
     await supertest(app).post(`/api/v1/games/challenges/${challenge.body.id}/decline`).set(auth(aliceToken)).expect(200);
     await supertest(app).post(`/api/v1/games/challenges/${challenge.body.id}/accept`).set(auth(aliceToken)).expect(409);
   });
+
+  it('chỉ mục duy nhất từng phần chặn được 2 ván pending/active cho cùng 1 cặp dù bỏ qua bước kiểm ở service.js', async () => {
+    // Dave/Erin: cặp mới, chưa dùng ở đâu khác trong file này, để không đụng
+    // trạng thái các test khác đã để lại.
+    const dave = await (async () => {
+      const { rows: [row] } = await db.raw(
+        `INSERT INTO members (community_id, full_name, status) VALUES (?, ?, 'member') RETURNING id`,
+        [cid, 'Dave T41']
+      );
+      return row.id;
+    })();
+    const erin = await (async () => {
+      const { rows: [row] } = await db.raw(
+        `INSERT INTO members (community_id, full_name, status) VALUES (?, ?, 'member') RETURNING id`,
+        [cid, 'Erin T41']
+      );
+      return row.id;
+    })();
+    await db.raw(
+      `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn) VALUES (?, ?, ?, 'pending', 'r')`,
+      [cid, dave, erin]
+    );
+    await expect(db.raw(
+      `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn) VALUES (?, ?, ?, 'pending', 'r')`,
+      [cid, erin, dave] // reversed red/black — same PAIR, must still collide
+    )).rejects.toMatchObject({ code: '23505' });
+  });
 });
