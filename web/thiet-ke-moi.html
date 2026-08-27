@@ -784,7 +784,8 @@ const MOCK_DATA = {
 let DATA = {
   me:null, members:[], skillCats:MOCK_DATA.skillCats, skills:[], jobs:[], aid:[],
   activities:[], memories:[], verifications:[], opsLogs:[], fund:{balance:0,income:0,expense:0,lastUpdate:null},
-  fundTx:[], conversations:[], areasFlat:[], notifications:[], notifUnread:0,
+  fundEntries:[], conversations:[], areasFlat:[], notifications:[], notifUnread:0, msgUnread:0, complaints:[],
+  joinRequests:[], myVerifications:[], rolesMatrix:[], backups:[], moderationQueue:[],
 };
 let BOOTED = false, BOOT_ERROR = null;
 
@@ -859,12 +860,24 @@ async function loadAreas(){
 }
 function notifPanelHtml(){
   if(!DATA.notifications.length) return `<div style="padding:20px 14px;text-align:center;font-size:13px;color:var(--muted)">Chưa có thông báo nào.</div>`;
-  return DATA.notifications.map(n=>`
-    <button onclick="notifMarkRead('${n.id}')" style="display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;white-space:normal;${n.read_at?'':'background:var(--brand-vl)'}">
+  const markAllBtn = DATA.notifUnread>0
+    ? `<button onclick="notifMarkAllRead()" style="display:block;width:100%;text-align:right;padding:8px 12px;font-size:12.5px;color:var(--brand)">Đánh dấu tất cả đã đọc</button>`
+    : '';
+  return markAllBtn + DATA.notifications.map(n=>`
+    <button onclick="notifClick('${n.id}')" style="display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;white-space:normal;${n.read_at?'':'background:var(--brand-vl)'}">
       <div style="font-size:13.5px;font-weight:${n.read_at?600:700};color:var(--ink)">${esc(n.title)}</div>
       ${n.body?`<div style="font-size:12.5px;color:var(--ink2);margin-top:2px">${esc(n.body)}</div>`:''}
       <div style="font-size:11px;color:var(--muted);margin-top:4px">${timeAgo(n.created_at)}</div>
     </button>`).join('');
+}
+async function notifMarkAllRead(){
+  try{
+    await api.post('/notifications/read-all', {});
+    const now = new Date().toISOString();
+    DATA.notifications.forEach(n=>{ if(!n.read_at) n.read_at=now; });
+    DATA.notifUnread = 0;
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
 async function notifMarkRead(id){
   const n = DATA.notifications.find(x=>x.id===id);
@@ -875,6 +888,20 @@ async function notifMarkRead(id){
     DATA.notifUnread = Math.max(0, DATA.notifUnread-1);
     render();
   }catch(e){ /* giữ trạng thái cũ nếu server lỗi, không chặn giao diện */ }
+}
+/* Bấm một thông báo, ngoài đánh dấu đã đọc, còn nên đưa tới đúng chỗ liên
+   quan — trước bản này chỉ có đánh dấu đọc, không dẫn đi đâu cả. Định tuyến
+   theo `kind` khi có (rõ ràng nhất); vài loại cũ hơn (quyết định yêu cầu liên
+   hệ — xem members/service.js#decideContactRequest) chưa có kind riêng, nên
+   dự phòng bằng target_type. */
+function notifClick(id){
+  const n = DATA.notifications.find(x=>x.id===id);
+  notifMarkRead(id);
+  if(!n) return;
+  if(n.kind==='contact_request') go('caidat'); // yêu cầu đang chờ bạn duyệt/từ chối
+  else if(n.kind==='message' && n.actor_id) chatWith(n.actor_id);
+  else if((n.kind==='game_challenge'||n.kind==='game_turn') && n.target_id) go('cotuong-van:'+n.target_id);
+  else if(n.target_type==='member' && n.target_id) go('congnguoi-detail:'+n.target_id); // vd. yêu cầu liên hệ của bạn vừa được chấp thuận
 }
 function areaIdByName(name){
   const a = DATA.areasFlat.find(x=>x.name===name);
@@ -977,10 +1004,28 @@ async function bootstrap(){
         avatar:meProfile.avatar_url||null, job:meProfile.job||'', bio:meProfile.bio||'',
         history:meProfile.participation_history||[] } : null;
 
-      const [jobsRes, projRes, aidRes, opsRes, notifRes, unreadRes] = await Promise.all([
+      const [jobsRes, projRes, aidRes, opsRes, notifRes, unreadRes, msgRes, complaintsRes, joinReqRes, verifRes, myVerifRes, fundRes, rolesRes, backupsRes, modRes] = await Promise.all([
         api.get('/jobs'), api.get('/projects'), api.get('/aid'), api.get('/ops/audit-log').catch(()=>({data:[]})),
         api.get('/notifications?limit=20').catch(()=>({data:[]})),
         api.get('/notifications/unread-count').catch(()=>({count:0})),
+        api.get('/messages').catch(()=>({data:[]})),
+        // 403 cho thành viên thường (chỉ approver/content_ops xem được hàng đợi
+        // khiếu nại) — bắt lỗi để không chặn cả bootstrap, giống /ops/audit-log.
+        api.get('/complaints').catch(()=>({data:[]})),
+        // Cùng lý do: chỉ approver/content_ops xem được đơn gia nhập.
+        api.get('/join-requests?limit=50').catch(()=>({data:[]})),
+        // Cùng lý do: hàng đợi xác minh chỉ approver/content_ops xem được.
+        api.get('/verifications?limit=50').catch(()=>({data:[]})),
+        api.get('/verifications/me').catch(()=>({data:[]})),
+        // Sổ quỹ đọc được cho mọi thành viên (minh bạch) — không cần .catch vì
+        // không role-gate, nhưng vẫn giữ để một lỗi mạng không chặn cả bootstrap.
+        api.get('/fund/entries?limit=100').catch(()=>({data:[],summary:{balance:0,income:0,expense:0}})),
+        // Chỉ vai tech xem được ma trận vai trò đầy đủ (ops.role.manage).
+        api.get('/ops/roles').catch(()=>({data:[]})),
+        // Chỉ approver/tech xem lịch sử sao lưu.
+        api.get('/ops/backups').catch(()=>({data:[]})),
+        // Chỉ approver/content_ops xem hàng đợi ảnh bị báo cáo.
+        api.get('/moderation?status=open').catch(()=>({data:[]})),
       ]);
       DATA.jobs = (jobsRes&&jobsRes.data||[]).map(mapJob);
       DATA.activities = (projRes&&projRes.data||[]).map(mapActivity);
@@ -988,10 +1033,21 @@ async function bootstrap(){
       DATA.opsLogs = (opsRes&&opsRes.data||[]).map(mapOpsLog);
       DATA.notifications = (notifRes&&notifRes.data)||[];
       DATA.notifUnread = (unreadRes&&unreadRes.count)||0;
+      DATA.complaints = (complaintsRes&&complaintsRes.data)||[];
+      DATA.joinRequests = (joinReqRes&&joinReqRes.data)||[];
+      DATA.verifications = (verifRes&&verifRes.data)||[];
+      DATA.myVerifications = (myVerifRes&&myVerifRes.data)||[];
+      DATA.fundEntries = (fundRes&&fundRes.data)||[];
+      DATA.fund = { balance:Number((fundRes&&fundRes.summary&&fundRes.summary.balance)||0),
+        income:Number((fundRes&&fundRes.summary&&fundRes.summary.income)||0),
+        expense:Number((fundRes&&fundRes.summary&&fundRes.summary.expense)||0), lastUpdate:null };
+      DATA.rolesMatrix = (rolesRes&&rolesRes.data)||[];
+      DATA.backups = (backupsRes&&backupsRes.data)||[];
+      DATA.moderationQueue = (modRes&&modRes.data)||[];
 
       // Chưa có route backend (xem audit) — để rỗng, màn tương ứng tự hiện thông báo "chưa sẵn sàng".
-      DATA.memories=[]; DATA.verifications=[]; DATA.fundTx=[];
-      DATA.fund={balance:0,income:0,expense:0,lastUpdate:null}; DATA.conversations=[];
+      DATA.memories=[];
+      setConversationsFromMessages((msgRes&&msgRes.data)||[]);
 
       ROLE = (DATA.me && (DATA.me.role==='admin'||DATA.me.role==='moderator'||DATA.me.role==='approver')) ? 'admin' : 'member';
       startRealtime();
@@ -1089,6 +1145,7 @@ function startRealtime(){
       const n = JSON.parse(e.data);
       DATA.notifications.unshift(n);
       DATA.notifUnread += 1;
+      if(n.kind==='contact_request') MY_CONTACT_REQUESTS = null; // buộc nạp lại nếu đang mở Cài đặt
       playTing();
       render();
     }catch(err){}
@@ -1101,11 +1158,16 @@ function startRealtime(){
       const otherId = m.sender_id===me ? m.recipient_id : m.sender_id;
       if(!otherId || otherId===me) return;
       // Tiếng "ting" đã phát ở sự kiện 'notification' đi kèm (server luôn phát
-      // cả hai cho một tin nhắn mới) — ở đây chỉ cập nhật khung chat đang mở,
-      // không phát tiếng lần hai cho cùng một tin.
-      const cv = DATA.conversations.find(c=>c.withId===otherId);
-      if(cv && !cv.msgs.some(x=>x.id===m.id)){
+      // cả hai cho một tin nhắn mới) — ở đây chỉ cập nhật khung chat/danh sách
+      // hội thoại, không phát tiếng lần hai cho cùng một tin.
+      let cv = DATA.conversations.find(c=>c.withId===otherId);
+      if(!cv){ cv={id:otherId, withId:otherId, unread:0, msgs:[]}; DATA.conversations.unshift(cv); }
+      if(!cv.msgs.some(x=>x.id===m.id)){
         cv.msgs.push({id:m.id, from: m.sender_id===otherId?'them':'me', text:m.body, time:fmtDate(m.created_at)});
+        // Tin đến (không phải mình gửi) và không phải đoạn đang mở xem ⇒ tính
+        // là chưa đọc. Đang mở xem đúng đoạn đó thì coi như đã thấy rồi, dù
+        // read_at ở server chỉ thật sự cập nhật lần sau mở lại (xem chatWith()).
+        if(m.recipient_id===me && CHAT_ACTIVE!==otherId){ cv.unread++; DATA.msgUnread++; }
         render();
       }
     }catch(err){}
@@ -1218,6 +1280,11 @@ function variantOf(screen){
   // phải…), không rơi về khung khách chỉ có "Đăng nhập/Xin gia nhập" như hồi
   // chưa sửa (bấm vào 1 người ở "Con người" là mất hẳn thanh điều hướng).
   if(screen==='hosocongkhai') return isAuthed() ? 'member' : 'public';
+  // Cùng lý do hosocongkhai ở trên: logo luôn trỏ về #congchung (xem
+  // headerComp) — thành viên đã đăng nhập bấm logo trước đây bị rơi về khung
+  // khách (chỉ còn nút "Đăng nhập"/"Xin gia nhập"), trông y hệt vừa bị đăng
+  // xuất dù token vẫn còn nguyên. V.congchung ở dưới render lại đúng Bảng nhà.
+  if(screen==='congchung') return isAuthed() ? 'member' : 'public';
   if(PUBLIC_SCREENS.has(screen)) return 'public';
   return 'member';
 }
@@ -1252,7 +1319,10 @@ function render(){
     body = (V[screen]||V.notfound)(params,screen);
     activeTop = screen;
   }
-  root.innerHTML = wrapPage(variant, activeTop, body, screen==='congchung');
+  // isLanding (bố cục full-bleed, không khung .wrap/.content) chỉ đúng cho
+  // trang chủ KHÁCH thật — congchung khi đã đăng nhập giờ render Bảng nhà
+  // (xem variantOf()), cần khung thường như mọi màn thành viên khác.
+  root.innerHTML = wrapPage(variant, activeTop, body, screen==='congchung' && variant==='public');
   window.scrollTo(0,0);
   bindGlobal();
 }
@@ -1296,7 +1366,7 @@ function headerComp(variant, active){
           <div id="searchResults" style="margin-top:8px"></div>
         </div>
       </div>
-      <a href="#chat" class="ic-bell" data-go="chat" title="Tin nhắn">${ic('mail',17)}</a>
+      <a href="#chat" class="ic-bell" data-go="chat" title="Tin nhắn" style="position:relative">${ic('mail',17)}${DATA.msgUnread>0?`<span class="conv-unread" style="position:absolute;top:-4px;right:-6px;font-size:10px;min-width:16px;height:16px">${DATA.msgUnread>99?'99+':DATA.msgUnread}</span>`:''}</a>
       <div style="position:relative">
         <button class="ic-bell" id="bellBtn">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
         <div class="umenu" id="notifPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:4px">${notifPanelHtml()}</div>
@@ -1391,9 +1461,11 @@ async function doLogout(){
   stopRealtime();
   setTokens(null,null);
   DATA.me=null; DATA.jobs=[]; DATA.aid=[]; DATA.activities=[]; DATA.memories=[];
-  DATA.verifications=[]; DATA.opsLogs=[]; DATA.fundTx=[]; DATA.conversations=[];
-  DATA.notifications=[]; DATA.notifUnread=0;
-  MY_PRIVACY=null;
+  DATA.verifications=[]; DATA.myVerifications=[]; DATA.opsLogs=[]; DATA.fundEntries=[]; DATA.conversations=[]; DATA.complaints=[];
+  DATA.joinRequests=[]; DATA.rolesMatrix=[]; DATA.backups=[]; DATA.moderationQueue=[];
+  DATA.fund={balance:0,income:0,expense:0,lastUpdate:null};
+  DATA.notifications=[]; DATA.notifUnread=0; DATA.msgUnread=0;
+  MY_PRIVACY=null; MY_CONTACT_REQUESTS=null;
   ROLE='member';
   toast('Đã đăng xuất','check');
   go('congchung');
@@ -1784,6 +1856,21 @@ async function chonUngVien(jobId,connectionId,memberName){
     render();
   }catch(e){ toast(e.message||'Có lỗi khi chọn ứng viên, thử lại.','flag'); }
 }
+/* Cùng route với chonUngVien (PATCH /jobs/:id/applications/:connId), chỉ khác
+   status đích — backend cho phép 'contacted' -> 'failed' (xem transitions ở
+   jobs/service.js#updateApplication), tức "không chọn người này". Trước bản
+   này giao diện chỉ có nút "Chọn", không có cách đánh dấu ai đó không được
+   chọn — họ nằm mãi ở "đang chờ" dù người đăng đã chọn người khác. */
+async function tuChoiUngVien(jobId,connectionId,memberName){
+  if(!confirm('Không chọn '+memberName+' cho việc này?')) return;
+  try{
+    await api.patch(`/jobs/${jobId}/applications/${connectionId}`, {status:'failed'});
+    delete JOB_DETAIL[jobId];
+    toast('Đã báo không chọn '+memberName,'check');
+    await ensureJobDetail(jobId);
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 
 WIZ.quickCreate = ()=> openModal(`
   <div class="modal-head"><b>Bạn muốn đăng gì?</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
@@ -1801,9 +1888,24 @@ WIZ.quickCreate = ()=> openModal(`
   </div>`);
 
 /* Nhắn tin thật: backend chỉ có "tin nhắn theo từng người" (GET/POST /messages),
-   KHÔNG có khái niệm "danh sách hội thoại" gộp sẵn (xem audit) — nên DATA.conversations
-   ở đây chỉ là bộ nhớ tạm phía trình duyệt cho những người bạn đã mở chat, không
-   phải danh sách đầy đủ từ server. */
+   KHÔNG có khái niệm "danh sách hội thoại" gộp sẵn (xem audit). GET /messages
+   KHÔNG kèm with_member_id trả về TOÀN BỘ tin đã gửi/nhận của bạn (phẳng, cả
+   hai chiều) kèm read_at từng tin — đủ để tự gộp thành danh sách hội thoại +
+   đếm số tin chưa đọc mỗi người, không cần route riêng nào ở backend. */
+function setConversationsFromMessages(rows){
+  const byId = new Map();
+  for(const r of rows){
+    const me = DATA.me && DATA.me.id;
+    const otherId = r.sender_id===me ? r.recipient_id : r.sender_id;
+    let cv = byId.get(otherId);
+    if(!cv){ cv={id:otherId, withId:otherId, unread:0, msgs:[]}; byId.set(otherId,cv); }
+    cv.msgs.push({id:r.id, from:r.sender_id===me?'me':'them', text:r.body, time:fmtDate(r.created_at)});
+    if(r.recipient_id===me && !r.read_at) cv.unread++;
+  }
+  // Mới nhất lên đầu — rows đã tới theo thứ tự thời gian tăng dần (xem service#listMessages).
+  DATA.conversations = [...byId.values()].reverse();
+  DATA.msgUnread = DATA.conversations.reduce((s,c)=>s+c.unread,0);
+}
 async function chatWith(memberId,text){
   // Backend /messages là tin nhắn GIỮA HAI NGƯỜI (recipient_id) — không có khái
   // niệm "ghi chú cho chính mình". Chặn ở đây làm chốt chặn cuối, phòng khi có
@@ -1818,8 +1920,53 @@ async function chatWith(memberId,text){
     const list = (res&&res.data)||[];
     cv.msgs = list.map(m=>({from: m.sender_id===memberId?'them':'me', text:m.body, time:fmtDate(m.created_at)}));
   }catch(e){ /* giữ nguyên khung rỗng nếu server chưa trả được, không chặn giao diện */ }
+  // GET /messages?with_member_id=... vừa gọi đã đánh dấu đã đọc các tin của
+  // người này ở server (xem service#listMessages) — đồng bộ lại số đếm cục bộ.
+  if(cv.unread){ DATA.msgUnread = Math.max(0, DATA.msgUnread-cv.unread); cv.unread=0; }
   if(text){ cv.msgs.push({from:'me', text, time:'Vừa xong'}); try{ await api.post('/messages',{recipient_id:memberId, body:text}); }catch(e){} }
   render();
+}
+/* Gợi ý người làm việc — xếp hạng bằng dữ liệu thật đã có sẵn (DATA.members,
+   DATA.skills), không phải máy học: +3 nếu có năng lực cùng danh mục với
+   việc, +2 nếu cùng khu vực, +1 nếu đang "nhận việc"/"hẹn giờ" (không tạm
+   dừng). Chỉ những việc CHƯA AI NHẬN (apps===0) mới có nút này — nên không
+   cần loại người đã ứng tuyển, vì chưa ai ứng tuyển cả. "Mời" KHÔNG tự gán
+   việc: nó chỉ gửi một tin nhắn thật (chatWith, POST /messages có sẵn) —
+   người được mời vẫn phải tự bấm ứng tuyển nếu đồng ý. */
+function suggestCandidates(job){
+  return DATA.members
+    .filter(m=>m.id!==job.poster && (!DATA.me || m.id!==DATA.me.id))
+    .map(m=>{
+      const hasSkill = job.cat && DATA.skills.some(s=>s.memberId===m.id && s.cat===job.cat);
+      const sameWard = !!(job.ward && m.ward && job.ward===m.ward);
+      let score = (hasSkill?3:0) + (sameWard?2:0) + (m.status!=='ban'?1:0);
+      return { m, score, hasSkill, sameWard };
+    })
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,8);
+}
+WIZ.goiYNguoi = (jobId)=>{
+  const j = DATA.jobs.find(x=>x.id===jobId); if(!j) return;
+  const candidates = suggestCandidates(j);
+  openModal(`
+  <div class="modal-head"><b>Gợi ý người cho "${esc(j.title)}"</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body">
+    ${candidates.length?candidates.map(({m,hasSkill,sameWard})=>`
+      <div class="gigrow" style="margin-bottom:8px"><div class="logo">${initials(m.name)}</div>
+        <div class="body"><div class="title" style="font-size:13.5px">${esc(m.name)}</div>
+          <div class="co">${[hasSkill?'Có năng lực khớp':'', sameWard?'Cùng khu vực':m.ward].filter(Boolean).join(' · ')||'—'}</div></div>
+        <div class="actions"><button class="btn btn-blue btn-sm" onclick="moiLamViec('${jobId}','${m.id}')">Mời</button></div></div>`).join('')
+      :'<p style="font-size:13px;color:var(--muted)">Chưa có ai khớp khu vực hoặc năng lực với việc này trong dữ liệu hiện có — thử liên hệ ngoài hệ thống.</p>'}
+  </div>
+  <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`);
+};
+function moiLamViec(jobId, memberId){
+  const j = DATA.jobs.find(x=>x.id===jobId), m = DATA.members.find(x=>x.id===memberId);
+  if(!j||!m) return;
+  closeModal();
+  chatWith(memberId, `Chào ${m.name}, Ban điều hành thấy bạn phù hợp với việc "${j.title}" đang cần người. Bạn xem thử và ứng tuyển nếu quan tâm nhé!`);
+  toast('Đã gửi lời mời tới '+m.name,'check');
 }
 WIZ.lienHeQuaNhaChung = (ds)=> openModal(`
   <div class="modal-head"><b>Liên hệ ${esc(ds.name||'')}</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
@@ -2207,10 +2354,71 @@ WIZ.vietBaoChung = ()=> openModal(`
   <div class="modal-body"><div class="notice wait">${ic('scale',16)}Backend chưa có mục "bảo chứng" cho thành viên hiện có (chỉ có bảo lãnh mời thành viên mới) — xem báo cáo audit.</div></div>
   <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`);
 
-WIZ.baoCaoVanDe = ()=> openModal(`
+/* Khiếu nại thật: POST /complaints (bảng complaints + complaint_events đã có
+   từ migration 018, chỉ chưa từng có endpoint dùng tới). subjectType/subjectId
+   tuỳ chọn — có thì gắn đúng đối tượng (việc/lời nhờ/hoạt động/năng lực) như
+   dữ liệu ds truyền vào từ data-subject-type/data-subject-id/data-subject-label
+   ở nơi bấm "Báo cáo"; không có thì là báo cáo chung (mục Xác minh). */
+WIZ.baoCaoVanDe = (ds)=> openModal(`
   <div class="modal-head"><b>Báo cáo vấn đề</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
-  <div class="modal-body"><div class="notice wait">${ic('scale',16)}Backend chưa có mục "khiếu nại" — xem báo cáo audit.</div></div>
-  <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`);
+  <div class="modal-body">
+    ${ds&&ds.subjectLabel?`<div class="notice brand" style="margin-bottom:12px">${ic('flag',16)}Đang báo cáo: <b>${esc(ds.subjectLabel)}</b></div>`:''}
+    <div class="field"><label class="label">Mô tả vấn đề <span class="req" style="color:var(--red)">*</span></label>
+      <textarea class="input" id="bc-body" style="height:100px;padding-top:10px" placeholder="Chuyện gì đã xảy ra? Càng cụ thể càng dễ xử lý."></textarea></div>
+    <div id="bc-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="bc-err-txt"></span></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Để sau</button>
+    <button class="btn btn-blue" id="bc-submit" style="flex:2" onclick="baoCaoSubmit('${(ds&&ds.subjectType)||''}','${(ds&&ds.subjectId)||''}')">Gửi báo cáo</button></div>`);
+async function baoCaoSubmit(subjectType,subjectId){
+  const body = getVal('bc-body');
+  const errBox = qs('#bc-err'), errTxt = qs('#bc-err-txt');
+  if(errBox) errBox.style.display='none';
+  if(body.length<10){ if(errBox){errTxt.textContent='Viết ít nhất 10 ký tự mô tả vấn đề.'; errBox.style.display='flex';} return; }
+  const btn=qs('#bc-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  try{
+    const payload = {body};
+    if(subjectType&&subjectId){ payload.subject_type=subjectType; payload.subject_id=subjectId; }
+    await api.post('/complaints', payload);
+    closeModal(); toast('Đã gửi báo cáo tới Ban điều hành','check');
+  }catch(e){
+    if(errBox){errTxt.textContent=e.message||'Có lỗi, thử lại.'; errBox.style.display='flex';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi báo cáo';}
+  }
+}
+
+/* Báo cáo MỘT ảnh cụ thể (khác báo cáo chung ở trên) — đi vào hàng đợi kiểm
+   duyệt POST /moderation, KHÔNG phải /complaints. target_id tuỳ loại: ảnh
+   việc dùng files.id (đúng cái jobDetail.images[].id đang cầm sẵn), ảnh năng
+   lực/giúp nhau dùng id của chính hàng ảnh đó, ảnh hoạt động dùng id của
+   chính hoạt động (không có bảng ảnh riêng — xem moderation/service.js). */
+function photoReportBtn(targetType, targetId){
+  return `<button onclick="event.stopPropagation();WIZ.baoCaoAnh('${targetType}','${targetId}')" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);border:none;border-radius:6px;padding:5px;color:#fff;cursor:pointer;z-index:2;line-height:0" title="Báo cáo ảnh vi phạm">${ic('flag',12)}</button>`;
+}
+WIZ.baoCaoAnh = (targetType, targetId)=> openModal(`
+  <div class="modal-head"><b>Báo cáo ảnh vi phạm</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body">
+    <div class="field"><label class="label">Vì sao ảnh này vi phạm? <span class="req" style="color:var(--red)">*</span></label>
+      <textarea class="input" id="ba-reason" style="height:90px;padding-top:10px" placeholder="Ảnh không liên quan, phản cảm, sai sự thật…"></textarea></div>
+    <div id="ba-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="ba-err-txt"></span></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-blue" id="ba-submit" style="flex:2" onclick="baoCaoAnhSubmit('${targetType}','${targetId}')">Gửi báo cáo</button></div>`);
+async function baoCaoAnhSubmit(targetType, targetId){
+  const reason = getVal('ba-reason');
+  const errBox=qs('#ba-err'), errTxt=qs('#ba-err-txt');
+  if(errBox) errBox.style.display='none';
+  if(reason.length<10){ if(errBox){errTxt.textContent='Viết ít nhất 10 ký tự.'; errBox.style.display='flex';} return; }
+  const btn=qs('#ba-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  try{
+    await api.post('/moderation', {target_type:targetType, target_id:targetId, reason});
+    closeModal(); toast('Đã gửi báo cáo tới Ban điều hành','check');
+  }catch(e){
+    if(errBox){errTxt.textContent=e.message||'Có lỗi, thử lại.'; errBox.style.display='flex';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi báo cáo';}
+  }
+}
 
 /* ══════════════════════════════════════════════════════════════
    PUB — công khai, dựng theo đúng khuôn index.html/jobs.html mẫu
@@ -2358,24 +2566,26 @@ PUB.hosocongkhai = (params)=>{
   <div class="crumb"><a data-go="khampha">Khám phá</a> ${ic('chev',10)} ${m.name}</div>
   <div class="cols">
     <div class="stack">
-      <div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-        <div class="cand">${avatarCircle(m.avatar,m.name,64)}</div>
-        <div style="flex:1;min-width:200px">
-          <div style="font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${m.name} ${m.status==='nhan-viec'?`<span class="status accepted">${ic('check',9)} Đang nhận việc</span>`:`<span class="status pending">Tạm ngưng nhận</span>`} ${m.role&&m.role!=='member'?roleTag(m.role):''}</div>
-          <div style="font-size:13.5px;color:var(--ink2);margin-top:5px">${m.field||'Chưa cập nhật nghề'}${m.ward?` · ${m.ward}`:''}</div>
-          <div class="tags" style="display:flex;gap:8px;margin-top:9px">${detail&&detail.joined_at?`<span class="chip">${ic('calendar',11)} Tham gia ${fmtDate(detail.joined_at)}</span>`:''}<span class="chip">${ic('star',11)} ${mySkills.length} năng lực</span></div>
+      <div class="card">
+        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+          <div class="cand">${avatarCircle(m.avatar,m.name,64)}</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${m.name} ${m.status==='nhan-viec'?`<span class="status accepted">${ic('check',9)} Đang nhận việc</span>`:`<span class="status pending">Tạm ngưng nhận</span>`} ${m.role&&m.role!=='member'?roleTag(m.role):''}</div>
+            <div style="font-size:13.5px;color:var(--ink2);margin-top:5px">${m.field||'Chưa cập nhật nghề'}${m.ward?` · ${m.ward}`:''}</div>
+            <div class="tags" style="display:flex;gap:8px;margin-top:9px">${detail&&detail.joined_at?`<span class="chip">${ic('calendar',11)} Tham gia ${fmtDate(detail.joined_at)}</span>`:''}<span class="chip">${ic('star',11)} ${mySkills.length} năng lực</span></div>
+          </div>
+          ${isSelf?'':`<div style="display:flex;gap:8px"><button class="btn btn-blue" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',15)} Xin liên hệ</button><button class="btn btn-out" onclick="chatWith('${m.id}')" title="Nhắn tin">${ic('mail',15)} Nhắn tin</button></div>`}
         </div>
-        ${isSelf?'':`<button class="btn btn-blue" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',15)} Xin liên hệ</button>`}
+
+        ${detail&&detail.bio?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Giới thiệu</div>
+          <p style="font-size:13.5px;color:var(--ink2);line-height:1.7">${esc(detail.bio)}</p></div>`:''}
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('star',14)} Năng lực đã công bố</div>
+          <div class="card-grid">${mySkills.map(s=>`<a class="gcard" data-go="nangluc-detail:${s.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}<div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${s.cover?ic('camera',10)+' Có ảnh':'Chưa có ảnh'}</span></div></div></a>`).join('')||'<p style="font-size:13px;color:var(--muted)">Chưa công bố năng lực nào.</p>'}</div></div>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('history',14)} Hoạt động trong Nhà Chung</div>
+          <div class="timeline">${history.length?history.map(memberHistoryLine).join(''):`<p style="font-size:13px;color:var(--muted)">${detail?'Chưa có hoạt động nào ghi nhận.':'Đang tải…'}</p>`}</div></div>
       </div>
-
-      ${detail&&detail.bio?`<div class="card"><div class="sec-title">${ic('doc',14)} Giới thiệu</div>
-        <p style="font-size:13.5px;color:var(--ink2);line-height:1.7">${esc(detail.bio)}</p></div>`:''}
-
-      <div class="card"><div class="sec-title">${ic('star',14)} Năng lực đã công bố</div>
-        <div class="card-grid">${mySkills.map(s=>`<a class="gcard" data-go="nangluc-detail:${s.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}<div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${s.cover?ic('camera',10)+' Có ảnh':'Chưa có ảnh'}</span></div></div></a>`).join('')||'<p style="font-size:13px;color:var(--muted)">Chưa công bố năng lực nào.</p>'}</div></div>
-
-      <div class="card"><div class="sec-title">${ic('history',14)} Hoạt động trong Nhà Chung</div>
-        <div class="timeline">${history.length?history.map(memberHistoryLine).join(''):`<p style="font-size:13px;color:var(--muted)">${detail?'Chưa có hoạt động nào ghi nhận.':'Đang tải…'}</p>`}</div></div>
     </div>
 
     <aside class="cols-side">
@@ -2585,7 +2795,7 @@ V.trongnha = ()=>{
       <div class="section" style="margin-bottom:16px">
         <div class="card-head"><h3>${ic('wand',15)} Việc phù hợp với bạn</h3><a href="#viec" class="see-all" data-go="viec">Xem tất cả →</a></div>
         <div style="padding:16px 18px">${upJobs.map(j=>`
-        <div class="gigrow"><div class="logo">${ic(CAT_ICON[j.cat]||'briefcase',18)}</div>
+        <div class="gigrow"><div class="logo">${logoImg(j.cover,CAT_ICON[j.cat]||'briefcase')}</div>
           <div class="body"><a href="#viec-detail:${j.id}" class="title" data-go="viec-detail:${j.id}">${j.title}</a>
           <div class="co">${member(j.poster).name} ${ic('check',10)}<span class="verified"></span></div>
           <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span></div></div>
@@ -2673,11 +2883,44 @@ async function setPrivacyLevel(field, level){
     toast('Đã lưu quyền riêng tư','check'); render();
   }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
+/* Yêu cầu xem thông tin liên hệ NGƯỜI KHÁC gửi tới mình, đang chờ duyệt
+   (GET /members/me/contact-requests?direction=incoming&status=pending).
+   Trước bản này màn hình không hề tồn tại — bấm vào thông báo tương ứng
+   không dẫn đi đâu cả (xem notifClick()). */
+let MY_CONTACT_REQUESTS = null;
+async function ensureContactRequests(){
+  if(MY_CONTACT_REQUESTS) return;
+  try{
+    const res = await api.get('/members/me/contact-requests?direction=incoming&status=pending');
+    MY_CONTACT_REQUESTS = (res&&res.data)||[];
+    render();
+  }catch(e){ MY_CONTACT_REQUESTS = []; }
+}
+async function decideContact(id, status){
+  try{
+    await api.patch(`/members/me/contact-requests/${id}`, {status});
+    MY_CONTACT_REQUESTS = (MY_CONTACT_REQUESTS||[]).filter(r=>r.id!==id);
+    toast(status==='approved'?'Đã đồng ý cho xem':'Đã từ chối','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 V.caidat = ()=>{
   if(!MY_PRIVACY) ensureMyPrivacy();
+  if(!MY_CONTACT_REQUESTS) ensureContactRequests();
   const rows = MY_PRIVACY||[];
+  const reqs = MY_CONTACT_REQUESTS||[];
   return `
   <div class="page-head"><div><h1>Cài đặt & quyền riêng tư</h1><p>Bạn quyết định ai thấy từng thông tin của mình.</p></div></div>
+  ${reqs.length?`<div class="card" style="margin-bottom:14px">
+    <div class="sec-title">${ic('send',14)} Yêu cầu xem thông tin liên hệ (${reqs.length})</div>
+    ${reqs.map(r=>`<div class="info-row" style="flex-wrap:wrap;gap:8px;align-items:flex-start">
+      <div><b>${esc(r.other_member_name)}</b> muốn xem <b>${PRIVACY_FIELD_LABEL[r.field_key]||r.field_key}</b> của bạn
+      ${r.message?`<div style="font-size:12.5px;color:var(--ink2);margin-top:3px">"${esc(r.message)}"</div>`:''}</div>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <button class="btn btn-out btn-sm" onclick="decideContact('${r.id}','rejected')">Từ chối</button>
+        <button class="btn btn-blue btn-sm" onclick="decideContact('${r.id}','approved')">Đồng ý</button>
+      </div></div>`).join('')}
+  </div>`:''}
   <div class="card" style="margin-bottom:14px">
     ${rows.length?rows.map(r=>`<div class="info-row" style="flex-wrap:wrap;gap:8px"><span class="lbl">${PRIVACY_FIELD_LABEL[r.field_key]||r.field_key}</span><div style="display:flex;gap:6px">${['public','on_consent','closed'].map(lv=>`<button class="fchip ${r.level===lv?'on':''}" onclick="setPrivacyLevel('${r.field_key}','${lv}')">${PRIVACY_LEVEL_LABEL[lv]}</button>`).join('')}</div></div>`).join(''):'<p style="font-size:13px;color:var(--muted)">Đang tải…</p>'}
   </div>
@@ -2699,6 +2942,10 @@ V.khampha = (params)=> PUB.khampha(params);
    tra V[screen], không phải PUB[screen] nữa, nên PHẢI có bản uỷ quyền này,
    nếu không rơi vào V.notfound ("Chưa dựng hosocongkhai"). */
 V.hosocongkhai = (params)=> PUB.hosocongkhai(params);
+/* Cùng lý do: logo trỏ #congchung luôn (headerComp), và variantOf() giờ trả
+   'member' cho congchung khi đã đăng nhập — cần bản uỷ quyền này sang đúng
+   Bảng nhà, nếu không cũng rơi vào V.notfound. */
+V.congchung = ()=> V.trongnha();
 
 /* ---- Năng lực ---- */
 V.nangluc = ()=>{
@@ -2726,15 +2973,16 @@ V['nangluc-detail'] = (params)=>{
     <div class="stack">
       <div class="section"><div style="aspect-ratio:16/8">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat)}</div>
       <div style="padding:18px"><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="tag">${s.cat||'Khác'}</span>${s.exp?`<span class="chip">${ic('star',11)} Kinh nghiệm ${s.exp}</span>`:''}</div>
-      <h1 style="font-size:19px;margin-top:10px">${s.title}</h1><p style="font-size:13.5px;color:var(--ink2);margin-top:8px;line-height:1.7">${s.desc}</p></div></div>
-      <div class="card"><div class="sec-title">${ic('camera',14)} ${photos.length} bằng chứng thật</div>
-      ${photos.length?`<div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh việc đã làm')}</div>`).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">Chưa có ảnh bằng chứng nào.</p>`}</div>
+      <h1 style="font-size:19px;margin-top:10px">${s.title}</h1><p style="font-size:13.5px;color:var(--ink2);margin-top:8px;line-height:1.7">${s.desc}</p></div>
+      <div style="padding:0 18px 18px"><div style="padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('camera',14)} ${photos.length} bằng chứng thật</div>
+      ${photos.length?`<div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh việc đã làm')}${photoReportBtn('capability_photo',p.id)}</div>`).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">Chưa có ảnh bằng chứng nào.</p>`}</div></div></div>
     </div>
     <div class="cols-side">
       <div class="box company-card" style="text-align:center">
         <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:56px;height:56px">${initials(m.name)}</div></div>
         <h3 style="font-size:15px;font-weight:700">${m.name}</h3><div style="font-size:12.5px;color:var(--ink2);margin:6px 0">${m.ward}</div>
         <button class="btn btn-blue btn-block" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',14)} Xin liên hệ</button>
+        ${m.id!==DATA.me.id?`<button class="btn btn-out btn-block btn-sm" style="margin-top:8px" onclick="chatWith('${m.id}')">${ic('mail',13)} Nhắn tin</button>`:''}
         <button class="btn btn-out btn-block btn-sm" style="margin-top:8px" data-go="congnguoi-detail:${m.id}">Xem hồ sơ đầy đủ</button>
       </div>
       <div class="box"><h3>Thông tin chung</h3>
@@ -2815,7 +3063,7 @@ V['viec-detail'] = (params)=>{
   const jobDetail = JOB_DETAIL[j.id];
   if(!jobDetail) ensureJobDetail(j.id);
   const applicants = jobDetail ? (jobDetail.applications||[]).map(a=>(
-    {connId:a.id, memberId:a.worker_id, name:a.worker_name, field:a.worker_job||''}
+    {connId:a.id, memberId:a.worker_id, name:a.worker_name, field:a.worker_job||'', status:a.status}
   )) : [];
   const similar = DATA.jobs.filter(x=>x.id!==j.id && x.cat===j.cat && x.status==='open').slice(0,3);
   const statusLabel = JOB_STATUS_LABEL[j.status] || 'Đang mở';
@@ -2826,11 +3074,11 @@ V['viec-detail'] = (params)=>{
   <div class="crumb"><a data-go="viec">Việc & hợp tác</a> ${ic('chev',10)} ${j.title}</div>
   <div class="cols">
     <div class="stack">
-      ${jobDetail&&jobDetail.images&&jobDetail.images.length?`<div class="section"><div style="aspect-ratio:16/8;cursor:zoom-in" onclick="lightbox('/files/${jobDetail.images[0].id}')">${bannerImg('/files/'+jobDetail.images[0].id,isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),j.title)}</div>
-        ${jobDetail.images.length>1?`<div style="display:flex;gap:6px;padding:10px;flex-wrap:wrap">${jobDetail.images.slice(1).map(im=>`<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;cursor:zoom-in" onclick="lightbox('/files/${im.id}')">${bannerImg('/files/'+im.id,'camera','')}</div>`).join('')}</div>`:''}</div>`:''}
-      <div class="section"><div style="padding:20px">
-        <div style="display:flex;gap:18px">
-          <div class="logo" style="width:60px;height:60px;font-size:16px">${ic(isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),24)}</div>
+      <div class="section">
+        ${jobDetail&&jobDetail.images&&jobDetail.images.length?`<div style="aspect-ratio:16/8;cursor:zoom-in;position:relative" onclick="lightbox('/files/${jobDetail.images[0].id}')">${bannerImg('/files/'+jobDetail.images[0].id,isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),j.title)}${photoReportBtn('job_photo',jobDetail.images[0].id)}</div>
+        ${jobDetail.images.length>1?`<div style="display:flex;gap:6px;padding:10px;flex-wrap:wrap">${jobDetail.images.slice(1).map(im=>`<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;cursor:zoom-in;position:relative" onclick="lightbox('/files/${im.id}')">${bannerImg('/files/'+im.id,'camera','')}${photoReportBtn('job_photo',im.id)}</div>`).join('')}</div>`:''}`:''}
+      <div style="padding:20px">
+        <div>
           <div style="flex:1"><div style="display:flex;gap:8px;flex-wrap:wrap">${j.urgent?'<span class="badge urgent">GẤP</span>':''}<span class="status ${JOB_STATUS_CLASS[j.status]||'accepted'}">${statusLabel}</span><span class="chip">${KIND_LABEL[j.kind]}</span></div>
           <h1 style="font-size:20px;margin-top:8px">${j.title}</h1>
           <div style="font-size:13px;color:var(--ink2);margin-top:6px">${poster.name} <i class="verified">${ic('check',10)}</i></div>
@@ -2840,19 +3088,28 @@ V['viec-detail'] = (params)=>{
         ${jobDetail&&jobDetail.requirements?`<div style="margin-top:14px"><b style="font-size:13px">${ic('check',12)} Yêu cầu với người nhận</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.requirements)}</p></div>`:''}
         ${jobDetail&&jobDetail.warnings?`<div style="margin-top:14px"><b style="font-size:13px;color:var(--red)">${ic('flag',12)} Lưu ý</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.warnings)}</p></div>`:''}
         ${jobDetail&&jobDetail.terms?`<div style="margin-top:14px"><b style="font-size:13px">${ic('scale',12)} Cam kết / điều khoản</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.terms)}</p></div>`:''}
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">${prog.idx<0?`<div class="sec-title">${ic('bolt',14)} Hành trình tin cậy</div>
+          <div class="notice wait" style="margin-top:10px">${ic('flag',16)}${prog.note}</div>`:`<div class="sec-title">${ic('bolt',14)} Hành trình tin cậy — ${JOB_PROGRESS_STEPS[prog.idx].label}</div>
+          ${jobProgressBar(prog.idx)}
+          <div style="font-size:12px;color:var(--muted);margin-top:10px">${j.apps} người đã ${isAsk?'trả lời':'ứng tuyển'}${jobDetail?'':' — đang tải chi tiết…'}</div>`}
+        </div>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${j.apps} người đã ${isAsk?'trả lời':'nhận'}</div>
+          ${applicants.length?`<div class="stack">${applicants.map(m=>{
+            const isPoster = !isAsk && j.poster===DATA.me.id;
+            const action = m.status==='contacted' && isPoster
+              ? `<div class="actions" style="display:flex;gap:6px"><button class="btn btn-out btn-sm" onclick="tuChoiUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Từ chối</button><button class="btn btn-blue btn-sm" onclick="chonUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Chọn</button></div>`
+              : m.status==='agreed'||m.status==='working' ? `<span class="status accepted">${ic('check',9)} Đã chọn</span>`
+              : m.status==='done' ? `<span class="status accepted">${ic('check',9)} Đã hoàn tất</span>`
+              : m.status==='failed' ? `<span class="status pending">Không chọn</span>` : '';
+            return `<div class="gigrow" style="margin-bottom:0${m.status==='failed'?';opacity:.6':''}"><div class="logo">${initials(m.name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${m.memberId}">${m.name}</a><div class="co">${m.field}</div></div>${action}</div>`;
+          }).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">${isAsk?'Chưa có ai trả lời.':'Chưa có ai nhận việc này.'}</p>`}
+        </div>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="apply-row" style="display:flex;gap:10px">
+          ${j.poster!==DATA.me.id&&j.status==='open'?`<button class="btn btn-blue btn-lg" style="flex:1" data-open="xinNhanViec" data-jobid="${j.id}" data-postername="${esc(poster.name)}" data-isask="${isAsk}">${ic(isAsk?'send':'handshake',16)} ${isAsk?'Tôi biết, để tôi trả lời':'Xin nhận việc'}</button>`:j.poster===DATA.me.id?`<div class="notice brand" style="flex:1">${ic('shield',16)}${isAsk?'Đây là câu hỏi bạn đăng.':'Đây là việc bạn đăng. Chọn người phù hợp bên trên.'}</div>`:`<div class="notice brand" style="flex:1">${ic('check',16)}${isAsk?'Câu hỏi này':'Việc này'} ${j.status==='cancelled'?'đã bị huỷ':j.status==='closed'?'đã đóng':'đã có người nhận'}.</div>`}
         </div></div>
-
-      ${prog.idx<0?`<div class="card"><div class="sec-title">${ic('bolt',14)} Hành trình tin cậy</div>
-        <div class="notice wait" style="margin-top:10px">${ic('flag',16)}${prog.note}</div>
-      </div>`:`<div class="card"><div class="sec-title">${ic('bolt',14)} Hành trình tin cậy — ${JOB_PROGRESS_STEPS[prog.idx].label}</div>
-        ${jobProgressBar(prog.idx)}
-        <div style="font-size:12px;color:var(--muted);margin-top:10px">${j.apps} người đã ${isAsk?'trả lời':'ứng tuyển'}${jobDetail?'':' — đang tải chi tiết…'}</div>
-      </div>`}
-
-      <div class="card"><div class="sec-title">${ic('users',14)} ${j.apps} người đã ${isAsk?'trả lời':'nhận'}</div>
-        ${applicants.length?`<div class="stack">${applicants.map(m=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(m.name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${m.memberId}">${m.name}</a><div class="co">${m.field}</div></div>${!isAsk&&j.poster===DATA.me.id?`<div class="actions"><button class="btn btn-blue btn-sm" onclick="chonUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Chọn</button></div>`:''}</div>`).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">${isAsk?'Chưa có ai trả lời.':'Chưa có ai nhận việc này.'}</p>`}</div>
-      <div class="card"><div class="apply-row" style="display:flex;gap:10px">
-        ${j.poster!==DATA.me.id&&j.status==='open'?`<button class="btn btn-blue btn-lg" style="flex:1" data-open="xinNhanViec" data-jobid="${j.id}" data-postername="${esc(poster.name)}" data-isask="${isAsk}">${ic(isAsk?'send':'handshake',16)} ${isAsk?'Tôi biết, để tôi trả lời':'Xin nhận việc'}</button>`:j.poster===DATA.me.id?`<div class="notice brand" style="flex:1">${ic('shield',16)}${isAsk?'Đây là câu hỏi bạn đăng.':'Đây là việc bạn đăng. Chọn người phù hợp bên trên.'}</div>`:`<div class="notice brand" style="flex:1">${ic('check',16)}${isAsk?'Câu hỏi này':'Việc này'} ${j.status==='cancelled'?'đã bị huỷ':j.status==='closed'?'đã đóng':'đã có người nhận'}.</div>`}
       </div></div>
     </div>
     <aside class="cols-side">
@@ -2872,7 +3129,7 @@ V['viec-detail'] = (params)=>{
         ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
         ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
       </div>
-      <button class="btn btn-out btn-block btn-sm" onclick="toast('Đã gửi báo cáo tới Ban điều hành')" data-open="baoCaoVanDe">${ic('flag',13)} Báo cáo vấn đề</button>
+      <button class="btn btn-out btn-block btn-sm" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       ${similar.length?`<div class="box"><h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3>
         ${similar.map(s=>`<div class="mini-job" data-go="viec-detail:${s.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px;overflow:hidden">${logoImg(s.cover,KIND_ICON[s.kind])}</div><div><div class="mj-t">${s.title}</div><div class="mj-c">${member(s.poster).name}</div></div></div>`).join('')}
       </div>`:''}
@@ -2923,18 +3180,18 @@ V['giupnhau-detail'] = (params)=>{
           </div>
         </div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Hoàn cảnh cụ thể</div><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:6px">${esc(a.desc)||'Chưa có mô tả thêm.'}</p></div>
+
+        ${photos.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('camera',14)} ${photos.length} ảnh minh hoạ</div>
+          <div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh minh hoạ')}${photoReportBtn('aid_photo',p.id)}</div>`).join('')}</div></div>`:''}
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${a.helpers} người muốn giúp</div>
+          ${offers.length?`<div class="stack">${offers.map(o=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(o.member_name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${o.member_id}">${o.member_name}</a><div class="co">${esc(o.note)||o.member_job||''}</div></div></div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai nhận giúp — hãy là người đầu tiên.</p>'}</div>
+
+        ${events.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('history',14)} Diễn biến</div>
+          <div class="timeline">${events.map(e=>`<div class="tl-item"><div class="tl-role">${aidEventLabel(e.kind)}</div><div class="tl-meta">${e.actor_name||'Hệ thống'} · ${timeAgo(e.at)}</div>${e.note?`<div class="tl-desc">${esc(e.note)}</div>`:''}</div>`).join('')}</div></div>`:''}
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:flex-start">${ic('scale',13)}<span>Nhà Chung không giữ tiền hộ — mọi hỗ trợ chuyển thẳng cho ${asker.name}, hai bên tự ghi nhận với nhau.</span></div>
         </div></div>
-
-      ${photos.length?`<div class="card"><div class="sec-title">${ic('camera',14)} ${photos.length} ảnh minh hoạ</div>
-        <div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh minh hoạ')}</div>`).join('')}</div></div>`:''}
-
-      <div class="notice wait">${ic('scale',16)}Nhà Chung không giữ tiền hộ. Mọi hỗ trợ chuyển thẳng cho <b>${asker.name}</b>, hai bên tự ghi nhận với nhau — trao đổi qua Zalo hoặc điện thoại.</div>
-
-      <div class="card"><div class="sec-title">${ic('users',14)} ${a.helpers} người muốn giúp</div>
-        ${offers.length?`<div class="stack">${offers.map(o=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(o.member_name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${o.member_id}">${o.member_name}</a><div class="co">${esc(o.note)||o.member_job||''}</div></div></div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai nhận giúp — hãy là người đầu tiên.</p>'}</div>
-
-      ${events.length?`<div class="card"><div class="sec-title">${ic('history',14)} Diễn biến</div>
-        <div class="timeline">${events.map(e=>`<div class="tl-item"><div class="tl-role">${aidEventLabel(e.kind)}</div><div class="tl-meta">${e.actor_name||'Hệ thống'} · ${timeAgo(e.at)}</div>${e.note?`<div class="tl-desc">${esc(e.note)}</div>`:''}</div>`).join('')}</div></div>`:''}
     </div>
 
     <aside class="cols-side">
@@ -2992,21 +3249,22 @@ V['hoatdong-detail'] = (params)=>{
   <div class="crumb"><a data-go="hoatdong">Hoạt động</a> ${ic('chev',10)} ${a.title}</div>
   <div class="cols">
     <div class="stack">
-      <div class="section"><div style="aspect-ratio:16/8">${bannerImg(a.image,a.upcoming?'calendar':'archive',a.title)}</div>
+      <div class="section"><div style="aspect-ratio:16/8;position:relative">${bannerImg(a.image,a.upcoming?'calendar':'archive',a.title)}${a.image?photoReportBtn('activity_photo',a.id):''}</div>
         <div style="padding:18px"><span class="tag">${a.cat||'Khác'}</span><h1 style="font-size:19px;margin-top:8px">${a.title}</h1>
         ${organizer?`<div style="font-size:13px;color:var(--ink2);margin-top:6px">Đăng bởi ${organizer.name}</div>`:''}
         <p style="font-size:13.5px;color:var(--ink2);line-height:1.65;margin-top:8px">${esc(desc)}</p>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${a.going} người tham gia</div>
+          ${attendees.length?`<div class="stack">${attendees.map(m=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(m.name)}</div><div class="body"><div class="title" style="font-size:13.5px">${m.name}</div><div class="co">${m.ward}</div></div></div>`).join('')}${a.going>attendees.length?`<div style="font-size:12px;color:var(--muted);padding:6px 2px">+${a.going-attendees.length} người khác</div>`:''}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai đăng ký.</p>'}</div>
+
+        ${a.upcoming?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Cần người phụ trách</div>
+          <div class="gigrow" style="margin-bottom:8px"><div class="logo">${ic('doc',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Đặt bàn & chốt món</div><div class="co">Cần 1 người · trước ngày diễn ra</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div>
+          <div class="gigrow" style="margin-bottom:0"><div class="logo">${ic('camera',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Chụp ảnh & giữ ảnh</div><div class="co">Cần 1 người · hỏi trước khi đăng ảnh</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><button class="btn btn-blue btn-lg btn-block" onclick="api.post('/projects/${a.id}/join',{}).then(()=>{toast('Đã đăng ký tham gia','check');render();}).catch(e=>toast(e.message||'Có lỗi, thử lại.','flag'))">${ic('check',16)} Tôi sẽ tham gia</button></div>`
+        :`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('fund',14)} Tổng kết minh bạch</div>
+          <p style="font-size:13px;color:var(--muted)">Nhà Chung chưa ghi sổ quỹ theo từng hoạt động — chưa có số liệu chi phí để hiện ở đây.</p></div>`}
         </div></div>
-
-      <div class="card"><div class="sec-title">${ic('users',14)} ${a.going} người tham gia</div>
-        ${attendees.length?`<div class="stack">${attendees.map(m=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(m.name)}</div><div class="body"><div class="title" style="font-size:13.5px">${m.name}</div><div class="co">${m.ward}</div></div></div>`).join('')}${a.going>attendees.length?`<div style="font-size:12px;color:var(--muted);padding:6px 2px">+${a.going-attendees.length} người khác</div>`:''}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai đăng ký.</p>'}</div>
-
-      ${a.upcoming?`<div class="card"><div class="sec-title">${ic('doc',14)} Cần người phụ trách</div>
-        <div class="gigrow" style="margin-bottom:8px"><div class="logo">${ic('doc',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Đặt bàn & chốt món</div><div class="co">Cần 1 người · trước ngày diễn ra</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div>
-        <div class="gigrow" style="margin-bottom:0"><div class="logo">${ic('camera',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Chụp ảnh & giữ ảnh</div><div class="co">Cần 1 người · hỏi trước khi đăng ảnh</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div></div>
-      <div class="card"><button class="btn btn-blue btn-lg btn-block" onclick="api.post('/projects/${a.id}/join',{}).then(()=>{toast('Đã đăng ký tham gia','check');render();}).catch(e=>toast(e.message||'Có lỗi, thử lại.','flag'))">${ic('check',16)} Tôi sẽ tham gia</button></div>`
-      :`<div class="card"><div class="sec-title">${ic('fund',14)} Tổng kết minh bạch</div>
-        <p style="font-size:13px;color:var(--muted)">Nhà Chung chưa ghi sổ quỹ theo từng hoạt động — chưa có số liệu chi phí để hiện ở đây.</p></div>`}
     </div>
     <aside class="cols-side">
       <div class="box"><h3>Thông tin chung</h3>
@@ -3023,10 +3281,35 @@ V['hoatdong-detail'] = (params)=>{
   </div>`;
 };
 
-/* ---- Xác minh & tin cậy ---- */
+/* ---- Xác minh & tin cậy ----
+   "Yêu cầu xác minh hồ sơ" dùng DATA.myVerifications (thật, GET
+   /verifications/me — xem bootstrap()) — 4 mục cố định của bảng verifications
+   (migration 018), mỗi người chỉ có tối đa 1 hàng/mục. requestVerification()
+   gọi POST /verifications thật. */
+function myVerificationFor(kind){ return (DATA.myVerifications||[]).find(v=>v.kind===kind)||null; }
+async function requestVerification(kind){
+  try{
+    await api.post('/verifications', {kind});
+    const kindLabel = VERIFICATION_KIND_LABEL[kind]||kind;
+    toast('Đã gửi yêu cầu xác minh '+kindLabel.toLowerCase(),'check');
+    const meRes = await api.get('/verifications/me').catch(()=>null);
+    if(meRes) DATA.myVerifications = meRes.data||[];
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 V.xacminh = ()=> `
   <div class="page-head"><div><h1>Xác minh & tin cậy</h1><p>Không chấm điểm — chỉ xác nhận điều có thật.</p></div>
     <div style="display:flex;gap:8px"><button class="btn btn-out" data-open="vietBaoChung">${ic('shield',14)} Viết bảo chứng</button><button class="btn btn-out" data-open="baoCaoVanDe">${ic('flag',14)} Báo cáo</button></div></div>
+  <div class="sec-title">${ic('shield',14)} Yêu cầu xác minh hồ sơ</div>
+  <div class="section" style="margin-bottom:16px"><table><tbody>
+    ${Object.entries(VERIFICATION_KIND_LABEL).map(([kind,label])=>{
+      const v = myVerificationFor(kind);
+      const status = v?v.status:null;
+      return `<tr><td class="t-strong">${label}</td>
+        <td>${status?`<span class="status ${status==='verified'?'accepted':status==='pending'?'pending':'done'}">${VERIFICATION_STATUS_LABEL[status]}</span>`:'<span class="t-muted">Chưa yêu cầu</span>'}</td>
+        <td style="text-align:right">${(!status||status==='rejected')?`<button class="btn btn-out btn-sm" onclick="requestVerification('${kind}')">Yêu cầu xác minh</button>`:''}</td></tr>`;
+    }).join('')}
+  </tbody></table></div>
   <div class="sec-title">${ic('shield',14)} Bảo chứng gần đây</div>
   <div class="gigrow"><div class="logo">${initials('Nguyễn Việt')}</div><div class="body"><div class="title" style="font-size:14px">Nguyễn Việt được ${member('m11').name} bảo chứng</div><div class="co">"Sửa mái tôn đúng hẹn" — 08-2026</div></div></div>
   <div class="gigrow"><div class="logo">${initials('Hoàng Văn Tú')}</div><div class="body"><div class="title" style="font-size:14px">Hoàng Văn Tú được ${member('m11').name} bảo chứng</div><div class="co">"Hàn cổng chắc chắn" — 07-2026</div></div></div>`;
@@ -3046,9 +3329,9 @@ V.kyuc = (params)=>{
     <div class="stat"><div class="stat-lbl">CHI THÁNG NÀY</div><div class="stat-num" style="color:var(--red)">-${money(f.expense)}</div></div>
   </div>
   <div class="section"><table><thead><tr><th>Khoản</th><th>Ngày</th><th style="text-align:right">Số tiền</th></tr></thead><tbody>
-    ${DATA.fundTx.map(t=>`<tr><td class="t-strong">${t.title}</td><td class="t-time">${fmtDate(t.at)}</td><td style="text-align:right;color:${t.kind==='thu'?'var(--green)':'var(--red)'};font-weight:700">${t.kind==='thu'?'+':'-'}${money(t.amount)}</td></tr>`).join('')}
+    ${DATA.fundEntries.map(t=>{const amt=Number(t.amount); return `<tr><td class="t-strong">${esc(t.purpose)}</td><td class="t-time">${fmtDate(t.occurred_on)}</td><td style="text-align:right;color:${amt>=0?'var(--green)':'var(--red)'};font-weight:700">${amt>=0?'+':'-'}${money(Math.abs(amt))}</td></tr>`;}).join('')||'<tr><td colspan="3" class="t-muted">Chưa có bút toán nào.</td></tr>'}
   </tbody></table></div>
-  ${treasurer()?`<div class="notice brand" style="margin-top:16px">${ic('shield',16)}Sổ quỹ do <b>${treasurer().name}</b> — Thủ quỹ được Ban điều hành phân quyền — ghi và chịu trách nhiệm.</div>`:''}`
+  ${approversList().length?`<div class="notice brand" style="margin-top:16px">${ic('shield',16)}Sổ quỹ do Ban điều hành (${approversList().map(m=>esc(m.full_name)).join(', ')}) ghi và chịu trách nhiệm.</div>`:''}`
   :`<div class="card-grid">${list.map(k=>`<a class="gcard" data-go="kyuc-detail:${k.id}">${imgph(k.count?'camera':'bolt',k.cat)}
       <div class="body"><span class="tag">${k.cat}</span><div class="title">${k.title}</div><div class="meta"><span>${fmtDate(k.date)}</span>${k.count?`<span>${k.count} ảnh</span>`:''}</div></div></a>`).join('')}</div>`}`;
 };
@@ -3085,46 +3368,181 @@ const ADM = {};
 
 ADM.tongquan = ()=> `
   <div style="margin-bottom:18px"><h1 style="font-size:21px;font-weight:800">Xin chào, Ban điều hành 👋</h1>
-  <p style="font-size:13.5px;color:var(--ink2);margin-top:3px">Có <b>${DATA.verifications.filter(v=>v.status==='cho-duyet').length+2}</b> việc đang chờ bạn xử lý hôm nay.</p></div>
+  <p style="font-size:13.5px;color:var(--ink2);margin-top:3px">Có <b>${joinRequestPending().length+DATA.verifications.filter(v=>v.status==='pending').length}</b> việc đang chờ bạn xử lý hôm nay.</p></div>
   <div class="stat-grid">
     <div class="stat"><div class="stat-ico">${ic('briefcase',16)}</div><div class="stat-num">${DATA.jobs.filter(j=>j.status==='open').length}</div><div class="stat-lbl">Việc đang mở</div></div>
-    <div class="stat"><div class="stat-ico">${ic('users',16)}</div><div class="stat-num">2</div><div class="stat-lbl">Chờ duyệt thành viên</div></div>
-    <div class="stat"><div class="stat-ico">${ic('shield',16)}</div><div class="stat-num">${DATA.verifications.filter(v=>v.status==='cho-duyet').length}</div><div class="stat-lbl">Chờ duyệt xác minh</div></div>
-    <div class="stat"><div class="stat-ico">${ic('flag',16)}</div><div class="stat-num">${DATA.verifications.filter(v=>v.status==='dang-doi-chieu').length}</div><div class="stat-lbl">Khiếu nại đang mở</div></div>
+    <div class="stat"><div class="stat-ico">${ic('users',16)}</div><div class="stat-num">${joinRequestPending().length}</div><div class="stat-lbl">Chờ duyệt thành viên</div></div>
+    <div class="stat"><div class="stat-ico">${ic('shield',16)}</div><div class="stat-num">${DATA.verifications.filter(v=>v.status==='pending').length}</div><div class="stat-lbl">Chờ duyệt xác minh</div></div>
+    <div class="stat"><div class="stat-ico">${ic('flag',16)}</div><div class="stat-num">${DATA.complaints.filter(c=>c.status==='open'||c.status==='reviewing').length}</div><div class="stat-lbl">Khiếu nại đang mở</div></div>
   </div>
   <div class="cols">
     <div>
       <div class="section" style="margin-bottom:16px">
         <div class="card-head"><h3>${ic('user',15)} Thành viên chờ duyệt</h3></div>
         <table><thead><tr><th>Người</th><th>Người giới thiệu</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
-          <tr><td><div class="cand"><div class="av">${initials('Trịnh Văn Bình')}</div><div><div class="ci-nm">Trịnh Văn Bình</div></div></div></td><td class="t-time">Nguyễn Việt</td>
-          <td><div class="act-btns"><button class="btn btn-blue btn-sm" onclick="notReady('Duyệt thành viên (cần nạp danh sách join-requests thật trước)')">Duyệt</button><button class="btn btn-out btn-sm">Từ chối</button></div></td></tr>
+          ${joinRequestPending().slice(0,5).map(joinRequestRowHtml).join('')||'<tr><td colspan="3" class="t-muted">Không có đơn nào đang chờ.</td></tr>'}
         </tbody></table>
       </div>
       <div class="section">
         <div class="card-head"><h3>${ic('briefcase',15)} Việc chưa ai nhận</h3></div>
         <table><thead><tr><th>Việc</th><th>Đăng</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
-        ${DATA.jobs.filter(j=>j.status==='open'&&j.apps===0&&j.kind!=='hoi-tim').map(j=>`<tr><td class="t-strong">${j.title}</td><td class="t-time">${timeAgo(j.posted)}</td><td><div class="act-btns"><button class="btn btn-out btn-sm" onclick="toast('Đã gợi ý người phù hợp')">Gợi ý người</button></div></td></tr>`).join('')||'<tr><td colspan="3" class="t-muted">Không có việc nào bị tắc.</td></tr>'}
+        ${DATA.jobs.filter(j=>j.status==='open'&&j.apps===0&&j.kind!=='hoi-tim').map(j=>`<tr><td class="t-strong">${j.title}</td><td class="t-time">${timeAgo(j.posted)}</td><td><div class="act-btns"><button class="btn btn-out btn-sm" onclick="WIZ.goiYNguoi('${j.id}')">Gợi ý người</button></div></td></tr>`).join('')||'<tr><td colspan="3" class="t-muted">Không có việc nào bị tắc.</td></tr>'}
         </tbody></table>
       </div>
     </div>
     <div class="cols-side">
       <div class="box"><h3>${ic('mail',14)} Thông báo tới cả Hội</h3>
-        <textarea class="input" style="height:70px;padding-top:10px;margin-bottom:10px" placeholder="Nhắc đóng quỹ tháng 9…"></textarea>
-        <button class="btn btn-blue btn-block" onclick="notReady('Gửi hàng loạt (backend chỉ hỗ trợ gửi từng người)')">${ic('send',14)} Gửi</button></div>
+        <textarea class="input" id="bcast-body" style="height:70px;padding-top:10px;margin-bottom:10px" placeholder="Nhắc đóng quỹ tháng 9…"></textarea>
+        <button class="btn btn-blue btn-block" id="bcast-submit" onclick="guiThongBaoHangLoat()">${ic('send',14)} Gửi</button>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:6px">Gửi thành tin nhắn riêng tới từng thành viên (${DATA.members.filter(m=>!DATA.me||m.id!==DATA.me.id).length} người) — chưa có kênh "thông báo chung" riêng.</p></div>
       <div class="bluebox"><div class="ico">${ic('lock',18)}</div><h4>Phân quyền</h4><p>Xem ai được làm gì trong Nhà Chung.</p><a class="bx-btn" data-go="admin-phanquyen">Xem phân quyền</a></div>
     </div>
   </div>`;
 
+/* Đơn gia nhập thật (DATA.joinRequests, xem bootstrap() — GET /join-requests,
+   chỉ approver/content_ops nạp được). 'pending' và 'met_confirmed' đều duyệt
+   được (join-requests/service.js#approve chấp nhận cả hai) — 'met_confirmed'
+   là đơn người bảo lãnh đã xác nhận gặp mặt, không phải trạng thái riêng cần
+   xử lý khác. */
+function joinRequestPending(){
+  return (DATA.joinRequests||[]).filter(j=>j.status==='pending'||j.status==='met_confirmed');
+}
+function joinRequestRowHtml(jr){
+  const applicantName = (jr.applicant&&jr.applicant.full_name)||'Ẩn danh';
+  const ref = member(jr.referrer_id);
+  return `<tr><td><div class="cand"><div class="av">${initials(applicantName)}</div><div><div class="ci-nm">${esc(applicantName)}</div></div></div></td>
+    <td class="t-time">${esc(ref.name)}</td>
+    <td><div class="act-btns"><button class="btn btn-blue btn-sm" onclick="duyetDon('${jr.id}')">Duyệt</button><button class="btn btn-out btn-sm" onclick="WIZ.tuChoiDon('${jr.id}')">Từ chối</button></div></td></tr>`;
+}
+async function duyetDon(id){
+  const jr = DATA.joinRequests.find(x=>x.id===id); if(!jr) return;
+  const name = (jr.applicant&&jr.applicant.full_name)||'người này';
+  if(!confirm('Duyệt đơn gia nhập của '+name+'?')) return;
+  try{
+    await api.post(`/join-requests/${id}/approve`, {});
+    jr.status='approved';
+    toast('Đã duyệt '+name,'check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
+const JOIN_REJECT_REASON_LABEL = {
+  not_ready: 'Người nộp đơn chưa sẵn sàng',
+  no_meeting: 'Chưa từng gặp mặt trực tiếp',
+  referrer_misrepresented: 'Người bảo lãnh khai sai (đốt suất bảo lãnh)',
+  other: 'Lý do khác',
+};
+WIZ.tuChoiDon = (id)=>{
+  const jr = DATA.joinRequests.find(x=>x.id===id); if(!jr) return;
+  const name = (jr.applicant&&jr.applicant.full_name)||'người này';
+  openModal(`
+  <div class="modal-head"><b>Từ chối đơn của ${esc(name)}</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body">
+    <div class="field"><label class="label">Lý do <span class="req" style="color:var(--red)">*</span></label>
+      <select class="input" id="tcd-reason">${Object.entries(JOIN_REJECT_REASON_LABEL).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
+    <div class="field"><label class="label">Ghi chú <span class="req" style="color:var(--red)">*</span></label>
+      <textarea class="input" id="tcd-note" style="height:90px;padding-top:10px" placeholder="Ít nhất 20 ký tự — vì sao từ chối đơn này."></textarea></div>
+    <div id="tcd-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="tcd-err-txt"></span></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-red" id="tcd-submit" style="flex:2" onclick="tuChoiDonSubmit('${id}')">Từ chối đơn</button></div>`);
+};
+async function tuChoiDonSubmit(id){
+  const reason = getVal('tcd-reason'), note = getVal('tcd-note');
+  const errBox=qs('#tcd-err'), errTxt=qs('#tcd-err-txt');
+  if(errBox) errBox.style.display='none';
+  if(note.length<20){ if(errBox){errTxt.textContent='Ghi chú cần ít nhất 20 ký tự.'; errBox.style.display='flex';} return; }
+  const btn=qs('#tcd-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  try{
+    await api.post(`/join-requests/${id}/reject`, {reason_code:reason, note});
+    const jr = DATA.joinRequests.find(x=>x.id===id); if(jr) jr.status='rejected';
+    closeModal(); toast('Đã từ chối đơn','check');
+    render();
+  }catch(e){
+    if(errBox){errTxt.textContent=e.message||'Có lỗi, thử lại.'; errBox.style.display='flex';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Từ chối đơn';}
+  }
+}
+
+/* Khiếu nại thật (DATA.complaints, xem bootstrap() — GET /complaints, chỉ
+   approver/content_ops nạp được). subject_type trỏ tới 1-trong-4 bảng khác
+   nhau (xem complaints/service.js#assertSubject) — nhãn + đường dẫn xem tương
+   ứng cho từng loại, không có thì là báo cáo chung không gắn đối tượng. */
+const COMPLAINT_SUBJECT_LABEL = {job:'Việc', aid:'Lời nhờ giúp', activity:'Hoạt động', capability:'Năng lực'};
+const COMPLAINT_SUBJECT_GO = {job:'viec-detail', aid:'giupnhau-detail', activity:'hoatdong-detail', capability:'nangluc-detail'};
+function complaintSubjectHtml(c){
+  if(c.subject_member_id) return `<a data-go="congnguoi-detail:${c.subject_member_id}">${esc(c.subject_member_name||'Thành viên')}</a>`;
+  if(c.subject_type) return `<a data-go="${COMPLAINT_SUBJECT_GO[c.subject_type]}:${c.subject_id}">${COMPLAINT_SUBJECT_LABEL[c.subject_type]}</a>`;
+  return '<span class="t-muted">Báo cáo chung</span>';
+}
+const COMPLAINT_STATUS_LABEL = {open:'Chờ xử lý', reviewing:'Đang xem', resolved:'Đã xử lý', dismissed:'Đã bỏ qua'};
+const COMPLAINT_STATUS_CLASS = {open:'pending', reviewing:'pending', resolved:'accepted', dismissed:'done'};
+/* Gửi hàng loạt — backend chỉ có tin nhắn 1-1 (POST /messages, recipient_id
+   bắt buộc), không có khái niệm "thông báo chung tới cả Hội" — nên "hàng
+   loạt" ở đây là gửi THẬT cùng một nội dung thành N tin nhắn riêng, tuần tự
+   (không Promise.all cả loạt — rateLimit của /messages là 60 req/phút, cộng
+   đồng ~50 người thì tuần tự vẫn nằm dưới ngưỡng, song đồng thời N cuộc gọi
+   dễ vượt nếu cộng đồng lớn hơn). */
+async function guiThongBaoHangLoat(){
+  const body = getVal('bcast-body');
+  if(!body || body.trim().length<3){ toast('Nhập nội dung thông báo trước đã.','flag'); return; }
+  const recipients = DATA.members.filter(m=>!DATA.me||m.id!==DATA.me.id);
+  if(!recipients.length){ toast('Không có ai để gửi.','flag'); return; }
+  if(!confirm(`Gửi thông báo này tới ${recipients.length} thành viên?`)) return;
+  const btn = qs('#bcast-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  let ok=0, fail=0;
+  for(const m of recipients){
+    try{ await api.post('/messages',{recipient_id:m.id, body}); ok++; }
+    catch(e){ fail++; }
+  }
+  if(btn){btn.disabled=false;btn.textContent='Gửi';}
+  const ta = qs('#bcast-body'); if(ta) ta.value='';
+  toast(fail?`Đã gửi ${ok}/${recipients.length}, ${fail} lỗi`:`Đã gửi thông báo tới ${ok} người`, fail?'flag':'check');
+}
+async function decideComplaint(id, status){
+  try{
+    await api.patch(`/complaints/${id}`, {status});
+    const c = DATA.complaints.find(x=>x.id===id);
+    if(c) c.status = status;
+    toast('Đã cập nhật khiếu nại','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
+
 ADM.duyet = ()=> `
   <div class="page-head"><div><h1>Duyệt & xác minh</h1><p>Xác minh hồ sơ, khiếu nại và đối chiếu công bằng.</p></div></div>
-  <div class="section"><table><thead><tr><th>Người</th><th>Nội dung</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
-  ${DATA.verifications.map(v=>{const m=member(v.member);return `
-    <tr><td><div class="cand"><div class="av">${initials(m.name)}</div><div><div class="ci-nm">${m.name}</div></div></div></td>
-    <td class="t-strong">${v.kind}</td>
-    <td><span class="status ${v.status==='da-duyet'?'accepted':v.status==='dang-doi-chieu'?'pending':'done'}">${({['cho-duyet']:'Chờ duyệt',['da-duyet']:'Đã duyệt',['dang-doi-chieu']:'Đang đối chiếu'})[v.status]}</span></td>
-    <td><div class="act-btns">${v.status==='cho-duyet'?`<button class="btn btn-blue btn-sm" onclick="notReady('Xác minh đa loại')">Duyệt</button>`:`<button class="btn btn-out btn-sm">Xem</button>`}</div></td></tr>`;}).join('')}
+  <div class="section" style="margin-bottom:16px"><div class="card-head"><h3>${ic('user',15)} Thành viên chờ duyệt (${joinRequestPending().length} đang chờ)</h3></div>
+    <table><thead><tr><th>Người</th><th>Người giới thiệu</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
+    ${joinRequestPending().map(joinRequestRowHtml).join('')||'<tr><td colspan="3" class="t-muted">Không có đơn nào đang chờ.</td></tr>'}
+    </tbody></table></div>
+  <div class="section" style="margin-bottom:16px"><div class="card-head"><h3>${ic('flag',15)} Khiếu nại (${DATA.complaints.filter(c=>c.status==='open'||c.status==='reviewing').length} đang chờ)</h3></div>
+    <table><thead><tr><th>Người báo cáo</th><th>Về</th><th>Nội dung</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
+    ${DATA.complaints.map(c=>`
+      <tr><td class="t-strong">${esc(c.reporter_name)}</td>
+      <td>${complaintSubjectHtml(c)}</td>
+      <td style="max-width:280px;white-space:normal">${esc(c.body)}</td>
+      <td><span class="status ${COMPLAINT_STATUS_CLASS[c.status]}">${COMPLAINT_STATUS_LABEL[c.status]}</span></td>
+      <td><div class="act-btns">${c.status==='open'||c.status==='reviewing'?`<button class="btn btn-blue btn-sm" onclick="decideComplaint('${c.id}','resolved')">Đã xử lý</button><button class="btn btn-out btn-sm" onclick="decideComplaint('${c.id}','dismissed')">Bỏ qua</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5" class="t-muted">Không có khiếu nại nào.</td></tr>'}
+    </tbody></table></div>
+  <div class="section"><div class="card-head"><h3>${ic('shield',15)} Xác minh hồ sơ (${DATA.verifications.filter(v=>v.status==='pending').length} đang chờ)</h3></div>
+  <table><thead><tr><th>Người</th><th>Mục xin xác minh</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
+  ${DATA.verifications.map(v=>`
+    <tr><td><div class="cand"><div class="av">${initials(v.member_name||'')}</div><div><div class="ci-nm">${esc(v.member_name||'Ẩn danh')}</div></div></div></td>
+    <td class="t-strong">${VERIFICATION_KIND_LABEL[v.kind]||v.kind}</td>
+    <td><span class="status ${v.status==='verified'?'accepted':v.status==='pending'?'pending':'done'}">${VERIFICATION_STATUS_LABEL[v.status]||v.status}</span></td>
+    <td><div class="act-btns">${v.status==='pending'?`<button class="btn btn-blue btn-sm" onclick="decideVerification('${v.id}','verified')">Duyệt</button><button class="btn btn-out btn-sm" onclick="decideVerification('${v.id}','rejected')">Từ chối</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="4" class="t-muted">Không có yêu cầu xác minh nào.</td></tr>'}
   </tbody></table></div>`;
+const VERIFICATION_KIND_LABEL = {identity:'Danh tính', address:'Địa chỉ', skill:'Kỹ năng / nghề nghiệp', business:'Hộ kinh doanh'};
+const VERIFICATION_STATUS_LABEL = {pending:'Chờ duyệt', verified:'Đã xác minh', rejected:'Đã từ chối'};
+async function decideVerification(id, status){
+  try{
+    await api.patch(`/verifications/${id}`, {status});
+    const v = DATA.verifications.find(x=>x.id===id);
+    if(v) v.status = status;
+    toast(status==='verified'?'Đã xác minh':'Đã từ chối yêu cầu','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 
 ADM.dieuphoi = ()=>{
   const openJobs = DATA.jobs.filter(j=>j.status==='open'&&j.apps===0&&j.kind!=='hoi-tim');
@@ -3132,7 +3550,7 @@ ADM.dieuphoi = ()=>{
   <div class="page-head"><div><h1>Điều phối việc & giúp nhau</h1><p>Ghép người phù hợp, phân loại lời nhờ.</p></div></div>
   <div class="g2">
     <div class="section"><div class="card-head"><h3>${ic('briefcase',14)} Việc chưa ai nhận</h3></div>
-      <table><tbody>${openJobs.map(j=>`<tr><td class="t-strong">${j.title}</td><td><div class="act-btns"><button class="btn btn-out btn-sm" onclick="toast('Đã gợi ý người phù hợp')">Gợi ý</button></div></td></tr>`).join('')||'<tr><td class="t-muted">Không có việc tắc.</td></tr>'}</tbody></table></div>
+      <table><tbody>${openJobs.map(j=>`<tr><td class="t-strong">${j.title}</td><td><div class="act-btns"><button class="btn btn-out btn-sm" onclick="WIZ.goiYNguoi('${j.id}')">Gợi ý</button></div></td></tr>`).join('')||'<tr><td class="t-muted">Không có việc tắc.</td></tr>'}</tbody></table></div>
     <div class="section"><div class="card-head"><h3>${ic('heart',14)} Lời nhờ cần phân loại</h3></div>
       <table><tbody>${DATA.aid.filter(a=>a.status==='queued').map(a=>`<tr><td class="t-strong">${a.title}</td><td><div class="act-btns"><a class="btn btn-blue btn-sm" data-go="giupnhau-detail:${a.id}">Xem</a></div></td></tr>`).join('')||'<tr><td class="t-muted">Không có lời nhờ nào chờ.</td></tr>'}</tbody></table></div>
   </div>
@@ -3142,16 +3560,38 @@ ADM.dieuphoi = ()=>{
     </tbody></table></div>`;
 };
 
+/* Ảnh bị báo cáo — DATA.moderationQueue (thật, GET /moderation?status=open,
+   xem bootstrap()) — mỗi hàng đã kèm sẵn photo_url/parent_id/parent_title do
+   moderation/service.js#list tự tra theo target_type. */
+const MODERATION_TARGET_LABEL = {job_photo:'Ảnh việc', capability_photo:'Ảnh năng lực', aid_photo:'Ảnh giúp nhau', activity_photo:'Ảnh hoạt động'};
+const MODERATION_TARGET_GO = {job_photo:'viec-detail', capability_photo:'nangluc-detail', aid_photo:'giupnhau-detail', activity_photo:'hoatdong-detail'};
+async function quyetDinhAnh(id, status){
+  if(status==='approved' && !confirm('Gỡ ảnh này khỏi bài đăng? Không hoàn tác được — sổ chỉ ghi thêm, không sửa lại.')) return;
+  try{
+    await api.patch(`/moderation/${id}`, {status});
+    DATA.moderationQueue = DATA.moderationQueue.filter(x=>x.id!==id);
+    toast(status==='approved'?'Đã gỡ ảnh':'Đã bỏ qua báo cáo','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 ADM.hoatdong = ()=> `
   <div class="page-head"><div><h1>Hoạt động & ký ức</h1><p>Quản lý ảnh và lịch sử thay đổi.</p></div></div>
-  <div class="section"><div class="card-head"><h3>${ic('image',14)} Ảnh chờ duyệt gỡ</h3></div>
-    <table><tbody>${DATA.memories.filter(k=>k.count).map(k=>`<tr><td class="t-strong">${k.title}</td><td>${k.count} ảnh</td><td><div class="act-btns"><button class="btn btn-red btn-sm">${ic('trash',12)} Gỡ</button></div></td></tr>`).join('')}</tbody></table></div>
+  <div class="section"><div class="card-head"><h3>${ic('image',14)} Ảnh chờ duyệt gỡ (${DATA.moderationQueue.length} đang chờ)</h3></div>
+    <table><tbody>${DATA.moderationQueue.map(m=>`<tr>
+      <td>${m.photo_url?`<div style="width:44px;height:44px;border-radius:6px;overflow:hidden;cursor:zoom-in" onclick="lightbox('${esc(m.photo_url)}')">${bannerImg(m.photo_url,'image','',44)}</div>`:'<span class="t-muted">Ảnh đã mất</span>'}</td>
+      <td class="t-strong">${MODERATION_TARGET_LABEL[m.target_type]||m.target_type}${m.parent_title?` · <a data-go="${MODERATION_TARGET_GO[m.target_type]}:${m.parent_id}">${esc(m.parent_title)}</a>`:''}</td>
+      <td style="max-width:220px;white-space:normal">${esc(m.reason||'')}</td>
+      <td><div class="act-btns"><button class="btn btn-red btn-sm" onclick="quyetDinhAnh('${m.id}','approved')">${ic('trash',12)} Gỡ ảnh</button><button class="btn btn-out btn-sm" onclick="quyetDinhAnh('${m.id}','rejected')">Bỏ qua</button></div></td></tr>`).join('')||'<tr><td colspan="4" class="t-muted">Không có ảnh nào bị báo cáo.</td></tr>'}</tbody></table></div>
   <div class="section" style="margin-top:16px"><div class="card-head"><h3>${ic('history',14)} Nhật ký thay đổi</h3></div>
     <table><tbody>${DATA.opsLogs.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${l.target}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')}</tbody></table></div>`;
 
+function approversList(){
+  const row = (DATA.rolesMatrix||[]).find(r=>r.role==='approver');
+  return (row&&row.members)||[];
+}
 ADM.quy = ()=>{
   const f = DATA.fund;
-  const tq = treasurer();
+  const approvers = approversList();
   return `
   <div class="page-head"><div><h1>Quỹ hội</h1><p>Sổ quỹ minh bạch — mọi khoản thu/chi đều ghi công khai, không hiện ai chuyển bao nhiêu riêng lẻ.</p></div>
     <button class="btn btn-blue" data-open="ghiSoQuy">${ic('plus',15)} Ghi khoản mới</button></div>
@@ -3162,27 +3602,37 @@ ADM.quy = ()=>{
   </div>
   <div class="cols">
     <div class="section"><div class="card-head"><h3>${ic('history',14)} Sổ quỹ chi tiết</h3></div>
-      <table><thead><tr><th>Khoản</th><th>Ngày</th><th>Người ghi</th><th style="text-align:right">Số tiền</th></tr></thead><tbody>
-      ${DATA.fundTx.map(t=>`<tr><td class="t-strong">${t.title}</td><td class="t-time">${fmtDate(t.at)}</td><td class="t-time">${member(t.by).name}</td>
-        <td style="text-align:right;font-weight:700;color:${t.kind==='thu'?'var(--green,#16a34a)':'var(--red,#ef4444)'}">${t.kind==='thu'?'+':'-'}${money(t.amount)}</td></tr>`).join('')}
+      <table><thead><tr><th>Khoản</th><th>Ngày</th><th>Người ghi</th><th style="text-align:right">Số tiền</th><th></th></tr></thead><tbody>
+      ${DATA.fundEntries.map(t=>{const amt=Number(t.amount); return `<tr><td class="t-strong">${esc(t.purpose)}</td><td class="t-time">${fmtDate(t.occurred_on)}</td><td class="t-time">${esc(t.created_by_name||'')}</td>
+        <td style="text-align:right;font-weight:700;color:${amt>=0?'var(--green,#16a34a)':'var(--red,#ef4444)'}">${amt>=0?'+':'-'}${money(Math.abs(amt))}</td>
+        <td style="text-align:right">${t.locked?`<span class="t-muted" style="font-size:12px">${ic('lock',11)} Đã chốt</span>`:`<button class="btn btn-out btn-sm" onclick="khoaButToan('${t.id}')">Chốt sổ</button>`}</td></tr>`;}).join('')||'<tr><td colspan="5" class="t-muted">Chưa có bút toán nào.</td></tr>'}
       </tbody></table>
     </div>
     <aside class="cols-side">
-      <div class="box company-card" style="text-align:center">
-        ${tq?`<div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:52px;height:52px">${initials(tq.name)}</div></div>
-        <h3 style="font-size:15px">${tq.name}</h3><div style="font-size:12px;color:var(--ink2);margin:5px 0">Đang giữ vai trò Thủ quỹ</div>
-        ${tq.id!==DATA.me.id?`<button class="btn btn-out btn-block btn-sm" onclick="chatWith('${tq.id}')">${ic('mail',13)} Nhắn tin</button>`:''}`
-        :`<p style="font-size:13px;color:var(--muted)">Chưa có ai giữ vai trò Thủ quỹ.</p><a class="btn btn-blue btn-block btn-sm" data-go="admin-phanquyen">Gán ngay</a>`}
+      <div class="box company-card">
+        <h3 style="font-size:15px;margin-bottom:8px">${ic('shield',15)} Ban điều hành (được ghi sổ)</h3>
+        ${approvers.length?approvers.map(m=>`<div class="cand" style="margin-bottom:8px"><div class="av">${initials(m.full_name)}</div><div><div class="ci-nm">${esc(m.full_name)}</div></div>
+          ${m.member_id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="margin-left:auto" onclick="chatWith('${m.member_id}')">${ic('mail',12)}</button>`:''}</div>`).join('')
+          :`<p style="font-size:13px;color:var(--muted)">Chưa có ai giữ vai approver.</p><a class="btn btn-blue btn-block btn-sm" data-go="admin-phanquyen">Gán ngay</a>`}
       </div>
-      <div class="notice brand">${ic('shield',16)}Nhà Chung không giữ tiền hộ — quỹ hội do Thủ quỹ được bầu quản lý ngoài nền tảng, đây chỉ là sổ ghi công khai.</div>
+      <div class="notice brand">${ic('shield',16)}Nhà Chung không giữ tiền hộ — quỹ hội do Ban điều hành được bầu quản lý ngoài nền tảng, đây chỉ là sổ ghi công khai.</div>
       <div class="box"><h3>Ai được sửa sổ quỹ</h3>
-        <div class="info-row"><span class="lbl">Thủ quỹ</span><span class="val">${ic('check',13)}</span></div>
-        <div class="info-row"><span class="lbl">Ban điều hành</span><span class="val">${ic('check',13)}</span></div>
+        <div class="info-row"><span class="lbl">Ban điều hành (approver/tech)</span><span class="val">${ic('check',13)}</span></div>
         <div class="info-row"><span class="lbl">Thành viên khác</span><span class="val">Chỉ xem</span></div>
       </div>
+      <div class="notice wait">${ic('scale',15)}Bút toán từ 1.000.000đ trở lên cần 2 người duyệt — luồng ký duyệt cho bút toán lớn chưa có trên giao diện, chỉ ghi được khoản dưới ngưỡng này.</div>
     </aside>
   </div>`;
 };
+async function khoaButToan(id){
+  if(!confirm('Chốt sổ bút toán này? Sau khi chốt sẽ không sửa được nữa — sai thì ghi thêm dòng điều chỉnh.')) return;
+  try{
+    await api.post(`/fund/entries/${id}/lock`, {});
+    const t = DATA.fundEntries.find(x=>x.id===id); if(t) t.locked=true;
+    toast('Đã chốt sổ','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 
 ADM.nhatky = ()=> `
   <div class="page-head"><div><h1>Nhật ký & sao lưu</h1><p>Sổ đã chốt thì không sửa được — sai thì ghi thêm dòng điều chỉnh.</p></div></div>
@@ -3190,65 +3640,124 @@ ADM.nhatky = ()=> `
     <div class="section"><div class="card-head"><h3>${ic('server',14)} Nhật ký truy cập</h3></div>
       <table><tbody>${DATA.opsLogs.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')}</tbody></table></div>
     <div class="box"><h3>${ic('archive',14)} Sao lưu dữ liệu</h3>
-      ${['20-08-2026','19-08-2026','18-08-2026'].map(d=>`<div class="info-row"><span class="lbl">Bản sao ${d}</span><a class="btn btn-out btn-sm">Tải về</a></div>`).join('')}
-      <button class="btn btn-out btn-block" style="margin-top:12px" onclick="notReady('Kích hoạt sao lưu qua API (chưa xác nhận có route)')">${ic('refresh',14)} Sao lưu ngay</button></div>
+      ${DATA.backups.length?DATA.backups.map(b=>`<div class="info-row"><span class="lbl">${b.kind} · ${fmtDate(b.started_at)}</span><span class="val">${b.ok===false?`<span class="status pending">Lỗi</span>`:b.ok?`<span class="status accepted">OK</span>`:`<span class="t-muted">Đang chạy</span>`}</span></div>`).join('')
+        :'<p style="font-size:13px;color:var(--muted)">Chưa có bản sao lưu nào trong lịch sử.</p>'}
+      <button class="btn btn-out btn-block" style="margin-top:12px" onclick="notReady('Sao lưu theo yêu cầu (container sao lưu chạy độc lập theo lịch, chưa có đường tín hiệu để API gọi ngay lập tức)')">${ic('refresh',14)} Sao lưu ngay</button></div>
   </div>`;
 
+/* Phân quyền thật — 5 vai của nền tảng (roles, migration 008), không phải 4
+   vai giả cũ (member/moderator/admin/treasurer, không khớp CSDL nào cả).
+   DATA.rolesMatrix đến từ GET /ops/roles (chỉ vai tech gọi được,
+   ops.role.manage) — trống với người không có quyền, màn tự hiện thông báo
+   thay vì một bảng rỗng khó hiểu. Một người có thể giữ NHIỀU vai cùng lúc
+   (member_roles không giới hạn 1 vai/người), nên đây là gán/gỡ theo TỪNG vai,
+   không phải "đổi vai" kiểu chọn 1-trong-4 như bản cũ. */
+const REAL_ROLE_LABEL = {guest:'Khách', member:'Thành viên', content_ops:'Biên tập nội dung', approver:'Ban điều hành (approver)', tech:'Kỹ thuật (tech)'};
+const REAL_ROLE_ORDER = ['tech','approver','content_ops','member','guest'];
 ADM.phanquyen = ()=>{
-  const roleRows = ['member','moderator','admin','treasurer'].map(r=>{
-    const list = DATA.members.filter(m=>m.role===r);
-    return {r,list};
-  });
+  const matrix = DATA.rolesMatrix||[];
+  const byRole = {}; matrix.forEach(r=>{ byRole[r.role] = r.members||[]; });
   return `
-  <div class="page-head"><div><h1>Phân quyền & cấu hình</h1><p>Ai được làm gì trong Nhà Chung — và Ban điều hành có thể đổi vai trò cho từng thành viên.</p></div></div>
-
-  <div class="section" style="margin-bottom:18px"><div class="card-head"><h3>${ic('users',14)} Gán vai trò cho thành viên</h3></div>
-    <table><thead><tr><th>Thành viên</th><th>Vai trò hiện tại</th><th style="text-align:right">Đổi vai trò</th></tr></thead><tbody>
-    ${DATA.members.map(m=>`
-      <tr><td><div class="cand"><div class="av">${initials(m.name)}</div><div><div class="ci-nm">${m.name}</div><div class="ci-sub">${m.ward}</div></div></div></td>
-      <td>${roleTag(m.role)}</td>
-      <td style="text-align:right">
-        <select class="input" style="width:auto;display:inline-block;height:36px;padding:0 30px 0 12px;font-size:12.5px" onchange="setMemberRole('${m.id}',this.value)">
-          ${['member','moderator','admin','treasurer'].map(r=>`<option value="${r}" ${m.role===r?'selected':''}>${ROLE_LABELS[r]}</option>`).join('')}
-        </select>
-      </td></tr>`).join('')}
+  <div class="page-head"><div><h1>Phân quyền & cấu hình</h1><p>Ai được làm gì trong Nhà Chung — chỉ vai <b>tech</b> gán/gỡ được vai trò.</p></div></div>
+  ${matrix.length?`
+  <div class="section" style="margin-bottom:18px"><div class="card-head"><h3>${ic('users',14)} Vai trò trong Hội</h3></div>
+    <table><thead><tr><th>Vai trò</th><th>Đang giữ</th><th style="text-align:right">Gán thêm</th></tr></thead><tbody>
+    ${REAL_ROLE_ORDER.map(role=>{
+      const members = byRole[role]||[];
+      return `<tr><td class="t-strong">${REAL_ROLE_LABEL[role]}</td>
+        <td>${members.length?members.map(m=>`<span class="chip" style="margin:2px 4px 2px 0;display:inline-flex;align-items:center;gap:4px">${esc(m.full_name)}<a href="javascript:void(0)" onclick="goRevokeRole('${m.member_id}','${role}')" style="color:var(--red)" title="Gỡ vai">${ic('x',10)}</a></span>`).join(''):'<span class="t-muted">Chưa có ai</span>'}</td>
+        <td style="text-align:right">
+          <select class="input" style="width:auto;display:inline-block;height:34px;padding:0 26px 0 10px;font-size:12.5px" onchange="if(this.value){goGrantRole(this.value,'${role}');this.value='';}">
+            <option value="">+ Gán người…</option>
+            ${DATA.members.filter(m=>!members.some(x=>x.member_id===m.id)).map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}
+          </select>
+        </td></tr>`;
+    }).join('')}
     </tbody></table>
-  </div>
-  <div class="notice wait" style="margin-bottom:18px">${ic('scale',15)}Mỗi lúc chỉ nên có 1 Thủ quỹ. Gán người mới làm Thủ quỹ sẽ tự động đưa Thủ quỹ cũ (nếu có) về vai trò Thành viên.</div>
+  </div>`
+  :`<div class="notice wait" style="margin-bottom:18px">${ic('scale',15)}Không xem được ma trận vai trò — mục này chỉ dành cho vai <b>tech</b> (Kỹ thuật).</div>`}
 
   <div class="section" style="margin-bottom:16px"><table>
-    <thead><tr><th>Quyền</th><th>Thành viên</th><th>Kiểm duyệt</th><th>Ban điều hành</th><th>Thủ quỹ</th></tr></thead>
-    <tbody>${[['Đăng việc / giúp nhau',1,1,1,1],['Duyệt thành viên mới',0,0,1,0],['Ẩn bài vi phạm',0,1,1,0],['Sửa sổ quỹ hội',0,0,1,1],['Xem nhật ký kiểm toán',0,0,1,1]].map(([lb,...c])=>`
+    <thead><tr><th>Quyền</th><th>Thành viên</th><th>Biên tập nội dung</th><th>Ban điều hành</th><th>Kỹ thuật</th></tr></thead>
+    <tbody>${[['Đăng việc / giúp nhau',1,1,1,1],['Duyệt thành viên / khiếu nại / xác minh',0,1,1,1],['Ghi & chốt sổ quỹ',0,0,1,1],['Gán / gỡ vai trò',0,0,0,1],['Xem nhật ký kiểm toán',0,0,1,1]].map(([lb,...c])=>`
     <tr><td class="t-strong">${lb}</td>${c.map(x=>`<td>${x?ic('check',14):''}</td>`).join('')}</tr>`).join('')}</tbody>
   </table></div>
   <div class="g2">
-    <div class="box"><h3>Cấu hình chung</h3>
-      <div class="info-row"><span class="lbl">Cho tự đăng ký không cần giới thiệu</span><button class="fchip" onclick="this.classList.toggle('on')">Tắt</button></div>
-      <div class="info-row"><span class="lbl">Duyệt bài trước khi hiện</span><button class="fchip on" onclick="this.classList.toggle('on')">Bật</button></div></div>
     <div class="box"><h3>Nhân rộng mô hình</h3><p style="font-size:12.5px;color:var(--ink2);line-height:1.6">Gói tài liệu 5 nguyên tắc + khung giao diện gốc để cộng đồng khác dựng "Nhà Chung" riêng.</p>
       <div class="notice wait" style="margin-top:10px">${ic('scale',14)}Quỹ vay mượn cần rà pháp lý theo Nghị định 13/2023.</div></div>
   </div>`;
 };
-function setMemberRole(id,newRole){
-  const m = DATA.members.find(x=>x.id===id); if(!m) return;
-  const oldRole = m.role;
-  if(newRole==='treasurer'){
-    const prev = DATA.members.find(x=>x.role==='treasurer' && x.id!==id);
-    if(prev){ prev.role='member'; }
-  }
-  m.role = newRole;
-  // Thật: PUT /ops/members/:id/roles/:role (method PUT, role nằm trên path,
-  // cần quyền ops.role.manage) — gỡ vai trò cũ dùng DELETE cùng path, chưa gọi
-  // ở đây vì UI hiện chỉ "đổi", chưa tách rõ gỡ/gán khi 1 người có nhiều vai trò.
-  api.put(`/ops/members/${id}/roles/${newRole}`,{}).then(()=>{
-    toast(`Đã đặt ${m.name} làm ${ROLE_LABELS[newRole]}`, 'shield');
+async function goGrantRole(memberId, role){
+  const m = DATA.members.find(x=>x.id===memberId);
+  try{
+    await api.put(`/ops/members/${memberId}/roles/${role}`,{});
+    const row = DATA.rolesMatrix.find(r=>r.role===role);
+    if(row && m) row.members.push({member_id:memberId, full_name:m.name});
+    toast(`Đã gán vai ${REAL_ROLE_LABEL[role]} cho ${m?m.name:''}`, 'shield');
     render();
-  }).catch(()=>{ m.role = oldRole; render(); });
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
+async function goRevokeRole(memberId, role){
+  const row = DATA.rolesMatrix.find(r=>r.role===role);
+  const m = row && row.members.find(x=>x.member_id===memberId);
+  if(!confirm(`Gỡ vai ${REAL_ROLE_LABEL[role]} của ${m?m.full_name:'người này'}?`)) return;
+  try{
+    await api.del(`/ops/members/${memberId}/roles/${role}`);
+    if(row) row.members = row.members.filter(x=>x.member_id!==memberId);
+    toast(`Đã gỡ vai ${REAL_ROLE_LABEL[role]}`, 'shield');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
 WIZ.ghiSoQuy = ()=> openModal(`
   <div class="modal-head"><b>Ghi khoản mới vào sổ quỹ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
-  <div class="modal-body"><div class="notice wait">${ic('scale',16)}Backend chưa có module "quỹ hội" (chỉ có cờ uses_fund trên hoạt động, chưa có sổ giao dịch) — xem báo cáo audit.</div></div>
-  <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`);
+  <div class="modal-body">
+    <div class="field"><label class="label">Loại khoản</label>
+      <div class="tabs" style="margin-bottom:0"><button class="tab on" id="gsq-tab-thu" onclick="gsqSetKind('thu')">Thu</button><button class="tab" id="gsq-tab-chi" onclick="gsqSetKind('chi')">Chi</button></div></div>
+    <div class="field"><label class="label">Số tiền (đ) <span class="req" style="color:var(--red)">*</span></label>
+      <input class="input" id="gsq-amount" type="number" min="1" step="1000" placeholder="500000"></div>
+    <div class="field"><label class="label">Nội dung <span class="req" style="color:var(--red)">*</span></label>
+      <input class="input" id="gsq-purpose" placeholder="Đóng quỹ tháng 9, mua quà thăm hỏi…"></div>
+    <div class="field"><label class="label">Ngày phát sinh</label>
+      <input class="input" id="gsq-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="notice wait">${ic('scale',15)}Từ 1.000.000đ trở lên cần 2 người duyệt — hệ thống sẽ báo lỗi nếu ghi khoản lớn ở đây (luồng ký duyệt chưa có trên giao diện).</div>
+    <div id="gsq-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="gsq-err-txt"></span></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-blue" id="gsq-submit" style="flex:2" onclick="ghiSoQuySubmit()">Ghi vào sổ</button></div>`);
+let GSQ_KIND = 'thu';
+function gsqSetKind(kind){
+  GSQ_KIND = kind;
+  const tThu=qs('#gsq-tab-thu'), tChi=qs('#gsq-tab-chi');
+  if(tThu) tThu.classList.toggle('on', kind==='thu');
+  if(tChi) tChi.classList.toggle('on', kind==='chi');
+}
+async function ghiSoQuySubmit(){
+  GSQ_KIND = GSQ_KIND||'thu';
+  const amountRaw = Number(getVal('gsq-amount'));
+  const purpose = getVal('gsq-purpose');
+  const occurredOn = getVal('gsq-date');
+  const errBox=qs('#gsq-err'), errTxt=qs('#gsq-err-txt');
+  if(errBox) errBox.style.display='none';
+  if(!amountRaw || amountRaw<=0){ if(errBox){errTxt.textContent='Nhập số tiền lớn hơn 0.'; errBox.style.display='flex';} return; }
+  if(purpose.length<3){ if(errBox){errTxt.textContent='Nội dung cần ít nhất 3 ký tự.'; errBox.style.display='flex';} return; }
+  const btn=qs('#gsq-submit'); if(btn){btn.disabled=true;btn.textContent='Đang ghi…';}
+  try{
+    const amount = GSQ_KIND==='chi' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
+    const payload = {amount, purpose};
+    if(occurredOn) payload.occurred_on = occurredOn;
+    const created = await api.post('/fund/entries', payload);
+    DATA.fundEntries.unshift({...created, created_by_name:(DATA.me&&DATA.me.name)||''});
+    DATA.fund.balance += amount;
+    const thisMonth = occurredOn ? occurredOn.slice(0,7)===new Date().toISOString().slice(0,7) : true;
+    if(thisMonth){ if(amount>0) DATA.fund.income += amount; else DATA.fund.expense += Math.abs(amount); }
+    closeModal(); toast('Đã ghi vào sổ quỹ','check');
+    render();
+  }catch(e){
+    if(errBox){errTxt.textContent=e.message||'Có lỗi, thử lại.'; errBox.style.display='flex';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Ghi vào sổ';}
+  }
+}
 /* ══════════════════════════════════════════════════════════════
    ENGINE CỜ TƯỚNG (Xiangqi) — hàm thuần, không đụng DOM, dễ kiểm thử riêng.
    Bàn cờ: board[r][c], r=0..9 (hàng), c=0..8 (cột). r=0 là hàng trên cùng (Đen),
@@ -3769,6 +4278,7 @@ V.chat = ()=>{
         return `<div class="conv-item ${c.id===CHAT_ACTIVE?'on':''}" onclick="chatOpen('${c.id}')">
           <div class="av">${initials(cm.name)}</div>
           <div class="conv-main"><div class="conv-top"><span class="conv-nm">${cm.name}</span><span class="conv-tm">${last?last.time:''}</span></div><div class="conv-last">${last?esc(last.text):'Chưa có tin nhắn'}</div></div>
+          ${c.unread?`<span class="conv-unread">${c.unread}</span>`:''}
         </div>`;}).join('')}
     </aside>
     <section class="chat-main">
