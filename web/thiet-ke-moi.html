@@ -236,23 +236,34 @@ tr:last-child td{border-bottom:none}
 .jf-step.on .jf-t{color:var(--ink)}
 
 /* ===== Cờ tướng ===== */
-.xq-wrap{display:flex;justify-content:center}
-.xq-board{--xq-pad:26px;position:relative;width:100%;max-width:472px;aspect-ratio:8/9;background:#F3E4C0;border-radius:var(--r-md,10px);
-  box-shadow:0 2px 10px rgba(0,0,0,.08);padding:var(--xq-pad);border:1px solid #D8C393;box-sizing:border-box}
+.xq-wrap{display:flex;justify-content:center;padding:22px;border-radius:16px;
+  background:radial-gradient(ellipse at 50% 0%,#1f4a3a,#0e2e22 70%);
+  box-shadow:inset 0 2px 14px rgba(0,0,0,.35)}
+.xq-board{--xq-pad:26px;position:relative;width:100%;max-width:472px;aspect-ratio:8/9;
+  background:repeating-linear-gradient(90deg,rgba(140,100,45,.08) 0 2px,transparent 2px 22px),
+    radial-gradient(ellipse at 30% 20%,#F6E6BE,#E8CE97 55%,#D6B87C 100%);
+  border-radius:var(--r-md,10px);
+  box-shadow:0 10px 24px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.25),inset 0 -6px 16px rgba(120,80,30,.25);
+  padding:var(--xq-pad);border:5px solid #7a4e22;box-sizing:border-box}
 .xq-lines{position:absolute;left:var(--xq-pad);top:var(--xq-pad);width:calc(100% - var(--xq-pad)*2);height:calc(100% - var(--xq-pad)*2)}
 .xq-river{position:absolute;left:var(--xq-pad);right:var(--xq-pad);top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2)*.5 - 9px);text-align:center;display:flex;justify-content:space-between;
-  padding:0 14%;font-size:16px;font-weight:700;color:#9c8558;letter-spacing:2px;pointer-events:none}
+  padding:0 14%;font-size:16px;font-weight:700;color:#8a6a3a;letter-spacing:2px;pointer-events:none}
 .xq-pt{position:absolute;width:12%;aspect-ratio:1;transform:translate(-50%,-50%);border:0;background:transparent;
   padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
 .xq-pt:disabled{cursor:default}
-.xq-pc{width:84%;height:84%;border-radius:50%;background:#FBF3DE;border:1.5px solid #B08D46;display:flex;align-items:center;
-  justify-content:center;font-size:17px;font-weight:800;font-family:'Songti SC','SimSun',serif;box-shadow:0 2px 3px rgba(0,0,0,.2)}
+.xq-pc{width:84%;height:84%;border-radius:50%;
+  background:radial-gradient(circle at 35% 28%,#FFFBEF,#F0DCA8 55%,#D8B978 100%);
+  border:1.5px solid #8a5d24;display:flex;align-items:center;
+  justify-content:center;font-size:17px;font-weight:800;font-family:'Songti SC','SimSun',serif;
+  box-shadow:0 3px 5px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.85),inset 0 -2px 3px rgba(120,80,30,.4)}
 .xq-pc.red{color:#B4231F}
 .xq-pc.black{color:#1f2937}
-.xq-pc.sel{outline:3px solid var(--brand);outline-offset:1px}
-.xq-pt.last .xq-pc{box-shadow:0 0 0 2px var(--brand),0 2px 3px rgba(0,0,0,.2)}
-.xq-dot{width:28%;height:28%;border-radius:50%;background:rgba(14,107,79,.55)}
+.xq-pc.sel{box-shadow:0 0 0 3px var(--brand),0 3px 5px rgba(0,0,0,.35)}
+.xq-pt.last .xq-pc{box-shadow:0 0 0 2px var(--brand),0 0 10px 2px rgba(212,175,55,.7)}
+.xq-dot{width:28%;height:28%;border-radius:50%;background:rgba(14,90,60,.6);box-shadow:0 0 0 3px rgba(14,90,60,.15)}
 .xq-pt.cap{outline:2.5px solid var(--bad,#c13b31);outline-offset:-2px;border-radius:50%}
+@keyframes xq-pop{from{transform:scale(.35);opacity:0}to{transform:scale(1);opacity:1}}
+.xq-pc.moved{animation:xq-pop .28s ease}
 @media(max-width:600px){.xq-pc{font-size:14.5px}.xq-board{--xq-pad:18px}}
 
 /* ===== Chat ===== */
@@ -3934,17 +3945,17 @@ function chessCellClick(r,c){
 function chessGridSvg(){
   const U=40, W=8*U, H=9*U;
   let lines='';
-  for(let r=0;r<10;r++) lines+=`<line x1="0" y1="${r*U}" x2="${W}" y2="${r*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-  lines+=`<line x1="0" y1="0" x2="0" y2="${H}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-  lines+=`<line x1="${W}" y1="0" x2="${W}" y2="${H}" stroke="var(--ink2)" stroke-width="1.2"/>`;
+  for(let r=0;r<10;r++) lines+=`<line x1="0" y1="${r*U}" x2="${W}" y2="${r*U}" stroke="#7a5326" stroke-width="1.2"/>`;
+  lines+=`<line x1="0" y1="0" x2="0" y2="${H}" stroke="#7a5326" stroke-width="1.2"/>`;
+  lines+=`<line x1="${W}" y1="0" x2="${W}" y2="${H}" stroke="#7a5326" stroke-width="1.2"/>`;
   for(let c=1;c<8;c++){
-    lines+=`<line x1="${c*U}" y1="0" x2="${c*U}" y2="${4*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-    lines+=`<line x1="${c*U}" y1="${5*U}" x2="${c*U}" y2="${H}" stroke="var(--ink2)" stroke-width="1.2"/>`;
+    lines+=`<line x1="${c*U}" y1="0" x2="${c*U}" y2="${4*U}" stroke="#7a5326" stroke-width="1.2"/>`;
+    lines+=`<line x1="${c*U}" y1="${5*U}" x2="${c*U}" y2="${H}" stroke="#7a5326" stroke-width="1.2"/>`;
   }
-  lines+=`<line x1="${3*U}" y1="0" x2="${5*U}" y2="${2*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-  lines+=`<line x1="${5*U}" y1="0" x2="${3*U}" y2="${2*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-  lines+=`<line x1="${3*U}" y1="${7*U}" x2="${5*U}" y2="${9*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
-  lines+=`<line x1="${5*U}" y1="${7*U}" x2="${3*U}" y2="${9*U}" stroke="var(--ink2)" stroke-width="1.2"/>`;
+  lines+=`<line x1="${3*U}" y1="0" x2="${5*U}" y2="${2*U}" stroke="#7a5326" stroke-width="1.2"/>`;
+  lines+=`<line x1="${5*U}" y1="0" x2="${3*U}" y2="${2*U}" stroke="#7a5326" stroke-width="1.2"/>`;
+  lines+=`<line x1="${3*U}" y1="${7*U}" x2="${5*U}" y2="${9*U}" stroke="#7a5326" stroke-width="1.2"/>`;
+  lines+=`<line x1="${5*U}" y1="${7*U}" x2="${3*U}" y2="${9*U}" stroke="#7a5326" stroke-width="1.2"/>`;
   return `<svg class="xq-lines" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${lines}</svg>`;
 }
 
