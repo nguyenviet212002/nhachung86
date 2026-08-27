@@ -3981,7 +3981,8 @@ function chessBoardHtml(board, opts){
     if(p) inner = `<div class="xq-pc ${p.side==='r'?'red':'black'} ${isSel?'sel':''} ${isJustMoved?'moved':''}">${CHESS_CHAR[p.side][p.type]}</div>`;
     else if(isDest) inner = `<div class="xq-dot"></div>`;
     const clickAttr = onCellClick ? ` onclick="${onCellClick}(${r},${c})"` : '';
-    pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})"${clickAttr} ${disabled?'disabled':''}>${inner}</button>`);
+    const disabledAttr = disabled ? ' disabled' : '';
+    pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})"${clickAttr}${disabledAttr}>${inner}</button>`);
   }
   return `<div class="xq-wrap"><div class="xq-board">${chessGridSvg()}<div class="xq-river">楚 河　　漢 界</div>${pts.join('')}</div></div>`;
 }
