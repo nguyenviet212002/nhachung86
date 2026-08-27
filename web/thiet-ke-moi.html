@@ -4511,6 +4511,46 @@ V['cotuong-may'] = ()=>{
 };
 
 /* ══════════════════════════════════════════════════════════════
+   CO_THE — bộ thế cờ tĩnh cho chế độ "Cờ thế". Soạn dựa trên các tình huống
+   tàn cuộc quen thuộc (chênh lệch quân, tốt/xe/pháo áp sát cung tướng...),
+   KHÔNG phải bản chép lại các thế cờ cổ điển đã được kiểm chứng lời giải —
+   xem ghi chú trong spec. Mỗi thế đã được kiểm tra: đúng 1 tướng mỗi bên,
+   2 tướng không đối mặt trực diện, không bên nào đang bị chiếu sẵn lúc vào
+   thế (xem bước kiểm tra ở cuối task).
+   ══════════════════════════════════════════════════════════════ */
+function xqPos(pieces){
+  const b = Array.from({length:10},()=>Array(9).fill(null));
+  pieces.forEach(([side,type,r,c])=>{ b[r][c] = {side,type}; });
+  return b;
+}
+const CO_THE = [
+  { id:'de-1', name:'Song xa đuổi tướng', level:'de', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','chariot',2,1], ['r','chariot',3,7],
+    ['b','general',1,3], ['b','advisor',0,4], ['b','elephant',0,2],
+  ])},
+  { id:'de-2', name:'Tốt qua sông áp cung', level:'de', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','soldier',4,2], ['r','soldier',4,6], ['r','cannon',6,4],
+    ['b','general',1,3], ['b','soldier',3,3],
+  ])},
+  { id:'vua-1', name:'Xe pháo phối hợp', level:'vua', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','chariot',6,1], ['r','cannon',6,7], ['r','advisor',8,4],
+    ['b','general',1,5], ['b','advisor',1,4], ['b','elephant',0,2], ['b','elephant',0,6], ['b','soldier',5,5],
+  ])},
+  { id:'vua-2', name:'Song pháo áp cung', level:'vua', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','cannon',7,2], ['r','cannon',7,6], ['r','horse',6,4],
+    ['b','general',1,4], ['b','advisor',0,3], ['b','advisor',0,5], ['b','elephant',2,2],
+  ])},
+  { id:'kho-1', name:'Cờ tàn cân bằng', level:'kho', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','chariot',5,2], ['r','horse',6,6], ['r','advisor',8,4],
+    ['b','general',1,5], ['b','chariot',2,6], ['b','advisor',0,4], ['b','elephant',2,2],
+  ])},
+  { id:'kho-2', name:'Chiếu bí trong thế phức tạp', level:'kho', playerSide:'r', board: xqPos([
+    ['r','general',9,4], ['r','chariot',4,1], ['r','cannon',5,7], ['r','horse',7,2],
+    ['b','general',1,3], ['b','advisor',0,4], ['b','elephant',0,2], ['b','soldier',6,3], ['b','horse',2,6],
+  ])},
+];
+
+/* ══════════════════════════════════════════════════════════════
    V.chat — Tin nhắn (2 cột: danh sách hội thoại + khung chat)
    ══════════════════════════════════════════════════════════════ */
 let CHAT_ACTIVE = null;
