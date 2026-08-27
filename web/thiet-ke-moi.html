@@ -3959,6 +3959,33 @@ function chessGridSvg(){
   return `<svg class="xq-lines" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${lines}</svg>`;
 }
 
+/* Vẽ 1 bàn cờ hoàn chỉnh (lưới + sông + toàn bộ 90 điểm) — dùng chung cho
+   mọi màn cờ tướng chạy phía client (cotuong, cotuong-may, cotuong-the).
+   opts.onCellClick là TÊN hàm global (chuỗi), theo đúng quy ước onclick=""
+   nội tuyến đã dùng khắp file này — không truyền function reference. */
+function chessBoardHtml(board, opts){
+  opts = opts || {};
+  const selected = opts.selected || null, legal = opts.legal || [], lastMove = opts.lastMove || null;
+  const flip = !!opts.flip, disabled = !!opts.disabled, onCellClick = opts.onCellClick || null;
+  const justMovedTo = opts.justMovedTo || null;
+  const pts = [];
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p = board[r][c];
+    const isSel = selected && selected.r===r && selected.c===c;
+    const isDest = legal.some(m=>m.r===r&&m.c===c);
+    const isLast = lastMove && ((lastMove.from.r===r&&lastMove.from.c===c)||(lastMove.to.r===r&&lastMove.to.c===c));
+    const isJustMoved = justMovedTo && justMovedTo.r===r && justMovedTo.c===c;
+    const dr = flip?9-r:r, dc = flip?8-c:c;
+    const leftFrac = dc/8, topFrac = dr/9;
+    let inner = '';
+    if(p) inner = `<div class="xq-pc ${p.side==='r'?'red':'black'} ${isSel?'sel':''} ${isJustMoved?'moved':''}">${CHESS_CHAR[p.side][p.type]}</div>`;
+    else if(isDest) inner = `<div class="xq-dot"></div>`;
+    const clickAttr = onCellClick ? ` onclick="${onCellClick}(${r},${c})"` : '';
+    pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})"${clickAttr} ${disabled?'disabled':''}>${inner}</button>`);
+  }
+  return `<div class="xq-wrap"><div class="xq-board">${chessGridSvg()}<div class="xq-river">楚 河　　漢 界</div>${pts.join('')}</div></div>`;
+}
+
 /* ══════════════════════════════════════════════════════════════
    V['cotuong-online'] — thách đấu & xem trực tiếp giữa 2 tài khoản thật.
    Khác V.cotuong (pass-and-play, giữ nguyên không đổi): màn này chỉ liệt kê
@@ -4209,31 +4236,12 @@ V['cotuong-van'] = (params)=>{
 
 V.cotuong = ()=>{
   const st = CHESS;
-  const pts=[];
-  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
-    const p = st.board[r][c];
-    const isSel = st.selected && st.selected.r===r && st.selected.c===c;
-    const isDest = st.legal.some(m=>m.r===r&&m.c===c);
-    const isLast = st.lastMove && ((st.lastMove.from.r===r&&st.lastMove.from.c===c)||(st.lastMove.to.r===r&&st.lastMove.to.c===c));
-    const dr=CHESS_FLIP?9-r:r, dc=CHESS_FLIP?8-c:c;
-    const leftFrac=dc/8, topFrac=dr/9;
-    let inner='';
-    if(p) inner = `<div class="xq-pc ${p.side==='r'?'red':'black'} ${isSel?'sel':''}">${CHESS_CHAR[p.side][p.type]}</div>`;
-    else if(isDest) inner = `<div class="xq-dot"></div>`;
-    pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})" onclick="chessCellClick(${r},${c})">${inner}</button>`);
-  }
   const turnTxt = st.turn==='r' ? 'Đỏ đi' : 'Đen đi';
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
   return `
   <div class="page-head"><div><h1>Cờ tướng giao lưu</h1><p>Bàn cờ chơi trực tiếp 2 người trên cùng màn hình — dành cho anh chị em ghé Nhà Chung giải trí. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p></div></div>
   <div class="cols">
-    <div class="xq-wrap">
-      <div class="xq-board">
-        ${chessGridSvg()}
-        <div class="xq-river">楚 河　　漢 界</div>
-        ${pts.join('')}
-      </div>
-    </div>
+    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick'})}
     <aside class="cols-side">
       <div class="box" style="text-align:center">
         <div class="status ${st.over?'done':st.turn==='r'?'pending':'accepted'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
