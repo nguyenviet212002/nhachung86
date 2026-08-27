@@ -1,6 +1,60 @@
 import { withActor } from '../../core/tx.js';
 import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
+import { publishToMember } from '../../core/realtime.js';
+
+// Báo người bảo lãnh + các approver khác khi MỘT đơn đã được quyết định —
+// để màn "Duyệt & xác minh" của approver khác (đang mở cùng lúc) và người
+// bảo lãnh đều thấy ngay, không phải tải lại trang. CỐ Ý mở một giao dịch
+// RIÊNG, chạy SAU KHI approve()/reject() đã commit xong: approve()/reject()
+// đã ghi rõ "chỉ làm đúng N việc" và không nên gánh thêm ghi bảng
+// notifications vào chính giao dịch đó — đúng cùng lý do errorHandler#logDenied
+// mở giao dịch riêng sau khi giao dịch gốc đã cuộn (xem chú thích approve()).
+// kind='join_request' + target_type='join_request' (migration 053) — cùng
+// khuôn contact_request/complaint/verification: giao diện phân biệt được
+// thông báo này với thông báo hệ thống chung để tự làm mới đúng danh sách
+// (xem web/thiet-ke-moi.html, notificationStream 'notification' handler).
+// Không để một trục trặc ở bước thông báo (chỉ là tiện ích thêm) biến một
+// quyết định approve/reject ĐÃ COMMIT thành công thành một lỗi 500 phía
+// người gọi — nuốt lỗi, ghi lại để còn biết mà sửa, không throw tiếp.
+async function safeNotifyJoinRequestDecision(args) {
+  try { await notifyJoinRequestDecision(args); }
+  catch (e) { console.error('notifyJoinRequestDecision thất bại (đơn đã quyết định xong, chỉ thông báo bị lỡ)', e); }
+}
+async function notifyJoinRequestDecision({ communityId, actorId, referrerId, id, status }) {
+  const title = status === 'approved' ? 'Đơn gia nhập đã được duyệt' : 'Đơn gia nhập đã bị từ chối';
+  const body = status === 'approved'
+    ? 'Đơn gia nhập bạn bảo lãnh đã được Ban điều hành duyệt.'
+    : 'Đơn gia nhập bạn bảo lãnh đã bị Ban điều hành từ chối.';
+  const approverNotifications = await withActor(actorId, async (trx) => {
+    const { rows } = await trx.raw(
+      `INSERT INTO notifications
+        (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+       SELECT DISTINCT ?::uuid, m.id, ?::uuid, 'join_request', ?, ?, 'join_request', ?::uuid
+         FROM members m
+         JOIN member_roles mr ON mr.member_id = m.id AND mr.community_id = m.community_id
+         JOIN roles r ON r.id = mr.role_id
+        WHERE m.community_id = ? AND m.status = 'member' AND r.key = 'approver' AND m.id <> ?
+       RETURNING *`,
+      [communityId, actorId, `Đơn gia nhập đã được ${status === 'approved' ? 'duyệt' : 'từ chối'}`,
+       'Một approver khác vừa quyết định một đơn gia nhập trong danh sách chờ.', id, communityId, actorId]
+    );
+    return rows;
+  });
+  for (const n of approverNotifications) publishToMember(n.recipient_id, 'notification', n);
+  if (referrerId && referrerId !== actorId) {
+    const refNotification = await withActor(actorId, async (trx) => {
+      const { rows: [row] } = await trx.raw(
+        `INSERT INTO notifications
+          (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'join_request', ?, ?, 'join_request', ?) RETURNING *`,
+        [communityId, referrerId, actorId, title, body, id]
+      );
+      return row;
+    });
+    publishToMember(refNotification.recipient_id, 'notification', refNotification);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Từ migration 009a (Ruling T8-f), số điện thoại thô và băm mật khẩu KHÔNG còn
@@ -187,12 +241,13 @@ export async function reject({ actor, id, reasonCode, note }) {
       detail: { reason_code: reasonCode, previous_status: r.status },
     });
 
-    return { ok: true, row: updated };
+    return { ok: true, row: updated, referrer_id: r.referrer_id };
   });
 
   if (!result.ok) {
     throw new AppError('INVALID_STATE', 'Đơn này đã được quyết định rồi.', { status: 409 });
   }
+  await safeNotifyJoinRequestDecision({ communityId: actor.communityId, actorId: actor.id, referrerId: result.referrer_id, id, status: 'rejected' });
   return { status: result.row.status };
 }
 
@@ -217,7 +272,7 @@ export async function reject({ actor, id, reasonCode, note }) {
  * khi cả hai đã có mặt. Đổi sang kiểm ngay lúc ghi thì luồng hợp lệ cũng chết.
  */
 export async function approve({ actor, id, note }) {
-  return withActor(actor.id, async (trx) => {
+  const result = await withActor(actor.id, async (trx) => {
     // FOR UPDATE: hai approver bấm duyệt cùng lúc thì người thứ hai đợi, rồi
     // đọc lại status='approved' và dừng ở cổng bên dưới. Không có FOR UPDATE
     // thì cả hai cùng thấy một đơn đang chờ và cùng tạo một hàng members.
@@ -278,6 +333,8 @@ export async function approve({ actor, id, note }) {
       detail: { member_id: m.id, referrer_id: jr.referrer_id },
     });
 
-    return { member_id: m.id };
+    return { member_id: m.id, referrer_id: jr.referrer_id };
   });
+  await safeNotifyJoinRequestDecision({ communityId: actor.communityId, actorId: actor.id, referrerId: result.referrer_id, id, status: 'approved' });
+  return { member_id: result.member_id };
 }

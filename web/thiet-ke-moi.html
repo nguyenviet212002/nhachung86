@@ -995,6 +995,44 @@ async function ensureJobDetail(id){
   try{ JOB_DETAIL[id] = await api.get('/jobs/'+id); render(); }
   catch(e){ /* giữ danh sách ứng viên rỗng nếu chưa tải được, không chặn giao diện */ }
 }
+/* Realtime cho màn chi tiết việc (V['viec-detail']) — cùng cơ chế SSE
+   connectGameStream() dùng cho cờ tướng online: người đăng và người ứng
+   tuyển đang cùng mở 1 tin sẽ thấy ứng viên mới/trạng thái mới ngay, không
+   cần rời màn hình rồi quay lại hay tải lại trang. Sự kiện 'job_updated' chỉ
+   báo "có gì đó đổi", không kèm dữ liệu — đơn giản hơn cờ tướng vì chi tiết
+   việc (applications/introductions/events) vốn đã gộp chung 1 lời gọi GET
+   /jobs/:id, nên chỉ cần xoá cache rồi nạp lại là đủ, không cần hợp state
+   từng phần như bàn cờ. */
+let JOB_STREAM_ID = null, JOB_STREAM_ES = null, JOB_STREAM_RETRIES = 0;
+function stopJobStream(){
+  if(JOB_STREAM_ES){ JOB_STREAM_ES.close(); JOB_STREAM_ES=null; }
+  JOB_STREAM_ID = null; JOB_STREAM_RETRIES = 0;
+}
+function connectJobStream(id){
+  if(JOB_STREAM_ES) JOB_STREAM_ES.close();
+  const token = api.accessToken(); if(!token) return;
+  JOB_STREAM_ID = id;
+  JOB_STREAM_ES = new EventSource(api.baseUrl()+'/jobs/'+id+'/stream?access_token='+encodeURIComponent(token));
+  JOB_STREAM_ES.addEventListener('ready', ()=>{ JOB_STREAM_RETRIES=0; });
+  JOB_STREAM_ES.addEventListener('job_updated', ()=>{
+    if(JOB_STREAM_ID!==id) return;
+    delete JOB_DETAIL[id];
+    ensureJobDetail(id);
+  });
+  JOB_STREAM_ES.onerror = ()=>{
+    if(JOB_STREAM_ES){ JOB_STREAM_ES.close(); JOB_STREAM_ES=null; }
+    if(JOB_STREAM_ID!==id) return; // đã rời màn chi tiết này, không cần nối lại
+    JOB_STREAM_RETRIES++;
+    if(JOB_STREAM_RETRIES>5) return; // im lặng bỏ qua — chuông thông báo vẫn báo được việc mới
+    setTimeout(()=>{
+      if(JOB_STREAM_ID!==id) return;
+      api.get('/auth/me').catch(()=>{}).then(()=>{
+        if(JOB_STREAM_ID!==id) return;
+        connectJobStream(id);
+      });
+    }, 1500);
+  };
+}
 /* Ảnh bằng chứng năng lực (capability_photos) cùng lý do như JOB_DETAIL ở
    trên: GET /capabilities (danh sách) không kèm ảnh, chỉ GET /capabilities/:id
    mới có — nạp riêng khi mở trang chi tiết. */
@@ -1225,6 +1263,7 @@ function startRealtime(){
       DATA.notifications.unshift(n);
       DATA.notifUnread += 1;
       if(n.kind==='contact_request') MY_CONTACT_REQUESTS = null; // buộc nạp lại nếu đang mở Cài đặt
+      if(n.kind==='join_request') refreshJoinRequests(); // đơn vừa được duyệt/từ chối — màn Duyệt & xác minh của approver khác tự cập nhật
       playTing();
       render();
     }catch(err){}
@@ -1372,6 +1411,7 @@ let PREV_SCREEN = null;
 function render(){
   const {screen,params}=parseHash();
   if(PREV_SCREEN==='cotuong-van' && screen!=='cotuong-van') stopGameStream();
+  if(PREV_SCREEN==='viec-detail' && screen!=='viec-detail') stopJobStream();
   if((PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong-the') && screen!=='cotuong-may' && screen!=='cotuong-the'){
     xqStopWorker();
     if(CHESS_AI) CHESS_AI.thinking=false;
@@ -1726,10 +1766,27 @@ async function uploadMultiFiles(fid){
 }
 
 const STATE = {
-  congnguoi:{ward:'Tất cả'}, nangluc:{cat:'Tất cả'},
-  viec:{tab:'can-nguoi'}, giupnhau:{tab:'queued'},
+  congnguoi:{ward:'Tất cả khu vực',q:''}, nangluc:{cat:'Tất cả',q:''},
+  viec:{tab:'can-nguoi',q:''}, giupnhau:{tab:'queued',q:''},
+  hoatdong:{q:''}, chat:{q:''},
 };
 function setFilter(ns,key,val){STATE[ns][key]=val;render();}
+/* Ô tìm kiếm dùng chung cho các màn danh sách (Việc & hợp tác, Năng lực,
+   Giúp nhau, Hoạt động…) — khung .searchbar/.kw tái dùng từ PUB.khampha.
+   CỐ Ý không gọi setFilter()/render() toàn trang trên oninput: y hệt lý do
+   globalSearchInput()/areaSearchInput() ở trên đã ghi rõ — render() thay
+   nguyên root.innerHTML nên gõ tới đâu mất focus/con trỏ tới đó. Mỗi màn có
+   hàm "…SearchInput(el)" riêng: cập nhật STATE (để chuyển tab/rời màn rồi
+   quay lại vẫn giữ đúng từ khoá), rồi chỉ vẽ lại đúng khung #…-results. */
+function searchKw(ns, placeholder, oninput){
+  const q = (STATE[ns]&&STATE[ns].q)||'';
+  return `<div class="searchbar"><div class="kw">${ic('search',15)}<input value="${esc(q)}" placeholder="${esc(placeholder)}" oninput="${oninput}(this)"></div></div>`;
+}
+function matchKw(q, ...fields){
+  if(!q) return true;
+  const hay = fields.filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
 function myTurnItems(){
   const items=[];
   DATA.jobs.filter(j=>j.status==='open'&&j.poster===DATA.me.id&&j.apps>0).forEach(j=>
@@ -2628,30 +2685,49 @@ PUB.congchung = ()=> `
   <div class="bs-item">${ic('shield',15)} Bảo mật thông tin</div>
 </div></div>`;
 
+let KHAMPHA_TAB = 'nguoi';
+function khamphaResultsHtml(tab){
+  const st = STATE.congnguoi;
+  const q = (st.q||'').trim().toLowerCase();
+  const wardFilter = st.ward && st.ward!=='Tất cả khu vực' ? st.ward : '';
+  if(tab==='nguoi'){
+    const list = DATA.members.filter(m=>(!wardFilter||m.ward===wardFilter) && matchKw(q, m.name, m.field, m.ward));
+    return `
+    <div class="result-cnt">Tìm thấy <b>${list.length}</b> người</div>
+    <div class="card-grid">${list.map(m=>`
+      <a class="pcard" data-go="hosocongkhai:${m.id}">${avatarCircle(m.avatar,m.name,64)}
+        <div class="title">${m.name}</div>
+        <div class="meta">${m.field?ic('briefcase',11)+' '+esc(m.field):'Chưa cập nhật nghề'}</div></a>`).join('')||'<div class="empty"><p>Không tìm thấy ai khớp tìm kiếm.</p></div>'}</div>`;
+  }
+  const list = DATA.skills.filter(s=>{ const m=member(s.memberId); return (!wardFilter||m.ward===wardFilter) && matchKw(q, s.title, s.cat, m.name); });
+  return `
+  <div class="result-cnt">Tìm thấy <b>${list.length}</b> năng lực</div>
+  <div class="card-grid">${list.map(s=>{const m=member(s.memberId);return `
+    <a class="gcard" data-go="hosocongkhai:${m.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}
+      <div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${m.name}</span></div></div></a>`;}).join('')||'<div class="empty"><p>Không tìm thấy năng lực nào khớp tìm kiếm.</p></div>'}</div>`;
+}
+function khamphaFilterChange(){
+  const inp = qs('#khampha-kw'), sel = qs('#khampha-ward');
+  if(inp) STATE.congnguoi.q = inp.value;
+  if(sel) STATE.congnguoi.ward = sel.value;
+  const box = qs('#khampha-results'); if(box) box.innerHTML = khamphaResultsHtml(KHAMPHA_TAB);
+}
 PUB.khampha = (params)=>{
   const tab = params[0]||'nguoi';
+  KHAMPHA_TAB = tab;
+  const st = STATE.congnguoi;
+  const wards = ['Tất cả khu vực', ...new Set(DATA.members.map(m=>m.ward).filter(Boolean))];
   return `
   <div class="page-head"><div><h1>Khám phá Nhà Chung</h1><p>Tìm người theo nghề hoặc xem năng lực đã công bố.</p></div></div>
   <div class="searchbar">
-    <div class="kw">${ic('search',15)}<input placeholder="Ví dụ: thợ điện, kế toán…"></div>
-    <select><option>Tất cả khu vực</option><option>Bắc Thái Ninh</option><option>Khoái Châu</option><option>Dân Tiến</option></select>
-    <button class="btn btn-blue">${ic('search',15)} Tìm</button>
+    <div class="kw">${ic('search',15)}<input id="khampha-kw" value="${esc(st.q||'')}" placeholder="Ví dụ: thợ điện, kế toán…" oninput="khamphaFilterChange()"></div>
+    <select id="khampha-ward" onchange="khamphaFilterChange()">${wards.map(w=>`<option ${st.ward===w?'selected':''}>${esc(w)}</option>`).join('')}</select>
   </div>
   <div class="tabs">
     <button class="tab ${tab==='nguoi'?'on':''}" onclick="go('khampha:nguoi')">Con người</button>
     <button class="tab ${tab==='nangluc'?'on':''}" onclick="go('khampha:nangluc')">Năng lực</button>
   </div>
-  ${tab==='nguoi'?`
-  <div class="result-cnt">Tìm thấy <b>${DATA.members.length}</b> người</div>
-  <div class="card-grid">${DATA.members.map(m=>`
-    <a class="pcard" data-go="hosocongkhai:${m.id}">${avatarCircle(m.avatar,m.name,64)}
-      <div class="title">${m.name}</div>
-      <div class="meta">${m.field?ic('briefcase',11)+' '+esc(m.field):'Chưa cập nhật nghề'}</div></a>`).join('')}</div>`
-  :`
-  <div class="result-cnt">Tìm thấy <b>${DATA.skills.length}</b> năng lực</div>
-  <div class="card-grid">${DATA.skills.map(s=>{const m=member(s.memberId);return `
-    <a class="gcard" data-go="hosocongkhai:${m.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}
-      <div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${m.name}</span></div></div></a>`;}).join('')}</div>`}`;
+  <div id="khampha-results">${khamphaResultsHtml(tab)}</div>`;
 };
 
 /* Lịch sử hoạt động thật (member.participation_history, xem members/service.js
@@ -3069,17 +3145,26 @@ V.hosocongkhai = (params)=> PUB.hosocongkhai(params);
 V.congchung = ()=> V.trongnha();
 
 /* ---- Năng lực ---- */
-V.nangluc = ()=>{
+function nangLucResultsHtml(){
   const st=STATE.nangluc;
-  const list = st.cat==='Nổi bật'?DATA.skills.filter(s=>s.cover):DATA.skills.filter(s=>st.cat==='Tất cả'||s.cat===st.cat);
+  const q=(st.q||'').trim().toLowerCase();
+  let list = st.cat==='Nổi bật'?DATA.skills.filter(s=>s.cover):DATA.skills.filter(s=>st.cat==='Tất cả'||s.cat===st.cat);
+  list = list.filter(s=>matchKw(q, s.title, s.desc, s.cat, member(s.memberId).name));
   return `
-  <div class="page-head"><div><h1>Năng lực & dịch vụ</h1><p>${DATA.skills.length} năng lực kèm bằng chứng thật.</p></div>
-    <button class="btn btn-blue" data-open="themNangLuc">${ic('plus',15)} Thêm năng lực</button></div>
-  <div class="filterrow"><div class="l">${['Tất cả','Nổi bật',...DATA.skillCats.slice(1)].map(c=>`<button class="fchip ${st.cat===c?'on':''}" onclick="setFilter('nangluc','cat','${c}')">${c}</button>`).join('')}</div></div>
   <div class="result-cnt">Tìm thấy <b>${list.length}</b> năng lực</div>
   <div class="card-grid">${list.map(s=>{const m=member(s.memberId);return `
     <a class="gcard" data-go="nangluc-detail:${s.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}
       <div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${m.name}</span><span>${s.cover?ic('camera',10)+' Có ảnh':'Chưa có ảnh'}</span></div></div></a>`;}).join('')}</div>`;
+}
+function nangLucSearchInput(el){ STATE.nangluc.q=el.value; const box=qs('#nangluc-results'); if(box) box.innerHTML=nangLucResultsHtml(); }
+V.nangluc = ()=>{
+  const st=STATE.nangluc;
+  return `
+  <div class="page-head"><div><h1>Năng lực & dịch vụ</h1><p>${DATA.skills.length} năng lực kèm bằng chứng thật.</p></div>
+    <button class="btn btn-blue" data-open="themNangLuc">${ic('plus',15)} Thêm năng lực</button></div>
+  ${searchKw('nangluc','Tìm theo tên năng lực, người, nhóm nghề…','nangLucSearchInput')}
+  <div class="filterrow"><div class="l">${['Tất cả','Nổi bật',...DATA.skillCats.slice(1)].map(c=>`<button class="fchip ${st.cat===c?'on':''}" onclick="setFilter('nangluc','cat','${c}')">${c}</button>`).join('')}</div></div>
+  <div id="nangluc-results">${nangLucResultsHtml()}</div>`;
 };
 V['nangluc-detail'] = (params)=>{
   const s = DATA.skills.find(x=>x.id===params[0]) || DATA.skills[0];
@@ -3156,15 +3241,11 @@ function jobProgressBar(idx){
 const KIND_LABEL = {['can-nguoi']:'Cần người ngay',['hop-tac']:'Hợp tác lâu dài',['hoi-tim']:'Hỏi & tìm thông tin'};
 const KIND_ICON = {['can-nguoi']:'briefcase',['hop-tac']:'handshake',['hoi-tim']:'bolt'};
 
-V.viec = (params)=>{
+function viecResultsHtml(){
   const st=STATE.viec;
-  if(params && params[0] && ['can-nguoi','hop-tac','hoi-tim'].includes(params[0])) st.tab=params[0];
-  const list = DATA.jobs.filter(j=>j.kind===st.tab);
-  const tabs = [['can-nguoi','Cần người'],['hop-tac','Hợp tác'],['hoi-tim','Hỏi & tìm']];
+  const q=(st.q||'').trim().toLowerCase();
+  const list = DATA.jobs.filter(j=>j.kind===st.tab).filter(j=>matchKw(q, j.title, j.desc, j.cat, j.ward, j.posterName));
   return `
-  <div class="page-head"><div><h1>Việc & hợp tác</h1><p>Việc cộng đồng đang mở — mỗi tin đều theo dõi hành trình tin cậy thật, từ lúc đăng tới lúc hoàn tất.</p></div>
-    <button class="btn btn-blue" data-open="dangViec">${ic('plus',15)} Đăng tin</button></div>
-  <div class="filterrow"><div class="l">${tabs.map(([id,lb])=>`<button class="fchip ${st.tab===id?'on':''}" onclick="setFilter('viec','tab','${id}')">${lb} (${DATA.jobs.filter(j=>j.kind===id).length})</button>`).join('')}</div></div>
   <div class="result-cnt">Tìm thấy <b>${list.length}</b> ${st.tab==='hoi-tim'?'câu hỏi':'việc'}</div>
   ${list.map(j=>`
   <div class="gigrow"><div class="logo">${logoImg(j.cover,KIND_ICON[j.kind])}</div>
@@ -3173,10 +3254,23 @@ V.viec = (params)=>{
       <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span><span class="chip">${ic('doc',10)} ${j.cat}</span><span class="chip">${ic('bolt',10)} ${JOB_STATUS_LABEL[j.status]||'Đang mở'}</span></div></div>
     <div class="actions"><span class="time">${j.kind==='hoi-tim'?`${j.apps} người trả lời`:`${j.apps} người nhận`}</span><div class="cta"><a href="#viec-detail:${j.id}" class="btn btn-blue btn-sm" data-go="viec-detail:${j.id}">Xem</a></div></div>
   </div>`).join('') || `<div class="empty"><p>Chưa có ${st.tab==='hoi-tim'?'câu hỏi':'việc'} nào trong nhóm này.</p></div>`}`;
+}
+function viecSearchInput(el){ STATE.viec.q=el.value; const box=qs('#viec-results'); if(box) box.innerHTML=viecResultsHtml(); }
+V.viec = (params)=>{
+  const st=STATE.viec;
+  if(params && params[0] && ['can-nguoi','hop-tac','hoi-tim'].includes(params[0])) st.tab=params[0];
+  const tabs = [['can-nguoi','Cần người'],['hop-tac','Hợp tác'],['hoi-tim','Hỏi & tìm']];
+  return `
+  <div class="page-head"><div><h1>Việc & hợp tác</h1><p>Việc cộng đồng đang mở — mỗi tin đều theo dõi hành trình tin cậy thật, từ lúc đăng tới lúc hoàn tất.</p></div>
+    <button class="btn btn-blue" data-open="dangViec">${ic('plus',15)} Đăng tin</button></div>
+  ${searchKw('viec','Tìm theo tên việc, mô tả, khu vực…','viecSearchInput')}
+  <div class="filterrow"><div class="l">${tabs.map(([id,lb])=>`<button class="fchip ${st.tab===id?'on':''}" onclick="setFilter('viec','tab','${id}')">${lb} (${DATA.jobs.filter(j=>j.kind===id).length})</button>`).join('')}</div></div>
+  <div id="viec-results">${viecResultsHtml()}</div>`;
 };
 
 V['viec-detail'] = (params)=>{
   const j = DATA.jobs.find(x=>x.id===params[0]) || DATA.jobs[0];
+  if(JOB_STREAM_ID!==j.id) connectJobStream(j.id);
   const poster = member(j.poster);
   // Ứng viên thật (connectionId thật, không phải id thành viên) — nạp riêng qua
   // GET /jobs/:id vì GET /jobs (danh sách) không kèm ứng viên. Rỗng trong lúc
@@ -3259,20 +3353,27 @@ V['viec-detail'] = (params)=>{
 };
 
 /* ---- Giúp nhau ---- */
-V.giupnhau = ()=>{
+function giupNhauResultsHtml(){
   const st=STATE.giupnhau;
-  const tabs=[['queued','Đang cần'],['matched','Đã có người'],['done','Đã xong']];
-  const list = DATA.aid.filter(a=>a.status===st.tab);
-  return `
-  <div class="page-head"><div><h1>Giúp nhau</h1><p>Không qua tiền quỹ chung.</p></div>
-    <button class="btn btn-blue" data-open="taoYeuCau">${ic('plus',15)} Nhờ giúp</button></div>
-  <div class="tabs">${tabs.map(([id,lb])=>`<button class="tab ${st.tab===id?'on':''}" onclick="setFilter('giupnhau','tab','${id}')">${lb} <span class="cnt">(${DATA.aid.filter(a=>a.status===id).length})</span></button>`).join('')}</div>
-  ${list.map(a=>`
+  const q=(st.q||'').trim().toLowerCase();
+  const list = DATA.aid.filter(a=>a.status===st.tab).filter(a=>matchKw(q, a.title, a.desc, a.cat, a.ward, member(a.asker).name));
+  return list.map(a=>`
   <div class="gigrow"><div class="logo">${a.cover?logoImg(a.cover,'heart'):ic('heart',18)}</div>
     <div class="body"><div class="trow"><a href="#giupnhau-detail:${a.id}" class="title" data-go="giupnhau-detail:${a.id}">${a.title}</a>${a.urgent?'<span class="badge urgent">KHẨN</span>':''}</div>
     <div class="co">${member(a.asker).name}</div><div class="tags"><span class="chip">${ic('pin',10)}${a.ward}</span>${a.cat?`<span class="chip">${a.cat}</span>`:''}</div></div>
     <div class="actions"><span class="time">${a.helpers} muốn giúp</span><a href="#giupnhau-detail:${a.id}" class="btn btn-out btn-sm" data-go="giupnhau-detail:${a.id}">Xem</a></div>
-  </div>`).join('')||'<div class="empty"><p>Không có lời nhờ.</p></div>'}`;
+  </div>`).join('')||'<div class="empty"><p>Không có lời nhờ.</p></div>';
+}
+function giupNhauSearchInput(el){ STATE.giupnhau.q=el.value; const box=qs('#giupnhau-results'); if(box) box.innerHTML=giupNhauResultsHtml(); }
+V.giupnhau = ()=>{
+  const st=STATE.giupnhau;
+  const tabs=[['queued','Đang cần'],['matched','Đã có người'],['done','Đã xong']];
+  return `
+  <div class="page-head"><div><h1>Giúp nhau</h1><p>Không qua tiền quỹ chung.</p></div>
+    <button class="btn btn-blue" data-open="taoYeuCau">${ic('plus',15)} Nhờ giúp</button></div>
+  ${searchKw('giupnhau','Tìm theo tên lời nhờ, mô tả, khu vực…','giupNhauSearchInput')}
+  <div class="tabs">${tabs.map(([id,lb])=>`<button class="tab ${st.tab===id?'on':''}" onclick="setFilter('giupnhau','tab','${id}')">${lb} <span class="cnt">(${DATA.aid.filter(a=>a.status===id).length})</span></button>`).join('')}</div>
+  <div id="giupnhau-results">${giupNhauResultsHtml()}</div>`;
 };
 V['giupnhau-detail'] = (params)=>{
   const a = DATA.aid.find(x=>x.id===params[0]) || DATA.aid[0];
@@ -3343,8 +3444,20 @@ V['giupnhau-detail'] = (params)=>{
 };
 
 /* ---- Hoạt động ---- */
+function hoatDongResultsHtml(){
+  const st=STATE.hoatdong;
+  const q=(st.q||'').trim().toLowerCase();
+  const upcoming=DATA.activities.filter(a=>a.upcoming).filter(a=>matchKw(q, a.title, a.desc, a.place, a.cat));
+  const past=DATA.activities.filter(a=>!a.upcoming).filter(a=>matchKw(q, a.title, a.desc, a.place, a.cat));
+  return `
+  <div class="card-grid">${upcoming.map(a=>`<a class="gcard" data-go="hoatdong-detail:${a.id}">${bannerImg(a.image,'calendar',fmtDate(a.when),150)}
+    <div class="body"><div class="title">${a.title}</div><div class="meta"><span>${fmtDate(a.when)}</span><span>${a.going} người dự</span></div></div></a>`).join('')||'<div class="empty"><p>Không có hoạt động sắp tới nào khớp tìm kiếm.</p></div>'}</div>
+  <div class="sec-title" style="margin:22px 0 12px">${ic('archive',14)} Đã diễn ra</div>
+  <div class="card-grid">${past.map(a=>`<a class="gcard" data-go="hoatdong-detail:${a.id}">${bannerImg(a.image,'archive','Đã diễn ra',150)}
+    <div class="body"><div class="title">${a.title}</div><div class="meta"><span>${a.going} người dự</span></div></div></a>`).join('')||'<div class="empty"><p>Không có hoạt động đã diễn ra nào khớp tìm kiếm.</p></div>'}</div>`;
+}
+function hoatDongSearchInput(el){ STATE.hoatdong.q=el.value; const box=qs('#hoatdong-results'); if(box) box.innerHTML=hoatDongResultsHtml(); }
 V.hoatdong = ()=>{
-  const upcoming=DATA.activities.filter(a=>a.upcoming), past=DATA.activities.filter(a=>!a.upcoming);
   return `
   <div class="page-head"><div><h1>Hoạt động</h1><p>Sắp tới và đã diễn ra.</p></div>
     <button class="btn btn-blue" data-open="taoHoatDong">${ic('plus',15)} Tạo hoạt động</button></div>
@@ -3355,11 +3468,8 @@ V.hoatdong = ()=>{
     <span class="bx-btn" style="width:auto;padding:10px 18px;flex:none">Vào chơi</span>
   </a>
 
-  <div class="card-grid">${upcoming.map(a=>`<a class="gcard" data-go="hoatdong-detail:${a.id}">${bannerImg(a.image,'calendar',fmtDate(a.when),150)}
-    <div class="body"><div class="title">${a.title}</div><div class="meta"><span>${fmtDate(a.when)}</span><span>${a.going} người dự</span></div></div></a>`).join('')}</div>
-  <div class="sec-title" style="margin:22px 0 12px">${ic('archive',14)} Đã diễn ra</div>
-  <div class="card-grid">${past.map(a=>`<a class="gcard" data-go="hoatdong-detail:${a.id}">${bannerImg(a.image,'archive','Đã diễn ra',150)}
-    <div class="body"><div class="title">${a.title}</div><div class="meta"><span>${a.going} người dự</span></div></div></a>`).join('')}</div>`;
+  ${searchKw('hoatdong','Tìm theo tên hoạt động, địa điểm…','hoatDongSearchInput')}
+  <div id="hoatdong-results">${hoatDongResultsHtml()}</div>`;
 };
 V['hoatdong-detail'] = (params)=>{
   const a = DATA.activities.find(x=>x.id===params[0]) || DATA.activities[0];
@@ -3525,6 +3635,10 @@ ADM.tongquan = ()=> `
    được (join-requests/service.js#approve chấp nhận cả hai) — 'met_confirmed'
    là đơn người bảo lãnh đã xác nhận gặp mặt, không phải trạng thái riêng cần
    xử lý khác. */
+async function refreshJoinRequests(){
+  try{ const res = await api.get('/join-requests?limit=50'); DATA.joinRequests = (res&&res.data)||[]; render(); }
+  catch(e){ /* không có quyền xem (không phải approver) hoặc lỗi mạng — bỏ qua, giữ danh sách cũ */ }
+}
 function joinRequestPending(){
   return (DATA.joinRequests||[]).filter(j=>j.status==='pending'||j.status==='met_confirmed');
 }
@@ -3630,6 +3744,42 @@ async function decideComplaint(id, status){
   }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
 
+/* Tìm kiếm cho các bảng quản trị (Duyệt & xác minh, Điều phối, Quỹ hội…) —
+   CHỈ những bảng thật sự phình to theo thời gian (khiếu nại/xác minh lưu mọi
+   trạng thái chứ không riêng "đang chờ", sổ quỹ, nhật ký…) mới cần ô tìm
+   kiếm. Hàng đợi tự vơi khi xử lý xong (việc chưa ai nhận, lời nhờ chờ phân
+   loại, ảnh chờ duyệt gỡ, đơn gia nhập đang chờ…) vốn đã nhỏ, thêm ô tìm sẽ
+   thừa. Cùng kỹ thuật với searchKw() ở trên: vẽ lại đúng <tbody>, không gọi
+   render() toàn trang, để gõ không mất focus. */
+let ADM_Q = {};
+const ADM_RENDERERS = {};
+function admSearch(key, val){
+  ADM_Q[key] = val;
+  const box = qs('#adm-'+key);
+  if(box && ADM_RENDERERS[key]) box.innerHTML = ADM_RENDERERS[key]();
+}
+function admSearchBox(key, placeholder){
+  return `<div class="searchbar" style="margin-bottom:10px;padding:8px 10px"><div class="kw">${ic('search',14)}<input value="${esc(ADM_Q[key]||'')}" placeholder="${esc(placeholder)}" oninput="admSearch('${key}',this.value)" style="height:36px"></div></div>`;
+}
+ADM_RENDERERS.duyetComplaints = ()=>{
+  const q=(ADM_Q.duyetComplaints||'').trim().toLowerCase();
+  const list = DATA.complaints.filter(c=>matchKw(q, c.reporter_name, c.body));
+  return list.map(c=>`
+      <tr><td class="t-strong">${esc(c.reporter_name)}</td>
+      <td>${complaintSubjectHtml(c)}</td>
+      <td style="max-width:280px;white-space:normal">${esc(c.body)}</td>
+      <td><span class="status ${COMPLAINT_STATUS_CLASS[c.status]}">${COMPLAINT_STATUS_LABEL[c.status]}</span></td>
+      <td><div class="act-btns">${c.status==='open'||c.status==='reviewing'?`<button class="btn btn-blue btn-sm" onclick="decideComplaint('${c.id}','resolved')">Đã xử lý</button><button class="btn btn-out btn-sm" onclick="decideComplaint('${c.id}','dismissed')">Bỏ qua</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="5" class="t-muted">${q?'Không tìm thấy khiếu nại nào khớp.':'Không có khiếu nại nào.'}</td></tr>`;
+};
+ADM_RENDERERS.duyetVerifications = ()=>{
+  const q=(ADM_Q.duyetVerifications||'').trim().toLowerCase();
+  const list = DATA.verifications.filter(v=>matchKw(q, v.member_name, VERIFICATION_KIND_LABEL[v.kind]||v.kind));
+  return list.map(v=>`
+    <tr><td><div class="cand"><div class="av">${initials(v.member_name||'')}</div><div><div class="ci-nm">${esc(v.member_name||'Ẩn danh')}</div></div></div></td>
+    <td class="t-strong">${VERIFICATION_KIND_LABEL[v.kind]||v.kind}</td>
+    <td><span class="status ${v.status==='verified'?'accepted':v.status==='pending'?'pending':'done'}">${VERIFICATION_STATUS_LABEL[v.status]||v.status}</span></td>
+    <td><div class="act-btns">${v.status==='pending'?`<button class="btn btn-blue btn-sm" onclick="decideVerification('${v.id}','verified')">Duyệt</button><button class="btn btn-out btn-sm" onclick="decideVerification('${v.id}','rejected')">Từ chối</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="4" class="t-muted">${q?'Không tìm thấy yêu cầu xác minh nào khớp.':'Không có yêu cầu xác minh nào.'}</td></tr>`;
+};
 ADM.duyet = ()=> `
   <div class="page-head"><div><h1>Duyệt & xác minh</h1><p>Xác minh hồ sơ, khiếu nại và đối chiếu công bằng.</p></div></div>
   <div class="section" style="margin-bottom:16px"><div class="card-head"><h3>${ic('user',15)} Thành viên chờ duyệt (${joinRequestPending().length} đang chờ)</h3></div>
@@ -3637,22 +3787,11 @@ ADM.duyet = ()=> `
     ${joinRequestPending().map(joinRequestRowHtml).join('')||'<tr><td colspan="3" class="t-muted">Không có đơn nào đang chờ.</td></tr>'}
     </tbody></table></div>
   <div class="section" style="margin-bottom:16px"><div class="card-head"><h3>${ic('flag',15)} Khiếu nại (${DATA.complaints.filter(c=>c.status==='open'||c.status==='reviewing').length} đang chờ)</h3></div>
-    <table><thead><tr><th>Người báo cáo</th><th>Về</th><th>Nội dung</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
-    ${DATA.complaints.map(c=>`
-      <tr><td class="t-strong">${esc(c.reporter_name)}</td>
-      <td>${complaintSubjectHtml(c)}</td>
-      <td style="max-width:280px;white-space:normal">${esc(c.body)}</td>
-      <td><span class="status ${COMPLAINT_STATUS_CLASS[c.status]}">${COMPLAINT_STATUS_LABEL[c.status]}</span></td>
-      <td><div class="act-btns">${c.status==='open'||c.status==='reviewing'?`<button class="btn btn-blue btn-sm" onclick="decideComplaint('${c.id}','resolved')">Đã xử lý</button><button class="btn btn-out btn-sm" onclick="decideComplaint('${c.id}','dismissed')">Bỏ qua</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5" class="t-muted">Không có khiếu nại nào.</td></tr>'}
-    </tbody></table></div>
+    ${admSearchBox('duyetComplaints','Tìm theo người báo cáo, nội dung…')}
+    <table><thead><tr><th>Người báo cáo</th><th>Về</th><th>Nội dung</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody id="adm-duyetComplaints">${ADM_RENDERERS.duyetComplaints()}</tbody></table></div>
   <div class="section"><div class="card-head"><h3>${ic('shield',15)} Xác minh hồ sơ (${DATA.verifications.filter(v=>v.status==='pending').length} đang chờ)</h3></div>
-  <table><thead><tr><th>Người</th><th>Mục xin xác minh</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
-  ${DATA.verifications.map(v=>`
-    <tr><td><div class="cand"><div class="av">${initials(v.member_name||'')}</div><div><div class="ci-nm">${esc(v.member_name||'Ẩn danh')}</div></div></div></td>
-    <td class="t-strong">${VERIFICATION_KIND_LABEL[v.kind]||v.kind}</td>
-    <td><span class="status ${v.status==='verified'?'accepted':v.status==='pending'?'pending':'done'}">${VERIFICATION_STATUS_LABEL[v.status]||v.status}</span></td>
-    <td><div class="act-btns">${v.status==='pending'?`<button class="btn btn-blue btn-sm" onclick="decideVerification('${v.id}','verified')">Duyệt</button><button class="btn btn-out btn-sm" onclick="decideVerification('${v.id}','rejected')">Từ chối</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="4" class="t-muted">Không có yêu cầu xác minh nào.</td></tr>'}
-  </tbody></table></div>`;
+  ${admSearchBox('duyetVerifications','Tìm theo tên người, mục xin xác minh…')}
+  <table><thead><tr><th>Người</th><th>Mục xin xác minh</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody id="adm-duyetVerifications">${ADM_RENDERERS.duyetVerifications()}</tbody></table></div>`;
 const VERIFICATION_KIND_LABEL = {identity:'Danh tính', address:'Địa chỉ', skill:'Kỹ năng / nghề nghiệp', business:'Hộ kinh doanh'};
 const VERIFICATION_STATUS_LABEL = {pending:'Chờ duyệt', verified:'Đã xác minh', rejected:'Đã từ chối'};
 async function decideVerification(id, status){
@@ -3665,6 +3804,11 @@ async function decideVerification(id, status){
   }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
 
+ADM_RENDERERS.dieuphoiKhepVong = ()=>{
+  const q=(ADM_Q.dieuphoiKhepVong||'').trim().toLowerCase();
+  const list = DATA.jobs.filter(j=>j.status==='filled').filter(j=>matchKw(q, j.title, member(j.poster).name));
+  return list.map(j=>`<tr><td class="t-strong">${j.title}</td><td class="t-time">${member(j.poster).name} · ${j.apps} người nhận</td></tr>`).join('')||`<tr><td colspan="2" class="t-muted">${q?'Không tìm thấy việc nào khớp.':'Chưa có việc nào khép vòng.'}</td></tr>`;
+};
 ADM.dieuphoi = ()=>{
   const openJobs = DATA.jobs.filter(j=>j.status==='open'&&j.apps===0&&j.kind!=='hoi-tim');
   return `
@@ -3676,9 +3820,8 @@ ADM.dieuphoi = ()=>{
       <table><tbody>${DATA.aid.filter(a=>a.status==='queued').map(a=>`<tr><td class="t-strong">${a.title}</td><td><div class="act-btns"><a class="btn btn-blue btn-sm" data-go="giupnhau-detail:${a.id}">Xem</a></div></td></tr>`).join('')||'<tr><td class="t-muted">Không có lời nhờ nào chờ.</td></tr>'}</tbody></table></div>
   </div>
   <div class="section" style="margin-top:16px"><div class="card-head"><h3>${ic('check',14)} Vừa khép vòng</h3></div>
-    <table><thead><tr><th>Việc</th><th>Người đăng ↔ người nhận</th></tr></thead><tbody>
-    ${DATA.jobs.filter(j=>j.status==='filled').map(j=>`<tr><td class="t-strong">${j.title}</td><td class="t-time">${member(j.poster).name} · ${j.apps} người nhận</td></tr>`).join('')}
-    </tbody></table></div>`;
+    ${admSearchBox('dieuphoiKhepVong','Tìm theo tên việc, người đăng…')}
+    <table><thead><tr><th>Việc</th><th>Người đăng ↔ người nhận</th></tr></thead><tbody id="adm-dieuphoiKhepVong">${ADM_RENDERERS.dieuphoiKhepVong()}</tbody></table></div>`;
 };
 
 /* Ảnh bị báo cáo — DATA.moderationQueue (thật, GET /moderation?status=open,
@@ -3695,6 +3838,11 @@ async function quyetDinhAnh(id, status){
     render();
   }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
+ADM_RENDERERS.hoatdongOpsLogs = ()=>{
+  const q=(ADM_Q.hoatdongOpsLogs||'').trim().toLowerCase();
+  const list = DATA.opsLogs.filter(l=>matchKw(q, l.action, l.target, member(l.actor).name));
+  return list.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${l.target}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')||`<tr><td colspan="3" class="t-muted">${q?'Không tìm thấy dòng nhật ký nào khớp.':'Chưa có nhật ký nào.'}</td></tr>`;
+};
 ADM.hoatdong = ()=> `
   <div class="page-head"><div><h1>Hoạt động & ký ức</h1><p>Quản lý ảnh và lịch sử thay đổi.</p></div></div>
   <div class="section"><div class="card-head"><h3>${ic('image',14)} Ảnh chờ duyệt gỡ (${DATA.moderationQueue.length} đang chờ)</h3></div>
@@ -3704,12 +3852,20 @@ ADM.hoatdong = ()=> `
       <td style="max-width:220px;white-space:normal">${esc(m.reason||'')}</td>
       <td><div class="act-btns"><button class="btn btn-red btn-sm" onclick="quyetDinhAnh('${m.id}','approved')">${ic('trash',12)} Gỡ ảnh</button><button class="btn btn-out btn-sm" onclick="quyetDinhAnh('${m.id}','rejected')">Bỏ qua</button></div></td></tr>`).join('')||'<tr><td colspan="4" class="t-muted">Không có ảnh nào bị báo cáo.</td></tr>'}</tbody></table></div>
   <div class="section" style="margin-top:16px"><div class="card-head"><h3>${ic('history',14)} Nhật ký thay đổi</h3></div>
-    <table><tbody>${DATA.opsLogs.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${l.target}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')}</tbody></table></div>`;
+    ${admSearchBox('hoatdongOpsLogs','Tìm theo hành động, đối tượng, người thực hiện…')}
+    <table><tbody id="adm-hoatdongOpsLogs">${ADM_RENDERERS.hoatdongOpsLogs()}</tbody></table></div>`;
 
 function approversList(){
   const row = (DATA.rolesMatrix||[]).find(r=>r.role==='approver');
   return (row&&row.members)||[];
 }
+ADM_RENDERERS.quyFundEntries = ()=>{
+  const q=(ADM_Q.quyFundEntries||'').trim().toLowerCase();
+  const list = DATA.fundEntries.filter(t=>matchKw(q, t.purpose, t.created_by_name));
+  return list.map(t=>{const amt=Number(t.amount); return `<tr><td class="t-strong">${esc(t.purpose)}</td><td class="t-time">${fmtDate(t.occurred_on)}</td><td class="t-time">${esc(t.created_by_name||'')}</td>
+        <td style="text-align:right;font-weight:700;color:${amt>=0?'var(--green,#16a34a)':'var(--red,#ef4444)'}">${amt>=0?'+':'-'}${money(Math.abs(amt))}</td>
+        <td style="text-align:right">${t.locked?`<span class="t-muted" style="font-size:12px">${ic('lock',11)} Đã chốt</span>`:`<button class="btn btn-out btn-sm" onclick="khoaButToan('${t.id}')">Chốt sổ</button>`}</td></tr>`;}).join('')||`<tr><td colspan="5" class="t-muted">${q?'Không tìm thấy bút toán nào khớp.':'Chưa có bút toán nào.'}</td></tr>`;
+};
 ADM.quy = ()=>{
   const f = DATA.fund;
   const approvers = approversList();
@@ -3723,11 +3879,8 @@ ADM.quy = ()=>{
   </div>
   <div class="cols">
     <div class="section"><div class="card-head"><h3>${ic('history',14)} Sổ quỹ chi tiết</h3></div>
-      <table><thead><tr><th>Khoản</th><th>Ngày</th><th>Người ghi</th><th style="text-align:right">Số tiền</th><th></th></tr></thead><tbody>
-      ${DATA.fundEntries.map(t=>{const amt=Number(t.amount); return `<tr><td class="t-strong">${esc(t.purpose)}</td><td class="t-time">${fmtDate(t.occurred_on)}</td><td class="t-time">${esc(t.created_by_name||'')}</td>
-        <td style="text-align:right;font-weight:700;color:${amt>=0?'var(--green,#16a34a)':'var(--red,#ef4444)'}">${amt>=0?'+':'-'}${money(Math.abs(amt))}</td>
-        <td style="text-align:right">${t.locked?`<span class="t-muted" style="font-size:12px">${ic('lock',11)} Đã chốt</span>`:`<button class="btn btn-out btn-sm" onclick="khoaButToan('${t.id}')">Chốt sổ</button>`}</td></tr>`;}).join('')||'<tr><td colspan="5" class="t-muted">Chưa có bút toán nào.</td></tr>'}
-      </tbody></table>
+      ${admSearchBox('quyFundEntries','Tìm theo khoản, người ghi…')}
+      <table><thead><tr><th>Khoản</th><th>Ngày</th><th>Người ghi</th><th style="text-align:right">Số tiền</th><th></th></tr></thead><tbody id="adm-quyFundEntries">${ADM_RENDERERS.quyFundEntries()}</tbody></table>
     </div>
     <aside class="cols-side">
       <div class="box company-card">
@@ -3755,11 +3908,17 @@ async function khoaButToan(id){
   }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
 }
 
+ADM_RENDERERS.nhatkyTruyCap = ()=>{
+  const q=(ADM_Q.nhatkyTruyCap||'').trim().toLowerCase();
+  const list = DATA.opsLogs.filter(l=>matchKw(q, l.action, member(l.actor).name));
+  return list.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')||`<tr><td colspan="2" class="t-muted">${q?'Không tìm thấy dòng nhật ký nào khớp.':'Chưa có nhật ký nào.'}</td></tr>`;
+};
 ADM.nhatky = ()=> `
   <div class="page-head"><div><h1>Nhật ký & sao lưu</h1><p>Sổ đã chốt thì không sửa được — sai thì ghi thêm dòng điều chỉnh.</p></div></div>
   <div class="g2">
     <div class="section"><div class="card-head"><h3>${ic('server',14)} Nhật ký truy cập</h3></div>
-      <table><tbody>${DATA.opsLogs.map(l=>`<tr><td class="t-strong">${l.action}</td><td class="t-time">${member(l.actor).name} · ${fmtDate(l.at)}</td></tr>`).join('')}</tbody></table></div>
+      ${admSearchBox('nhatkyTruyCap','Tìm theo hành động, người thực hiện…')}
+      <table><tbody id="adm-nhatkyTruyCap">${ADM_RENDERERS.nhatkyTruyCap()}</tbody></table></div>
     <div class="box"><h3>${ic('archive',14)} Sao lưu dữ liệu</h3>
       ${DATA.backups.length?DATA.backups.map(b=>`<div class="info-row"><span class="lbl">${b.kind} · ${fmtDate(b.started_at)}</span><span class="val">${b.ok===false?`<span class="status pending">Lỗi</span>`:b.ok?`<span class="status accepted">OK</span>`:`<span class="t-muted">Đang chạy</span>`}</span></div>`).join('')
         :'<p style="font-size:13px;color:var(--muted)">Chưa có bản sao lưu nào trong lịch sử.</p>'}
@@ -4837,6 +4996,20 @@ async function chatSend(){
   try{ await api.post('/messages', {recipient_id:CHAT_ACTIVE, body:text}); }catch(e){}
   setTimeout(()=>{const b=qs('.chat-body'); if(b) b.scrollTop=b.scrollHeight; const i=qs('#chatInput'); if(i) i.focus();},0);
 }
+function chatConvItemsHtml(){
+  const q = (STATE.chat.q||'').trim().toLowerCase();
+  const list = DATA.conversations.filter(c=>{
+    const cm=member(c.withId); const last=c.msgs[c.msgs.length-1];
+    return matchKw(q, cm.name, last?last.text:'');
+  });
+  return list.map(c=>{const cm=member(c.withId); const last=c.msgs[c.msgs.length-1];
+    return `<div class="conv-item ${c.id===CHAT_ACTIVE?'on':''}" onclick="chatOpen('${c.id}')">
+      <div class="av">${initials(cm.name)}</div>
+      <div class="conv-main"><div class="conv-top"><span class="conv-nm">${cm.name}</span><span class="conv-tm">${last?last.time:''}</span></div><div class="conv-last">${last?esc(last.text):'Chưa có tin nhắn'}</div></div>
+      ${c.unread?`<span class="conv-unread">${c.unread}</span>`:''}
+    </div>`;}).join('') || '<p style="text-align:center;color:var(--muted);font-size:13px;padding:16px">Không tìm thấy hội thoại phù hợp.</p>';
+}
+function chatSearchInput(el){ STATE.chat.q=el.value; const box=qs('#chat-conv-items'); if(box) box.innerHTML=chatConvItemsHtml(); }
 V.chat = ()=>{
   if(!DATA.conversations.length){
     return `
@@ -4852,13 +5025,8 @@ V.chat = ()=>{
   <div class="page-head"><div><h1>Tin nhắn</h1><p>Trao đổi nhanh trong Nhà Chung — việc quan trọng vẫn nên gọi điện hoặc hẹn Zalo.</p></div></div>
   <div class="chat-shell">
     <aside class="conv-list">
-      <div class="conv-search"><input placeholder="Tìm hội thoại…"></div>
-      ${DATA.conversations.map(c=>{const cm=member(c.withId); const last=c.msgs[c.msgs.length-1];
-        return `<div class="conv-item ${c.id===CHAT_ACTIVE?'on':''}" onclick="chatOpen('${c.id}')">
-          <div class="av">${initials(cm.name)}</div>
-          <div class="conv-main"><div class="conv-top"><span class="conv-nm">${cm.name}</span><span class="conv-tm">${last?last.time:''}</span></div><div class="conv-last">${last?esc(last.text):'Chưa có tin nhắn'}</div></div>
-          ${c.unread?`<span class="conv-unread">${c.unread}</span>`:''}
-        </div>`;}).join('')}
+      <div class="conv-search"><input value="${esc(STATE.chat.q||'')}" placeholder="Tìm hội thoại…" oninput="chatSearchInput(this)"></div>
+      <div id="chat-conv-items">${chatConvItemsHtml()}</div>
     </aside>
     <section class="chat-main">
       <div class="chat-head">

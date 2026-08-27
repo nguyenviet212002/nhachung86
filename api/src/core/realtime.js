@@ -54,3 +54,29 @@ export function isWatchingGame(gameId, memberId) {
   for (const id of map.values()) if (id === memberId) return true;
   return false;
 }
+
+// Phòng theo 1 nhu cầu việc — cùng cơ chế gameClients ở trên, dùng cho màn
+// chi tiết việc làm (V['viec-detail']) để cả người đăng lẫn người ứng tuyển
+// đang mở cùng 1 tin đều thấy trạng thái ứng tuyển/giới thiệu mới nhất mà
+// không cần tải lại trang.
+const jobClients = new Map(); // jobId -> Set<res>
+
+export function subscribeJob(jobId, res) {
+  let set = jobClients.get(jobId);
+  if (!set) { set = new Set(); jobClients.set(jobId, set); }
+  set.add(res);
+  return () => {
+    set.delete(res);
+    if (!set.size) jobClients.delete(jobId);
+  };
+}
+
+export function publishToJob(jobId, event, data) {
+  const set = jobClients.get(jobId);
+  if (!set) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of set) {
+    try { res.write(payload); } catch { set.delete(res); }
+  }
+  if (!set.size) jobClients.delete(jobId);
+}
