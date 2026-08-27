@@ -1304,7 +1304,11 @@ let PREV_SCREEN = null;
 function render(){
   const {screen,params}=parseHash();
   if(PREV_SCREEN==='cotuong-van' && screen!=='cotuong-van') stopGameStream();
-  if((PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong-the') && screen!=='cotuong-may' && screen!=='cotuong-the') xqStopWorker();
+  if((PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong-the') && screen!=='cotuong-may' && screen!=='cotuong-the'){
+    xqStopWorker();
+    if(CHESS_AI) CHESS_AI.thinking=false;
+    if(CHESS_THE) CHESS_THE.thinking=false;
+  }
   PREV_SCREEN = screen;
   const root=document.getElementById('root');
   const variant = variantOf(screen);
@@ -3911,7 +3915,7 @@ function xqApplyMove(board,from,to){
    Web Worker (xem xqBuildWorker ở dưới) nên không được đụng DOM/window.
    ══════════════════════════════════════════════════════════════ */
 const XQ_VALUE = {advisor:20, elephant:20, horse:40, cannon:45, chariot:90};
-const XQ_LEVELS = { de:{depth:2, margin:80}, vua:{depth:3, margin:30}, kho:{depth:4, margin:5} };
+const XQ_LEVELS = { de:{depth:2, margin:80}, vua:{depth:3, margin:30}, kho:{depth:3, margin:5} };
 
 function xqSoldierValue(r, side){ return (side==='r' ? r<=4 : r>=5) ? 20 : 10; }
 function xqPieceValue(p, r){
@@ -3923,7 +3927,7 @@ function xqCountMoves(board, side){
   let n=0;
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
     const p=board[r][c];
-    if(p && p.side===side) n += xqLegalMoves(board,r,c).length;
+    if(p && p.side===side) n += xqRawMoves(board,r,c).length;
   }
   return n;
 }
@@ -4005,7 +4009,7 @@ const XQ_WORKER_FNS = [xqClone, xqOnBoard, xqOpp, xqRawMoves, xqFindGeneral, xqS
 function xqBuildWorker(){
   const src = `const XQ_VALUE=${JSON.stringify(XQ_VALUE)};\nconst XQ_LEVELS=${JSON.stringify(XQ_LEVELS)};\n`
     + XQ_WORKER_FNS.map(fn=>fn.toString()).join('\n')
-    + `\nself.onmessage=function(e){ const {board,side,level}=e.data; self.postMessage(xqChooseMove(board,side,level)); };`;
+    + `\nself.onmessage=function(e){ const {board,side,level,id}=e.data; self.postMessage(Object.assign(xqChooseMove(board,side,level),{id})); };`;
   const blob = new Blob([src], {type:'application/javascript'});
   return new Worker(URL.createObjectURL(blob));
 }
@@ -4016,18 +4020,25 @@ function xqStopWorker(){ if(XQ_WORKER){ XQ_WORKER.terminate(); XQ_WORKER=null; }
 const XQ_THINK_MS = { de:[500,1500], vua:[800,2000], kho:[1000,2800] };
 /* Trả nước đi của máy sau 1 khoảng "suy nghĩ" tự nhiên — thời gian chờ tối
    thiểu tính song song với lúc Worker tính toán, không cộng dồn nối tiếp. */
+let XQ_REQ_ID = 0;
 function xqRequestMove(board, side, level){
   const [lo,hi] = XQ_THINK_MS[level] || XQ_THINK_MS.vua;
   const extra = Math.min(xqAllMoves(board, side).length * 15, 900);
   const minDelay = lo + Math.random()*(hi-lo) + extra;
   const started = Date.now();
+  const id = ++XQ_REQ_ID;
   return new Promise(resolve=>{
-    const w = xqGetWorker();
+    let w;
+    try{ w = xqGetWorker(); }
+    catch(e){ resolve(xqChooseMove(board, side, level)); return; }
+    const fallback = ()=>{ XQ_WORKER=null; resolve(xqChooseMove(board, side, level)); };
+    w.onerror = fallback;
     w.onmessage = (e)=>{
+      if(e.data.id !== id) return;
       const wait = Math.max(0, minDelay - (Date.now()-started));
       setTimeout(()=>resolve(e.data), wait);
     };
-    w.postMessage({board, side, level});
+    w.postMessage({board, side, level, id});
   });
 }
 
@@ -4418,6 +4429,7 @@ function chessVsAiPlayMove(state, from, to, onPlayerMoved){
 function chessVsAiCellClick(state, r, c, onPlayerMoved){
   if(!state || state.over || state.thinking) return;
   if(state.turn !== state.playerSide) return;
+  state.justMoved = null;
   const p = state.board[r][c];
   if(state.selected){
     const isDest = state.legal.some(m=>m.r===r&&m.c===c);
@@ -4462,7 +4474,7 @@ function chessAiStart(){
   chessVsAiMaybeMove(captured, ()=> CHESS_AI === captured);
 }
 function chessAiBackToSetup(){ xqStopWorker(); CHESS_AI = null; render(); }
-function chessAiReset(){ chessAiStart(); }
+function chessAiReset(){ xqStopWorker(); chessAiStart(); }
 function chessAiCellClick(r,c){
   chessVsAiCellClick(CHESS_AI, r, c, ()=>{
     const captured = CHESS_AI;
@@ -4572,10 +4584,10 @@ function chessTheBuild(level, idx){
 function chessTheEnsureLoaded(){
   if(!CHESS_THE) CHESS_THE = chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX);
 }
-function chessTheSetLevel(level){ CHESS_THE_LEVEL=level; CHESS_THE_IDX=0; CHESS_THE=chessTheBuild(level,0); render(); }
-function chessThePrev(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX-1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
-function chessTheNext(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX+1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
-function chessTheRetry(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX); render(); }
+function chessTheSetLevel(level){ xqStopWorker(); CHESS_THE_LEVEL=level; CHESS_THE_IDX=0; CHESS_THE=chessTheBuild(level,0); render(); }
+function chessThePrev(){ xqStopWorker(); CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX-1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
+function chessTheNext(){ xqStopWorker(); CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX+1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
+function chessTheRetry(){ xqStopWorker(); CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX); render(); }
 function chessTheCellClick(r,c){
   chessVsAiCellClick(CHESS_THE, r, c, ()=>{
     const captured = CHESS_THE;
