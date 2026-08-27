@@ -271,6 +271,14 @@ tr:last-child td{border-bottom:none}
    dung, xem CSS .btn). */
 .xq-ctrl-row{display:flex;flex-wrap:wrap;gap:8px}
 .xq-ctrl-row>.btn{flex:1 1 120px}
+/* Màn đánh cờ tướng full màn hình (xem xqFullscreenShell) — phủ kín viewport,
+   không header/drawer/footer, chỉ có nút X tròn nổi góc trên để thoát. */
+.xq-fs{position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.xq-fs .content{padding-top:52px}
+.xq-fs-x{position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));z-index:210;
+  width:40px;height:40px;border-radius:50%;background:rgba(15,23,42,.78);color:#fff;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.xq-fs-x:hover{background:rgba(15,23,42,.92)}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -1341,6 +1349,15 @@ function render(){
     body = (V[screen]||V.notfound)(params,screen);
     activeTop = screen;
   }
+  // Màn chơi cờ tướng (đánh thật, không phải danh sách/sảnh) hiện full màn
+  // hình — không header/nav/footer — chỉ có bàn cờ + nút X để thoát, theo
+  // đúng yêu cầu "bấm vào đánh cờ thì full screen, có nút X để thoát".
+  if(XQ_FULLSCREEN_SCREENS.has(screen)){
+    root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung');
+    window.scrollTo(0,0);
+    bindGlobal();
+    return;
+  }
   // isLanding (bố cục full-bleed, không khung .wrap/.content) chỉ đúng cho
   // trang chủ KHÁCH thật — congchung khi đã đăng nhập giờ render Bảng nhà
   // (xem variantOf()), cần khung thường như mọi màn thành viên khác.
@@ -1358,6 +1375,18 @@ function wrapPage(variant, active, bodyHtml, isLanding){
   ${footerFull(variant)}
   ${variant!=='public' ? tabbarComp(variant, active) : ''}
   `;
+}
+
+/* Màn đánh cờ tướng thật (không phải sảnh/danh sách) hiện toàn màn hình,
+   thay hẳn cho wrapPage — không header/drawer/footer/tabbar. closeTarget
+   là màn quay lại khi bấm nút X (không đánh nữa/đổi ý). */
+const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van']);
+const XQ_FULLSCREEN_CLOSE = { cotuong:'congchung', 'cotuong-may':'cotuong-online', 'cotuong-the':'cotuong-online', 'cotuong-van':'cotuong-online' };
+function xqFullscreenShell(bodyHtml, closeTarget){
+  return `<div class="xq-fs">
+    <a href="#${closeTarget}" data-go="${closeTarget}" class="xq-fs-x" title="Thoát, không đánh nữa">${ic('x',20)}</a>
+    <div class="wrap"><div class="content">${bodyHtml}</div></div>
+  </div>`;
 }
 
 function headerComp(variant, active){
