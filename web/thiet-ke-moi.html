@@ -3903,6 +3903,97 @@ function xqApplyMove(board,from,to){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   xqAI — chọn nước đi cho máy. Hàm thuần, không đụng DOM, dùng lại
+   move generator xq* ở trên. Chạy được cả ở main thread lẫn trong
+   Web Worker (xem xqBuildWorker ở dưới) nên không được đụng DOM/window.
+   ══════════════════════════════════════════════════════════════ */
+const XQ_VALUE = {advisor:20, elephant:20, horse:40, cannon:45, chariot:90};
+const XQ_LEVELS = { de:{depth:2, margin:80}, vua:{depth:3, margin:30}, kho:{depth:4, margin:5} };
+
+function xqSoldierValue(r, side){ return (side==='r' ? r<=4 : r>=5) ? 20 : 10; }
+function xqPieceValue(p, r){
+  if(p.type==='soldier') return xqSoldierValue(r, p.side);
+  if(p.type==='general') return 0;
+  return XQ_VALUE[p.type];
+}
+function xqCountMoves(board, side){
+  let n=0;
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p && p.side===side) n += xqLegalMoves(board,r,c).length;
+  }
+  return n;
+}
+/* + tốt cho Đỏ, - tốt cho Đen. */
+function xqEvaluate(board){
+  let score=0;
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p=board[r][c]; if(!p) continue;
+    const v=xqPieceValue(p,r);
+    score += p.side==='r' ? v : -v;
+  }
+  score += xqCountMoves(board,'r') - xqCountMoves(board,'b');
+  return score;
+}
+function xqAllMoves(board, side){
+  const out=[];
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p && p.side===side){
+      xqLegalMoves(board,r,c).forEach(m=>out.push({from:{r,c}, to:{r:m.r,c:m.c}, captured:!!board[m.r][m.c]}));
+    }
+  }
+  out.sort((a,b)=>(b.captured?1:0)-(a.captured?1:0));
+  return out;
+}
+function xqMinimax(board, side, depth, alpha, beta){
+  const moves = xqAllMoves(board, side);
+  if(moves.length===0) return side==='r' ? -99000 : 99000;
+  if(depth===0) return xqEvaluate(board);
+  const maximizing = side==='r';
+  let best = maximizing ? -Infinity : Infinity;
+  for(const m of moves){
+    const res = xqApplyMove(board, m.from, m.to);
+    const val = res.gameOver
+      ? (res.winner==='r' ? 99000 : -99000)
+      : xqMinimax(res.board, xqOpp(side), depth-1, alpha, beta);
+    if(maximizing){ if(val>best) best=val; if(val>alpha) alpha=val; }
+    else{ if(val<best) best=val; if(val<beta) beta=val; }
+    if(beta<=alpha) break;
+  }
+  return best;
+}
+/* Tính điểm mọi nước ở gốc cây, trả về các nước trong biên độ margin so với
+   nước tốt nhất (đã sắp tốt dần), để bên gọi chọn ngẫu nhiên có trọng số. */
+function xqBestMoves(board, side, level){
+  const cfg = XQ_LEVELS[level] || XQ_LEVELS.vua;
+  const moves = xqAllMoves(board, side);
+  const maximizing = side==='r';
+  const scored = moves.map(m=>{
+    const res = xqApplyMove(board, m.from, m.to);
+    const val = res.gameOver
+      ? (res.winner===side ? 99000 : -99000)
+      : xqMinimax(res.board, xqOpp(side), cfg.depth-1, -Infinity, Infinity);
+    return {from:m.from, to:m.to, captured:m.captured, val};
+  });
+  scored.sort((a,b)=> maximizing ? b.val-a.val : a.val-b.val);
+  const bestVal = scored[0].val;
+  return scored.filter(m => Math.abs(m.val-bestVal) <= cfg.margin);
+}
+/* Trọng số giảm dần theo thứ hạng (hạng 0 trọng số cao nhất). */
+function xqPickWeighted(list){
+  const weights = list.map((_,i)=> list.length - i);
+  const total = weights.reduce((a,b)=>a+b,0);
+  let r = Math.random()*total;
+  for(let i=0;i<list.length;i++){ r-=weights[i]; if(r<=0) return list[i]; }
+  return list[list.length-1];
+}
+function xqChooseMove(board, side, level){
+  const m = xqPickWeighted(xqBestMoves(board, side, level));
+  return {from:m.from, to:m.to};
+}
+
+/* ══════════════════════════════════════════════════════════════
    V.cotuong — Cờ tướng giao lưu, chơi 2 người trên cùng máy (pass-and-play)
    Dùng engine thuần ở trên (xq*), chỉ lo phần vẽ + bắt sự kiện ở đây.
    ══════════════════════════════════════════════════════════════ */
