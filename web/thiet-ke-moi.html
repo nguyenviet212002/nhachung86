@@ -3993,6 +3993,41 @@ function xqChooseMove(board, side, level){
   return {from:m.from, to:m.to};
 }
 
+/* Worker chạy xqChooseMove ngoài luồng chính để không đứng giao diện ở mức
+   Khó. Không tách file .js riêng (dự án không có build step) — nạp mã worker
+   bằng cách nối .toString() của đúng các hàm thuần cần thiết rồi tạo Blob. */
+const XQ_WORKER_FNS = [xqClone, xqOnBoard, xqOpp, xqRawMoves, xqFindGeneral, xqSquareAttacked,
+  xqFlyingGeneral, xqInCheck, xqLegalMoves, xqSideHasMoves, xqApplyMove,
+  xqSoldierValue, xqPieceValue, xqCountMoves, xqEvaluate, xqAllMoves, xqMinimax, xqBestMoves, xqPickWeighted, xqChooseMove];
+function xqBuildWorker(){
+  const src = `const XQ_VALUE=${JSON.stringify(XQ_VALUE)};\nconst XQ_LEVELS=${JSON.stringify(XQ_LEVELS)};\n`
+    + XQ_WORKER_FNS.map(fn=>fn.toString()).join('\n')
+    + `\nself.onmessage=function(e){ const {board,side,level}=e.data; self.postMessage(xqChooseMove(board,side,level)); };`;
+  const blob = new Blob([src], {type:'application/javascript'});
+  return new Worker(URL.createObjectURL(blob));
+}
+let XQ_WORKER = null;
+function xqGetWorker(){ if(!XQ_WORKER) XQ_WORKER = xqBuildWorker(); return XQ_WORKER; }
+function xqStopWorker(){ if(XQ_WORKER){ XQ_WORKER.terminate(); XQ_WORKER=null; } }
+
+const XQ_THINK_MS = { de:[500,1500], vua:[800,2000], kho:[1000,2800] };
+/* Trả nước đi của máy sau 1 khoảng "suy nghĩ" tự nhiên — thời gian chờ tối
+   thiểu tính song song với lúc Worker tính toán, không cộng dồn nối tiếp. */
+function xqRequestMove(board, side, level){
+  const [lo,hi] = XQ_THINK_MS[level] || XQ_THINK_MS.vua;
+  const extra = Math.min(xqAllMoves(board, side).length * 15, 900);
+  const minDelay = lo + Math.random()*(hi-lo) + extra;
+  const started = Date.now();
+  return new Promise(resolve=>{
+    const w = xqGetWorker();
+    w.onmessage = (e)=>{
+      const wait = Math.max(0, minDelay - (Date.now()-started));
+      setTimeout(()=>resolve(e.data), wait);
+    };
+    w.postMessage({board, side, level});
+  });
+}
+
 /* ══════════════════════════════════════════════════════════════
    V.cotuong — Cờ tướng giao lưu, chơi 2 người trên cùng máy (pass-and-play)
    Dùng engine thuần ở trên (xq*), chỉ lo phần vẽ + bắt sự kiện ở đây.
