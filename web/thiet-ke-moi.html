@@ -328,6 +328,11 @@ tr:last-child td{border-bottom:none}
   border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.28);padding:20px;
   width:min(420px,calc(100vw - 24px));max-height:calc(100vh - 90px);overflow-y:auto}
 .xq-fs-panel h1,.xq-fs-card h1{font-size:19px;margin-bottom:2px}
+/* Thanh nút nổi dưới màn hình, hiện tự động khi giải xong 1 thế cờ — cho
+   phép bấm sang thế tiếp theo ngay, hoặc quay lại, không cần mở menu. */
+.xq-solved-bar{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));z-index:215;
+  transform:translateX(-50%);display:flex;gap:10px;animation:xq-solved-in .4s ease .35s both}
+@keyframes xq-solved-in{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -4796,10 +4801,15 @@ V['cotuong-the'] = ()=>{
   const announce = st.over
     ? xqAnnounceHtml(solved?'Giải thành công!':'Chưa xong!', solved?'win':'lose')
     : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
+  const solvedBar = solved ? `<div class="xq-solved-bar">
+    <button class="btn btn-blue" onclick="chessTheNext()">Thế tiếp theo ${ic('chev',15)}</button>
+    <a href="#cotuong-online" data-go="cotuong-online" class="btn btn-out">Quay lại</a>
+  </div>` : '';
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
   ${announce}
   ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
+  ${solvedBar}
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>Cờ thế</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p>
