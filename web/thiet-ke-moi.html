@@ -272,13 +272,37 @@ tr:last-child td{border-bottom:none}
 .xq-ctrl-row{display:flex;flex-wrap:wrap;gap:8px}
 .xq-ctrl-row>.btn{flex:1 1 120px}
 /* Màn đánh cờ tướng full màn hình (xem xqFullscreenShell) — phủ kín viewport,
-   không header/drawer/footer, chỉ có nút X tròn nổi góc trên để thoát. */
+   không header/drawer/footer, chỉ có nút X tròn nổi góc trên để thoát, nút
+   menu (☰) mở bảng điều khiển nổi (chọn cấp độ/thế/bên, Ván mới...), và 1
+   thanh trạng thái mỏng luôn hiện (lượt ai đi/thắng-thua) — để bàn cờ là
+   thứ duy nhất chiếm phần lớn màn hình theo đúng yêu cầu. */
 .xq-fs{position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
-.xq-fs .content{padding-top:52px}
-.xq-fs-x{position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));z-index:210;
-  width:40px;height:40px;border-radius:50%;background:rgba(15,23,42,.78);color:#fff;
+.xq-fs .wrap{max-width:none;padding:0}
+.xq-fs .content{padding:64px 12px 40px}
+.xq-fs .xq-board{max-width:min(94vw,620px,calc((100vh - 190px)*8/9))}
+.xq-fs-x,.xq-fs-menu-btn{position:fixed;top:calc(10px + env(safe-area-inset-top));z-index:210;
+  width:40px;height:40px;border-radius:50%;background:rgba(15,23,42,.78);color:#fff;border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}
-.xq-fs-x:hover{background:rgba(15,23,42,.92)}
+.xq-fs-x{right:calc(10px + env(safe-area-inset-right))}
+.xq-fs-menu-btn{left:calc(10px + env(safe-area-inset-left))}
+.xq-fs-x:hover,.xq-fs-menu-btn:hover{background:rgba(15,23,42,.92)}
+.xq-status-bar{position:fixed;top:calc(10px + env(safe-area-inset-top));left:64px;right:64px;z-index:204;
+  background:rgba(255,255,255,.94);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:700;
+  color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.15);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xq-status-bar.win{color:var(--brand)}
+.xq-status-bar.lose{color:var(--red)}
+.xq-fs-panel{display:none;position:fixed;top:calc(58px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));
+  z-index:206;background:#fff;border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.28);padding:16px;
+  width:min(360px,calc(100vw - 20px));max-height:calc(100vh - 90px);overflow-y:auto}
+.xq-fs-panel.show{display:block}
+/* .xq-fs-card: dùng cho các trạng thái CHƯA có bàn cờ (chọn cấp độ trước khi
+   bắt đầu, đang tải, chờ nhận lời thách đấu...) — luôn hiện sẵn giữa màn
+   hình, KHÔNG qua nút menu toggle (khác .xq-fs-panel — panel ẩn/hiện được,
+   card thì luôn hiện vì lúc đó chưa có gì khác để xem). */
+.xq-fs-card{position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:206;background:#fff;
+  border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.28);padding:20px;
+  width:min(420px,calc(100vw - 24px));max-height:calc(100vh - 90px);overflow-y:auto}
+.xq-fs-panel h1,.xq-fs-card h1{font-size:19px;margin-bottom:2px}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -1323,6 +1347,9 @@ function render(){
     if(CHESS_AI) CHESS_AI.thinking=false;
     if(CHESS_THE) CHESS_THE.thinking=false;
   }
+  // Đổi hẳn sang màn khác (không phải re-render lại CHÍNH màn cờ đang mở) thì
+  // đóng bảng menu nổi — tránh menu của thế cờ cũ "dính" sang màn kế tiếp.
+  if(screen!==PREV_SCREEN) XQ_FS_MENU_OPEN = false;
   PREV_SCREEN = screen;
   const root=document.getElementById('root');
   const variant = variantOf(screen);
@@ -1382,8 +1409,18 @@ function wrapPage(variant, active, bodyHtml, isLanding){
    là màn quay lại khi bấm nút X (không đánh nữa/đổi ý). */
 const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van']);
 const XQ_FULLSCREEN_CLOSE = { cotuong:'congchung', 'cotuong-may':'cotuong-online', 'cotuong-the':'cotuong-online', 'cotuong-van':'cotuong-online' };
+/* Có mở bảng menu nổi (.xq-fs-panel) hay không — PHẢI lưu ở biến state
+   thật, không chỉ đổi class DOM: mọi thao tác trong panel (đổi cấp độ, thế
+   trước/sau...) đều gọi lại render() (thay nguyên root.innerHTML), nên nếu
+   không nhớ vào biến thì panel sẽ tự đóng ngay khi vừa bấm 1 nút bên trong. */
+let XQ_FS_MENU_OPEN = false;
 function xqFullscreenShell(bodyHtml, closeTarget){
+  // Nút menu (☰) chỉ hiện khi màn thực sự có bảng điều khiển nổi (.xq-fs-panel)
+  // để mở/đóng — tránh 1 nút bấm vô tác dụng ở các trạng thái không có panel
+  // (ví dụ màn đang tải ván cờ online, hoặc lời thách đấu đã bị từ chối).
+  const hasPanel = bodyHtml.includes('xq-fs-panel');
   return `<div class="xq-fs">
+    ${hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',20)}</button>` : ''}
     <a href="#${closeTarget}" data-go="${closeTarget}" class="xq-fs-x" title="Thoát, không đánh nữa">${ic('x',20)}</a>
     <div class="wrap"><div class="content">${bodyHtml}</div></div>
   </div>`;
@@ -1535,7 +1572,9 @@ function bindGlobal(){
   const nb=qs('#bellBtn'); if(nb)nb.addEventListener('click',e=>{e.stopPropagation();qs('#notifPanel').classList.toggle('show');});
   const sb=qs('#searchBtn'); if(sb)sb.addEventListener('click',e=>{e.stopPropagation();const p=qs('#searchPanel');p.classList.toggle('show');if(p.classList.contains('show')){const inp=qs('#search-global');if(inp)inp.focus();}});
   const sp=qs('#searchPanel'); if(sp)sp.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');const sp2=qs('#searchPanel');if(sp2)sp2.classList.remove('show');},{once:true});
+  const fmb=qs('#xqFsMenuBtn'); if(fmb)fmb.addEventListener('click',e=>{e.stopPropagation();XQ_FS_MENU_OPEN=!XQ_FS_MENU_OPEN;const p=qs('.xq-fs-panel');if(p)p.classList.toggle('show',XQ_FS_MENU_OPEN);});
+  const fp=qs('.xq-fs-panel'); if(fp)fp.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');const sp2=qs('#searchPanel');if(sp2)sp2.classList.remove('show');const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
   const lb=qs('#logoutBtn'); if(lb)lb.addEventListener('click',doLogout);
   const lbd=qs('#logoutBtnDrawer'); if(lbd)lbd.addEventListener('click',doLogout);
 }
@@ -4343,31 +4382,33 @@ function resignGame(id){
 
 V['cotuong-van'] = (params)=>{
   const id = params[0];
-  if(!id) return `<div class="empty"><h3>Không tìm thấy ván cờ</h3></div>`;
+  if(!id) return `<div class="empty" style="margin-top:15vh"><h3>Không tìm thấy ván cờ</h3></div>`;
   if(GAME_STATE_ID!==id){ loadGame(id);
-    return `<div class="page-head"><div><h1>Cờ tướng</h1></div></div>
-    <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`; }
-  if(!GAME_STATE) return `<p style="padding:40px;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
-  if(GAME_STATE.error) return `<div class="empty"><h3>${esc(GAME_STATE.error)}</h3></div>`;
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`; }
+  if(!GAME_STATE) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
+  if(GAME_STATE.error) return `<div class="empty" style="margin-top:15vh"><h3>${esc(GAME_STATE.error)}</h3></div>`;
   const st = GAME_STATE;
   const mySide = DATA.me && st.red_member_id===DATA.me.id ? 'r' : (DATA.me && st.black_member_id===DATA.me.id ? 'b' : null);
   const isMyTurn = mySide && mySide===st.turn && st.status==='active';
   if(st.status==='pending'){
     const isInvitee = DATA.me && st.black_member_id===DATA.me.id;
-    return `<div class="page-head"><div><h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
-      <p>Lời thách đấu đang chờ trả lời.</p></div></div>
-      <div class="box" style="max-width:420px;text-align:center">
+    return `<div class="xq-fs-card">
+      <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+      <p style="font-size:13px;color:var(--muted);margin:2px 0 14px">Lời thách đấu đang chờ trả lời.</p>
         ${isInvitee ? `
         <p style="font-size:14.5px;margin-bottom:14px">${esc(st.red_name)} rủ bạn một ván cờ tướng.</p>
-        <div style="display:flex;gap:8px">
+        <div class="xq-ctrl-row">
           <button class="btn btn-blue" style="flex:1" onclick="api.post('/games/challenges/${st.id}/accept').then(()=>loadGame('${st.id}')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'))">Nhận lời</button>
           <button class="btn btn-out" style="flex:1" onclick="api.post('/games/challenges/${st.id}/decline').then(()=>go('cotuong-online')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'))">Từ chối</button>
         </div>` : `<p style="font-size:14.5px;color:var(--muted)">Đang chờ ${esc(st.black_name)} trả lời lời thách đấu.</p>`}
       </div>`;
   }
   if(st.status==='finished' && !st.board){
-    return `<div class="page-head"><div><h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1></div></div>
-      <div class="empty"><h3>Lời thách đấu đã bị từ chối</h3><p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại danh sách</a></p></div>`;
+    return `<div class="xq-fs-card" style="text-align:center">
+      <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+      <p style="margin-top:10px">Lời thách đấu đã bị từ chối</p>
+      <p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại danh sách</a></p>
+    </div>`;
   }
   const pts=[];
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
@@ -4387,29 +4428,25 @@ V['cotuong-van'] = (params)=>{
   const statusTxt = st.status==='finished'
     ? `${winnerSide} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`
     : (mySide ? (isMyTurn?'Tới lượt bạn':'Đang chờ đối thủ') : turnTxt);
+  const statusCls = st.status==='finished' ? 'win' : '';
   return `
-  <div class="page-head"><div><h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
-    <p>${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p></div></div>
-  <div class="cols">
-    <div class="xq-wrap">
-      <div class="xq-board">
-        ${chessGridSvg()}
-        <div class="xq-river">楚 河　　漢 界</div>
-        ${pts.join('')}
-      </div>
+  <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
+  <div class="xq-wrap">
+    <div class="xq-board">
+      ${chessGridSvg()}
+      <div class="xq-river">楚 河　　漢 界</div>
+      ${pts.join('')}
     </div>
-    <aside class="cols-side">
-      <div class="box" style="text-align:center">
-        <div class="status ${st.status==='finished'?'done':isMyTurn?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${statusTxt}</div>
-        <div style="display:flex;gap:8px;margin-top:14px">
-          ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
-          <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
-        </div>
-      </div>
-      <div class="box"><h3>Biên bản ván cờ</h3>
-        ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
-      </div>
-    </aside>
+  </div>
+  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+    <div class="xq-ctrl-row">
+      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
+      <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+    </div>
+    <h3 style="margin-top:14px">Biên bản ván cờ</h3>
+    ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
   </div>`;
 };
 
@@ -4417,27 +4454,25 @@ V.cotuong = ()=>{
   const st = CHESS;
   const turnTxt = st.turn==='r' ? 'Đỏ đi' : 'Đen đi';
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
+  const statusCls = st.over ? 'win' : '';
+  const statusLabel = st.over ? `Ván đã kết thúc — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!` : turnTxt;
   return `
-  <div class="page-head"><div><h1>Cờ tướng giao lưu</h1><p>Bàn cờ chơi trực tiếp 2 người trên cùng màn hình — dành cho anh chị em ghé Nhà Chung giải trí. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p></div></div>
-  <div class="cols">
-    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick'})}
-    <aside class="cols-side">
-      <div class="box" style="text-align:center">
-        <div class="status ${st.over?'done':st.turn==='r'?'pending':'accepted'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
-        ${reasonTxt?`<div class="notice ${st.over?'brand':'wait'}" style="margin-top:10px">${ic(st.over?'check':'bolt',16)}${reasonTxt}${st.over?` — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`:''}</div>`:'<p style="font-size:12.5px;color:var(--muted);margin-top:8px">Chọn quân của bên đang đi rồi bấm vào ô sáng để di chuyển.</p>'}
-        <div style="display:flex;gap:8px;margin-top:14px">
-          <button class="btn btn-out" style="flex:1" onclick="chessReset()">${ic('refresh',15)} Ván mới</button>
-          <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
-        </div>
-      </div>
-      <div class="box"><h3>Quy ước quân</h3>
-        <div style="font-size:12.5px;color:var(--body);line-height:2">
-          <div><b style="color:#B4231F">Đỏ</b>: 帥 tướng · 仕 sĩ · 相 tượng · 傌 mã · 俥 xe · 炮 pháo · 兵 tốt</div>
-          <div><b>Đen</b>: 將 tướng · 士 sĩ · 象 tượng · 馬 mã · 車 xe · 砲 pháo · 卒 tốt</div>
-        </div>
-      </div>
-      <div class="notice brand">${ic('calendar',16)}Gắn với hoạt động "Giải cờ tướng mở rộng" — <a data-go="hoatdong-detail:ac03" style="font-weight:700;color:var(--brand-dd)">xem lịch thi đấu</a></div>
-    </aside>
+  <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick'})}
+  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    <h1>Cờ tướng giao lưu</h1>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bàn cờ chơi trực tiếp 2 người trên cùng màn hình. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p>
+    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-bottom:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
+    <div class="xq-ctrl-row">
+      <button class="btn btn-out" style="flex:1" onclick="chessReset()">${ic('refresh',15)} Ván mới</button>
+      <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+    </div>
+    <h3 style="margin-top:14px">Quy ước quân</h3>
+    <div style="font-size:12.5px;color:var(--body);line-height:2">
+      <div><b style="color:#B4231F">Đỏ</b>: 帥 tướng · 仕 sĩ · 相 tượng · 傌 mã · 俥 xe · 炮 pháo · 兵 tốt</div>
+      <div><b>Đen</b>: 將 tướng · 士 sĩ · 象 tượng · 馬 mã · 車 xe · 砲 pháo · 卒 tốt</div>
+    </div>
+    <div class="notice brand" style="margin-top:12px">${ic('calendar',16)}Gắn với hoạt động "Giải cờ tướng mở rộng" — <a data-go="hoatdong-detail:ac03" style="font-weight:700;color:var(--brand-dd)">xem lịch thi đấu</a></div>
   </div>`;
 };
 
@@ -4522,10 +4557,9 @@ function chessAiCellClick(r,c){
 
 V['cotuong-may'] = ()=>{
   if(!CHESS_AI){
-    return `
-    <div class="page-head"><div><h1>Chơi với máy</h1><p>Chọn bên và cấp độ rồi bắt đầu ván — máy suy nghĩ và đi như một đối thủ thật, không phải lúc nào cũng đi nước tối ưu.</p></div></div>
-    <p style="margin:-10px 0 16px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại Cờ tướng online</a></p>
-    <div class="box" style="max-width:420px">
+    return `<div class="xq-fs-card">
+      <h1>Chơi với máy</h1>
+      <p style="font-size:13px;color:var(--muted);margin:2px 0 14px">Chọn bên và cấp độ rồi bắt đầu ván — máy suy nghĩ và đi như một đối thủ thật, không phải lúc nào cũng đi nước tối ưu.</p>
       <h3>Bạn cầm bên</h3>
       <div class="xq-ctrl-row" style="margin:10px 0 18px">
         <button class="btn ${CHESS_AI_SETUP.side==='r'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('r')">Đỏ (đi trước)</button>
@@ -4538,6 +4572,7 @@ V['cotuong-may'] = ()=>{
         <button class="btn ${CHESS_AI_SETUP.level==='kho'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('kho')">Khó</button>
       </div>
       <button class="btn btn-blue btn-full" onclick="chessAiStart()">${ic('star',15)} Bắt đầu</button>
+      <p style="margin-top:14px;text-align:center"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại Cờ tướng online</a></p>
     </div>`;
   }
   const st = CHESS_AI;
@@ -4545,20 +4580,19 @@ V['cotuong-may'] = ()=>{
   const turnTxt = st.turn===st.playerSide ? 'Tới lượt bạn' : 'Đối thủ đang đi...';
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
   const levelLabel = {de:'Dễ', vua:'Vừa', kho:'Khó'}[st.level];
+  const statusCls = st.over ? (st.winner===st.playerSide?'win':'lose') : '';
+  const statusLabel = st.over ? `Ván đã kết thúc — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!` : turnTxt;
   return `
-  <div class="page-head"><div><h1>Chơi với máy</h1><p>Cấp độ: ${levelLabel} · Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'}</p></div></div>
-  <div class="cols">
-    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
-    <aside class="cols-side">
-      <div class="box" style="text-align:center">
-        <div class="status ${st.over?'done':st.turn===st.playerSide?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
-        ${reasonTxt?`<div class="notice ${st.over?'brand':'wait'}" style="margin-top:10px">${ic(st.over?'check':'bolt',16)}${reasonTxt}${st.over?` — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`:''}</div>`:''}
-        <div class="xq-ctrl-row" style="margin-top:14px">
-          <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
-          <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
-        </div>
-      </div>
-    </aside>
+  <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
+  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    <h1>Chơi với máy</h1>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Cấp độ: ${levelLabel} · Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'}</p>
+    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-bottom:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
+    <div class="xq-ctrl-row">
+      <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
+      <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
+    </div>
   </div>`;
 };
 
@@ -4700,9 +4734,11 @@ V['cotuong-the'] = ()=>{
     `<button class="btn ${CHESS_THE_LEVEL===lv?'btn-blue':'btn-out'} btn-sm" onclick="chessTheSetLevel('${lv}')">${label}</button>`
   ).join('');
   if(!CHESS_THE){
-    return `<div class="page-head"><div><h1>Cờ thế</h1></div></div>
-    <div class="xq-ctrl-row" style="margin-bottom:18px">${tabs}</div>
-    <div class="empty"><h3>Chưa có thế cờ nào ở mức này</h3></div>`;
+    return `<div class="xq-fs-card">
+      <h1>Cờ thế</h1>
+      <div class="xq-ctrl-row" style="margin-top:12px">${tabs}</div>
+      <div class="empty" style="margin-top:14px"><h3>Chưa có thế cờ nào ở mức này</h3></div>
+    </div>`;
   }
   const st = CHESS_THE;
   const flip = st.playerSide==='b';
@@ -4710,24 +4746,21 @@ V['cotuong-the'] = ()=>{
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
   const solved = st.over && st.winner===st.playerSide;
   const failed = st.over && st.winner!==st.playerSide;
+  const statusCls = st.over ? (solved?'win':'lose') : '';
+  const statusLabel = st.over ? (solved?'Giải thành công!':'Chưa xong, thử lại thế này') : turnTxt;
   return `
-  <div class="page-head"><div><h1>Cờ thế</h1><p>Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p></div></div>
-  <div class="xq-ctrl-row" style="margin-bottom:18px">${tabs}</div>
-  <div class="cols">
-    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
-    <aside class="cols-side">
-      <div class="box" style="text-align:center">
-        <div class="status ${st.over?'done':st.turn===st.playerSide?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
-        ${solved?`<div class="notice brand">${ic('check',16)}Giải thành công!</div>`:''}
-        ${failed?`<div class="notice wait">${ic('bolt',16)}Chưa xong, thử lại thế này.</div>`:''}
-        ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-top:10px">${ic('bolt',16)}${reasonTxt}</div>`:''}
-        <div class="xq-ctrl-row" style="margin-top:14px">
-          <button class="btn btn-out" style="flex:1" onclick="chessThePrev()">← Thế trước</button>
-          <button class="btn btn-out" style="flex:1" onclick="chessTheNext()">Thế sau →</button>
-        </div>
-        <button class="btn btn-out btn-full" style="margin-top:8px" onclick="chessTheRetry()">${ic('refresh',15)} Chơi lại thế này</button>
-      </div>
-    </aside>
+  <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
+  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    <h1>Cờ thế</h1>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p>
+    <div class="xq-ctrl-row">${tabs}</div>
+    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-top:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
+    <div class="xq-ctrl-row" style="margin-top:14px">
+      <button class="btn btn-out" style="flex:1" onclick="chessThePrev()">← Thế trước</button>
+      <button class="btn btn-out" style="flex:1" onclick="chessTheNext()">Thế sau →</button>
+    </div>
+    <button class="btn btn-out btn-full" style="margin-top:8px" onclick="chessTheRetry()">${ic('refresh',15)} Chơi lại thế này</button>
   </div>`;
 };
 
