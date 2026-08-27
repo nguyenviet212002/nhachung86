@@ -3525,16 +3525,19 @@ WIZ.thachDau = ()=>{ CHALLENGE_PICK=null; openModal(`
    ══════════════════════════════════════════════════════════════ */
 let GAME_STATE = null, GAME_STATE_ID = null, GAME_EVENTSOURCE = null;
 let GAME_SELECTED = null, GAME_LEGAL = [];
+let GAME_STREAM_RETRIES = 0;
 
 function stopGameStream(){
   if(GAME_EVENTSOURCE){ GAME_EVENTSOURCE.close(); GAME_EVENTSOURCE=null; }
   GAME_STATE=null; GAME_STATE_ID=null; GAME_SELECTED=null; GAME_LEGAL=[];
+  GAME_STREAM_RETRIES=0;
   GAMES_LIST=null;
 }
 function connectGameStream(id){
   if(GAME_EVENTSOURCE) GAME_EVENTSOURCE.close();
-  const token = api.accessToken();
+  const token = api.accessToken(); if(!token) return;
   GAME_EVENTSOURCE = new EventSource(api.baseUrl()+'/games/'+id+'/stream?access_token='+encodeURIComponent(token));
+  GAME_EVENTSOURCE.addEventListener('ready', ()=>{ GAME_STREAM_RETRIES=0; });
   GAME_EVENTSOURCE.addEventListener('game_start', e=>{
     const d = JSON.parse(e.data);
     if(GAME_STATE){ GAME_STATE.board=d.board; GAME_STATE.turn=d.turn; GAME_STATE.status='active'; }
@@ -3551,11 +3554,27 @@ function connectGameStream(id){
     const d = JSON.parse(e.data);
     if(GAME_STATE){
       GAME_STATE.status='finished'; GAME_STATE.end_reason=d.reason;
-      GAME_STATE.winner_member_id = d.winner==='r'?GAME_STATE.red_member_id:GAME_STATE.black_member_id;
+      GAME_STATE.winner_member_id = d.winner ? (d.winner==='r'?GAME_STATE.red_member_id:GAME_STATE.black_member_id) : null;
     }
     chessSound('end');
     render();
   });
+  GAME_EVENTSOURCE.onerror = ()=>{
+    if(GAME_EVENTSOURCE){ GAME_EVENTSOURCE.close(); GAME_EVENTSOURCE=null; }
+    if(GAME_STATE_ID!==id) return; // đã điều hướng đi chỗ khác, không cần nối lại
+    GAME_STREAM_RETRIES++;
+    if(GAME_STREAM_RETRIES>5){
+      toast('Mất kết nối trực tiếp với ván cờ, hãy tải lại trang.','x');
+      return;
+    }
+    setTimeout(()=>{
+      if(GAME_STATE_ID!==id) return;
+      api.get('/auth/me').catch(()=>{}).then(()=>{
+        if(GAME_STATE_ID!==id) return;
+        connectGameStream(id);
+      });
+    }, 1500);
+  };
 }
 function loadGame(id){
   GAME_STATE = null; GAME_STATE_ID = id; GAME_SELECTED=null; GAME_LEGAL=[];
@@ -3576,8 +3595,11 @@ function gameCellClick(r,c){
     const isDest = GAME_LEGAL.some(m=>m.r===r&&m.c===c);
     if(isDest){
       const from=GAME_SELECTED, to={r,c};
+      const gid = GAME_STATE.id;
       GAME_SELECTED=null; GAME_LEGAL=[];
-      api.post('/games/'+GAME_STATE.id+'/moves', {from,to}).catch(e=>{
+      api.post('/games/'+gid+'/moves', {from,to}).then(g=>{
+        if(GAME_STATE_ID===gid && GAME_STATE){ GAME_STATE.board=g.board; GAME_STATE.turn=g.turn; GAME_STATE.status=g.status; render(); }
+      }).catch(e=>{
         toast(e.message||'Nước đi không hợp lệ.','x'); loadGame(GAME_STATE.id);
       });
       render();
@@ -3616,6 +3638,10 @@ V['cotuong-van'] = (params)=>{
           <button class="btn btn-out" style="flex:1" onclick="api.post('/games/challenges/${st.id}/decline').then(()=>go('cotuong-online')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'))">Từ chối</button>
         </div>` : `<p style="font-size:14.5px;color:var(--muted)">Đang chờ ${esc(st.black_name)} trả lời lời thách đấu.</p>`}
       </div>`;
+  }
+  if(st.status==='finished' && !st.board){
+    return `<div class="page-head"><div><h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1></div></div>
+      <div class="empty"><h3>Lời thách đấu đã bị từ chối</h3><p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại danh sách</a></p></div>`;
   }
   const pts=[];
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){

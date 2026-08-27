@@ -306,6 +306,8 @@ export function buildOpenApi() {
     endpoint('POST', '/api/v1/games/{id}/moves', { pathParams: games.idParamSchema, body: games.moveSchema }));
   add('/api/v1/games/{id}/resign',
     endpoint('POST', '/api/v1/games/{id}/resign', { pathParams: games.idParamSchema }));
+  add('/api/v1/games/{id}/stream',
+    endpoint('GET', '/api/v1/games/{id}/stream', { pathParams: games.idParamSchema }));
 
   add('/api/v1/ops/audit-log', endpoint('GET', '/api/v1/ops/audit-log', { query: ops.listAuditLogSchema }));
   add('/api/v1/ops/audit-log/verify', endpoint('GET', '/api/v1/ops/audit-log/verify', { query: ops.verifyChainSchema }));

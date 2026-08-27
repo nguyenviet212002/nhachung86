@@ -17,7 +17,7 @@ export async function up(knex) {
       board jsonb,
       turn text NOT NULL DEFAULT 'r' CHECK (turn IN ('r','b')),
       winner_member_id uuid,
-      end_reason text CHECK (end_reason IS NULL OR end_reason IN ('chieu-bi','het-nuoc-di','resign','declined')),
+      end_reason text CHECK (end_reason IS NULL OR end_reason IN ('chieu-bi','het-nuoc-di','resign','declined','bat-tuong')),
       created_at timestamptz NOT NULL DEFAULT now(),
       started_at timestamptz,
       finished_at timestamptz,
@@ -67,6 +67,7 @@ export async function up(knex) {
 
 export async function down(knex) {
   await knex.raw(`
+    DELETE FROM notifications WHERE kind IN ('game_challenge','game_turn') OR target_type = 'game';
     ALTER TABLE notifications DROP CONSTRAINT notifications_kind_check;
     ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check
       CHECK (kind IN ('message','content','activity','system','role'));

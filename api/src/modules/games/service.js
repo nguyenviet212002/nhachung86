@@ -104,6 +104,7 @@ export async function declineChallenge({ actor, id }) {
     return { redMemberId: game.red_member_id, notification };
   });
   publishToMember(result.redMemberId, 'notification', result.notification);
+  publishToGame(id, 'game_end', { winner: null, reason: 'declined' });
   return { id, status: 'finished' };
 }
 

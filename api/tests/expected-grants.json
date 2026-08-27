@@ -72,5 +72,7 @@
   "moderation_queue":         ["SELECT", "INSERT", "UPDATE"],
   "files":                    ["SELECT", "INSERT", "UPDATE"],
   "notifications":            ["SELECT", "INSERT", "UPDATE"],
-  "direct_messages":           ["SELECT", "INSERT", "UPDATE"]
+  "direct_messages":           ["SELECT", "INSERT", "UPDATE"],
+  "games":                    ["SELECT", "INSERT", "UPDATE"],
+  "game_moves":               ["SELECT", "INSERT", "UPDATE"]
 }
