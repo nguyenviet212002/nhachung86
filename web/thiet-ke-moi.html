@@ -1304,6 +1304,7 @@ let PREV_SCREEN = null;
 function render(){
   const {screen,params}=parseHash();
   if(PREV_SCREEN==='cotuong-van' && screen!=='cotuong-van') stopGameStream();
+  if((PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong-the') && screen!=='cotuong-may' && screen!=='cotuong-the') xqStopWorker();
   PREV_SCREEN = screen;
   const root=document.getElementById('root');
   const variant = variantOf(screen);
@@ -1388,6 +1389,7 @@ function headerComp(variant, active){
         <div class="umenu" id="umenu">
           <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
           <a href="#cotuong-online" data-go="cotuong-online">${ic('star',15)} Cờ tướng giao lưu</a>
+          <a href="#cotuong-may" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a>
           <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
           ${overflowHtml?`<div class="div"></div>${overflowHtml}`:''}
           ${variant==='admin'?`<a href="#trongnha" data-go="trongnha">${ic('home',15)} Về giao diện thành viên</a>`:''}
@@ -1420,7 +1422,7 @@ function drawerComp(variant, active){
     <nav>${items}</nav>
     <div class="foot">
       ${variant==='public'?`<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
+      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#cotuong-may" class="btn btn-out" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
     </div>
   </aside>`;
 }
@@ -4385,6 +4387,125 @@ V.cotuong = ()=>{
         </div>
       </div>
       <div class="notice brand">${ic('calendar',16)}Gắn với hoạt động "Giải cờ tướng mở rộng" — <a data-go="hoatdong-detail:ac03" style="font-weight:700;color:var(--brand-dd)">xem lịch thi đấu</a></div>
+    </aside>
+  </div>`;
+};
+
+/* ══════════════════════════════════════════════════════════════
+   V['cotuong-may'] — chơi với máy (AI). Dùng chung 2 hàm chessVsAi* với
+   V['cotuong-the'] (cờ thế, Task 7) — cả 2 chỉ khác nhau ở CÁCH nạp state
+   ban đầu, không khác ở cách áp nước đi.
+   ══════════════════════════════════════════════════════════════ */
+let CHESS_AI = null; // null = đang ở màn chọn bên/cấp độ, chưa vào ván
+let CHESS_AI_SETUP = { side:'r', level:'vua' };
+
+/* Áp 1 nước đi của NGƯỜI vào state, vẽ lại, rồi gọi tiếp onPlayerMoved (thường
+   là để kích máy đi nếu chưa xong ván). */
+function chessVsAiPlayMove(state, from, to, onPlayerMoved){
+  const res = xqApplyMove(state.board, from, to);
+  state.lastMove = {from, to};
+  state.justMoved = null;
+  state.board = res.board;
+  state.turn = xqOpp(state.board[to.r][to.c].side);
+  state.selected = null; state.legal = [];
+  if(res.gameOver){ state.over=true; state.winner=res.winner; state.reason=res.reason; chessSound('end'); }
+  else if(res.checkOpp){ state.reason='chieu'; chessSound('check'); }
+  else{ state.reason=null; chessSound(res.captured?'capture':'place'); }
+  render();
+  if(onPlayerMoved) onPlayerMoved();
+}
+function chessVsAiCellClick(state, r, c, onPlayerMoved){
+  if(!state || state.over || state.thinking) return;
+  if(state.turn !== state.playerSide) return;
+  const p = state.board[r][c];
+  if(state.selected){
+    const isDest = state.legal.some(m=>m.r===r&&m.c===c);
+    if(isDest){ chessVsAiPlayMove(state, state.selected, {r,c}, onPlayerMoved); return; }
+    if(p && p.side===state.board[state.selected.r][state.selected.c].side){
+      state.selected={r,c}; state.legal=xqLegalMoves(state.board,r,c); render(); return;
+    }
+    state.selected=null; state.legal=[]; render(); return;
+  }
+  if(p && p.side===state.turn){ state.selected={r,c}; state.legal=xqLegalMoves(state.board,r,c); render(); }
+}
+/* isStillCurrent: hàm kiểm tra "ván này còn là ván đang hiện trên màn không"
+   — bắt buộc so bằng ĐỊNH DANH object (===), không so bằng biến global, để
+   không áp nhầm nước máy vừa tính xong cho 1 ván đã bị "Ván mới"/đổi thế cờ
+   ghi đè trong lúc Worker còn đang chạy. */
+function chessVsAiMaybeMove(state, isStillCurrent){
+  if(!state || state.over) return;
+  if(state.turn === state.playerSide) return;
+  state.thinking = true; render();
+  xqRequestMove(state.board, state.turn, state.level).then(move=>{
+    if(!isStillCurrent()) return;
+    const res = xqApplyMove(state.board, move.from, move.to);
+    state.lastMove = {from:move.from, to:move.to};
+    state.justMoved = move.to;
+    state.board = res.board;
+    state.turn = xqOpp(state.board[move.to.r][move.to.c].side);
+    state.thinking = false;
+    if(res.gameOver){ state.over=true; state.winner=res.winner; state.reason=res.reason; chessSound('end'); }
+    else if(res.checkOpp){ state.reason='chieu'; chessSound('check'); }
+    else{ state.reason=null; chessSound(res.captured?'capture':'place'); }
+    render();
+  });
+}
+
+function chessAiSetSide(side){ CHESS_AI_SETUP.side = side; render(); }
+function chessAiSetLevel(level){ CHESS_AI_SETUP.level = level; render(); }
+function chessAiStart(){
+  CHESS_AI = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null,
+    lastMove:null, justMoved:null, thinking:false, playerSide:CHESS_AI_SETUP.side, level:CHESS_AI_SETUP.level };
+  render();
+  const captured = CHESS_AI;
+  chessVsAiMaybeMove(captured, ()=> CHESS_AI === captured);
+}
+function chessAiBackToSetup(){ xqStopWorker(); CHESS_AI = null; render(); }
+function chessAiReset(){ chessAiStart(); }
+function chessAiCellClick(r,c){
+  chessVsAiCellClick(CHESS_AI, r, c, ()=>{
+    const captured = CHESS_AI;
+    chessVsAiMaybeMove(captured, ()=> CHESS_AI === captured);
+  });
+}
+
+V['cotuong-may'] = ()=>{
+  if(!CHESS_AI){
+    return `
+    <div class="page-head"><div><h1>Chơi với máy</h1><p>Chọn bên và cấp độ rồi bắt đầu ván — máy suy nghĩ và đi như một đối thủ thật, không phải lúc nào cũng đi nước tối ưu.</p></div></div>
+    <div class="box" style="max-width:420px">
+      <h3>Bạn cầm bên</h3>
+      <div style="display:flex;gap:8px;margin:10px 0 18px">
+        <button class="btn ${CHESS_AI_SETUP.side==='r'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('r')">Đỏ (đi trước)</button>
+        <button class="btn ${CHESS_AI_SETUP.side==='b'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('b')">Đen</button>
+      </div>
+      <h3>Cấp độ máy</h3>
+      <div style="display:flex;gap:8px;margin:10px 0 18px">
+        <button class="btn ${CHESS_AI_SETUP.level==='de'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('de')">Dễ</button>
+        <button class="btn ${CHESS_AI_SETUP.level==='vua'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('vua')">Vừa</button>
+        <button class="btn ${CHESS_AI_SETUP.level==='kho'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('kho')">Khó</button>
+      </div>
+      <button class="btn btn-blue btn-full" onclick="chessAiStart()">${ic('star',15)} Bắt đầu</button>
+    </div>`;
+  }
+  const st = CHESS_AI;
+  const flip = st.playerSide==='b';
+  const turnTxt = st.turn===st.playerSide ? 'Tới lượt bạn' : 'Đối thủ đang đi...';
+  const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
+  const levelLabel = {de:'Dễ', vua:'Vừa', kho:'Khó'}[st.level];
+  return `
+  <div class="page-head"><div><h1>Chơi với máy</h1><p>Cấp độ: ${levelLabel} · Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'}</p></div></div>
+  <div class="cols">
+    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
+    <aside class="cols-side">
+      <div class="box" style="text-align:center">
+        <div class="status ${st.over?'done':st.turn===st.playerSide?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
+        ${reasonTxt?`<div class="notice ${st.over?'brand':'wait'}" style="margin-top:10px">${ic(st.over?'check':'bolt',16)}${reasonTxt}${st.over?` — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`:''}</div>`:''}
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
+          <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
+        </div>
+      </div>
     </aside>
   </div>`;
 };
