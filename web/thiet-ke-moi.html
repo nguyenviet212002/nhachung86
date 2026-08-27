@@ -265,6 +265,12 @@ tr:last-child td{border-bottom:none}
 @keyframes xq-pop{from{transform:scale(.35);opacity:0}to{transform:scale(1);opacity:1}}
 .xq-pc.moved{animation:xq-pop .28s ease}
 @media(max-width:600px){.xq-pc{font-size:14.5px}.xq-board{--xq-pad:18px}}
+/* Hàng nút điều khiển cờ tướng (chọn bên/cấp độ, Ván mới, chuyển thế...):
+   cho phép xuống dòng thay vì tràn ra ngoài khi nút không đủ chỗ (button
+   mặc định white-space:nowrap nên flex:1 không tự co được dưới độ rộng nội
+   dung, xem CSS .btn). */
+.xq-ctrl-row{display:flex;flex-wrap:wrap;gap:8px}
+.xq-ctrl-row>.btn{flex:1 1 120px}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -1393,7 +1399,6 @@ function headerComp(variant, active){
         <div class="umenu" id="umenu">
           <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
           <a href="#cotuong-online" data-go="cotuong-online">${ic('star',15)} Cờ tướng giao lưu</a>
-          <a href="#cotuong-may" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a>
           <a href="#cotuong-the" data-go="cotuong-the">${ic('star',15)} Cờ thế</a>
           <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
           ${overflowHtml?`<div class="div"></div>${overflowHtml}`:''}
@@ -1427,7 +1432,7 @@ function drawerComp(variant, active){
     <nav>${items}</nav>
     <div class="foot">
       ${variant==='public'?`<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#cotuong-may" class="btn btn-out" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a><a href="#cotuong-the" class="btn btn-out" data-go="cotuong-the">${ic('star',15)} Cờ thế</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
+      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#cotuong-online" class="btn btn-out" data-go="cotuong-online">${ic('star',15)} Đấu giao lưu</a><a href="#cotuong-the" class="btn btn-out" data-go="cotuong-the">${ic('star',15)} Cờ thế</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
     </div>
   </aside>`;
 }
@@ -4153,11 +4158,15 @@ function gameRow(g){
 }
 V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
-    return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu và xem trực tiếp.</p></div></div>
+    return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu, xem trực tiếp, hoặc đấu ngay với máy.</p></div></div>
     <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
   return `
-  <div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu một người cụ thể, hoặc xem ai đó đang chơi.</p></div>
-    <button class="btn btn-blue" data-open="thachDau">${ic('plus',15)} Thách đấu</button></div>
+  <div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu một người cụ thể, xem ai đó đang chơi, hoặc đấu ngay với máy — tuỳ bạn chọn.</p></div>
+    <div class="xq-ctrl-row">
+      <a href="#cotuong-may" data-go="cotuong-may" class="btn btn-out">${ic('star',15)} Đấu với máy</a>
+      <button class="btn btn-blue" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
+    </div>
+  </div>
   ${GAMES_LIST.mine.length?`<div class="sec-title">${ic('user',14)} Ván của bạn</div>${GAMES_LIST.mine.map(gameRow).join('')}`:''}
   <div class="sec-title" style="margin-top:${GAMES_LIST.mine.length?'20px':'0'}">${ic('users',14)} Đang có người đánh</div>
   ${GAMES_LIST.open.length?GAMES_LIST.open.map(gameRow).join(''):'<div class="empty"><p>Chưa có ván nào đang diễn ra.</p></div>'}
@@ -4486,14 +4495,15 @@ V['cotuong-may'] = ()=>{
   if(!CHESS_AI){
     return `
     <div class="page-head"><div><h1>Chơi với máy</h1><p>Chọn bên và cấp độ rồi bắt đầu ván — máy suy nghĩ và đi như một đối thủ thật, không phải lúc nào cũng đi nước tối ưu.</p></div></div>
+    <p style="margin:-10px 0 16px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại Cờ tướng online</a></p>
     <div class="box" style="max-width:420px">
       <h3>Bạn cầm bên</h3>
-      <div style="display:flex;gap:8px;margin:10px 0 18px">
+      <div class="xq-ctrl-row" style="margin:10px 0 18px">
         <button class="btn ${CHESS_AI_SETUP.side==='r'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('r')">Đỏ (đi trước)</button>
         <button class="btn ${CHESS_AI_SETUP.side==='b'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('b')">Đen</button>
       </div>
       <h3>Cấp độ máy</h3>
-      <div style="display:flex;gap:8px;margin:10px 0 18px">
+      <div class="xq-ctrl-row" style="margin:10px 0 18px">
         <button class="btn ${CHESS_AI_SETUP.level==='de'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('de')">Dễ</button>
         <button class="btn ${CHESS_AI_SETUP.level==='vua'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('vua')">Vừa</button>
         <button class="btn ${CHESS_AI_SETUP.level==='kho'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('kho')">Khó</button>
@@ -4514,7 +4524,7 @@ V['cotuong-may'] = ()=>{
       <div class="box" style="text-align:center">
         <div class="status ${st.over?'done':st.turn===st.playerSide?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
         ${reasonTxt?`<div class="notice ${st.over?'brand':'wait'}" style="margin-top:10px">${ic(st.over?'check':'bolt',16)}${reasonTxt}${st.over?` — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`:''}</div>`:''}
-        <div style="display:flex;gap:8px;margin-top:14px">
+        <div class="xq-ctrl-row" style="margin-top:14px">
           <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
           <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
         </div>
@@ -4524,12 +4534,15 @@ V['cotuong-may'] = ()=>{
 };
 
 /* ══════════════════════════════════════════════════════════════
-   CO_THE — bộ thế cờ tĩnh cho chế độ "Cờ thế". Soạn dựa trên các tình huống
-   tàn cuộc quen thuộc (chênh lệch quân, tốt/xe/pháo áp sát cung tướng...),
-   KHÔNG phải bản chép lại các thế cờ cổ điển đã được kiểm chứng lời giải —
-   xem ghi chú trong spec. Mỗi thế đã được kiểm tra: đúng 1 tướng mỗi bên,
-   2 tướng không đối mặt trực diện, không bên nào đang bị chiếu sẵn lúc vào
-   thế (xem bước kiểm tra ở cuối task).
+   CO_THE — bộ thế cờ tĩnh cho chế độ "Cờ thế": 80 thế (30 Dễ, 30 Vừa, 20
+   Khó), xoay quanh các tình huống tàn cuộc quen thuộc (chênh lệch quân,
+   tốt/xe/pháo áp sát cung tướng...), KHÔNG phải bản chép lại các thế cờ cổ
+   điển đã được kiểm chứng lời giải. Không hiển thị tên/nhãn cho từng thế —
+   chỉ đánh số theo cấp độ. Sinh bằng script offline (không đi kèm repo),
+   mỗi thế được chính bộ luật cờ ở trên xác nhận: đúng 1 tướng mỗi bên,
+   2 tướng không đối mặt trực diện,
+   không bên nào đang bị chiếu sẵn lúc vào thế, bên Đen còn nước đi, và bên
+   Đỏ có sẵn 1 nước dẫn tới lợi thế rõ rệt (kiểm bằng chính minimax của AI).
    ══════════════════════════════════════════════════════════════ */
 function xqPos(pieces){
   const b = Array.from({length:10},()=>Array(9).fill(null));
@@ -4537,30 +4550,86 @@ function xqPos(pieces){
   return b;
 }
 const CO_THE = [
-  { id:'de-1', name:'Song xa đuổi tướng', level:'de', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','chariot',2,1], ['r','chariot',3,7],
-    ['b','general',1,3], ['b','advisor',0,4], ['b','elephant',0,2],
-  ])},
-  { id:'de-2', name:'Tốt qua sông áp cung', level:'de', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','soldier',4,2], ['r','soldier',4,6], ['r','cannon',6,4],
-    ['b','general',1,3], ['b','soldier',3,3],
-  ])},
-  { id:'vua-1', name:'Xe pháo phối hợp', level:'vua', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','chariot',6,1], ['r','cannon',6,7], ['r','advisor',8,4],
-    ['b','general',1,5], ['b','advisor',1,4], ['b','elephant',0,2], ['b','elephant',0,6], ['b','soldier',5,5],
-  ])},
-  { id:'vua-2', name:'Song pháo áp cung', level:'vua', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','cannon',7,2], ['r','cannon',7,6], ['r','horse',6,4],
-    ['b','general',1,4], ['b','advisor',0,3], ['b','advisor',0,5], ['b','elephant',2,2],
-  ])},
-  { id:'kho-1', name:'Cờ tàn cân bằng', level:'kho', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','chariot',5,2], ['r','horse',6,6], ['r','advisor',8,4],
-    ['b','general',1,5], ['b','chariot',2,6], ['b','advisor',0,4], ['b','elephant',2,2],
-  ])},
-  { id:'kho-2', name:'Chiếu bí trong thế phức tạp', level:'kho', playerSide:'r', board: xqPos([
-    ['r','general',9,4], ['r','chariot',4,1], ['r','cannon',5,7], ['r','horse',7,2],
-    ['b','general',1,3], ['b','advisor',0,4], ['b','elephant',0,2], ['b','soldier',6,3], ['b','horse',2,6],
-  ])},
+  { id:'de-1', level:'de', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','advisor',0,4], ['b','general',1,3], ['r','chariot',2,1], ['r','chariot',3,7], ['r','general',9,4]]) },
+  { id:'de-2', level:'de', playerSide:'r', board: xqPos([['b','general',1,3], ['b','soldier',3,3], ['r','soldier',4,2], ['r','soldier',4,6], ['r','cannon',6,4], ['r','general',9,4]]) },
+  { id:'de-3', level:'de', playerSide:'r', board: xqPos([['b','advisor',1,4], ['b','general',1,5], ['r','horse',5,3], ['r','cannon',6,5], ['r','chariot',8,0], ['r','general',9,4]]) },
+  { id:'de-4', level:'de', playerSide:'r', board: xqPos([['b','general',0,3], ['b','elephant',2,4], ['r','chariot',6,5], ['r','chariot',8,2], ['r','horse',8,5], ['r','general',9,4]]) },
+  { id:'de-5', level:'de', playerSide:'r', board: xqPos([['b','general',0,3], ['b','elephant',2,4], ['r','chariot',4,8], ['r','chariot',6,7], ['r','horse',7,0], ['r','general',9,4]]) },
+  { id:'de-6', level:'de', playerSide:'r', board: xqPos([['b','general',2,4], ['r','horse',6,4], ['r','cannon',8,1], ['r','chariot',8,8], ['r','general',9,4]]) },
+  { id:'de-7', level:'de', playerSide:'r', board: xqPos([['b','general',0,5], ['r','chariot',1,1], ['b','advisor',2,3], ['r','chariot',3,0], ['r','horse',6,3], ['r','general',9,4]]) },
+  { id:'de-8', level:'de', playerSide:'r', board: xqPos([['b','general',1,3], ['b','advisor',2,3], ['r','chariot',8,1], ['r','cannon',8,6], ['r','general',9,4]]) },
+  { id:'de-9', level:'de', playerSide:'r', board: xqPos([['b','general',1,3], ['r','chariot',3,8], ['r','chariot',4,0], ['r','general',9,4]]) },
+  { id:'de-10', level:'de', playerSide:'r', board: xqPos([['b','advisor',0,5], ['r','chariot',1,8], ['b','general',2,5], ['r','chariot',7,2], ['r','general',9,4]]) },
+  { id:'de-11', level:'de', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','general',0,3], ['r','cannon',1,0], ['r','chariot',5,5], ['r','chariot',8,0], ['r','general',9,4]]) },
+  { id:'de-12', level:'de', playerSide:'r', board: xqPos([['r','chariot',0,0], ['b','general',1,5], ['r','horse',3,0], ['r','chariot',6,7], ['r','general',9,4]]) },
+  { id:'de-13', level:'de', playerSide:'r', board: xqPos([['b','general',2,3], ['r','horse',2,8], ['r','chariot',5,4], ['r','chariot',8,1], ['r','general',9,4]]) },
+  { id:'de-14', level:'de', playerSide:'r', board: xqPos([['r','chariot',0,8], ['b','general',2,5], ['r','chariot',5,2], ['r','horse',6,7], ['r','general',9,4]]) },
+  { id:'de-15', level:'de', playerSide:'r', board: xqPos([['b','general',1,5], ['b','elephant',2,4], ['r','chariot',6,2], ['r','cannon',7,5], ['r','chariot',8,6], ['r','general',9,4]]) },
+  { id:'de-16', level:'de', playerSide:'r', board: xqPos([['b','general',0,5], ['r','chariot',4,1], ['r','horse',5,8], ['r','cannon',9,1], ['r','general',9,4]]) },
+  { id:'de-17', level:'de', playerSide:'r', board: xqPos([['b','advisor',0,3], ['r','horse',2,2], ['b','general',2,5], ['r','cannon',4,7], ['r','chariot',6,2], ['r','general',9,4]]) },
+  { id:'de-18', level:'de', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','general',0,5], ['r','horse',0,6], ['r','chariot',7,0], ['r','cannon',8,7], ['r','general',9,4]]) },
+  { id:'de-19', level:'de', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',1,3], ['r','cannon',2,5], ['r','horse',7,3], ['r','chariot',9,0], ['r','general',9,4]]) },
+  { id:'de-20', level:'de', playerSide:'r', board: xqPos([['r','horse',1,0], ['b','general',2,3], ['b','elephant',4,2], ['r','chariot',6,0], ['r','chariot',8,8], ['r','general',9,4]]) },
+  { id:'de-21', level:'de', playerSide:'r', board: xqPos([['b','general',2,3], ['b','elephant',4,6], ['r','chariot',4,8], ['r','horse',5,4], ['r','cannon',9,2], ['r','general',9,4]]) },
+  { id:'de-22', level:'de', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','general',2,4], ['r','cannon',6,4], ['r','horse',6,6], ['r','chariot',9,0], ['r','general',9,4]]) },
+  { id:'de-23', level:'de', playerSide:'r', board: xqPos([['b','general',1,5], ['r','horse',6,2], ['r','chariot',9,3], ['r','general',9,4]]) },
+  { id:'de-24', level:'de', playerSide:'r', board: xqPos([['b','general',0,5], ['r','chariot',1,1], ['b','elephant',2,4], ['r','cannon',5,0], ['r','general',9,4]]) },
+  { id:'de-25', level:'de', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','general',2,3], ['r','chariot',7,6], ['r','horse',8,3], ['r','general',9,4]]) },
+  { id:'de-26', level:'de', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',1,5], ['r','horse',2,5], ['r','chariot',2,6], ['r','cannon',7,0], ['r','general',9,4]]) },
+  { id:'de-27', level:'de', playerSide:'r', board: xqPos([['r','cannon',1,2], ['b','general',2,3], ['r','chariot',6,6], ['r','chariot',8,1], ['r','general',9,4]]) },
+  { id:'de-28', level:'de', playerSide:'r', board: xqPos([['b','general',1,5], ['r','chariot',7,6], ['r','chariot',8,1], ['r','general',9,4]]) },
+  { id:'de-29', level:'de', playerSide:'r', board: xqPos([['b','general',0,5], ['r','cannon',3,3], ['r','chariot',8,7], ['r','general',9,4]]) },
+  { id:'de-30', level:'de', playerSide:'r', board: xqPos([['b','general',0,5], ['r','chariot',6,1], ['r','cannon',9,3], ['r','general',9,4]]) },
+  { id:'vua-1', level:'vua', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','elephant',0,6], ['b','advisor',1,4], ['b','general',1,5], ['b','soldier',5,5], ['r','chariot',6,1], ['r','cannon',6,7], ['r','advisor',8,4], ['r','general',9,4]]) },
+  { id:'vua-2', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','advisor',0,5], ['b','general',1,4], ['b','elephant',2,2], ['r','horse',6,4], ['r','cannon',7,2], ['r','cannon',7,6], ['r','general',9,4]]) },
+  { id:'vua-3', level:'vua', playerSide:'r', board: xqPos([['b','general',0,5], ['r','chariot',1,2], ['b','advisor',1,4], ['b','advisor',2,3], ['b','cannon',3,6], ['b','elephant',4,2], ['r','cannon',8,5], ['r','general',9,4]]) },
+  { id:'vua-4', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',1,3], ['b','advisor',1,4], ['r','soldier',4,7], ['r','chariot',8,6], ['r','general',9,4], ['r','cannon',9,7]]) },
+  { id:'vua-5', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','cannon',0,8], ['r','soldier',1,0], ['b','general',1,3], ['b','elephant',2,0], ['r','horse',3,3], ['b','elephant',4,6], ['r','chariot',8,1], ['r','general',9,4]]) },
+  { id:'vua-6', level:'vua', playerSide:'r', board: xqPos([['b','horse',0,5], ['r','cannon',1,5], ['b','elephant',2,0], ['b','elephant',2,4], ['b','general',2,5], ['r','soldier',3,0], ['r','chariot',7,6], ['r','general',9,4]]) },
+  { id:'vua-7', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','general',1,3], ['r','chariot',2,0], ['b','advisor',2,5], ['b','elephant',4,2], ['r','cannon',7,3], ['r','general',9,4]]) },
+  { id:'vua-8', level:'vua', playerSide:'r', board: xqPos([['b','general',1,3], ['b','advisor',2,5], ['r','soldier',2,6], ['b','elephant',4,6], ['r','horse',6,5], ['r','cannon',9,1], ['r','general',9,4]]) },
+  { id:'vua-9', level:'vua', playerSide:'r', board: xqPos([['r','chariot',0,1], ['b','general',1,3], ['b','elephant',2,0], ['b','advisor',2,3], ['b','advisor',2,5], ['r','soldier',3,5], ['r','horse',6,8], ['r','general',9,4]]) },
+  { id:'vua-10', level:'vua', playerSide:'r', board: xqPos([['b','general',1,3], ['b','horse',1,4], ['b','advisor',2,3], ['r','chariot',3,6], ['b','elephant',4,6], ['r','horse',8,1], ['r','general',9,4]]) },
+  { id:'vua-11', level:'vua', playerSide:'r', board: xqPos([['b','general',0,5], ['b','advisor',1,4], ['r','horse',1,6], ['r','chariot',3,1], ['r','soldier',4,4], ['b','elephant',4,6], ['r','general',9,4]]) },
+  { id:'vua-12', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['r','cannon',0,4], ['b','advisor',0,5], ['b','general',1,5], ['r','chariot',2,7], ['b','elephant',2,8], ['r','general',9,4]]) },
+  { id:'vua-13', level:'vua', playerSide:'r', board: xqPos([['b','general',0,3], ['b','advisor',0,5], ['b','advisor',1,4], ['r','chariot',1,8], ['b','elephant',2,0], ['r','soldier',4,5], ['r','general',9,4], ['r','cannon',9,6]]) },
+  { id:'vua-14', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','advisor',1,4], ['b','elephant',2,0], ['b','general',2,4], ['r','soldier',3,0], ['r','horse',3,4], ['r','chariot',7,4], ['r','general',9,4]]) },
+  { id:'vua-15', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','advisor',2,3], ['b','general',2,5], ['r','chariot',3,8], ['r','soldier',4,4], ['r','cannon',5,0], ['b','horse',6,0], ['r','general',9,4]]) },
+  { id:'vua-16', level:'vua', playerSide:'r', board: xqPos([['r','cannon',0,2], ['b','advisor',0,3], ['b','advisor',0,5], ['r','horse',2,3], ['b','general',2,5], ['r','general',9,4]]) },
+  { id:'vua-17', level:'vua', playerSide:'r', board: xqPos([['r','chariot',0,0], ['b','advisor',0,3], ['b','general',1,3], ['r','soldier',1,5], ['b','elephant',2,0], ['b','elephant',2,8], ['r','horse',8,2], ['r','general',9,4]]) },
+  { id:'vua-18', level:'vua', playerSide:'r', board: xqPos([['b','general',1,3], ['b','advisor',1,4], ['b','elephant',4,6], ['r','chariot',5,5], ['r','horse',5,6], ['r','general',9,4]]) },
+  { id:'vua-19', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',2,3], ['b','advisor',2,5], ['r','chariot',3,5], ['r','horse',3,6], ['b','elephant',4,6], ['r','soldier',4,8], ['r','general',9,4]]) },
+  { id:'vua-20', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','elephant',0,6], ['b','general',1,3], ['r','soldier',1,6], ['b','advisor',2,5], ['r','cannon',6,1], ['r','horse',6,7], ['b','cannon',8,6], ['r','general',9,4]]) },
+  { id:'vua-21', level:'vua', playerSide:'r', board: xqPos([['b','general',0,5], ['b','elephant',0,6], ['b','advisor',2,5], ['r','cannon',7,0], ['r','general',9,4], ['r','horse',9,8]]) },
+  { id:'vua-22', level:'vua', playerSide:'r', board: xqPos([['b','general',0,3], ['b','cannon',0,5], ['b','elephant',2,0], ['r','cannon',2,2], ['b','advisor',2,3], ['b','advisor',2,5], ['r','soldier',2,8], ['r','chariot',9,3], ['r','general',9,4]]) },
+  { id:'vua-23', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','general',1,3], ['b','elephant',2,8], ['r','cannon',3,3], ['r','horse',6,0], ['r','general',9,4]]) },
+  { id:'vua-24', level:'vua', playerSide:'r', board: xqPos([['b','general',1,5], ['b','advisor',2,5], ['b','elephant',2,8], ['r','chariot',5,3], ['r','horse',5,5], ['r','general',9,4]]) },
+  { id:'vua-25', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','advisor',1,4], ['b','elephant',2,0], ['b','general',2,3], ['r','chariot',5,2], ['r','general',9,4], ['r','chariot',9,6]]) },
+  { id:'vua-26', level:'vua', playerSide:'r', board: xqPos([['b','advisor',2,3], ['b','elephant',2,4], ['b','general',2,5], ['b','elephant',4,6], ['r','horse',5,4], ['r','chariot',9,3], ['r','general',9,4]]) },
+  { id:'vua-27', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,5], ['b','elephant',0,6], ['b','general',1,4], ['b','elephant',2,8], ['r','chariot',4,3], ['b','cannon',8,4], ['r','horse',8,5], ['r','general',9,4]]) },
+  { id:'vua-28', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',1,5], ['b','advisor',2,3], ['b','elephant',4,2], ['r','chariot',5,3], ['r','cannon',7,7], ['r','general',9,4]]) },
+  { id:'vua-29', level:'vua', playerSide:'r', board: xqPos([['b','general',0,5], ['b','advisor',1,4], ['b','advisor',2,5], ['b','horse',3,5], ['b','elephant',4,6], ['r','chariot',8,1], ['r','general',9,4], ['r','cannon',9,5]]) },
+  { id:'vua-30', level:'vua', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',1,5], ['r','horse',1,8], ['b','advisor',2,3], ['r','cannon',2,7], ['b','elephant',2,8], ['r','general',9,4]]) },
+  { id:'kho-1', level:'kho', playerSide:'r', board: xqPos([['b','advisor',0,4], ['b','general',1,5], ['b','elephant',2,2], ['b','chariot',2,6], ['r','chariot',5,2], ['r','horse',6,6], ['r','advisor',8,4], ['r','general',9,4]]) },
+  { id:'kho-2', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','advisor',0,4], ['b','general',1,3], ['b','horse',2,6], ['r','chariot',4,1], ['r','cannon',5,7], ['b','soldier',6,3], ['r','horse',7,2], ['r','general',9,4]]) },
+  { id:'kho-3', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','advisor',0,5], ['r','horse',2,3], ['b','general',2,5], ['b','elephant',4,6], ['r','chariot',4,8], ['r','elephant',7,4], ['b','horse',8,8], ['r','general',9,4]]) },
+  { id:'kho-4', level:'kho', playerSide:'r', board: xqPos([['b','advisor',1,4], ['b','advisor',2,3], ['b','elephant',2,4], ['b','general',2,5], ['r','soldier',3,0], ['b','elephant',4,2], ['r','chariot',5,7], ['b','cannon',7,3], ['r','elephant',7,4], ['r','cannon',8,3], ['r','general',9,4]]) },
+  { id:'kho-5', level:'kho', playerSide:'r', board: xqPos([['b','general',0,3], ['b','advisor',0,5], ['b','horse',1,3], ['r','soldier',1,4], ['b','elephant',4,2], ['b','elephant',4,6], ['b','chariot',6,7], ['r','chariot',8,4], ['r','general',9,4], ['r','horse',9,6]]) },
+  { id:'kho-6', level:'kho', playerSide:'r', board: xqPos([['b','advisor',1,4], ['b','general',1,5], ['b','elephant',2,0], ['r','soldier',2,4], ['b','advisor',2,5], ['b','chariot',5,3], ['r','chariot',6,5], ['r','horse',7,1], ['r','advisor',7,3], ['r','general',9,4]]) },
+  { id:'kho-7', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','advisor',0,3], ['r','horse',0,5], ['b','elephant',2,4], ['b','general',2,5], ['b','horse',4,0], ['r','soldier',4,3], ['b','soldier',5,8], ['r','elephant',7,8], ['r','chariot',8,8], ['r','general',9,4]]) },
+  { id:'kho-8', level:'kho', playerSide:'r', board: xqPos([['b','general',0,3], ['b','advisor',0,5], ['b','elephant',0,6], ['b','advisor',1,4], ['b','chariot',2,7], ['r','chariot',3,5], ['b','elephant',4,2], ['r','soldier',4,7], ['r','cannon',9,1], ['r','elephant',9,2], ['r','general',9,4]]) },
+  { id:'kho-9', level:'kho', playerSide:'r', board: xqPos([['b','advisor',1,4], ['r','horse',2,1], ['b','advisor',2,3], ['b','elephant',2,4], ['b','general',2,5], ['r','soldier',4,5], ['r','elephant',5,6], ['r','chariot',6,6], ['b','horse',8,3], ['r','general',9,4], ['b','soldier',9,8]]) },
+  { id:'kho-10', level:'kho', playerSide:'r', board: xqPos([['b','horse',0,1], ['b','general',0,4], ['b','advisor',0,5], ['b','elephant',0,6], ['b','advisor',1,4], ['r','horse',2,0], ['b','elephant',4,2], ['r','chariot',4,7], ['r','elephant',7,8], ['b','cannon',8,2], ['r','general',9,4]]) },
+  { id:'kho-11', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','advisor',0,3], ['b','general',1,3], ['b','advisor',1,4], ['b','elephant',2,8], ['r','cannon',3,4], ['r','soldier',4,4], ['r','advisor',8,4], ['r','chariot',8,5], ['b','horse',8,7], ['b','cannon',9,2], ['r','general',9,4], ['b','soldier',9,7]]) },
+  { id:'kho-12', level:'kho', playerSide:'r', board: xqPos([['r','soldier',0,0], ['b','general',0,3], ['b','elephant',0,6], ['b','advisor',1,4], ['b','cannon',1,6], ['b','advisor',2,3], ['b','elephant',2,4], ['r','chariot',5,4], ['b','soldier',7,7], ['r','cannon',8,0], ['r','general',9,4]]) },
+  { id:'kho-13', level:'kho', playerSide:'r', board: xqPos([['b','cannon',0,1], ['b','advisor',0,5], ['r','cannon',0,7], ['b','general',1,3], ['r','chariot',2,0], ['b','advisor',2,5], ['r','soldier',2,7], ['b','elephant',4,2], ['b','horse',4,6], ['r','general',9,4]]) },
+  { id:'kho-14', level:'kho', playerSide:'r', board: xqPos([['b','advisor',1,4], ['b','advisor',2,3], ['b','general',2,4], ['b','elephant',4,2], ['r','soldier',4,4], ['b','elephant',4,6], ['r','chariot',5,0], ['r','cannon',6,5], ['b','horse',8,0], ['r','general',9,4]]) },
+  { id:'kho-15', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['r','chariot',0,6], ['b','chariot',0,8], ['b','general',1,3], ['b','advisor',1,4], ['b','horse',2,1], ['r','soldier',2,4], ['b','advisor',2,5], ['b','elephant',2,8], ['r','cannon',7,2], ['r','general',9,4]]) },
+  { id:'kho-16', level:'kho', playerSide:'r', board: xqPos([['r','chariot',0,1], ['b','cannon',0,2], ['b','general',0,4], ['b','advisor',0,5], ['b','advisor',2,5], ['b','elephant',2,8], ['r','cannon',4,2], ['b','elephant',4,6], ['r','elephant',7,4], ['b','chariot',7,5], ['r','general',9,4]]) },
+  { id:'kho-17', level:'kho', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','elephant',0,6], ['b','advisor',1,4], ['r','horse',1,6], ['r','soldier',1,8], ['b','general',2,5], ['b','cannon',3,6], ['b','elephant',4,6], ['b','soldier',5,4], ['r','chariot',5,7], ['r','general',9,4]]) },
+  { id:'kho-18', level:'kho', playerSide:'r', board: xqPos([['b','advisor',0,3], ['b','general',0,5], ['b','elephant',0,6], ['b','advisor',1,4], ['r','soldier',1,6], ['b','horse',1,7], ['r','horse',2,2], ['r','cannon',5,6], ['b','cannon',8,4], ['r','general',9,4]]) },
+  { id:'kho-19', level:'kho', playerSide:'r', board: xqPos([['b','horse',0,2], ['b','advisor',0,5], ['b','advisor',1,4], ['b','general',2,3], ['b','elephant',2,4], ['r','chariot',2,6], ['b','chariot',2,7], ['r','cannon',7,8], ['r','general',9,4]]) },
+  { id:'kho-20', level:'kho', playerSide:'r', board: xqPos([['b','elephant',0,2], ['b','general',0,3], ['b','advisor',0,5], ['r','soldier',0,8], ['b','chariot',1,0], ['b','elephant',2,0], ['b','cannon',4,5], ['r','elephant',5,6], ['r','horse',6,1], ['r','chariot',7,1], ['r','general',9,4]]) },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -4579,7 +4648,7 @@ function chessTheBuild(level, idx){
   const puz = list[i];
   return { board:xqClone(puz.board), turn:puz.playerSide, selected:null, legal:[], over:false, winner:null, reason:null,
     lastMove:null, justMoved:null, thinking:false, playerSide:puz.playerSide, level:puz.level,
-    puzzleId:puz.id, name:puz.name, idx:i, total:list.length };
+    puzzleId:puz.id, idx:i, total:list.length };
 }
 function chessTheEnsureLoaded(){
   if(!CHESS_THE) CHESS_THE = chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX);
@@ -4603,7 +4672,7 @@ V['cotuong-the'] = ()=>{
   ).join('');
   if(!CHESS_THE){
     return `<div class="page-head"><div><h1>Cờ thế</h1></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:18px">${tabs}</div>
+    <div class="xq-ctrl-row" style="margin-bottom:18px">${tabs}</div>
     <div class="empty"><h3>Chưa có thế cờ nào ở mức này</h3></div>`;
   }
   const st = CHESS_THE;
@@ -4613,8 +4682,8 @@ V['cotuong-the'] = ()=>{
   const solved = st.over && st.winner===st.playerSide;
   const failed = st.over && st.winner!==st.playerSide;
   return `
-  <div class="page-head"><div><h1>Cờ thế — ${esc(st.name)}</h1><p>Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p></div></div>
-  <div style="display:flex;gap:8px;margin-bottom:18px">${tabs}</div>
+  <div class="page-head"><div><h1>Cờ thế</h1><p>Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p></div></div>
+  <div class="xq-ctrl-row" style="margin-bottom:18px">${tabs}</div>
   <div class="cols">
     ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
     <aside class="cols-side">
@@ -4623,7 +4692,7 @@ V['cotuong-the'] = ()=>{
         ${solved?`<div class="notice brand">${ic('check',16)}Giải thành công!</div>`:''}
         ${failed?`<div class="notice wait">${ic('bolt',16)}Chưa xong, thử lại thế này.</div>`:''}
         ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-top:10px">${ic('bolt',16)}${reasonTxt}</div>`:''}
-        <div style="display:flex;gap:8px;margin-top:14px">
+        <div class="xq-ctrl-row" style="margin-top:14px">
           <button class="btn btn-out" style="flex:1" onclick="chessThePrev()">← Thế trước</button>
           <button class="btn btn-out" style="flex:1" onclick="chessTheNext()">Thế sau →</button>
         </div>
