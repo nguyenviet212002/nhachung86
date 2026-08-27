@@ -1390,6 +1390,7 @@ function headerComp(variant, active){
           <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
           <a href="#cotuong-online" data-go="cotuong-online">${ic('star',15)} Cờ tướng giao lưu</a>
           <a href="#cotuong-may" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a>
+          <a href="#cotuong-the" data-go="cotuong-the">${ic('star',15)} Cờ thế</a>
           <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
           ${overflowHtml?`<div class="div"></div>${overflowHtml}`:''}
           ${variant==='admin'?`<a href="#trongnha" data-go="trongnha">${ic('home',15)} Về giao diện thành viên</a>`:''}
@@ -1422,7 +1423,7 @@ function drawerComp(variant, active){
     <nav>${items}</nav>
     <div class="foot">
       ${variant==='public'?`<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#cotuong-may" class="btn btn-out" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
+      :`<a href="#chat" class="btn btn-out" data-go="chat">${ic('mail',15)} Tin nhắn</a><a href="#cotuong" class="btn btn-out" data-go="cotuong">${ic('star',15)} Cờ tướng</a><a href="#cotuong-may" class="btn btn-out" data-go="cotuong-may">${ic('star',15)} Chơi với máy</a><a href="#cotuong-the" class="btn btn-out" data-go="cotuong-the">${ic('star',15)} Cờ thế</a><a href="#hoso-toi" class="btn btn-out" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a><button id="logoutBtnDrawer" class="btn btn-out">${ic('logout',15)} Đăng xuất</button>`}
     </div>
   </aside>`;
 }
@@ -4549,6 +4550,76 @@ const CO_THE = [
     ['b','general',1,3], ['b','advisor',0,4], ['b','elephant',0,2], ['b','soldier',6,3], ['b','horse',2,6],
   ])},
 ];
+
+/* ══════════════════════════════════════════════════════════════
+   V['cotuong-the'] — cờ thế: chọn 1 thế có sẵn theo độ khó, chơi tiếp với
+   AI (dùng lại chessVsAi* ở Task 5) tới khi chiếu bí hoặc bị chiếu bí.
+   ══════════════════════════════════════════════════════════════ */
+let CHESS_THE_LEVEL = 'de';
+let CHESS_THE_IDX = 0;
+let CHESS_THE = null;
+
+function coTheList(level){ return CO_THE.filter(p=>p.level===level); }
+function chessTheBuild(level, idx){
+  const list = coTheList(level);
+  if(!list.length) return null;
+  const i = ((idx % list.length) + list.length) % list.length;
+  const puz = list[i];
+  return { board:xqClone(puz.board), turn:puz.playerSide, selected:null, legal:[], over:false, winner:null, reason:null,
+    lastMove:null, justMoved:null, thinking:false, playerSide:puz.playerSide, level:puz.level,
+    puzzleId:puz.id, name:puz.name, idx:i, total:list.length };
+}
+function chessTheEnsureLoaded(){
+  if(!CHESS_THE) CHESS_THE = chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX);
+}
+function chessTheSetLevel(level){ CHESS_THE_LEVEL=level; CHESS_THE_IDX=0; CHESS_THE=chessTheBuild(level,0); render(); }
+function chessThePrev(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX-1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
+function chessTheNext(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX+1); if(CHESS_THE) CHESS_THE_IDX=CHESS_THE.idx; render(); }
+function chessTheRetry(){ CHESS_THE=chessTheBuild(CHESS_THE_LEVEL, CHESS_THE_IDX); render(); }
+function chessTheCellClick(r,c){
+  chessVsAiCellClick(CHESS_THE, r, c, ()=>{
+    const captured = CHESS_THE;
+    chessVsAiMaybeMove(captured, ()=> CHESS_THE === captured);
+  });
+}
+
+V['cotuong-the'] = ()=>{
+  chessTheEnsureLoaded();
+  const levelDefs = [['de','Thế Dễ'],['vua','Thế Vừa'],['kho','Thế Khó']];
+  const tabs = levelDefs.map(([lv,label])=>
+    `<button class="btn ${CHESS_THE_LEVEL===lv?'btn-blue':'btn-out'} btn-sm" onclick="chessTheSetLevel('${lv}')">${label}</button>`
+  ).join('');
+  if(!CHESS_THE){
+    return `<div class="page-head"><div><h1>Cờ thế</h1></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:18px">${tabs}</div>
+    <div class="empty"><h3>Chưa có thế cờ nào ở mức này</h3></div>`;
+  }
+  const st = CHESS_THE;
+  const flip = st.playerSide==='b';
+  const turnTxt = st.turn===st.playerSide ? 'Tới lượt bạn' : 'Đối thủ đang đi...';
+  const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
+  const solved = st.over && st.winner===st.playerSide;
+  const failed = st.over && st.winner!==st.playerSide;
+  return `
+  <div class="page-head"><div><h1>Cờ thế — ${esc(st.name)}</h1><p>Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p></div></div>
+  <div style="display:flex;gap:8px;margin-bottom:18px">${tabs}</div>
+  <div class="cols">
+    ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
+    <aside class="cols-side">
+      <div class="box" style="text-align:center">
+        <div class="status ${st.over?'done':st.turn===st.playerSide?'accepted':'pending'}" style="font-size:14px;padding:8px 16px">${st.over?'Ván đã kết thúc':turnTxt}</div>
+        ${solved?`<div class="notice brand">${ic('check',16)}Giải thành công!</div>`:''}
+        ${failed?`<div class="notice wait">${ic('bolt',16)}Chưa xong, thử lại thế này.</div>`:''}
+        ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-top:10px">${ic('bolt',16)}${reasonTxt}</div>`:''}
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn btn-out" style="flex:1" onclick="chessThePrev()">← Thế trước</button>
+          <button class="btn btn-out" style="flex:1" onclick="chessTheNext()">Thế sau →</button>
+        </div>
+        <button class="btn btn-out btn-full" style="margin-top:8px" onclick="chessTheRetry()">${ic('refresh',15)} Chơi lại thế này</button>
+      </div>
+    </aside>
+  </div>`;
+};
 
 /* ══════════════════════════════════════════════════════════════
    V.chat — Tin nhắn (2 cột: danh sách hội thoại + khung chat)
