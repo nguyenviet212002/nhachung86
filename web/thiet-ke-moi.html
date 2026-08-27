@@ -239,7 +239,7 @@ tr:last-child td{border-bottom:none}
 .xq-wrap{display:flex;justify-content:center;padding:22px;border-radius:16px;
   background:radial-gradient(ellipse at 50% 0%,#1f4a3a,#0e2e22 70%);
   box-shadow:inset 0 2px 14px rgba(0,0,0,.35)}
-.xq-board{--xq-pad:26px;position:relative;width:100%;max-width:472px;aspect-ratio:8/9;
+.xq-board{--xq-pad:26px;position:relative;width:100%;max-width:472px;aspect-ratio:8/9;container-type:inline-size;
   background:repeating-linear-gradient(90deg,rgba(140,100,45,.08) 0 2px,transparent 2px 22px),
     radial-gradient(ellipse at 30% 20%,#F6E6BE,#E8CE97 55%,#D6B87C 100%);
   border-radius:var(--r-md,10px);
@@ -254,8 +254,13 @@ tr:last-child td{border-bottom:none}
 .xq-pc{width:84%;height:84%;border-radius:50%;
   background:radial-gradient(circle at 35% 28%,#FFFBEF,#F0DCA8 55%,#D8B978 100%);
   border:1.5px solid #8a5d24;display:flex;align-items:center;
-  justify-content:center;font-size:17px;font-weight:800;font-family:'Songti SC','SimSun',serif;
-  box-shadow:0 3px 5px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.85),inset 0 -2px 3px rgba(120,80,30,.4)}
+  justify-content:center;font-weight:800;font-family:'Songti SC','SimSun',serif;
+  box-shadow:0 3px 5px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.85),inset 0 -2px 3px rgba(120,80,30,.4);
+  /* Chữ trong quân theo % bề rộng bàn cờ (container query) — bàn to thì
+     chữ to theo, không còn cỡ chữ cố định nhỏ hơn hẳn quân khi bàn phóng
+     lớn. font-size 17px phía trước là fallback cho trình duyệt cũ không
+     hiểu đơn vị cqw (khi đó dòng cqw bị bỏ qua, giữ nguyên 17px). */
+  font-size:17px;font-size:5cqw}
 .xq-pc.red{color:#B4231F}
 .xq-pc.black{color:#1f2937}
 .xq-pc.sel{box-shadow:0 0 0 3px var(--brand),0 3px 5px rgba(0,0,0,.35)}
@@ -264,7 +269,7 @@ tr:last-child td{border-bottom:none}
 .xq-pt.cap{outline:2.5px solid var(--bad,#c13b31);outline-offset:-2px;border-radius:50%}
 @keyframes xq-pop{from{transform:scale(.35);opacity:0}to{transform:scale(1);opacity:1}}
 .xq-pc.moved{animation:xq-pop .28s ease}
-@media(max-width:600px){.xq-pc{font-size:14.5px}.xq-board{--xq-pad:18px}}
+@media(max-width:600px){.xq-board{--xq-pad:18px}}
 /* Hàng nút điều khiển cờ tướng (chọn bên/cấp độ, Ván mới, chuyển thế...):
    cho phép xuống dòng thay vì tràn ra ngoài khi nút không đủ chỗ (button
    mặc định white-space:nowrap nên flex:1 không tự co được dưới độ rộng nội
