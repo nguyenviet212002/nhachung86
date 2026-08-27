@@ -300,6 +300,22 @@ tr:last-child td{border-bottom:none}
   text-shadow:0 1px 4px rgba(0,0,0,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .xq-status-bar.win{color:#8fe8b4}
 .xq-status-bar.lose{color:#ff9d92}
+/* Banner thông báo lớn (chiếu tướng / giải thành công / thắng-thua) — chữ
+   nổi kiểu chạm vàng, từng chữ nhấp nhô uốn lượn khi hiện ra. .fade dùng
+   cho "chiếu tướng" giữa ván (tự mờ đi sau ~2s để không che bàn cờ khi vẫn
+   đang chơi tiếp); còn lại (thắng/thua/giải xong) ở nguyên trên màn hình. */
+.xq-announce{position:fixed;left:50%;top:40%;z-index:220;pointer-events:none;
+  display:flex;gap:1px;font-family:'Songti SC','SimSun',serif;font-weight:900;
+  font-size:clamp(30px,7.5vw,58px);color:#ffd76a;letter-spacing:1px;
+  text-shadow:0 2px 0 #7a4410,0 1px 0 #c98a1f,0 5px 10px rgba(0,0,0,.5),0 0 26px rgba(255,196,80,.55);
+  animation:xq-ann-in .45s cubic-bezier(.22,1.6,.4,1) both}
+.xq-announce.lose{color:#ffb2a3;text-shadow:0 2px 0 #7a1f10,0 1px 0 #c9401f,0 5px 10px rgba(0,0,0,.5),0 0 26px rgba(255,90,60,.5)}
+.xq-announce.fade{animation:xq-ann-in .45s cubic-bezier(.22,1.6,.4,1) both,xq-ann-out .6s ease 1.9s forwards}
+.xq-announce span{display:inline-block;animation:xq-ann-wave 1.15s ease-in-out infinite}
+@keyframes xq-ann-in{from{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(-8deg)}to{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
+@keyframes xq-ann-out{to{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
+@keyframes xq-ann-wave{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:600px){.xq-announce{gap:0}}
 .xq-fs-panel{display:none;position:fixed;top:calc(58px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));
   z-index:206;background:#fff;border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.28);padding:16px;
   width:min(360px,calc(100vw - 20px));max-height:calc(100vh - 90px);overflow-y:auto}
@@ -4209,6 +4225,15 @@ function chessBoardHtml(board, opts){
   return `<div class="xq-wrap"><div class="xq-board">${chessGridSvg()}<div class="xq-river">楚 河　　漢 界</div>${pts.join('')}</div></div>`;
 }
 
+/* Banner thông báo nổi bật (chiếu tướng / thắng-thua / giải thành công) cho
+   các màn cờ full màn hình — xem CSS .xq-announce. tone: 'win'|'lose'|''.
+   fade=true (mặc định false) tự mờ dần sau ~2s, dùng cho "Chiếu tướng!"
+   giữa ván (ván chưa xong, không nên che bàn cờ mãi). */
+function xqAnnounceHtml(text, tone, fade){
+  const spans = [...text].map((ch,i)=>`<span style="animation-delay:${(i*0.05).toFixed(2)}s">${ch===' '?'&nbsp;':ch}</span>`).join('');
+  return `<div class="xq-announce ${tone||''} ${fade?'fade':''}">${spans}</div>`;
+}
+
 /* ══════════════════════════════════════════════════════════════
    V['cotuong-online'] — thách đấu & xem trực tiếp giữa 2 tài khoản thật.
    Khác V.cotuong (pass-and-play, giữ nguyên không đổi): màn này chỉ liệt kê
@@ -4438,8 +4463,13 @@ V['cotuong-van'] = (params)=>{
     ? `${winnerSide} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`
     : (mySide ? (isMyTurn?'Tới lượt bạn':'Đang chờ đối thủ') : turnTxt);
   const statusCls = st.status==='finished' ? 'win' : '';
+  const inCheck = st.status==='active' && xqInCheck(st.board, st.turn);
+  const announce = st.status==='finished'
+    ? xqAnnounceHtml(statusTxt, (!mySide || st.winner_member_id===DATA.me.id) ? 'win' : 'lose')
+    : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : '');
   return `
   <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
+  ${announce}
   <div class="xq-wrap">
     <div class="xq-board">
       ${chessGridSvg()}
@@ -4465,13 +4495,16 @@ V.cotuong = ()=>{
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
   const statusCls = st.over ? 'win' : '';
   const statusLabel = st.over ? `Ván đã kết thúc — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!` : turnTxt;
+  const announce = st.over
+    ? xqAnnounceHtml(`Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`, 'win')
+    : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${announce}
   ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick'})}
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>Cờ tướng giao lưu</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bàn cờ chơi trực tiếp 2 người trên cùng màn hình. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p>
-    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-bottom:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
     <div class="xq-ctrl-row">
       <button class="btn btn-out" style="flex:1" onclick="chessReset()">${ic('refresh',15)} Ván mới</button>
       <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
@@ -4591,13 +4624,16 @@ V['cotuong-may'] = ()=>{
   const levelLabel = {de:'Dễ', vua:'Vừa', kho:'Khó'}[st.level];
   const statusCls = st.over ? (st.winner===st.playerSide?'win':'lose') : '';
   const statusLabel = st.over ? `Ván đã kết thúc — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!` : turnTxt;
+  const announce = st.over
+    ? xqAnnounceHtml(`Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`, st.winner===st.playerSide?'win':'lose')
+    : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${announce}
   ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>Chơi với máy</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Cấp độ: ${levelLabel} · Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'}</p>
-    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-bottom:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
     <div class="xq-ctrl-row">
       <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
       <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
@@ -4757,14 +4793,17 @@ V['cotuong-the'] = ()=>{
   const failed = st.over && st.winner!==st.playerSide;
   const statusCls = st.over ? (solved?'win':'lose') : '';
   const statusLabel = st.over ? (solved?'Giải thành công!':'Chưa xong, thử lại thế này') : turnTxt;
+  const announce = st.over
+    ? xqAnnounceHtml(solved?'Giải thành công!':'Chưa xong!', solved?'win':'lose')
+    : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
+  ${announce}
   ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessTheCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>Cờ thế</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'} · Thế ${st.idx+1}/${st.total}</p>
     <div class="xq-ctrl-row">${tabs}</div>
-    ${!st.over&&reasonTxt?`<div class="notice wait" style="margin-top:12px">${ic('bolt',16)}${reasonTxt}</div>`:''}
     <div class="xq-ctrl-row" style="margin-top:14px">
       <button class="btn btn-out" style="flex:1" onclick="chessThePrev()">← Thế trước</button>
       <button class="btn btn-out" style="flex:1" onclick="chessTheNext()">Thế sau →</button>
