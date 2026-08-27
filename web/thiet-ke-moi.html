@@ -276,21 +276,25 @@ tr:last-child td{border-bottom:none}
    menu (☰) mở bảng điều khiển nổi (chọn cấp độ/thế/bên, Ván mới...), và 1
    thanh trạng thái mỏng luôn hiện (lượt ai đi/thắng-thua) — để bàn cờ là
    thứ duy nhất chiếm phần lớn màn hình theo đúng yêu cầu. */
-.xq-fs{position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.xq-fs{position:fixed;inset:0;z-index:200;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:radial-gradient(ellipse at 50% 0%,#1f4a3a,#0e2e22 70%)}
 .xq-fs .wrap{max-width:none;padding:0}
-.xq-fs .content{padding:64px 12px 40px}
+.xq-fs .content{padding:8vh 12px 40px}
+.xq-fs .xq-wrap{padding:0;border-radius:0;background:transparent;box-shadow:none}
 .xq-fs .xq-board{max-width:min(94vw,620px,calc((100vh - 190px)*8/9))}
 .xq-fs-x,.xq-fs-menu-btn{position:fixed;top:calc(10px + env(safe-area-inset-top));z-index:210;
-  width:40px;height:40px;border-radius:50%;background:rgba(15,23,42,.78);color:#fff;border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;border:1.5px solid rgba(255,255,255,.25);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .xq-fs-x{right:calc(10px + env(safe-area-inset-right))}
 .xq-fs-menu-btn{left:calc(10px + env(safe-area-inset-left))}
-.xq-fs-x:hover,.xq-fs-menu-btn:hover{background:rgba(15,23,42,.92)}
-.xq-status-bar{position:fixed;top:calc(10px + env(safe-area-inset-top));left:64px;right:64px;z-index:204;
-  background:rgba(255,255,255,.94);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:700;
-  color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.15);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.xq-status-bar.win{color:var(--brand)}
-.xq-status-bar.lose{color:var(--red)}
+.xq-fs-x:hover,.xq-fs-menu-btn:hover{background:rgba(0,0,0,.55)}
+/* Báo "tới lượt bạn" — chữ nhỏ nằm thẳng trên nền xanh (không còn viên
+   thuốc trắng nổi lên) cho đồng bộ với màn hình phủ xanh toàn bộ. */
+.xq-status-bar{position:fixed;top:calc(18px + env(safe-area-inset-top));left:64px;right:64px;z-index:204;
+  color:#dff3e6;font-size:12.5px;font-weight:700;letter-spacing:.2px;text-align:center;
+  text-shadow:0 1px 4px rgba(0,0,0,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xq-status-bar.win{color:#8fe8b4}
+.xq-status-bar.lose{color:#ff9d92}
 .xq-fs-panel{display:none;position:fixed;top:calc(58px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));
   z-index:206;background:#fff;border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.28);padding:16px;
   width:min(360px,calc(100vw - 20px));max-height:calc(100vh - 90px);overflow-y:auto}
