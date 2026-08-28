@@ -518,6 +518,10 @@ tr:last-child td{border-bottom:none}
 .field{margin-bottom:17px}
 .label{display:block;font-size:14px;font-weight:700;margin-bottom:8px}
 .input{width:100%;height:48px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 15px;font-family:var(--font);font-size:15px}
+.pw-wrap{position:relative}
+.pw-wrap .input{padding-right:44px}
+.pw-toggle{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:none;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:var(--r);cursor:pointer}
+.pw-toggle:hover{background:var(--bg2)}
 .input:focus{outline:none;border-color:var(--brand)}
 .form-check{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--ink2);margin-bottom:16px}
 .auth-foot{text-align:center;font-size:14.5px;color:var(--ink2);margin-top:16px}
@@ -659,6 +663,7 @@ const ICONS = {
   filter:'<path d="M4 5h16M7 12h10M10 19h4"/>',
   doc:'<path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4"/>',
   eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.7"/>',
+  eyeOff:'<path d="M3 3l18 18"/><path d="M10.6 5.6A10.4 10.4 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15.6 15.6 0 0 1-3.3 4.1M6.3 7.3C4 9 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.3 0 2.5-.3 3.6-.8"/><path d="M9.9 9.9a2.7 2.7 0 0 0 3.8 3.8"/>',
   flag:'<path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/>',
   handshake:'<path d="M2.5 12.5 6 9l3 2.2 3.5-3L16 11l3.5-3.2 2 2.3-5 4.7-3-1.9-3.2 2.6L7 13.8l-2.4 2.3"/><path d="M9 15l2 2.2a2 2 0 0 0 2.8.1l3.4-3"/>',
   layers:'<path d="M12 3 3 8l9 5 9-5Z"/><path d="M3 12l9 5 9-5M3 16l9 5 9-5"/>',
@@ -679,6 +684,13 @@ const ICONS = {
   spread:'<path d="M4 4h6.5v6.5H4Z"/><path d="M13.5 4H20v6.5h-6.5Z"/><path d="M4 13.5h6.5V20H4Z"/><path d="M13.5 13.5H20V20h-6.5Z"/>',
 };
 function ic(name,size=18){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
+function togglePw(id,btn){
+  const inp=document.getElementById(id);
+  if(!inp)return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.innerHTML=ic(show?'eyeOff':'eye',18);
+}
 
 /* ---------- 2. TIỆN ÍCH ---------- */
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -2879,8 +2891,8 @@ PUB.gianhap = ()=> `
 
       <div class="form-sec"><b>${ic('lock',15)} Mật khẩu đăng nhập</b></div>
       <div class="form-row">
-        <div class="field"><label class="label">Mật khẩu <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-pw" type="password" placeholder="Tối thiểu 8 ký tự"></div>
-        <div class="field"><label class="label">Nhập lại mật khẩu <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-pw2" type="password" placeholder="Gõ lại cho khớp"></div>
+        <div class="field"><label class="label">Mật khẩu <span class="req" style="color:var(--red)">*</span></label><div class="pw-wrap"><input class="input" id="dk-pw" type="password" placeholder="Tối thiểu 8 ký tự"><button type="button" class="pw-toggle" onclick="togglePw('dk-pw',this)">${ic('eye',18)}</button></div></div>
+        <div class="field"><label class="label">Nhập lại mật khẩu <span class="req" style="color:var(--red)">*</span></label><div class="pw-wrap"><input class="input" id="dk-pw2" type="password" placeholder="Gõ lại cho khớp"><button type="button" class="pw-toggle" onclick="togglePw('dk-pw2',this)">${ic('eye',18)}</button></div></div>
       </div>
 
       <div class="form-sec">
@@ -2982,7 +2994,7 @@ PUB.dangnhap = ()=>{
     <div class="auth-head"><h1>Đăng nhập</h1><p>Chào mừng trở lại Nhà Chung 86 👋</p></div>
     ${notice?`<div class="notice brand" style="margin-bottom:14px">${ic('lock',16)}Cần đăng nhập để xem mục này.</div>`:''}
     <div class="field"><label class="label">Số điện thoại hoặc email</label><input class="input" id="ln-id" placeholder="09xx xxx xxx"></div>
-    <div class="field"><label class="label">Mật khẩu</label><input class="input" id="ln-pw" type="password" placeholder="••••••••"></div>
+    <div class="field"><label class="label">Mật khẩu</label><div class="pw-wrap"><input class="input" id="ln-pw" type="password" placeholder="••••••••"><button type="button" class="pw-toggle" onclick="togglePw('ln-pw',this)">${ic('eye',18)}</button></div></div>
     <div id="ln-err" class="notice wait" style="display:none;margin-bottom:14px">${ic('flag',16)}<span id="ln-err-txt"></span></div>
     <button class="btn btn-blue btn-block btn-lg" id="ln-submit" onclick="dangNhapSubmit()">Đăng nhập</button>
     <div class="auth-foot">Chưa có tài khoản? <a data-go="gianhap">Xin gia nhập</a></div>
