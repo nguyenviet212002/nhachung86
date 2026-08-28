@@ -108,6 +108,51 @@ export async function declineChallenge({ actor, id }) {
   return { id, status: 'finished' };
 }
 
+// Hàng đợi ghép trận nhanh: người đầu tiên bấm "Ghép trận nhanh" mà chưa ai
+// đang chờ thì được xếp vào đây (một chỗ mỗi cộng đồng); người thứ hai bấm
+// trong lúc đó được ghép thẳng với người đang chờ, tạo một ván 'active' luôn
+// (cả hai đã tự nguyện vào hàng đợi nên không cần bước 'pending' chờ nhận
+// lời như challenge() thường). Bộ nhớ trong process, không cần bền vững —
+// hết 5 giây không ghép được thì client tự gọi leaveQuickMatch() dọn chỗ.
+const quickMatchQueue = new Map(); // communityId -> actorId
+
+export async function quickMatch({ actor }) {
+  const waitingActorId = quickMatchQueue.get(actor.communityId);
+  if (waitingActorId && waitingActorId !== actor.id) {
+    quickMatchQueue.delete(actor.communityId);
+    const gameId = await withActor(actor.id, async (trx) => {
+      const { rows: [opponent] } = await trx.raw(
+        `SELECT id FROM members WHERE id = ? AND community_id = ? AND status = 'member'`,
+        [waitingActorId, actor.communityId]
+      );
+      if (!opponent) return null; // người đang chờ đã rời Hội ngay trong lúc chờ — hàng đợi coi như trống
+      const board = rules.initBoard();
+      const { rows: [row] } = await trx.raw(
+        `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, board, started_at)
+         VALUES (?, ?, ?, 'active', 'r', ?::jsonb, now()) RETURNING id`,
+        [actor.communityId, waitingActorId, actor.id, JSON.stringify(board)]
+      );
+      await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+        action: 'chess_game.quick_matched', targetType: 'game', targetId: row.id, detail: {} });
+      return row.id;
+    });
+    if (gameId) {
+      publishToMember(waitingActorId, 'quick_match', { id: gameId });
+      return { matched: true, id: gameId };
+    }
+    // rơi xuống: người đang chờ không còn hợp lệ, xử lý actor hiện tại như người đầu tiên xếp hàng
+  }
+  quickMatchQueue.set(actor.communityId, actor.id);
+  return { matched: false };
+}
+
+export async function leaveQuickMatch({ actor }) {
+  if (quickMatchQueue.get(actor.communityId) === actor.id) {
+    quickMatchQueue.delete(actor.communityId);
+  }
+  return { ok: true };
+}
+
 export async function list({ actor, status, mine, page, limit }) {
   return withActor(actor.id, async (trx) => {
     const statuses = (status ?? 'active').split(',').map((s) => s.trim()).filter(Boolean);

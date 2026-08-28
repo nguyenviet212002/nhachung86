@@ -37,6 +37,12 @@ router.post('/challenges/:id/accept', validate(schema.idParamSchema, 'params'), 
 router.post('/challenges/:id/decline', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.declineChallenge({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+router.post('/quick-match', async (req, res, next) => {
+  try { res.json(await service.quickMatch({ actor: req.actor })); } catch (e) { next(e); }
+});
+router.delete('/quick-match', async (req, res, next) => {
+  try { res.json(await service.leaveQuickMatch({ actor: req.actor })); } catch (e) { next(e); }
+});
 router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next) => {
   try {
     res.json(await service.list({ actor: req.actor, status: req.query.status,

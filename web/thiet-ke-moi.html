@@ -1278,6 +1278,17 @@ function startRealtime(){
       render();
     }catch(err){}
   });
+  notificationStream.addEventListener('quick_match', e=>{
+    try{
+      const d = JSON.parse(e.data);
+      if(!QUICK_MATCH_WAITING) return; // đã hết hạn chờ, chuyển sang máy hoặc rời màn từ trước
+      QUICK_MATCH_WAITING = false;
+      clearTimeout(QUICK_MATCH_TIMER);
+      closeModal();
+      GAMES_LIST = null;
+      go('cotuong-van:'+d.id);
+    }catch(err){}
+  });
   notificationStream.addEventListener('message', e=>{
     try{
       const m = JSON.parse(e.data);
@@ -4500,10 +4511,11 @@ V['cotuong-online'] = ()=>{
     return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu, xem trực tiếp, hoặc đấu ngay với máy.</p></div></div>
     <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
   return `
-  <div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu một người cụ thể, xem ai đó đang chơi, hoặc đấu ngay với máy — tuỳ bạn chọn.</p></div>
+  <div class="page-head"><div><h1>Cờ tướng online</h1><p>Ghép trận nhanh, thách đấu một người cụ thể, xem ai đó đang chơi, hoặc đấu ngay với máy — tuỳ bạn chọn.</p></div>
     <div class="xq-ctrl-row">
+      <button class="btn btn-blue" data-open="ghepTranNhanh">${ic('bolt',15)} Ghép trận nhanh</button>
+      <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
       <a href="#cotuong-may" data-go="cotuong-may" class="btn btn-out">${ic('star',15)} Đấu với máy</a>
-      <button class="btn btn-blue" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
     </div>
   </div>
   ${GAMES_LIST.mine.length?`<div class="sec-title">${ic('user',14)} Ván của bạn</div>${GAMES_LIST.mine.map(gameRow).join('')}`:''}
@@ -4551,6 +4563,52 @@ WIZ.thachDau = ()=>{ CHALLENGE_PICK=null; openModal(`
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-blue btn-full" id="challenge-submit" disabled onclick="sendChallenge()">Gửi lời thách đấu</button></div>`); };
+
+/* Ghép trận nhanh: chờ tối đa 5s xem có ai khác cũng đang bấm "Ghép trận
+   nhanh" không (POST /games/quick-match ghép ngay nếu có, xem
+   games/service.js#quickMatch). Có người thật thì vào thẳng ván đó; hết 5s
+   không ai thì tự chuyển sang đấu với máy (mức Vừa, đổi được sau trong menu
+   "Đổi bên/cấp độ" của chính màn đấu máy) — không có bước hỏi cấu hình
+   trước, vào là chơi luôn. */
+let QUICK_MATCH_WAITING = false, QUICK_MATCH_TIMER = null;
+function ghepTranNhanhCancel(){
+  if(!QUICK_MATCH_WAITING) return;
+  QUICK_MATCH_WAITING = false;
+  clearTimeout(QUICK_MATCH_TIMER);
+  api.del('/games/quick-match').catch(()=>{});
+}
+function ghepTranNhanhFallbackAi(){
+  if(!QUICK_MATCH_WAITING) return; // đã được ghép qua SSE ngay trước khi hết giờ
+  QUICK_MATCH_WAITING = false;
+  api.del('/games/quick-match').catch(()=>{});
+  closeModal();
+  CHESS_AI_SETUP = {side:'r', level:'vua'};
+  chessAiStart();
+  go('cotuong-may');
+}
+WIZ.ghepTranNhanh = async ()=>{
+  openModal(`<div class="modal-head"><b>Ghép trận nhanh</b><button class="modal-x" onclick="ghepTranNhanhCancel();closeModal()">${ic('x',15)}</button></div>
+    <div class="modal-body" style="text-align:center;padding:34px 20px">
+      <div style="font-size:15px;font-weight:700">${ic('refresh',18)} Đang ghép trận…</div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px">Đợi vài giây để tìm đối thủ.</p>
+    </div>`);
+  QUICK_MATCH_WAITING = true;
+  let res;
+  try{ res = await api.post('/games/quick-match', {}); }
+  catch(e){
+    if(!QUICK_MATCH_WAITING) return; // đã ghép được qua SSE trong lúc request này còn đang chạy
+    QUICK_MATCH_WAITING = false;
+    closeModal(); toast(e.message||'Có lỗi, thử lại.','x');
+    return;
+  }
+  if(!QUICK_MATCH_WAITING) return; // SSE đã xử lý xong trước khi promise này trả về
+  if(res && res.matched){
+    QUICK_MATCH_WAITING = false;
+    closeModal(); GAMES_LIST=null; go('cotuong-van:'+res.id);
+    return;
+  }
+  QUICK_MATCH_TIMER = setTimeout(ghepTranNhanhFallbackAi, 5000);
+};
 
 /* ══════════════════════════════════════════════════════════════
    V['cotuong-van'] — một ván cờ online cụ thể: chơi (nếu là 1 trong 2

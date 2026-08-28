@@ -356,6 +356,9 @@ export function buildOpenApi() {
     endpoint('POST', '/api/v1/games/challenges/{id}/accept', { pathParams: games.idParamSchema }));
   add('/api/v1/games/challenges/{id}/decline',
     endpoint('POST', '/api/v1/games/challenges/{id}/decline', { pathParams: games.idParamSchema }));
+  add('/api/v1/games/quick-match',
+    endpoint('POST', '/api/v1/games/quick-match', { response: { description: 'Matched or queued' } }),
+    endpoint('DELETE', '/api/v1/games/quick-match'));
   add('/api/v1/games/{id}',
     endpoint('GET', '/api/v1/games/{id}', { pathParams: games.idParamSchema }));
   add('/api/v1/games/{id}/moves',
