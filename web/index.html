@@ -76,6 +76,7 @@ ul{list-style:none}
 .nav a.on{font-weight:700;border-color:var(--brand)}
 .nav a .n{background:var(--brand-l);color:var(--brand-d);font-size:12px;font-weight:800;border-radius:100px;padding:1px 6px;flex:none;line-height:1.56}
 .header-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none;white-space:nowrap}
+.public-cta{display:flex;align-items:center;gap:10px}
 .ic-bell{position:relative;color:var(--ink2);font-size:18px;width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center}
 .ic-bell:hover{background:var(--bg3)}
 .ic-bell .dot{position:absolute;top:3px;right:5px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff}
@@ -293,6 +294,11 @@ tr:last-child td{border-bottom:none}
 .xq-fs .content{padding:56px 8px 16px}
 .xq-fs .xq-wrap{padding:0;border-radius:0;background:transparent;box-shadow:none}
 .xq-fs .xq-board{max-width:min(97vw,780px,calc((100vh - 130px)*8/9))}
+@media(max-width:768px){
+  .xq-fs .wrap{min-height:100%;display:flex;align-items:center}
+  .xq-fs .content{width:100%;padding:52px 8px}
+  .xq-fs .xq-board{max-width:min(97vw,calc((100vh - 96px)*8/9))}
+}
 .xq-fs-x,.xq-fs-menu-btn{position:fixed;top:calc(10px + env(safe-area-inset-top));z-index:210;
   width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;border:1.5px solid rgba(255,255,255,.25);cursor:pointer;
   display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
@@ -579,12 +585,13 @@ tr:last-child td{border-bottom:none}
   .header-right{gap:6px}
   .admin-quicklink{padding:0;width:36px;height:36px;border-radius:50%;justify-content:center}
   .admin-quicklink .lbl{display:none}
+  .public-cta{display:none}
   .hero{min-height:0;padding:80px 0 68px}
   .hero-text{max-width:none}
   .hero h1{font-size:31.5px}
   .feat-grid{grid-template-columns:1fr}
   .card-grid,.g3,.job-grid{grid-template-columns:1fr 1fr}
-  .why-grid{grid-template-columns:1fr 1fr}
+  .why-grid{grid-template-columns:1fr 1fr;align-items:start}
   .why-mascot{display:none}
   .statsban-inner{grid-template-columns:1fr;text-align:center}
   .sb-stats{justify-content:center}
@@ -1555,8 +1562,10 @@ function headerComp(variant, active){
   let rightHtml;
   if(variant==='public'){
     rightHtml = `
-      <a href="#dangnhap" class="btn btn-out btn-sm" data-go="dangnhap">Đăng nhập</a>
-      <a href="#gianhap" class="btn btn-blue btn-sm" data-go="gianhap">Xin gia nhập</a>`;
+      <div class="public-cta">
+        <a href="#dangnhap" class="btn btn-out btn-sm" data-go="dangnhap">Đăng nhập</a>
+        <a href="#gianhap" class="btn btn-blue btn-sm" data-go="gianhap">Xin gia nhập</a>
+      </div>`;
   }else{
     const roleLabel = variant==='admin' ? 'Ban điều hành' : (ROLE_LABELS[DATA.me&&DATA.me.role] || 'Thành viên');
     rightHtml = `
@@ -1598,7 +1607,7 @@ function headerComp(variant, active){
     <a href="#congchung" class="logo" data-go="congchung"><img src="assets/logo/logo1.png" alt="Nhà Chung 86"></a>
     <nav class="nav">${navHtml}</nav>
     <div class="header-right">${rightHtml}</div>
-    ${variant==='public'?'':`<button class="hamb" id="drawerBtn">${ic('menu',22)}</button>`}
+    <button class="hamb" id="drawerBtn">${ic('menu',22)}</button>
   </div></header>`;
 }
 
