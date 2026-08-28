@@ -3487,17 +3487,14 @@ V['viec-detail'] = (params)=>{
         <div style="display:flex;gap:7px"><button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${poster.id}">Xem hồ sơ</button>${poster.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:38px;padding:0" onclick="chatWith('${poster.id}')" title="Nhắn tin">${ic('mail',14)}</button>`:''}</div>
       </div>
       <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">Loại tin</span><span class="val">${KIND_LABEL[j.kind]}</span></div>
         ${isAsk?`<div class="info-row"><span class="lbl">Phản hồi</span><span class="val">${j.apps} lượt</span></div>`
           :`<div class="info-row"><span class="lbl">Số lượng cần</span><span class="val">${j.qty||'1 người'}</span></div><div class="info-row"><span class="lbl">Công / thù lao</span><span class="val">${j.pay||'Thoả thuận'}</span></div>`}
-        <div class="info-row"><span class="lbl">Trạng thái</span><span class="val">${statusLabel}</span></div>
         <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(j.posted)}</span></div>
-        ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`:''}
-        ${jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
+        ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`
+          :jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">${ic('clock',12)} Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
         ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
         ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">${ic('phone',12)} Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
         ${jobDetail&&jobDetail.contact_policy?`<div class="info-row"><span class="lbl">${ic('shield',12)} Ai được liên hệ trước</span><span class="val">${CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy}</span></div>`:''}
-        ${jobDetail&&jobDetail.visibility?`<div class="info-row"><span class="lbl">${ic('eye',12)} Phạm vi hiển thị</span><span class="val">${VISIBILITY_LABEL[jobDetail.visibility]||jobDetail.visibility}</span></div>`:''}
       </div>
       <button class="btn btn-out btn-block btn-sm" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       ${similar.length?`<div class="box"><h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3>
