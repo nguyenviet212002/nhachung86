@@ -605,11 +605,15 @@ tr:last-child td{border-bottom:none}
   .feat-grid{grid-template-columns:1fr}
   .card-grid,.g3,.job-grid{grid-template-columns:1fr 1fr}
   .why-grid{grid-template-columns:1fr 1fr;align-items:stretch}
+}
+@media(max-width:600px){
+  .why-grid{grid-template-columns:1fr}
   .why-mascot{display:none}
   .statsban-inner{grid-template-columns:1fr;text-align:center}
   .sb-stats{justify-content:center}
   .foot-grid{grid-template-columns:1fr 1fr}
   .cols{grid-template-columns:1fr}
+  .cols-side{order:-1}
   .stat-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:768px){
@@ -1270,12 +1274,25 @@ let soundUnlocked = false;
 /* Nốt nhạc ngắn dựng bằng Web Audio API, không cần file âm thanh rời — dùng
    chung cho "ting" báo tin/thông báo VÀ tiếng cờ tướng (đi quân/ăn quân/
    chiếu/thắng-thua) bên dưới, mỗi việc một mẫu tần số khác nhau. */
+let _audioCtx = null;
+// DÙNG CHUNG 1 AudioContext cho mọi tiếng bíp — trước đây mỗi lần beep() tạo
+// mới 1 AudioContext không bao giờ đóng lại, nên sau vài nước đi các tiếng
+// hiếm gặp (chiếu tướng, thắng-thua — thường đến sau nhiều tiếng đi/ăn quân
+// đã phát) bị trình duyệt âm thầm chặn do vượt giới hạn context đồng thời,
+// hoặc context bị treo (suspended). Tạo 1 lần, resume() lại nếu bị treo.
+function getAudioCtx(){
+  const C = window.AudioContext || window.webkitAudioContext;
+  if(!C) return null;
+  if(!_audioCtx) _audioCtx = new C();
+  if(_audioCtx.state==='suspended') _audioCtx.resume();
+  return _audioCtx;
+}
 function beep(tones){
   if(!soundUnlocked) return;
   try{
-    const C = window.AudioContext || window.webkitAudioContext;
-    if(!C) return;
-    const ctx = new C(); const now = ctx.currentTime;
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
     tones.forEach(({hz,at,dur,gain})=>{
       const o=ctx.createOscillator(), g=ctx.createGain();
       const t0=now+(at||0), d=dur||.1;
@@ -1297,7 +1314,7 @@ function chessSound(kind){
   else if(kind==='check') beep([{hz:880,at:0,dur:.11,gain:.30},{hz:880,at:.15,dur:.11,gain:.30}]);
   else if(kind==='end') beep([{hz:392,at:0,dur:.14,gain:.28},{hz:494,at:.15,dur:.14,gain:.28},{hz:588,at:.30,dur:.26,gain:.30}]);
 }
-function unlockSound(){ soundUnlocked=true; }
+function unlockSound(){ soundUnlocked=true; getAudioCtx(); }
 document.addEventListener('click', unlockSound, {once:true});
 document.addEventListener('keydown', unlockSound, {once:true});
 
