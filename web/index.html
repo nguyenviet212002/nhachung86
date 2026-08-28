@@ -3462,8 +3462,8 @@ V['viec-detail'] = (params)=>{
           <div style="font-size:12px;color:var(--muted);margin-top:10px">${j.apps} người đã ${isAsk?'trả lời':'ứng tuyển'}${jobDetail?'':' — đang tải chi tiết…'}</div>`}
         </div>
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${j.apps} người đã ${isAsk?'trả lời':'nhận'}</div>
-          ${applicants.length?`<div class="stack">${applicants.map(m=>{
+        ${applicants.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${j.apps} người đã ${isAsk?'trả lời':'nhận'}</div>
+          <div class="stack">${applicants.map(m=>{
             const isPoster = !isAsk && j.poster===DATA.me.id;
             const action = m.status==='contacted' && isPoster
               ? `<div class="actions" style="display:flex;gap:6px"><button class="btn btn-out btn-sm" onclick="tuChoiUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Từ chối</button><button class="btn btn-blue btn-sm" onclick="chonUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Chọn</button></div>`
@@ -3471,8 +3471,8 @@ V['viec-detail'] = (params)=>{
               : m.status==='done' ? `<span class="status accepted">${ic('check',9)} Đã hoàn tất</span>`
               : m.status==='failed' ? `<span class="status pending">Không chọn</span>` : '';
             return `<div class="gigrow" style="margin-bottom:0${m.status==='failed'?';opacity:.6':''}"><div class="logo">${initials(m.name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${m.memberId}">${m.name}</a><div class="co">${m.field}</div></div>${action}</div>`;
-          }).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">${isAsk?'Chưa có ai trả lời.':'Chưa có ai nhận việc này.'}</p>`}
-        </div>
+          }).join('')}</div>
+        </div>`:''}
 
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="apply-row" style="display:flex;gap:10px">
           ${j.poster!==DATA.me.id&&j.status==='open'?`<button class="btn btn-blue btn-lg" style="flex:1" data-open="xinNhanViec" data-jobid="${j.id}" data-postername="${esc(poster.name)}" data-isask="${isAsk}">${ic(isAsk?'send':'handshake',16)} ${isAsk?'Tôi biết, để tôi trả lời':'Xin nhận việc'}</button>`:j.poster===DATA.me.id?`<div class="notice brand" style="flex:1">${ic('shield',16)}${isAsk?'Đây là câu hỏi bạn đăng.':'Đây là việc bạn đăng. Chọn người phù hợp bên trên.'}</div>`:`<div class="notice brand" style="flex:1">${ic('check',16)}${isAsk?'Câu hỏi này':'Việc này'} ${j.status==='cancelled'?'đã bị huỷ':j.status==='closed'?'đã đóng':'đã có người nhận'}.</div>`}
@@ -3480,23 +3480,25 @@ V['viec-detail'] = (params)=>{
       </div></div>
     </div>
     <aside class="cols-side">
-      <div class="box company-card" style="text-align:center">
-        <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:56px;height:56px">${initials(poster.name)}</div></div>
-        <h3 style="font-size:15px">${poster.name} <i class="verified">${ic('check',11)}</i></h3>
-        <div style="font-size:12.5px;color:var(--ink2);margin:6px 0">${poster.ward}</div>
-        <div style="display:flex;gap:7px"><button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${poster.id}">Xem hồ sơ</button>${poster.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:38px;padding:0" onclick="chatWith('${poster.id}')" title="Nhắn tin">${ic('mail',14)}</button>`:''}</div>
+      <div class="box">
+        <div style="text-align:center">
+          <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:56px;height:56px">${initials(poster.name)}</div></div>
+          <h3 style="font-size:15px">${poster.name} <i class="verified">${ic('check',11)}</i></h3>
+          <div style="font-size:12.5px;color:var(--ink2);margin:6px 0">${poster.ward}</div>
+          <div style="display:flex;gap:7px"><button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${poster.id}">Xem hồ sơ</button>${poster.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:38px;padding:0" onclick="chatWith('${poster.id}')" title="Nhắn tin">${ic('mail',14)}</button>`:''}</div>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+          ${isAsk?`<div class="info-row"><span class="lbl">Phản hồi</span><span class="val">${j.apps} lượt</span></div>`
+            :`<div class="info-row"><span class="lbl">Số lượng cần</span><span class="val">${j.qty||'1 người'}</span></div><div class="info-row"><span class="lbl">Công / thù lao</span><span class="val">${j.pay||'Thoả thuận'}</span></div>`}
+          <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(j.posted)}</span></div>
+          ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`
+            :jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">${ic('clock',12)} Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
+          ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
+          ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">${ic('phone',12)} Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
+          ${jobDetail&&jobDetail.contact_policy?`<div class="info-row"><span class="lbl">${ic('shield',12)} Ai được liên hệ trước</span><span class="val">${CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy}</span></div>`:''}
+        </div>
+        <button class="btn btn-out btn-block btn-sm" style="margin-top:14px" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       </div>
-      <div class="box"><h3>Thông tin chung</h3>
-        ${isAsk?`<div class="info-row"><span class="lbl">Phản hồi</span><span class="val">${j.apps} lượt</span></div>`
-          :`<div class="info-row"><span class="lbl">Số lượng cần</span><span class="val">${j.qty||'1 người'}</span></div><div class="info-row"><span class="lbl">Công / thù lao</span><span class="val">${j.pay||'Thoả thuận'}</span></div>`}
-        <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(j.posted)}</span></div>
-        ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`
-          :jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">${ic('clock',12)} Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
-        ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
-        ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">${ic('phone',12)} Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
-        ${jobDetail&&jobDetail.contact_policy?`<div class="info-row"><span class="lbl">${ic('shield',12)} Ai được liên hệ trước</span><span class="val">${CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy}</span></div>`:''}
-      </div>
-      <button class="btn btn-out btn-block btn-sm" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       ${similar.length?`<div class="box"><h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3>
         ${similar.map(s=>`<div class="mini-job" data-go="viec-detail:${s.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px;overflow:hidden">${logoImg(s.cover,KIND_ICON[s.kind])}</div><div><div class="mj-t">${s.title}</div><div class="mj-c">${member(s.poster).name}</div></div></div>`).join('')}
       </div>`:''}
