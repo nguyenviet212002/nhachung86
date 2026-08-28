@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { requireAuth } from '../../middleware/auth.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import * as schema from './schema.js';
 import * as memberService from './service.js';
 
@@ -63,7 +64,7 @@ router.patch('/me/privacy/:field', validate(schema.privacyParamSchema, 'params')
 router.get('/me/profile-views', validate(schema.profileViewsQuerySchema, 'query'), async (req, res, next) => {
   try { res.json(await memberService.listProfileViews({ actor: req.actor, page: req.query.page, limit: req.query.limit })); } catch (err) { next(err); }
 });
-router.post('/:id/contact-requests', validate(schema.idParamSchema, 'params'), validate(schema.contactRequestSchema), async (req, res, next) => {
+router.post('/:id/contact-requests', idempotent(), validate(schema.idParamSchema, 'params'), validate(schema.contactRequestSchema), async (req, res, next) => {
   try { res.status(201).json(await memberService.requestContact({ actor: req.actor, targetId: req.params.id,
     fieldKey: req.body.field_key, message: req.body.message })); } catch (err) { next(err); }
 });

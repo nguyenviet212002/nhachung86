@@ -3,6 +3,7 @@ import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { singleFile } from '../../middleware/upload.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import * as schema from './schema.js';
 import * as fileService from './service.js';
 
@@ -27,7 +28,7 @@ router.use(normalLimit, requireAuth);
 // KHÔNG có `express.json()` ở đây: thân của route này là multipart, và app.js
 // đã gắn `express.json({ limit: '1mb' })` toàn cục — nó bỏ qua request không
 // phải `application/json`, nên `singleFile` vẫn đọc được luồng nguyên vẹn.
-router.post('/', uploadLimit, singleFile({ field: 'file' }), async (req, res, next) => {
+router.post('/', uploadLimit, idempotent(), singleFile({ field: 'file' }), async (req, res, next) => {
   try {
     res.status(201).json(await fileService.upload({
       actor: req.actor,

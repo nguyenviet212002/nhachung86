@@ -42,17 +42,29 @@ const NAMES = [
   'Trần Thị Ngọc', 'Nguyễn Văn Hoà', 'Đặng Thị Xuân', 'Hoàng Văn Sinh',
 ];
 
-// 7 nhóm ngành của giao diện demo (`web/index.html:2494`, các hàng của nhóm
-// "Chuyên môn nghề"). Đặc tả mục 15.2 dặn nói rõ: đây là SỐ MINH HOẠ lấy từ
-// bản demo, không phải số liệu thật của Hội.
+// Danh mục nhóm ngành dùng chung cho dữ liệu mẫu và Trung tâm năng lực.
+// Đây vẫn là dữ liệu minh hoạ, không phải số liệu thật của Hội.
 export const JOB_GROUPS = [
   'Điện — nước dân dụng',
   'Xây dựng, sửa chữa',
   'Cơ khí, cửa sắt',
-  'Kế toán, thuế',
+  'Nội thất, mộc, nhôm kính',
+  'Sơn, chống thấm, hoàn thiện',
+  'Vận tải, giao hàng',
+  'Sửa xe, máy móc',
+  'Nông nghiệp, chăn nuôi',
+  'Cây cảnh, môi trường',
+  'Ẩm thực, thực phẩm',
+  'May mặc, thời trang',
+  'Làm đẹp, dịch vụ cá nhân',
+  'Chăm sóc trẻ và người cao tuổi',
   'Dạy kèm, đào tạo',
-  'Thực phẩm, nấu cỗ',
+  'Công nghệ, thiết kế, truyền thông',
+  'Kế toán, thuế',
+  'Kinh doanh, bán hàng',
   'Tư vấn pháp lý',
+  'Y tế, chăm sóc sức khỏe',
+  'Du lịch, lưu trú',
 ];
 
 // [mã, người bảo lãnh, ngày gia nhập]. null = gốc của cộng đồng.

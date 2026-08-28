@@ -67,6 +67,7 @@ describe('T30 — khung tác vụ định kỳ', () => {
       'audit.partition': { hour: 2, minute: 0 },
       'trust.recount': { hour: 3, minute: 15 },
       'privacy.purge_join_secrets': { hour: 3, minute: 45 },
+      'idempotency.purge_keys': { hour: 4, minute: 10 },
       'ops.overdue': { hour: null, minute: 5 },
       'ops.reminders': { hour: 7, minute: 0 },
     });

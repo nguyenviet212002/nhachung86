@@ -72,3 +72,11 @@ export const roleParamSchema = z.object({
   id: z.string().uuid(),
   role: z.enum(ROLE_KEYS),
 });
+
+// backups (migration 022/032) — container `backup` ghi bằng kết nối chủ sở
+// hữu (nó pg_dump toàn bộ, app_role không đọc nổi member_contacts), route này
+// chỉ ĐỌC lại những gì nó đã ghi.
+export const listBackupsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});

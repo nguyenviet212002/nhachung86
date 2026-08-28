@@ -35,8 +35,13 @@ export async function requireAuth(req, _res, next) {
   try {
     payload = jwt.verify(token, config.JWT_SECRET);
     if (payload.typ !== 'access') throw new Error('sai loại token');
-  } catch {
-    return next(new AppError('UNAUTHENTICATED', 'Phiên đăng nhập không hợp lệ.', { status: 401 }));
+  } catch (err) {
+    // TokenExpiredError riêng biệt: client cần biết "hết hạn, làm mới đi"
+    // khác với "hỏng, phải đăng nhập lại" để không mất form đang điền dở.
+    if (err?.name === 'TokenExpiredError') {
+      return next(new AppError('TOKEN_EXPIRED', 'Phiên đăng nhập đã hết hạn.', { status: 401 }));
+    }
+    return next(new AppError('TOKEN_INVALID', 'Phiên đăng nhập không hợp lệ.', { status: 401 }));
   }
 
   try {

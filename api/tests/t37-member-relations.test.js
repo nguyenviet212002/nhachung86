@@ -4,6 +4,7 @@ import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
+import { withActor } from '../src/core/tx.js';
 
 let db, app, communityId, actorId, inviterId, inviteeId, coworkerId, actorToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
@@ -69,6 +70,51 @@ describe('T37 quan hệ thật của thành viên', () => {
     expect(response.body.invited_members[0].member.full_name).toBe('Người tôi mời T37');
     expect(response.body.worked_together.map((x) => x.member.id)).toEqual([coworkerId]);
     expect(response.body.worked_together[0].first_work_title).toBe('Việc chung T37');
+  });
+
+  it('Đã cùng làm việc đi từ xác nhận thật qua trigger rồi mới lộ qua API', async () => {
+    const { rows: [other] } = await db.raw(
+      `INSERT INTO members (community_id, full_name, status, job)
+       VALUES (?, 'Bạn API T37', 'member', 'Thợ điện') RETURNING id`,
+      [communityId]
+    );
+    const { rows: [work] } = await db.raw(
+      `INSERT INTO work_records (community_id, source_type, title, done_on, created_by)
+       VALUES (?, 'signal', 'Việc trigger API T37', CURRENT_DATE, ?) RETURNING id`,
+      [communityId, actorId]
+    );
+    await db.raw(
+      `INSERT INTO work_participants (community_id, work_record_id, member_id, role)
+       VALUES (?, ?, ?, 'doer'), (?, ?, ?, 'receiver')`,
+      [communityId, work.id, actorId, communityId, work.id, other.id]
+    );
+
+    await withActor(actorId, (trx) =>
+      trx.raw(`INSERT INTO work_confirmations (community_id, work_record_id, member_id) VALUES (?, ?, ?)`, [
+        communityId,
+        work.id,
+        actorId,
+      ])
+    );
+    const before = await supertest(app)
+      .get('/api/v1/members/me/relations')
+      .set(auth(actorToken))
+      .expect(200);
+    expect(before.body.worked_together.map((x) => x.first_work_title)).not.toContain('Việc trigger API T37');
+
+    await withActor(other.id, (trx) =>
+      trx.raw(`INSERT INTO work_confirmations (community_id, work_record_id, member_id) VALUES (?, ?, ?)`, [
+        communityId,
+        work.id,
+        other.id,
+      ])
+    );
+    const after = await supertest(app)
+      .get('/api/v1/members/me/relations')
+      .set(auth(actorToken))
+      .expect(200);
+    const relation = after.body.worked_together.find((x) => x.first_work_title === 'Việc trigger API T37');
+    expect(relation?.member.id).toBe(other.id);
   });
 
   it('chỉ đọc cạnh trong cộng đồng của token và ghi đúng một dấu audit', async () => {

@@ -61,11 +61,22 @@ describe('T35 thành viên và tuyển dụng dùng chung một tài khoản mem
 
     const request = await supertest(app).post(`/api/v1/members/${poster}/contact-requests`)
       .set(auth(workerToken)).send({ field_key: 'phone', message: 'Xin số để trao đổi công việc.' }).expect(201);
+    const duplicate = await supertest(app).post(`/api/v1/members/${poster}/contact-requests`)
+      .set(auth(workerToken)).send({ field_key: 'phone', message: 'Xin số lần nữa.' }).expect(201);
+    expect(duplicate.body.id).toBe(request.body.id);
     const incoming = await supertest(app).get('/api/v1/members/me/contact-requests?direction=incoming')
       .set(auth(posterToken)).expect(200);
     expect(incoming.body.data.some((x) => x.id === request.body.id)).toBe(true);
+    const requestNotice = await supertest(app).get('/api/v1/notifications?unread_only=true')
+      .set(auth(posterToken)).expect(200);
+    expect(requestNotice.body.data.filter((x) => x.target_id === request.body.id)).toHaveLength(1);
     await supertest(app).patch(`/api/v1/members/me/contact-requests/${request.body.id}`)
       .set(auth(posterToken)).send({ status: 'approved' }).expect(200);
+    const decisionNotice = await supertest(app).get('/api/v1/notifications?unread_only=true')
+      .set(auth(workerToken)).expect(200);
+    expect(decisionNotice.body.data[0]).toMatchObject({
+      title: 'Yêu cầu xem liên hệ được chấp thuận', target_type: 'member', target_id: poster,
+    });
     const phone = await supertest(app).get(`/api/v1/members/${poster}/contacts/phone`)
       .set(auth(workerToken)).expect(200);
     expect(phone.body.value).toBe('0912345678');
@@ -75,12 +86,26 @@ describe('T35 thành viên và tuyển dụng dùng chung một tài khoản mem
     const created = await supertest(app).post('/api/v1/capabilities').set(auth(posterToken)).send({
       title: 'Sửa điện dân dụng', description: 'Nhận sửa điện trong khu vực.',
       category: 'Điện', years_experience: 8, price: 'Khảo sát rồi báo giá',
+      service_area: 'Khu vực thử và vùng lân cận', scope: 'Nhà dân dưới 200 m²',
+      availability: 'Cả tuần, kể cả buổi tối', conditions: 'Báo trước một ngày.',
     }).expect(201);
     capabilityId = created.body.id;
     expect(created.body.member_id).toBe(poster);
 
+    const capabilityDetail = await supertest(app).get(`/api/v1/capabilities/${capabilityId}`)
+      .set(auth(workerToken)).expect(200);
+    expect(capabilityDetail.body).toMatchObject({
+      id: capabilityId, full_name: 'Người đăng T35', years_experience: 8,
+      service_area: 'Khu vực thử và vùng lân cận', scope: 'Nhà dân dưới 200 m²',
+      availability: 'Cả tuần, kể cả buổi tối', conditions: 'Báo trước một ngày.',
+    });
+    expect(capabilityDetail.body).toEqual(expect.objectContaining({ evidence: [], photos: [] }));
+
     const list = await supertest(app).get('/api/v1/capabilities').set(auth(workerToken)).expect(200);
     expect(list.body.data.some((x) => x.id === capabilityId)).toBe(true);
+    const byArea = await supertest(app).get(`/api/v1/capabilities?area_id=${areaId}`)
+      .set(auth(workerToken)).expect(200);
+    expect(byArea.body.data.some((x) => x.id === capabilityId)).toBe(true);
 
     await supertest(app).patch(`/api/v1/capabilities/${capabilityId}`).set(auth(strangerToken))
       .send({ title: 'Không được sửa' }).expect(403);

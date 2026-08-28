@@ -94,7 +94,8 @@ function detailRow(r, env) {
 
 async function profileExtras(trx, member) {
   const { rows: capabilities } = await trx.raw(
-    `SELECT id, title, description, category, years_experience, created_at, updated_at
+    `SELECT id, title, description, category, years_experience, service_area, scope,
+            availability, conditions, created_at, updated_at
        FROM capabilities
       WHERE community_id = ? AND member_id = ? AND status = 'published'
       ORDER BY updated_at DESC, id`,
@@ -619,6 +620,15 @@ export async function requestContact({ actor, targetId, fieldKey, message }) {
     );
     if (!target) throw NOT_FOUND();
     if (targetId === actor.id) throw new AppError('VALIDATION_FAILED', 'Không cần xin xem thông tin của chính mình.', { status: 422 });
+    // Một lần bấm lại khi đơn vẫn đang chờ không được tạo thêm thông báo.
+    // Đơn đã bị từ chối/đã duyệt thì được mở lại thành đơn mới và thông báo
+    // lại cho chủ hồ sơ.
+    const { rows: [current] } = await trx.raw(
+      `SELECT * FROM contact_requests
+        WHERE community_id = ? AND requester_id = ? AND target_id = ? AND field_key = ?
+        FOR UPDATE`, [actor.communityId, actor.id, targetId, fieldKey]
+    );
+    if (current?.status === 'pending') return { row: current, notification: null };
     const { rows: [row] } = await trx.raw(
       `INSERT INTO contact_requests
         (community_id, requester_id, target_id, field_key, message)
@@ -630,8 +640,8 @@ export async function requestContact({ actor, targetId, fieldKey, message }) {
     const { rows: [notification] } = await trx.raw(
       `INSERT INTO notifications
         (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
-       VALUES (?, ?, ?, 'system', 'Yêu cầu xem thông tin liên hệ',
-               'Một thành viên xin phép xem thông tin liên hệ của bạn.', 'notification', ?)
+       VALUES (?, ?, ?, 'contact_request', 'Yêu cầu xem thông tin liên hệ',
+               'Một thành viên xin phép xem thông tin liên hệ của bạn.', 'contact_request', ?)
        RETURNING *`, [actor.communityId, targetId, actor.id, row.id]
     );
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
@@ -639,7 +649,7 @@ export async function requestContact({ actor, targetId, fieldKey, message }) {
       detail: { field: fieldKey, target_id: targetId } });
     return { row, notification };
   });
-  publishToMember(targetId, 'notification', result.notification);
+  if (result.notification) publishToMember(targetId, 'notification', result.notification);
   return result.row;
 }
 
@@ -674,9 +684,17 @@ export async function decideContactRequest({ actor, id, status }) {
     const { rows: [notification] } = await trx.raw(
       `INSERT INTO notifications
         (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
-       VALUES (?, ?, ?, 'system', 'Yêu cầu liên hệ đã được trả lời',
-               'Chủ hồ sơ vừa trả lời yêu cầu xem thông tin liên hệ của bạn.', 'notification', ?)
-       RETURNING *`, [actor.communityId, row.requester_id, actor.id, row.id]
+       VALUES (?, ?, ?, 'system', ?, ?, 'member', ?)
+       RETURNING *`, [
+        actor.communityId,
+        row.requester_id,
+        actor.id,
+        status === 'approved' ? 'Yêu cầu xem liên hệ được chấp thuận' : 'Yêu cầu xem liên hệ bị từ chối',
+        status === 'approved'
+          ? 'Chủ hồ sơ đã đồng ý cho bạn xem thông tin liên hệ.'
+          : 'Chủ hồ sơ chưa đồng ý cho bạn xem thông tin liên hệ.',
+        actor.id,
+      ]
     );
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'contact_request.decided', targetType: 'contact_request', targetId: id,

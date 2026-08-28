@@ -46,6 +46,9 @@ notificationRouter.post('/', validate(schema.createSchema), async (req, res, nex
 notificationRouter.post('/:id/read', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.markRead({ actor: req.actor, id: req.params.id })); } catch (err) { next(err); }
 });
+notificationRouter.post('/read-all', async (req, res, next) => {
+  try { res.json(await service.markAllRead({ actor: req.actor })); } catch (err) { next(err); }
+});
 
 messageRouter.use(normalLimit, requireAuth);
 messageRouter.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next) => {

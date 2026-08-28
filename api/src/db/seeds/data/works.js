@@ -148,7 +148,7 @@ export const MANUAL_PENDING = [
 export const ALL_WORKS = [...FULL_WORKS, ...MANUAL_REVIEWED, ...HALF_WORKS, ...MANUAL_PENDING];
 
 /**
- * 148 năng lực rải theo 7 nhóm ngành — đặc tả mục 12.3.
+ * 148 năng lực rải theo danh mục nhóm ngành — đặc tả mục 12.3.
  *
  * ĐỌC KỸ TRƯỚC KHI TRÍCH DẪN: `148` và `7` là SỐ MINH HOẠ lấy từ giao diện
  * demo (đặc tả mục 15.2), không phải số liệu thật của Hội.

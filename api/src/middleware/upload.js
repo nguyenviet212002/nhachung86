@@ -167,6 +167,19 @@ export function singleFile({ field = 'file', maxBytes = 10 * 1024 * 1024 } = {})
       });
       const parts = splitParts(body, boundary);
 
+      // Phần KHÔNG có filename (vd. "purpose") là trường form thường, không
+      // phải tệp. Trước đây middleware này chỉ lọc lấy phần tệp rồi bỏ qua mọi
+      // phần khác hoàn toàn — route không có express.json() (thân multipart),
+      // nên req.body luôn rỗng và "purpose" (member_avatar/member_cover)
+      // KHÔNG BAO GIỜ tới được service dù client gửi đúng. Gom các phần này
+      // vào req.body như một body-parser bình thường vẫn làm.
+      req.body = {};
+      for (const p of parts) {
+        if (dispositionParam(p.headers['content-disposition'], 'filename') !== null) continue;
+        const fieldName = dispositionParam(p.headers['content-disposition'], 'name');
+        if (fieldName) req.body[fieldName] = p.content.toString('utf8');
+      }
+
       const files = parts.filter((p) => dispositionParam(p.headers['content-disposition'], 'filename') !== null);
       if (files.length === 0) {
         throw new AppError('FILE_MISSING', 'Chưa chọn tệp nào để tải lên.', { status: 400 });

@@ -86,6 +86,16 @@ function onLoginSubmit(ev) {
   return false;
 }
 
+// Người dùng tự bấm "Đăng xuất" — khác api.onAuthLost() bên dưới (phiên MẤT
+// giữa chừng ngoài ý muốn): đây là chủ động, không cần nhớ S.afterLogin để
+// quay lại, và không cần gọi /auth/refresh hay bất kỳ API nào — chỉ xoá token
+// cục bộ rồi về màn đăng nhập.
+function logout() {
+  api.clearTokens();
+  S.afterLogin = null;
+  go('login', null);
+}
+
 // Phiên mất giữa chừng (access hỏng và refresh cũng hỏng) → quay lại đăng
 // nhập, nhớ chỗ đang đứng để quay lại sau khi đăng nhập lại.
 api.onAuthLost(function () {

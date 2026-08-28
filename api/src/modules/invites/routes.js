@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { requireAuth } from '../../middleware/auth.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import * as schema from './schema.js';
 import * as inviteService from './service.js';
 
@@ -19,7 +20,7 @@ router.use(normalLimit, requireAuth);
 // nhưng vế đó phụ thuộc THÂN yêu cầu chứ không phải đường dẫn, và nó được
 // cưỡng chế ở CSDL — xem trg_guarantee_invite_creator (migration 031). Đặt
 // requireRole ở đây sẽ khoá luôn đường thường.
-router.post('/', validate(schema.createSchema), async (req, res, next) => {
+router.post('/', idempotent(), validate(schema.createSchema), async (req, res, next) => {
   try {
     const result = await inviteService.create({
       actor: req.actor,

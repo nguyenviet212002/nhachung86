@@ -8,6 +8,12 @@ import * as notifications from '../modules/notifications/schema.js';
 import * as capabilities from '../modules/capabilities/schema.js';
 import * as jobs from '../modules/jobs/schema.js';
 import * as games from '../modules/games/schema.js';
+import * as projects from '../modules/projects/schema.js';
+import * as aid from '../modules/aid/schema.js';
+import * as complaints from '../modules/complaints/schema.js';
+import * as verifications from '../modules/verifications/schema.js';
+import * as fund from '../modules/fund/schema.js';
+import * as moderation from '../modules/moderation/schema.js';
 
 const TYPE_NAMES = {
   ZodAny: 'ZodAny',
@@ -238,6 +244,7 @@ export function buildOpenApi() {
   add('/api/v1/notifications/stream', endpoint('GET', '/api/v1/notifications/stream'));
   add('/api/v1/notifications/unread-count', endpoint('GET', '/api/v1/notifications/unread-count'));
   add('/api/v1/notifications/{id}/read', endpoint('POST', '/api/v1/notifications/{id}/read', { pathParams: notifications.idParamSchema }));
+  add('/api/v1/notifications/read-all', endpoint('POST', '/api/v1/notifications/read-all'));
   add('/api/v1/messages',
     endpoint('GET', '/api/v1/messages', { query: notifications.listQuerySchema }),
     endpoint('POST', '/api/v1/messages', { body: notifications.messageSchema, response: { description: 'Created' } }));
@@ -274,6 +281,8 @@ export function buildOpenApi() {
     endpoint('GET', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema }),
     endpoint('PATCH', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema, body: capabilities.updateSchema }),
     endpoint('DELETE', '/api/v1/capabilities/{id}', { pathParams: capabilities.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/capabilities/{id}/photos', endpoint('POST', '/api/v1/capabilities/{id}/photos', { pathParams: capabilities.idParamSchema, body: capabilities.photoSchema, response: { description: 'Created' } }));
+  add('/api/v1/capabilities/{id}/photos/{photoId}', endpoint('DELETE', '/api/v1/capabilities/{id}/photos/{photoId}', { pathParams: capabilities.photoParamSchema, response: { description: 'No content' } }));
 
   add('/api/v1/jobs',
     endpoint('GET', '/api/v1/jobs', { query: jobs.listQuerySchema }),
@@ -288,9 +297,56 @@ export function buildOpenApi() {
     endpoint('GET', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema }),
     endpoint('PATCH', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema, body: jobs.updateSchema }),
     endpoint('DELETE', '/api/v1/jobs/{id}', { pathParams: jobs.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/jobs/{id}/images', endpoint('POST', '/api/v1/jobs/{id}/images', { pathParams: jobs.idParamSchema, body: jobs.imageSchema, response: { description: 'Created' } }));
+  add('/api/v1/jobs/{id}/images/{fileId}', endpoint('DELETE', '/api/v1/jobs/{id}/images/{fileId}', { pathParams: jobs.imageParamSchema, response: { description: 'No content' } }));
   add('/api/v1/jobs/{id}/applications', endpoint('POST', '/api/v1/jobs/{id}/applications', { pathParams: jobs.idParamSchema, body: jobs.applySchema, response: { description: 'Created' } }));
   add('/api/v1/jobs/{id}/applications/{connectionId}', endpoint('PATCH', '/api/v1/jobs/{id}/applications/{connectionId}', { pathParams: jobs.applicationParamSchema, body: jobs.applicationUpdateSchema }));
   add('/api/v1/jobs/{id}/applications/me', endpoint('DELETE', '/api/v1/jobs/{id}/applications/me', { pathParams: jobs.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/jobs/{id}/introductions',
+    endpoint('GET', '/api/v1/jobs/{id}/introductions', { pathParams: jobs.idParamSchema }),
+    endpoint('POST', '/api/v1/jobs/{id}/introductions', { pathParams: jobs.idParamSchema, body: jobs.introductionCreateSchema, response: { description: 'Created' } }));
+  add('/api/v1/jobs/{id}/introductions/{introductionId}', endpoint('PATCH', '/api/v1/jobs/{id}/introductions/{introductionId}', { pathParams: jobs.introductionParamSchema, body: jobs.introductionConsentSchema }));
+
+  add('/api/v1/projects',
+    endpoint('GET', '/api/v1/projects', { query: projects.listQuerySchema }),
+    endpoint('POST', '/api/v1/projects', { body: projects.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/projects/{id}',
+    endpoint('GET', '/api/v1/projects/{id}', { pathParams: projects.idParamSchema }),
+    endpoint('PATCH', '/api/v1/projects/{id}', { pathParams: projects.idParamSchema, body: projects.updateSchema }),
+    endpoint('DELETE', '/api/v1/projects/{id}', { pathParams: projects.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/projects/{id}/join', endpoint('POST', '/api/v1/projects/{id}/join', { pathParams: projects.idParamSchema }));
+
+  add('/api/v1/aid',
+    endpoint('GET', '/api/v1/aid', { query: aid.listQuerySchema }),
+    endpoint('POST', '/api/v1/aid', { body: aid.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/aid/{id}',
+    endpoint('GET', '/api/v1/aid/{id}', { pathParams: aid.idParamSchema }),
+    endpoint('PATCH', '/api/v1/aid/{id}', { pathParams: aid.idParamSchema, body: aid.updateSchema }),
+    endpoint('DELETE', '/api/v1/aid/{id}', { pathParams: aid.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/aid/{id}/offers', endpoint('POST', '/api/v1/aid/{id}/offers', { pathParams: aid.idParamSchema, body: aid.offerSchema, response: { description: 'Created' } }));
+  add('/api/v1/aid/{id}/photos', endpoint('POST', '/api/v1/aid/{id}/photos', { pathParams: aid.idParamSchema, body: aid.photoSchema, response: { description: 'Created' } }));
+  add('/api/v1/aid/{id}/photos/{photoId}', endpoint('DELETE', '/api/v1/aid/{id}/photos/{photoId}', { pathParams: aid.photoParamSchema, response: { description: 'No content' } }));
+
+  add('/api/v1/complaints',
+    endpoint('GET', '/api/v1/complaints', { query: complaints.listQuerySchema }),
+    endpoint('POST', '/api/v1/complaints', { body: complaints.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/complaints/{id}', endpoint('PATCH', '/api/v1/complaints/{id}', { pathParams: complaints.idParamSchema, body: complaints.decideSchema }));
+
+  add('/api/v1/verifications',
+    endpoint('GET', '/api/v1/verifications', { query: verifications.listQuerySchema }),
+    endpoint('POST', '/api/v1/verifications', { body: verifications.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/verifications/me', endpoint('GET', '/api/v1/verifications/me'));
+  add('/api/v1/verifications/{id}', endpoint('PATCH', '/api/v1/verifications/{id}', { pathParams: verifications.idParamSchema, body: verifications.decideSchema }));
+
+  add('/api/v1/fund/entries',
+    endpoint('GET', '/api/v1/fund/entries', { query: fund.listQuerySchema }),
+    endpoint('POST', '/api/v1/fund/entries', { body: fund.createEntrySchema, response: { description: 'Created' } }));
+  add('/api/v1/fund/entries/{id}/lock', endpoint('POST', '/api/v1/fund/entries/{id}/lock', { pathParams: fund.idParamSchema }));
+
+  add('/api/v1/moderation',
+    endpoint('GET', '/api/v1/moderation', { query: moderation.listQuerySchema }),
+    endpoint('POST', '/api/v1/moderation', { body: moderation.createSchema, response: { description: 'Created' } }));
+  add('/api/v1/moderation/{id}', endpoint('PATCH', '/api/v1/moderation/{id}', { pathParams: moderation.idParamSchema, body: moderation.decideSchema }));
 
   add('/api/v1/games',
     endpoint('GET', '/api/v1/games', { query: games.listQuerySchema }));
@@ -322,6 +378,7 @@ export function buildOpenApi() {
     endpoint('POST', '/api/v1/ops/pending-actions', { body: ops.createActionSchema, response: { description: 'Created' } }));
   add('/api/v1/ops/pending-actions/{id}/sign', endpoint('POST', '/api/v1/ops/pending-actions/{id}/sign', { pathParams: ops.idParamSchema, body: ops.signActionSchema }));
   add('/api/v1/ops/pending-actions/{id}', endpoint('DELETE', '/api/v1/ops/pending-actions/{id}', { pathParams: ops.idParamSchema, response: { description: 'No content' } }));
+  add('/api/v1/ops/backups', endpoint('GET', '/api/v1/ops/backups', { query: ops.listBackupsSchema }));
 
   return {
     openapi: '3.1.0',

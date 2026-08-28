@@ -461,11 +461,13 @@ tr:last-child td{border-bottom:none}
 .step h4{font-size:14.5px;font-weight:700;margin-bottom:5px}
 .step p{font-size:13.5px;color:var(--ink2);padding:0 4px;line-height:1.56}
 .how-visual .imgph{aspect-ratio:1/1}
+.how-visual img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:var(--r2);display:block}
 .why-grid{display:grid;grid-template-columns:1fr 1fr 170px 1fr 1fr;gap:20px;align-items:center}
 .why-item .wi-ic{width:42px;height:42px;border-radius:11px;background:var(--brand-l);display:flex;align-items:center;justify-content:center;color:var(--brand-d);margin-bottom:10px}
 .why-item h4{font-size:14.5px;font-weight:700;margin-bottom:4px}
 .why-item p{font-size:13.5px;color:var(--ink2);line-height:1.56}
 .why-mascot .imgph{aspect-ratio:1;background:transparent;border-style:dashed}
+.why-mascot img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
 .statsban-inner{background:var(--brand);border-radius:18px;padding:32px 38px;display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;color:#fff}
 .sb-text h3{font-size:20.5px;font-weight:800;line-height:1.41;margin-bottom:14px}
 .sb-text .btn{background:#fff;color:var(--brand-d)}
@@ -532,6 +534,7 @@ tr:last-child td{border-bottom:none}
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
 .overlay.show{display:flex}
 .modal{background:#fff;border-radius:var(--r2);width:100%;max-width:480px;max-height:88vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal.wide{max-width:680px;max-height:94vh}
 .modal-head{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:#fff}
 .modal-head b{font-size:16.5px;font-weight:800;flex:1}
 .modal-x{width:32px;height:32px;border-radius:var(--r);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
@@ -681,6 +684,8 @@ function ic(name,size=18){return `<svg width="${size}" height="${size}" viewBox=
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function initials(name){return (name||'').trim().split(/\s+/).slice(-2).map(w=>w[0]).join('').toUpperCase();}
 function fmtDate(d){const dt=new Date(d);return dt.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function fmtTime(d){const dt=new Date(d);return dt.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',hour12:false});}
+function fmtDateTime(d){return fmtDate(d)+' · '+fmtTime(d);}
 function fmtDay(d){const dt=new Date(d);return dt.getDate();}
 function fmtMonth(d){const dt=new Date(d);return 'TH'+(dt.getMonth()+1);}
 function timeAgo(d){const s=(Date.now()-new Date(d).getTime())/1000;
@@ -895,15 +900,17 @@ const JOBTYPE_TO_KIND = {dai_han:'hop-tac', hop_tac:'hop-tac', thoi_vu:'can-nguo
    nữa, để không lặp lại lỗi "undefined" khi backend đổi câu chữ. */
 const JOB_STATUS_LABEL = {open:'Đang mở', filled:'Đã đủ người', closed:'Đã đóng', cancelled:'Đã huỷ'};
 const JOB_STATUS_CLASS = {open:'accepted', filled:'done', closed:'pending', cancelled:'pending'};
+const CONTACT_POLICY_LABEL = {anyone:'Ai cũng liên hệ được ngay', approval:'Cần bạn duyệt trước', admin:'Chỉ qua quản trị viên'};
+const VISIBILITY_LABEL = {community:'Cả cộng đồng', profession:'Chỉ người cùng nghề', selected:'Chỉ người được chọn'};
 function mapJob(j){
   return { id:j.id, title:j.title, kind:JOBTYPE_TO_KIND[j.job_type]||'can-nguoi', cat:j.profession||'',
     status:j.status, urgent:false, poster:j.poster_id, posterName:j.poster_name, ward:j.area_name||'',
-    posted:j.start_at||j.created_at, apps:j.application_count||0, desc:j.description||'',
+    posted:j.created_at, apps:j.application_count||0, desc:j.description||'',
     pay:null, qty:j.people_needed?`${j.people_needed} người`:'', step:null,
     cover: (j.images&&j.images.length)?('/files/'+j.images[0].id):null };
 }
 function mapActivity(p){
-  return { id:p.id, title:p.title, when:p.starts_at, place:p.location||'', going:p.participant_count||0,
+  return { id:p.id, title:p.title, when:p.starts_at, endsAt:p.ends_at||null, place:p.location||'', going:p.participant_count||0,
     upcoming: p.status==='planned'||p.status==='open'||p.status==='running', cat:p.category||'', image:p.image_url||null,
     creator:p.created_by||null, desc:p.description||'' };
 }
@@ -919,7 +926,7 @@ function aidEventLabel(kind){
 }
 function mapAid(a){
   return { id:a.id, title:a.title, cat:a.category||'', status:a.status, urgent:a.urgency==='urgent',
-    asker:a.requester_id, askerName:a.requester_name, ward:a.area_name||'',
+    asker:a.requester_id, askerName:a.requester_name, ward:a.area_name||'', onBehalf:a.on_behalf_of||'',
     posted:a.created_at, helpers:a.offer_count||0, desc:a.description||'', cover:a.cover_url||null };
 }
 function mapOpsLog(l){
@@ -1116,9 +1123,12 @@ async function bootstrap(){
       DATA.skills = (capsRes&&capsRes.data||[]).map(mapCapability);
       // GET /members/me trả area lồng {id,name} (xem mapMember() ở trên), không
       // phải area_name phẳng — cùng lỗi đã sửa cho danh sách thành viên.
+      const meContact = meProfile&&meProfile.contact_values||{};
       DATA.me = meProfile ? { id:meProfile.id, name:meProfile.full_name, ward:(meProfile.area&&meProfile.area.name)||'',
         joined:meProfile.joined_at, role:(meAuth&&meAuth.actor&&meAuth.actor.roles&&meAuth.actor.roles[0])||'member',
         avatar:meProfile.avatar_url||null, job:meProfile.job||'', bio:meProfile.bio||'',
+        phone:meContact.phone||'', zalo:meContact.zalo||'', messenger:meContact.messenger||'', workStatus:meProfile.work_status||'',
+        address:meContact.address||'', email:meProfile.email||'',
         history:meProfile.participation_history||[] } : null;
 
       const [jobsRes, projRes, aidRes, opsRes, notifRes, unreadRes, msgRes, complaintsRes, joinReqRes, verifRes, myVerifRes, fundRes, rolesRes, backupsRes, modRes] = await Promise.all([
@@ -2196,12 +2206,21 @@ WIZ.dangViec = (step=1,kind='can-nguoi')=>{
         <div class="field"><label class="label">Số người cần</label><input class="input" id="dv-qty" type="number" min="1" value="${DV_DRAFT.qty||1}"></div>
         <div class="field"><label class="label">Hạn nhận việc (không bắt buộc)</label><input class="input" id="dv-closeat" type="date" value="${esc(DV_DRAFT.closeAt||'')}"></div>
       </div>
-      <div class="field"><label class="label">Thời gian mong muốn bắt đầu (không bắt buộc)</label><input class="input" id="dv-startnote" value="${esc(DV_DRAFT.startNote||'')}" placeholder="Ví dụ: Ngay khi có người, hoặc cuối tuần này"></div>
+      <div class="g2">
+        <div class="field"><label class="label">Thời gian mong muốn bắt đầu (không bắt buộc)</label><input class="input" id="dv-startnote" value="${esc(DV_DRAFT.startNote||'')}" placeholder="Ví dụ: Ngay khi có người, hoặc cuối tuần này"></div>
+        <div class="field"><label class="label">Ngày giờ cụ thể (không bắt buộc)</label><input class="input" id="dv-startat" type="datetime-local" value="${esc(DV_DRAFT.startAt||'')}"></div>
+      </div>
       <div class="field"><label class="label">Yêu cầu với người nhận (không bắt buộc)</label><textarea class="input" id="dv-req" style="height:56px;padding-top:10px" placeholder="Ví dụ: Biết dùng máy hàn, có xe riêng…">${esc(DV_DRAFT.requirements||'')}</textarea></div>
       <div class="field"><label class="label">Lưu ý / cảnh báo (không bắt buộc)</label><textarea class="input" id="dv-warn" style="height:56px;padding-top:10px" placeholder="Ví dụ: Nhà có chó dữ, đường vào nhỏ…">${esc(DV_DRAFT.warnings||'')}</textarea></div>
       <div class="field"><label class="label">Cam kết / điều khoản (không bắt buộc)</label><textarea class="input" id="dv-terms" style="height:56px;padding-top:10px" placeholder="Ví dụ: Trả công ngay sau khi xong, bao ăn trưa…">${esc(DV_DRAFT.terms||'')}</textarea></div>
+      <div class="g2">
+        <div class="field"><label class="label">Người liên hệ (không bắt buộc)</label><input class="input" id="dv-contactowner" value="${esc(DV_DRAFT.contactOwner||'')}" placeholder="Ví dụ: Anh Bình, quản lý công trình"></div>
+        <div class="field"><label class="label">Ai được liên hệ trước</label><select class="input" id="dv-contactpolicy">${Object.entries(CONTACT_POLICY_LABEL).map(([k,l])=>`<option value="${k}" ${(DV_DRAFT.contactPolicy||'approval')===k?'selected':''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label class="label">Phạm vi hiển thị</label><select class="input" id="dv-visibility">${['community','profession'].map(k=>`<option value="${k}" ${(DV_DRAFT.visibility||'community')===k?'selected':''}>${VISIBILITY_LABEL[k]}</option>`).join('')}</select></div>
       <label class="check"><input type="checkbox" id="dv-showphone" ${DV_DRAFT.showPhone?'checked':''}> Hiện số điện thoại của bạn cho người quan tâm</label>
       <label class="check"><input type="checkbox" id="dv-allowintro" ${DV_DRAFT.allowIntro!==false?'checked':''}> Cho phép thành viên khác giới thiệu người quen phù hợp</label>
+      <label class="check"><input type="checkbox" id="dv-sharefb" ${DV_DRAFT.shareFb?'checked':''}> Chia sẻ tin này lên Facebook của Hội</label>
     </div>`;
     foot=`<button class="btn btn-out" style="flex:1" onclick="WIZ.dangViec(1,'${kind}')">Quay lại</button><button class="btn btn-blue" style="flex:2" onclick="if(!getSuggestValue('khuvuc')){toast('Chọn khu vực trước đã','flag');return;}dvSaveStep2();WIZ.dangViec(3,'${kind}')">Tiếp tục</button>`;
   }else{
@@ -2212,7 +2231,7 @@ WIZ.dangViec = (step=1,kind='can-nguoi')=>{
     foot=`<button class="btn btn-out" style="flex:1" onclick="WIZ.dangViec(2,'${kind}')">Quay lại</button><button class="btn btn-blue" id="dv-submit" style="flex:2" onclick="dangViecSubmit('${kind}')">Đăng tin</button>`;
   }
   openModal(`<div class="modal-head"><b>Đăng việc / hợp tác</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
-    <div class="steps-dot">${dots}</div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div>`);
+    <div class="steps-dot">${dots}</div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div>`, {wide:true});
 };
 // Bước 2 -> 3 thay hẳn DOM (openModal ghi đè toàn bộ .modal), nên các input tự
 // do (không qua suggestField/SUGGEST_VALUES) phải tự lưu vào DV_DRAFT trước
@@ -2223,11 +2242,16 @@ function dvSaveStep2(){
   DV_DRAFT.qty = getVal('dv-qty')||1;
   DV_DRAFT.closeAt = getVal('dv-closeat');
   DV_DRAFT.startNote = getVal('dv-startnote');
+  DV_DRAFT.startAt = getVal('dv-startat');
   DV_DRAFT.requirements = getVal('dv-req');
   DV_DRAFT.warnings = getVal('dv-warn');
   DV_DRAFT.terms = getVal('dv-terms');
+  DV_DRAFT.contactOwner = getVal('dv-contactowner');
+  DV_DRAFT.contactPolicy = getVal('dv-contactpolicy');
+  DV_DRAFT.visibility = getVal('dv-visibility');
   DV_DRAFT.showPhone = !!(qs('#dv-showphone')&&qs('#dv-showphone').checked);
   DV_DRAFT.allowIntro = !!(qs('#dv-allowintro')&&qs('#dv-allowintro').checked);
+  DV_DRAFT.shareFb = !!(qs('#dv-sharefb')&&qs('#dv-sharefb').checked);
 }
 async function dangViecSubmit(kind){
   const btn=qs('#dv-submit'); if(btn){btn.disabled=true;btn.textContent='Đang đăng…';}
@@ -2236,11 +2260,14 @@ async function dangViecSubmit(kind){
     // job_type thật nhận: dai_han/thoi_vu/hop_tac/hoc_nghe/hoi_tim — ánh xạ tốt nhất có thể từ 3 loại cũ
     const job_type = kind==='hop-tac' ? 'hop_tac' : kind==='hoi-tim' ? 'hoi_tim' : 'thoi_vu';
     const payload = { title, description:DV_DRAFT.desc||title, job_type, profession:cat, area_id:areaIdByName(area),
-      people_needed:Number(DV_DRAFT.qty)||1, visibility:'community',
-      start_note:DV_DRAFT.startNote||null, requirements:DV_DRAFT.requirements||null,
+      people_needed:Number(DV_DRAFT.qty)||1, visibility:DV_DRAFT.visibility||'community',
+      start_note:DV_DRAFT.startNote||null, start_at:DV_DRAFT.startAt?new Date(DV_DRAFT.startAt).toISOString():null,
+      requirements:DV_DRAFT.requirements||null,
       warnings:DV_DRAFT.warnings||null, terms:DV_DRAFT.terms||null,
+      contact_owner:DV_DRAFT.contactOwner||null, contact_policy:DV_DRAFT.contactPolicy||'approval',
       close_at:DV_DRAFT.closeAt?new Date(DV_DRAFT.closeAt).toISOString():null,
-      show_phone:!!DV_DRAFT.showPhone, allow_introductions:DV_DRAFT.allowIntro!==false };
+      show_phone:!!DV_DRAFT.showPhone, allow_introductions:DV_DRAFT.allowIntro!==false,
+      share_to_facebook:!!DV_DRAFT.shareFb };
     const created = await api.post('/jobs', payload);
     if(created && created.id){
       const fileIds = await uploadMultiFiles('viecbanner');
@@ -2270,6 +2297,7 @@ WIZ.taoYeuCau = (step=1)=>{
     foot=`<button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button><button class="btn btn-blue" style="flex:2" onclick="if(!getSuggestValue('loai')||!getSuggestValue('cuthe')){toast('Chọn loại và nội dung cần giúp trước đã','flag');return;}WIZ.taoYeuCau(2)">Tiếp tục</button>`;
   }else{
     body=`${suggestFieldArea('Khu vực (không bắt buộc)','aidkhuvuc')}
+    <div class="field"><label class="label">Nhờ hộ cho ai (không bắt buộc)</label><input class="input" id="aid-onbehalf" placeholder="Ví dụ: Bác Lan hàng xóm, không dùng điện thoại được"></div>
     <div class="field"><label class="label">Kể thêm (không bắt buộc)</label><textarea class="input" id="aid-desc" style="height:80px;padding-top:10px" placeholder="Càng rõ càng dễ giúp đúng"></textarea></div>
     ${multiUploadField('aidanh','Ảnh minh hoạ (không bắt buộc) — hoàn cảnh cụ thể, đồ cần mượn…')}
     <div class="notice wait">${ic('scale',17)}Nhà Chung không giữ tiền hộ — khoản hỗ trợ chuyển thẳng, tự ghi giữa hai bên.</div>
@@ -2277,7 +2305,7 @@ WIZ.taoYeuCau = (step=1)=>{
     foot=`<button class="btn btn-out" style="flex:1" onclick="WIZ.taoYeuCau(1)">Quay lại</button><button class="btn btn-blue" id="ay-submit" style="flex:2" onclick="taoYeuCauSubmit()">Gửi lời nhờ</button>`;
   }
   openModal(`<div class="modal-head"><b>Nhờ giúp / xin hỗ trợ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
-    <div class="steps-dot">${dots}</div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div>`);
+    <div class="steps-dot">${dots}</div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div>`, {wide:true});
 };
 async function taoYeuCauSubmit(){
   const btn=qs('#ay-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
@@ -2285,6 +2313,7 @@ async function taoYeuCauSubmit(){
   try{
     const payload = { title:getSuggestValue('cuthe'), category:getSuggestValue('loai'),
       description:getVal('aid-desc')||null, area_id:areaIdByName(getSuggestValue('aidkhuvuc')),
+      on_behalf_of:getVal('aid-onbehalf')||null,
       urgency: (!!qs('#aid-gap') && qs('#aid-gap').classList.contains('on')) ? 'urgent' : 'normal' };
     const created = await api.post('/aid', payload);
     if(created && created.id){
@@ -2353,7 +2382,8 @@ WIZ.taoHoatDong = ()=> openModal(`
     ${suggestFieldArea('Khu vực (không bắt buộc)','hdarea')}
     <div class="g2"><div class="field"><label class="label">Tên hoạt động</label><input class="input" id="hd-title" type="text" placeholder="Ví dụ: Gặp mặt quý IV"></div>
     <div class="field"><label class="label">Ngày</label><input class="input" id="hd-date" type="date"></div></div>
-    <div class="field"><label class="label">Giờ</label><input class="input" id="hd-time" type="text" placeholder="18:00"></div>
+    <div class="g2"><div class="field"><label class="label">Giờ bắt đầu</label><input class="input" id="hd-time" type="text" placeholder="18:00"></div>
+    <div class="field"><label class="label">Giờ kết thúc (không bắt buộc)</label><input class="input" id="hd-endtime" type="text" placeholder="20:00"></div></div>
     <div class="field"><label class="label">Địa điểm (không bắt buộc)</label><input class="input" id="hd-place" type="text" placeholder="Chưa chốt cũng đăng được"></div>
     <div class="field"><label class="label">Mô tả hoạt động</label><textarea class="input" id="hd-desc" style="height:70px;padding-top:10px" placeholder="Ít nhất 20 ký tự — chương trình, ai tham gia được…"></textarea></div>
     <div class="field"><label class="label">Số người tối đa</label><input class="input" id="hd-capacity" type="number" min="1" value="52"></div>
@@ -2361,7 +2391,7 @@ WIZ.taoHoatDong = ()=> openModal(`
     <div id="hd-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="hd-err-txt"></span></div>
   </div>
   <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
-    <button class="btn btn-blue" id="hd-submit" style="flex:2" onclick="taoHoatDongSubmit()">Tạo</button></div>`);
+    <button class="btn btn-blue" id="hd-submit" style="flex:2" onclick="taoHoatDongSubmit()">Tạo</button></div>`, {wide:true});
 async function taoHoatDongSubmit(){
   const cat=getSuggestValue('hd'), title=getVal('hd-title'), date=getVal('hd-date'),
     desc=getVal('hd-desc'), capacity=Number(getVal('hd-capacity'))||0;
@@ -2375,6 +2405,9 @@ async function taoHoatDongSubmit(){
   try{
     const time = getVal('hd-time')||'00:00';
     const starts_at = new Date(`${date}T${time}:00`).toISOString();
+    const endTime = getVal('hd-endtime');
+    const ends_at = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null;
+    if(ends_at && ends_at < starts_at){ err('Giờ kết thúc phải sau giờ bắt đầu.'); if(btn){btn.disabled=false;btn.textContent='Tạo';} return; }
     // Ảnh hoạt động không đi qua endpoint đính riêng như jobs: activities.image_url
     // là 1 chuỗi (URL đầy đủ hoặc "/files/<uuid>") ngay trong payload tạo/sửa —
     // xem ensureProjectImage() ở backend. Upload trước, ghép "/files/"+id, rồi mới tạo.
@@ -2384,7 +2417,7 @@ async function taoHoatDongSubmit(){
     // location là optional NHƯNG nếu có mặt phải ≥2 ký tự (min(2) trong schema) —
     // chuỗi rỗng không hợp lệ như null, phải bỏ hẳn field thay vì gửi ''.
     const payload = { title, description: desc, area_id:areaIdByName(getSuggestValue('hdarea')), category:cat,
-      location:getVal('hd-place')||null, starts_at, capacity, status:'planned', image_url };
+      location:getVal('hd-place')||null, starts_at, ends_at, capacity, status:'planned', image_url };
     const created = await api.post('/projects', payload);
     if(created) DATA.activities.unshift(mapActivity(created));
     closeModal(); toast('Đã tạo hoạt động','calendar'); go('hoatdong');
@@ -2457,14 +2490,14 @@ async function themNangLucSubmit(){
    qua lớp riêng tư vì đang xem hồ sơ bản thân). */
 WIZ.suaHoSo = async ()=>{
   openModal(`<div class="modal-head"><b>Sửa hồ sơ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
-    <div class="modal-body"><div class="notice brand">${ic('eye',17)}Đang tải hồ sơ…</div></div>`);
+    <div class="modal-body"><div class="notice brand">${ic('eye',17)}Đang tải hồ sơ…</div></div>`, {wide:true});
   try{
     const me = await api.get('/members/me');
     renderSuaHoSoForm(me);
   }catch(e){
     openModal(`<div class="modal-head"><b>Sửa hồ sơ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
       <div class="modal-body"><div class="notice wait">${ic('flag',16)}Không tải được hồ sơ, thử lại sau.</div></div>
-      <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`);
+      <div class="modal-foot"><button class="btn btn-out btn-full" onclick="closeModal()">Đóng</button></div>`, {wide:true});
   }
 };
 const WORK_STATUS_OPTS = [['available','Sẵn sàng nhận việc'],['by_appointment','Theo lịch hẹn'],['paused','Tạm nghỉ']];
@@ -2486,10 +2519,14 @@ function renderSuaHoSoForm(me){
         <div class="field"><label class="label">Zalo</label><input class="input" id="sh-zalo" value="${esc(cv.zalo||'')}"></div>
       </div>
       <div class="field"><label class="label">Messenger</label><input class="input" id="sh-messenger" value="${esc(cv.messenger||'')}"></div>
+      <div class="g2">
+        <div class="field"><label class="label">Email (không bắt buộc)</label><input class="input" id="sh-email" type="email" value="${esc(me.email||'')}" placeholder="ban@email.com"></div>
+        <div class="field"><label class="label">Địa chỉ cụ thể (không bắt buộc)</label><input class="input" id="sh-address" value="${esc(cv.address||'')}" placeholder="Số nhà, đường, thôn/xóm…"></div>
+      </div>
       <div id="sh-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="sh-err-txt"></span></div>
     </div>
     <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
-      <button class="btn btn-blue" id="sh-submit" style="flex:2" onclick="suaHoSoSubmit()">Lưu</button></div>`);
+      <button class="btn btn-blue" id="sh-submit" style="flex:2" onclick="suaHoSoSubmit()">Lưu</button></div>`, {wide:true});
 }
 async function suaHoSoSubmit(){
   const btn=qs('#sh-submit'); if(btn){btn.disabled=true;btn.textContent='Đang lưu…';}
@@ -2497,8 +2534,9 @@ async function suaHoSoSubmit(){
   try{
     const work_status = document.querySelector('[data-wsval].on')?.dataset.wsval;
     const payload = { full_name:getVal('sh-name'), job:getVal('sh-job')||null, bio:getVal('sh-bio')||null,
-      area_id:areaIdByName(getSuggestValue('shkhuvuc')), work_status,
-      phone:getVal('sh-phone')||null, zalo:getVal('sh-zalo')||null, messenger:getVal('sh-messenger')||null };
+      area_id:areaIdByName(getSuggestValue('shkhuvuc')), work_status, email:getVal('sh-email')||null,
+      phone:getVal('sh-phone')||null, zalo:getVal('sh-zalo')||null, messenger:getVal('sh-messenger')||null,
+      address:getVal('sh-address')||null };
     if(SH_AVATAR_FILE){
       const up = await api.upload('/files', SH_AVATAR_FILE, {purpose:'member_avatar'});
       if(up && up.id) payload.avatar_url = '/files/'+up.id;
@@ -2511,6 +2549,14 @@ async function suaHoSoSubmit(){
       DATA.me.name = updated.full_name || DATA.me.name;
       if(areaName) DATA.me.ward = areaName;
       if(updated.avatar_url) DATA.me.avatar = updated.avatar_url;
+      DATA.me.job = updated.job||'';
+      DATA.me.bio = updated.bio||'';
+      DATA.me.workStatus = updated.work_status||'';
+      DATA.me.phone = payload.phone||'';
+      DATA.me.zalo = payload.zalo||'';
+      DATA.me.messenger = payload.messenger||'';
+      DATA.me.address = payload.address||'';
+      DATA.me.email = payload.email||'';
       const idx = DATA.members.findIndex(m=>m.id===DATA.me.id);
       if(idx>=0){
         DATA.members[idx].name = updated.full_name||DATA.members[idx].name;
@@ -2625,7 +2671,7 @@ PUB.congchung = ()=> `
 
 <section class="sec features"><div class="wrap">
   <div class="feat-grid">
-    <div class="feat-card ic-card"><div class="feat-ic">${ic('shield',22)}</div><div class="fc-body"><h3>52 thành viên đã xác thực</h3><p>Ai vào Hội cũng có người giới thiệu, không nặc danh</p></div></div>
+    <div class="feat-card ic-card"><div class="feat-ic">${ic('shield',22)}</div><div class="fc-body"><h3>Thành viên đã xác thực</h3><p>Ai vào Hội cũng có người giới thiệu, không nặc danh</p></div></div>
     <div class="feat-card ic-card"><div class="feat-ic">${ic('bolt',22)}</div><div class="fc-body"><h3>Kết nối nhanh trong ngày</h3><p>Đăng việc buổi sáng, có người nhận buổi chiều</p></div></div>
     <div class="feat-card ic-card"><div class="feat-ic">${ic('heart',22)}</div><div class="fc-body"><h3>Giúp nhau khi cần gấp</h3><p>Không qua tiền quỹ, không đứng giữa thoả thuận</p></div></div>
   </div>
@@ -2641,7 +2687,7 @@ PUB.congchung = ()=> `
       <div class="step"><div class="step-num">3</div><h4>Kết nối qua Zalo</h4><p>Trao đổi thật diễn ra ngoài nền tảng</p></div>
     </div>
   </div>
-  <div class="how-visual">${imgph('handshake','Ảnh bắt tay')}</div>
+  <div class="how-visual"><img src="assets/banner/banner2.png" alt="Hai thành viên Nhà Chung bắt tay sau khi kết nối"></div>
 </div></section>
 
 <section class="sec jobs"><div class="wrap">
@@ -2660,9 +2706,9 @@ PUB.congchung = ()=> `
 <section class="sec why"><div class="wrap">
   <div class="sec-head"><h2>Vì Sao Chọn Nhà Chung?</h2></div>
   <div class="why-grid">
-    <div class="why-item"><div class="wi-ic">${ic('users',18)}</div><h4>52 người quen biết thật</h4><p>Không phải người lạ trên mạng</p></div>
+    <div class="why-item"><div class="wi-ic">${ic('users',18)}</div><h4>Người quen biết thật</h4><p>Không phải người lạ trên mạng</p></div>
     <div class="why-item"><div class="wi-ic">${ic('bolt',18)}</div><h4>Kết nối trong ngày</h4><p>Đăng việc, có người nhận nhanh</p></div>
-    <div class="why-mascot">${imgph('bolt','Biểu trưng 86')}</div>
+    <div class="why-mascot"><img src="assets/logo/logo2.png" alt="Biểu trưng 86 — Nhà Chung"></div>
     <div class="why-item"><div class="wi-ic">${ic('check',18)}</div><h4>Linh hoạt theo nhu cầu</h4><p>Việc gấp, việc dài hạn đều có</p></div>
     <div class="why-item"><div class="wi-ic">${ic('shield',18)}</div><h4>An toàn & minh bạch</h4><p>Không giữ tiền, không xếp hạng ai</p></div>
   </div>
@@ -2957,6 +3003,31 @@ async function dangNhapSubmit(){
   }
 }
 
+/* % hoàn thiện hồ sơ thật — trước đây trang chủ hardcode cứng "70%" và 2 dấu
+   tích luôn hiện sẵn (không tính từ gì), còn "Hồ sơ của tôi" chỉ tính trên 4
+   trường (avatar/bio/nghề/khu vực) nên điền 4 cái là lên thẳng 100% dù chưa
+   có cách nào liên hệ hay chưa khai năng lực nào. Dùng chung 1 bộ tiêu chí ở
+   đây cho cả 2 màn, mỗi mục trỏ thẳng tới đúng chỗ sửa (suaHoSo/thêm năng lực). */
+function myProfileCompleteness(){
+  const skillCount = DATA.skills.filter(s=>s.memberId===DATA.me.id).length;
+  const items = [
+    {label:'Ảnh đại diện', done:!!DATA.me.avatar, go:null},
+    {label:'Giới thiệu bản thân', done:!!DATA.me.bio, go:null},
+    {label:'Nghề nghiệp', done:!!DATA.me.job, go:null},
+    {label:'Khu vực sinh sống', done:!!DATA.me.ward, go:null},
+    {label:'Số điện thoại hoặc Zalo/Messenger', done:!!(DATA.me.phone||DATA.me.zalo||DATA.me.messenger), go:null},
+    {label:'Ít nhất một năng lực', done:skillCount>0, go:'nangluc'},
+  ];
+  const pct = Math.round((items.filter(i=>i.done).length/items.length)*100);
+  return {pct, items, missing:items.filter(i=>!i.done)};
+}
+function profileCompletenessBoxHtml(prof){
+  if(prof.pct>=100) return `<div class="box"><h3>${ic('check',14)} Hoàn thiện hồ sơ</h3><div class="notice brand" style="margin-top:2px">${ic('check',15)}Hồ sơ của bạn đã đầy đủ.</div></div>`;
+  return `<div class="box"><h3>${ic('check',14)} Hoàn thiện hồ sơ</h3>
+    ${prof.items.map(i=>`<div class="info-row"><span class="lbl">${ic(i.done?'check':'clock',12)} ${i.label}</span>${!i.done?(i.go?`<a data-go="${i.go}" style="color:var(--brand);font-weight:700;font-size:12.5px">Làm ngay</a>`:`<a onclick="WIZ.suaHoSo()" style="color:var(--brand);font-weight:700;font-size:12.5px;cursor:pointer">Làm ngay</a>`):''}</div>`).join('')}
+  </div>`;
+}
+
 /* ══════════════════════════════════════════════════════════════
    V — MÀN THÀNH VIÊN, dựng theo khuôn dashboard.html / worker-profile.html
    ══════════════════════════════════════════════════════════════ */
@@ -2967,6 +3038,7 @@ V.notfound = (p,name)=> `<div class="empty"><div class="ic">${ic('search',24)}</
 V.trongnha = ()=>{
   const turn = myTurnItems();
   const upJobs = DATA.jobs.filter(j=>j.status==='open').slice(0,3);
+  const prof = myProfileCompleteness();
   return `
   <div style="margin-bottom:18px"><h1 style="font-size:21px;font-weight:800">Chào ${DATA.me.name.split(' ').pop()} 👋</h1>
   <p style="font-size:13.5px;color:var(--ink2);margin-top:3px">Hôm nay Nhà Chung có ${upJobs.length} việc đang mở phù hợp với bạn.</p></div>
@@ -2976,15 +3048,15 @@ V.trongnha = ()=>{
     <div class="stack">${turn.map(t=>`<a class="gigrow" style="margin-bottom:0;background:#fff" data-go="${t.go}"><div class="logo" style="background:#fff;color:#8A5806">${ic(t.icon,17)}</div><div class="body"><div class="title" style="font-size:13.5px">${t.text}</div></div></a>`).join('')}</div></div>`:''}
 
   <div class="card" style="margin-bottom:20px">
-    <div class="prog-top"><span style="font-weight:700">${ic('user',14)} Hồ sơ hoàn thiện</span><span class="pct">70%</span></div>
-    <div class="prog-bar"><i style="width:70%"></i></div>
+    <div class="prog-top"><span style="font-weight:700">${ic('user',14)} Hồ sơ hoàn thiện</span><span class="pct">${prof.pct}%</span></div>
+    <div class="prog-bar"><i style="width:${prof.pct}%"></i></div>
   </div>
 
   <div class="stat-grid">
     <div class="stat"><div class="stat-ico">${ic('send',16)}</div><div class="stat-num">${DATA.jobs.filter(j=>j.worker===DATA.me.id||j.poster===DATA.me.id).length}</div><div class="stat-lbl">Việc đã tham gia</div></div>
     <div class="stat"><div class="stat-ico">${ic('star',16)}</div><div class="stat-num">${DATA.skills.filter(s=>s.memberId===DATA.me.id).length}</div><div class="stat-lbl">Năng lực đã đăng</div></div>
     <div class="stat"><div class="stat-ico">${ic('heart',16)}</div><div class="stat-num">${DATA.aid.filter(a=>a.status==='queued'||a.status==='matched').length}</div><div class="stat-lbl">Lời nhờ đang mở</div></div>
-    <div class="stat"><div class="stat-ico">${ic('users',16)}</div><div class="stat-num">52</div><div class="stat-lbl">Thành viên Hội</div></div>
+    <div class="stat"><div class="stat-ico">${ic('users',16)}</div><div class="stat-num">${DATA.members.length}</div><div class="stat-lbl">Thành viên Hội</div></div>
   </div>
 
   <div class="cols">
@@ -3001,12 +3073,7 @@ V.trongnha = ()=>{
       </div>
     </div>
     <div class="cols-side">
-      <div class="box">
-        <h3>${ic('check',14)} Hoàn thiện hồ sơ</h3>
-        <div class="info-row"><span class="lbl">${ic('check',12)} Số điện thoại</span></div>
-        <div class="info-row"><span class="lbl">${ic('check',12)} Thông tin cá nhân</span></div>
-        <div class="info-row"><span class="lbl">${ic('clock',12)} Thêm năng lực</span><a data-go="nangluc" style="color:var(--brand);font-weight:700;font-size:12.5px">Làm ngay</a></div>
-      </div>
+      ${profileCompletenessBoxHtml(prof)}
       <div class="bluebox"><div class="ico">${ic('medal',18)}</div><h4>Thêm năng lực</h4><p>Đăng năng lực kèm bằng chứng để được liên hệ nhiều hơn.</p><a class="bx-btn" data-open="themNangLuc">Thêm ngay</a></div>
     </div>
   </div>`;
@@ -3022,8 +3089,7 @@ V['hoso-toi'] = ()=>{
   if(!MY_PRIVACY) ensureMyPrivacy();
   const phonePrivacy = (MY_PRIVACY||[]).find(r=>r.field_key==='phone');
   const history = DATA.me.history||[];
-  const filled = [DATA.me.avatar, DATA.me.bio, DATA.me.job, DATA.me.ward].filter(Boolean).length;
-  const completeness = Math.round((filled/4)*100);
+  const prof = myProfileCompleteness();
   return `
   <div class="cols">
     <div>
@@ -3049,9 +3115,10 @@ V['hoso-toi'] = ()=>{
     <div class="cols-side">
       <div class="box">
         <h3>${ic('user',14)} Trạng thái hồ sơ</h3>
-        <div class="prog-top"><span style="color:var(--ink2)">Hoàn thiện</span><span class="pct">${completeness}%</span></div>
-        <div class="prog-bar"><i style="width:${completeness}%"></i></div>
-        <div style="margin-top:12px">
+        <div class="prog-top"><span style="color:var(--ink2)">Hoàn thiện</span><span class="pct">${prof.pct}%</span></div>
+        <div class="prog-bar"><i style="width:${prof.pct}%"></i></div>
+        ${prof.missing.length?`<div style="margin-top:10px">${prof.missing.map(i=>`<div class="info-row"><span class="lbl">${ic('clock',12)} ${i.label}</span>${i.go?`<a data-go="${i.go}" style="color:var(--brand);font-weight:700;font-size:12.5px">Làm ngay</a>`:`<a onclick="WIZ.suaHoSo()" style="color:var(--brand);font-weight:700;font-size:12.5px;cursor:pointer">Làm ngay</a>`}</div>`).join('')}</div>`:''}
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
           <div class="info-row"><span class="lbl">${ic('phone',12)} Điện thoại</span><span class="val">${phonePrivacy?PRIVACY_LEVEL_LABEL[phonePrivacy.level]:'Đang tải…'}</span></div>
           <div class="info-row"><span class="lbl">${ic('pin',12)} Khu vực</span><span class="val">${DATA.me.ward||'Chưa cập nhật'}</span></div>
         </div>
@@ -3340,9 +3407,12 @@ V['viec-detail'] = (params)=>{
           :`<div class="info-row"><span class="lbl">Số lượng cần</span><span class="val">${j.qty||'1 người'}</span></div><div class="info-row"><span class="lbl">Công / thù lao</span><span class="val">${j.pay||'Thoả thuận'}</span></div>`}
         <div class="info-row"><span class="lbl">Trạng thái</span><span class="val">${statusLabel}</span></div>
         <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(j.posted)}</span></div>
+        ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`:''}
         ${jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
         ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
-        ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
+        ${jobDetail&&jobDetail.contact_owner?`<div class="info-row"><span class="lbl">${ic('phone',12)} Người liên hệ</span><span class="val">${esc(jobDetail.contact_owner)}</span></div>`:''}
+        ${jobDetail&&jobDetail.contact_policy?`<div class="info-row"><span class="lbl">${ic('shield',12)} Ai được liên hệ trước</span><span class="val">${CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy}</span></div>`:''}
+        ${jobDetail&&jobDetail.visibility?`<div class="info-row"><span class="lbl">${ic('eye',12)} Phạm vi hiển thị</span><span class="val">${VISIBILITY_LABEL[jobDetail.visibility]||jobDetail.visibility}</span></div>`:''}
       </div>
       <button class="btn btn-out btn-block btn-sm" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       ${similar.length?`<div class="box"><h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3>
@@ -3401,6 +3471,7 @@ V['giupnhau-detail'] = (params)=>{
             <div style="font-size:13px;color:var(--ink2);margin-top:6px">${asker.name} <i class="verified">${ic('check',10)}</i>${ward?` · ${ward}`:''} · Đăng ${timeAgo(a.posted)}</div>
           </div>
         </div>
+        ${a.onBehalf?`<div class="notice brand" style="margin-top:14px">${ic('user',15)}Nhờ hộ cho <b>${esc(a.onBehalf)}</b></div>`:''}
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Hoàn cảnh cụ thể</div><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:6px">${esc(a.desc)||'Chưa có mô tả thêm.'}</p></div>
 
         ${photos.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('camera',14)} ${photos.length} ảnh minh hoạ</div>
@@ -3433,6 +3504,7 @@ V['giupnhau-detail'] = (params)=>{
         ${a.cat?`<div class="info-row"><span class="lbl">Loại</span><span class="val">${a.cat}</span></div>`:''}
         <div class="info-row"><span class="lbl">Khu vực</span><span class="val">${ward||'Chưa cập nhật'}</span></div>
         <div class="info-row"><span class="lbl">Mức độ</span><span class="val">${a.urgent?'Khẩn cấp':'Bình thường'}</span></div>
+        ${a.onBehalf?`<div class="info-row"><span class="lbl">Nhờ hộ cho</span><span class="val">${esc(a.onBehalf)}</span></div>`:''}
         <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(a.posted)}</span></div>
       </div>
 
@@ -3499,10 +3571,11 @@ V['hoatdong-detail'] = (params)=>{
     </div>
     <aside class="cols-side">
       <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">Thời gian</span><span class="val">${fmtDate(a.when)}</span></div>
-        <div class="info-row"><span class="lbl">Địa điểm</span><span class="val">${a.place}</span></div>
+        <div class="info-row"><span class="lbl">${ic('calendar',12)} Ngày</span><span class="val">${fmtDate(a.when)}</span></div>
+        <div class="info-row"><span class="lbl">${ic('clock',12)} Giờ</span><span class="val">${fmtTime(a.when)}${a.endsAt?' – '+fmtTime(a.endsAt):''}</span></div>
+        <div class="info-row"><span class="lbl">${ic('pin',12)} Địa điểm</span><span class="val">${a.place||'Chưa chốt'}</span></div>
         <div class="info-row"><span class="lbl">Loại hoạt động</span><span class="val">${a.cat}</span></div>
-        <div class="info-row"><span class="lbl">Người dự</span><span class="val">${a.going}</span></div>
+        <div class="info-row"><span class="lbl">${ic('users',12)} Người dự</span><span class="val">${a.going}</span></div>
       </div>
       ${organizer?`<div class="box company-card" style="text-align:center">
         <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:48px;height:48px">${initials(organizer.name)}</div></div>

@@ -297,6 +297,25 @@ export async function revokeRole({ actor, memberId, role }) {
   });
 }
 
+// backups là bảng CHỈ-THÊM ghi bởi container sao lưu (kết nối chủ sở hữu,
+// ngoài phạm vi app_role) — route này chỉ đọc lại lịch sử, không có "sao lưu
+// ngay" ở đây: kích hoạt một bản sao lưu theo yêu cầu cần một đường tín hiệu
+// sang container `backup` (hàng đợi, webhook, …) mà dự án chưa có; giả vờ có
+// nút bấm "chạy ngay" trong khi không gì thật sự chạy còn tệ hơn không có nút.
+export async function listBackups({ actor, page, limit }) {
+  const offset = (page - 1) * limit;
+  const { rows } = await knex.raw(
+    `SELECT id, kind, started_at, finished_at, size_bytes, ok, location, note
+       FROM backups WHERE community_id = ?
+      ORDER BY started_at DESC LIMIT ? OFFSET ?`,
+    [actor.communityId, limit, offset]
+  );
+  const { rows: [{ total }] } = await knex.raw(
+    `SELECT count(*)::int AS total FROM backups WHERE community_id = ?`, [actor.communityId]
+  );
+  return { data: rows, meta: { page, limit, total } };
+}
+
 // Xuất ra để `t27` đọc được ngưỡng mặc định thay vì chép lại con số — bài test
 // chép số là bài test sẽ xanh khi số bị đổi.
 export { DEFAULTS as DASHBOARD_DEFAULTS };

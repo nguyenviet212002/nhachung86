@@ -52,6 +52,18 @@ export async function markRead({ actor, id }) {
   });
 }
 
+export async function markAllRead({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows } = await trx.raw(
+      `UPDATE notifications SET read_at = now()
+        WHERE community_id = ? AND recipient_id = ? AND read_at IS NULL
+        RETURNING id`,
+      [actor.communityId, actor.id]
+    );
+    return { count: rows.length };
+  });
+}
+
 async function assertRecipient(trx, actor, recipientId) {
   const { rows: [row] } = await trx.raw(
     `SELECT id, full_name, avatar_url FROM members WHERE id = ? AND community_id = ? AND status = 'member'`,

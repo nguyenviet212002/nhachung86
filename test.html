@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nhà Chung 86</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#151515;--body:#3C3C3C;--mut:#5C5C5C;--fnt:#8B8B8B;
+  --ln:#E5E3DF;--ln2:#F1EFEC;--bg:#fff;--soft:#F8F7F5;
+  --or:#E8722C;--or-s:#FFF2E8;--or-l:#F5C9A6;--or-d:#CE5F1F;
+  --gr:#1E7A51;--gr-s:#E9F4EE;--rd:#C0392B;--rd-s:#FCEEEC;
+  --sb:#121212;--h:60px;
+}
+html,body{height:100%}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;font-size:15px;line-height:1.5;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;text-align:left}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2.5px solid var(--or);outline-offset:2px;border-radius:6px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#D8D5D0;border-radius:6px;border:3px solid #fff}
+
+/* ===== KHUNG TRÀN MÀN HÌNH ===== */
+.app{display:grid;grid-template-columns:252px 1fr;height:100vh;height:100dvh}
+.sb{background:var(--sb);color:#C8C8C8;display:flex;flex-direction:column;min-height:0}
+.sbh{height:var(--h);display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid #232323;flex:none}
+.mk{width:34px;height:34px;border-radius:9px;background:var(--or);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.sbh b{color:#fff;font-size:15px;display:block;line-height:1.15}
+.sbh i{font-style:normal;font-size:10px;letter-spacing:.1em;color:#757575}
+.sbn{flex:1;overflow-y:auto;padding:10px 0 18px}
+.cap{font-size:10px;letter-spacing:.13em;color:#6B6B6B;font-weight:700;padding:14px 18px 6px}
+.nv{display:flex;align-items:center;gap:11px;padding:9px 18px;margin:1px 8px;border-radius:9px;font-size:14.5px;font-weight:500;color:#C8C8C8;min-height:42px}
+.nv:hover{background:#1E1E1E;color:#fff}
+.nv.on{background:var(--or);color:#fff;font-weight:600}
+.nv svg{flex:none}
+.nv .n{margin-left:auto;font-size:11.5px;font-weight:700;background:#2B2B2B;color:#B0B0B0;padding:1px 8px;border-radius:20px}
+.nv.on .n{background:rgba(255,255,255,.26);color:#fff}
+.nv .dt{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--or)}
+.nv.on .dt{background:#fff}
+.sbm{padding:11px 18px;border-top:1px solid #232323;display:flex;gap:10px;align-items:center;flex:none}
+.sbm img{width:34px;height:34px;border-radius:50%}
+.sbm b{color:#fff;font-size:13.5px;display:block}
+.sbm i{font-style:normal;font-size:11.5px;color:#888}
+
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{height:var(--h);border-bottom:1px solid var(--ln2);display:flex;align-items:center;gap:10px;padding:0 16px;flex:none}
+.sch{flex:1;max-width:520px;display:flex;align-items:center;gap:9px;background:var(--soft);border:1.5px solid transparent;border-radius:10px;padding:0 13px;height:40px}
+.sch:focus-within{border-color:var(--or-l);background:#fff}
+.sch input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:14.5px}
+.ib{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;position:relative;color:var(--body);flex:none}
+.ib:hover{background:var(--soft)}
+.ib .b{position:absolute;top:5px;right:5px;min-width:17px;height:17px;border-radius:9px;background:var(--rd);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0 4px}
+.who{display:flex;align-items:center;gap:9px;padding:5px 10px 5px 5px;border-radius:10px}
+.who:hover{background:var(--soft)}
+.who img{width:31px;height:31px;border-radius:50%}
+.who b{font-size:13.5px;display:block;line-height:1.2}
+.who i{font-style:normal;font-size:11.5px;color:var(--fnt)}
+.bg{display:none}
+
+/* ===== HAI KHUNG: DANH SÁCH + CHI TIẾT ===== */
+.body{flex:1;min-height:0;display:flex}
+.body.split{display:grid;grid-template-columns:400px 1fr}
+.pane{min-height:0;overflow-y:auto}
+.list{border-right:1px solid var(--ln2);display:flex;flex-direction:column;min-height:0}
+.lh{padding:16px 18px 12px;border-bottom:1px solid var(--ln2);flex:none}
+.lh h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.lh .s{font-size:13px;color:var(--mut);margin-top:2px}
+.lb{flex:1;overflow-y:auto}
+.det{padding:26px 34px 60px}
+.one{flex:1;overflow-y:auto;padding:26px 34px 60px}
+.wide{max-width:none;width:100%}
+.one>*{max-width:none}
+
+/* mục trong danh sách */
+.it{display:block;width:100%;padding:14px 18px;border-bottom:1px solid var(--ln2);border-left:3px solid transparent}
+.it:hover{background:var(--soft)}
+.it.on{background:var(--or-s);border-left-color:var(--or)}
+.it .r1{display:flex;align-items:center;gap:9px}
+.it .t{font-size:14.5px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .r2{font-size:13px;color:var(--mut);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .r3{font-size:12.5px;color:var(--fnt);margin-top:5px;display:flex;align-items:center;gap:6px}
+.it .r3 img{width:19px;height:19px;border-radius:50%}
+.it.urg{border-left-color:var(--rd)}
+
+/* ===== CHỮ, NÚT, THẺ ===== */
+h1{font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1.22}
+h3{font-size:16px;font-weight:600}
+.sub{font-size:14.5px;color:var(--mut);margin-top:5px}
+.sc{font-size:11px;letter-spacing:.11em;font-weight:700;color:var(--fnt);margin:26px 0 11px;display:flex;align-items:baseline;gap:7px}
+.sc i{font-style:normal;letter-spacing:0;font-size:12.5px;font-weight:600}
+.hd{display:flex;align-items:flex-start;gap:14px}
+.sp{flex:1;min-width:0}
+
+.bt{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 16px;border-radius:10px;font-weight:600;font-size:14.5px;border:1.5px solid var(--ln);background:#fff;white-space:nowrap}
+.bt:hover{border-color:#CDCAC5;background:var(--soft)}
+.bt.p{background:var(--or);border-color:var(--or);color:#fff}
+.bt.p:hover{background:var(--or-d);border-color:var(--or-d)}
+.bt.d{background:var(--ink);border-color:var(--ink);color:#fff}
+.bt.s{min-height:36px;padding:0 12px;font-size:13.5px;border-radius:9px}
+.bt.f{width:100%}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+
+.tg{flex:none;font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap;background:var(--soft);color:var(--mut)}
+.tg.g{background:var(--gr-s);color:var(--gr)}
+.tg.o{background:var(--or-s);color:#B4501A}
+.tg.r{background:var(--rd-s);color:var(--rd)}
+
+/* khối đến lượt */
+.tn{border:2px solid var(--or);background:var(--or-s);border-radius:13px;padding:17px 19px;margin:18px 0}
+.tn.w{border-color:var(--ln);background:var(--soft)}
+.tn.k{border-color:#BEDDCE;background:var(--gr-s)}
+.tn .l{font-size:10.5px;letter-spacing:.12em;font-weight:700;color:#B4501A;margin-bottom:7px}
+.tn.w .l{color:var(--fnt)}.tn.k .l{color:var(--gr)}
+.tn .q{font-size:16.5px;font-weight:600;line-height:1.4}
+.tn .d{font-size:13.5px;color:var(--mut);margin-top:4px}
+.tn .a{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
+
+/* dải trạng thái */
+.st{display:flex;margin:18px 0 6px}
+.sx{flex:1;position:relative;text-align:center}
+.sx:before{content:"";position:absolute;top:8px;left:-50%;width:100%;height:3px;background:var(--ln)}
+.sx:first-child:before{display:none}
+.sx.o:before,.sx.n:before{background:var(--gr)}
+.sx .p{width:19px;height:19px;border-radius:50%;background:#fff;border:3px solid var(--ln);margin:0 auto 7px;position:relative;z-index:2}
+.sx.o .p{background:var(--gr);border-color:var(--gr)}
+.sx.n .p{background:var(--or);border-color:var(--or);box-shadow:0 0 0 4px var(--or-s)}
+.sx .l{font-size:12.5px;font-weight:600;color:var(--fnt)}
+.sx.o .l,.sx.n .l{color:var(--ink)}
+.sx .y{font-size:11.5px;color:var(--fnt)}
+
+.kv{display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--ln2);font-size:14.5px}
+.kv:last-child{border-bottom:0}
+.kv .k{width:145px;color:var(--mut);flex:none}
+.kv .v{font-weight:500}
+.tl{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--ln2);font-size:14.5px}
+.tl:last-child{border-bottom:0}
+.tl .d{width:66px;color:var(--fnt);font-size:12.5px;flex:none;padding-top:2px}
+.pr{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--ln2)}
+.pr:last-child{border-bottom:0}
+.pr img{width:40px;height:40px;border-radius:50%;flex:none}
+.pr .i{flex:1;min-width:0}
+.pr b{font-size:15px;font-weight:600;display:block}
+.pr span{font-size:13.5px;color:var(--mut)}
+.em{font-size:14.5px;color:var(--mut);padding:8px 0}
+.em a{color:var(--or);font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.nt{background:var(--soft);border-radius:11px;padding:14px 16px;font-size:13.5px;color:var(--mut);line-height:1.6;margin-top:20px}
+.tb{display:flex;gap:0;border-bottom:2px solid var(--ln2);margin:18px 0 16px;overflow-x:auto}
+.tb b{padding:9px 0;margin-right:20px;font-size:14.5px;font-weight:600;color:var(--fnt);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;cursor:pointer;min-height:42px}
+.tb b.on{color:var(--ink);border-bottom-color:var(--or)}
+.fl{display:flex;gap:7px;padding:11px 18px;border-bottom:1px solid var(--ln2);flex-wrap:wrap;flex:none}
+.sl{height:36px;padding:0 10px;border:1.5px solid var(--ln);border-radius:9px;font:inherit;font-size:13px;background:#fff;color:var(--body)}
+.thumb{width:78px;height:60px;border-radius:9px;object-fit:cover;flex:none;background:var(--soft)}
+.ban{width:100%;height:210px;border-radius:14px;object-fit:cover;background:var(--soft);display:block}
+.cov{position:relative;height:150px;border-radius:14px;overflow:hidden;margin-bottom:-46px}
+.cov img{width:100%;height:100%;object-fit:cover}
+.cov:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,10,10,.55),transparent 60%)}
+.ava-b{width:88px;height:88px;border-radius:50%;border:4px solid #fff;object-fit:cover;position:relative;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.gal img{width:100%;height:118px;object-fit:cover;border-radius:10px;background:var(--soft)}
+.pcard img{width:100%;height:132px;object-fit:cover;border-radius:11px;background:var(--soft);margin-bottom:11px}
+.ph{width:100%;height:100%;min-height:220px;display:grid;place-items:center;color:var(--fnt);font-size:14.5px;text-align:center;padding:40px}
+
+/* lưới bảng nhà (dùng hết chiều rộng) */
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.gmain{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:26px;align-items:start}
+.col{min-width:0}
+@media(max-width:1080px){.gmain{grid-template-columns:1fr}}
+.ov{position:fixed;inset:0;background:rgba(15,15,15,.5);z-index:80;display:none;overflow-y:auto;padding:40px 16px}
+.ov.on{display:block}
+.md{max-width:660px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.28);overflow:hidden}
+.mh{display:flex;align-items:flex-start;gap:14px;padding:20px 24px;border-bottom:1px solid var(--ln2)}
+.mh h3{font-size:18px}.mh .s{font-size:13px;color:var(--mut);margin-top:2px}
+.mx{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--mut);flex:none}
+.mx:hover{background:var(--soft)}
+.wz{display:flex;gap:6px;padding:14px 24px;background:var(--soft);border-bottom:1px solid var(--ln2)}
+.wz div{flex:1;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--fnt)}
+.wz div span{width:22px;height:22px;border-radius:50%;background:#fff;border:1.5px solid var(--ln);display:grid;place-items:center;font-size:11px;flex:none}
+.wz div.o span{background:var(--gr);border-color:var(--gr);color:#fff}
+.wz div.n{color:var(--ink)}.wz div.n span{background:var(--or);border-color:var(--or);color:#fff}
+.mb{padding:22px 24px;max-height:60vh;overflow-y:auto}
+.mf{padding:16px 24px;border-top:1px solid var(--ln2);display:flex;gap:9px;justify-content:flex-end;background:var(--soft)}
+.fd{margin-bottom:15px}
+.fd label{display:block;font-size:13.5px;font-weight:600;margin-bottom:6px}
+.fd .hint{font-size:12.5px;color:var(--fnt);margin-top:5px}
+.in{width:100%;min-height:44px;padding:10px 13px;border:1.5px solid var(--ln);border-radius:10px;font:inherit;font-size:14.5px;background:#fff}
+.in:focus{outline:0;border-color:var(--or)}
+textarea.in{min-height:92px;resize:vertical}
+.r2c{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.pick{display:flex;gap:11px;align-items:flex-start;border:1.5px solid var(--ln);border-radius:11px;padding:13px 15px;margin-bottom:9px;cursor:pointer}
+.pick.on{border-color:var(--or);background:var(--or-s)}
+.pick b{font-size:14.5px;display:block}.pick span{font-size:12.5px;color:var(--mut)}
+.drop{border:2px dashed var(--ln);border-radius:12px;padding:26px;text-align:center;color:var(--fnt);cursor:pointer;background:var(--soft)}
+.drop b{display:block;font-size:14.5px;color:var(--ink);margin-top:7px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;padding:10px 12px;background:var(--soft);font-size:11px;letter-spacing:.05em;color:var(--fnt);font-weight:700;white-space:nowrap}
+.tbl td{padding:11px 12px;border-top:1px solid var(--ln2);vertical-align:top}
+.tbl tr:hover td{background:var(--soft)}
+.slot{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--ln2);align-items:flex-start}
+.slot .h{width:112px;flex:none}
+.slot .h b{font-size:14px;display:block}.slot .h span{font-size:12px;color:var(--fnt)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--soft);border:1px solid var(--ln);border-radius:20px;padding:4px 10px}
+.chip img{width:19px;height:19px;border-radius:50%}
+.chip.miss{border-style:dashed;color:var(--fnt)}
+.req{color:var(--rd);font-weight:700}
+.err{font-size:12.5px;color:var(--rd);margin-top:5px;display:none}
+.fd.bad .in{border-color:var(--rd);background:var(--rd-s)}
+.fd.bad .err{display:block}
+.r3c{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+.cnt{font-size:11.5px;color:var(--fnt);text-align:right;margin-top:4px}
+.gh{background:var(--soft);border-radius:10px;padding:13px 15px;margin:14px 0}
+.gh b{font-size:13.5px;display:block;margin-bottom:5px}
+.gh div{font-size:12.5px;color:var(--mut);line-height:1.55}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumbs .t{position:relative;width:78px;height:62px;border-radius:8px;overflow:hidden;background:var(--soft)}
+.thumbs .t img{width:100%;height:100%;object-fit:cover}
+.thumbs .t i{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;font-size:11px;font-style:normal;cursor:pointer}
+.thumbs .t u{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--or);text-decoration:none;display:block}
+@media(max-width:620px){.r2c,.r3c{grid-template-columns:1fr}}
+.fbar{padding:11px 18px;border-bottom:1px solid var(--ln2);flex:none}
+.frow{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.fb{position:relative}
+.fbtn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 11px;border:1.5px solid var(--ln);border-radius:9px;font-size:13px;font-weight:500;background:#fff;color:var(--body);white-space:nowrap}
+.fbtn:hover{border-color:#CDCAC5}
+.fbtn.act{border-color:var(--or);background:var(--or-s);color:var(--or-d);font-weight:600}
+.fbtn .c{background:var(--or);color:#fff;font-size:10.5px;font-weight:700;border-radius:9px;padding:1px 6px;min-width:17px;text-align:center}
+.fpop{position:absolute;top:42px;left:0;z-index:40;background:#fff;border:1.5px solid var(--ln);border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.16);width:270px;max-height:330px;overflow-y:auto;padding:7px;display:none}
+.fpop.on{display:block}
+.fpop .hd2{display:flex;gap:8px;align-items:center;padding:7px 10px 9px;border-bottom:1px solid var(--ln2);margin-bottom:5px}
+.fpop .hd2 b{font-size:12px;letter-spacing:.06em;color:var(--fnt);flex:1}
+.fpop .hd2 a{font-size:12.5px;color:var(--or);font-weight:600;cursor:pointer}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:14px;cursor:pointer}
+.opt:hover{background:var(--soft)}
+.opt .bxx{width:19px;height:19px;border-radius:5px;border:1.5px solid var(--ln);flex:none;display:grid;place-items:center;font-size:12px;color:#fff}
+.opt.on .bxx{background:var(--or);border-color:var(--or)}
+.opt .n2{margin-left:auto;font-size:12px;color:var(--fnt)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.tagx{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:var(--or-s);border:1px solid var(--or-l);color:var(--or-d);border-radius:20px;padding:4px 8px 4px 11px;font-weight:600}
+.tagx i{font-style:normal;cursor:pointer;width:16px;height:16px;border-radius:50%;background:rgba(206,95,31,.18);display:grid;place-items:center;font-size:10px}
+.fsum{display:flex;align-items:center;gap:9px;margin-top:10px;font-size:13px;color:var(--mut)}
+.fsum b{color:var(--ink)}
+.fsum select{margin-left:auto;height:32px;border:1.5px solid var(--ln);border-radius:8px;font:inherit;font-size:12.5px;padding:0 8px;background:#fff}
+.fsch{display:flex;align-items:center;gap:9px;background:var(--soft);border:1.5px solid transparent;border-radius:10px;padding:0 12px;height:40px;margin-bottom:9px}
+.fsch:focus-within{border-color:var(--or-l);background:#fff}
+.fsch input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:14px}
+.vsw{display:flex;gap:3px;background:var(--soft);border-radius:9px;padding:3px}
+.vsw button{padding:6px 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--mut);white-space:nowrap}
+.vsw button.on{background:var(--ink);color:#fff}
+.vhint{display:flex;gap:11px;align-items:flex-start;background:var(--soft);border-left:3px solid var(--ink);border-radius:0 10px 10px 0;padding:13px 16px;margin-bottom:20px;font-size:13.5px;color:var(--mut);line-height:1.55}
+.vhint b{color:var(--ink)}
+.lock{display:flex;gap:11px;align-items:center;background:var(--soft);border:1.5px dashed var(--ln);border-radius:11px;padding:14px 16px;font-size:13.5px;color:var(--mut)}
+@media(max-width:1100px){.vsw{display:none}}
+.bx{border:1.5px solid var(--ln);border-radius:13px;padding:17px 19px}
+.bx .l{font-size:13px;color:var(--mut)}
+.bx .v{font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:3px}
+.mn{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--ln2);font-size:14.5px}
+.mn b{font-variant-numeric:tabular-nums}
+.tot{border-top:2px solid var(--ink);margin-top:5px;padding-top:12px;font-weight:700}
+.bk{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--mut);font-weight:500;min-height:38px;cursor:pointer}
+.bk:hover{color:var(--or)}
+
+/* cờ tướng */
+.xq{background:linear-gradient(#F0D4A2,#E6C288);border:3px solid #7A4E24;border-radius:9px;padding:26px;width:max-content}
+.xg{position:relative;width:432px;height:486px}
+.xl{position:absolute;inset:0}
+.xl line{stroke:#7A4E24;stroke-width:1.2}
+.xp{position:absolute;width:44px;height:44px;transform:translate(-50%,-50%);display:grid;place-items:center;cursor:pointer}
+.xc{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:19px;font-weight:800;font-family:serif;background:radial-gradient(circle at 38% 32%,#FFF8EA,#E8D0A2);border:2px solid #7A4E24;box-shadow:0 2px 3px rgba(0,0,0,.22)}
+.xc.r{color:#C0392B;border-color:#C0392B}.xc.b{color:#1A1A1A}
+.riv{position:absolute;left:0;right:0;top:216px;height:54px;display:flex;align-items:center;justify-content:space-around;color:#9A6A34;font-weight:700;font-size:14px;letter-spacing:.4em;font-family:serif}
+
+
+@media(max-width:980px){
+  .app{grid-template-columns:1fr}
+  .sb{position:fixed;left:0;top:0;bottom:0;width:266px;z-index:60;transform:translateX(-100%);transition:transform .2s}
+  .sb.op{transform:none}
+  .bg{display:grid}
+  .scr{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55;display:none}.scr.on{display:block}
+  .body.split{grid-template-columns:1fr}
+  .body.split .det{display:none}
+  .body.split.sel .list{display:none}
+  .body.split.sel .det{display:block}
+  .det,.one{padding:20px 16px 70px}
+  .g3,.g2{grid-template-columns:1fr}
+  .who i{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="scr" id="scr" onclick="sbCl()"></div>
+<div class="ov" id="ov" onclick="if(event.target===this)dong()"></div>
+<div class="app">
+  <aside class="sb" id="sb">
+    <div class="sbh"><div class="mk">86</div><div><b>Nhà Chung 86</b><i>BÍNH DẦN 1986</i></div></div>
+    <nav class="sbn" id="nav"></nav>
+    <div class="sbm"><img src="https://i.pravatar.cc/80?img=13" alt=""><div><b>Nguyễn Việt</b><i>Xã Bắc Thái Ninh</i></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="ib bg" onclick="sbOp()" aria-label="Menu"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="sch"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8B8B8B" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input placeholder="Tìm người, nghề, việc..."></div>
+      <div style="flex:1"></div>
+      <div class="vsw" id="vsw"></div>
+      <button class="bt p s" onclick="mo('taoviec')" id="qa">+ Đăng việc</button>
+      <button class="ib" onclick="go('thongbao')" aria-label="Thông báo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="b">2</span></button>
+      <button class="ib" onclick="go('tinnhan')" aria-label="Tin nhắn"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="who" onclick="go('hoso')"><img src="https://i.pravatar.cc/80?img=13" alt=""><div><b>Nguyễn Việt</b><i>Thành viên</i></div></button>
+    </header>
+    <div class="body" id="body"></div>
+  </div>
+</div>
+<script>
+const P={ck:'<path d="M20 6 9 17l-5-5"/>',hm:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',us:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',wk:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',cl:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',cn:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 10h5M9.5 14h5"/>',pf:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',sh:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',hr:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',im:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',gd:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',st:'<path d="M12 2l3 6.5 7 .9-5 4.9 1.2 7-6.2-3.4L5.8 21 7 14.3 2 9.4l7-.9z"/>',ar:'<path d="M5 12h14M12 5l7 7-7 7"/>',lf:'<path d="M19 12H5M12 19l-7-7 7-7"/>',bk:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',lk:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'};
+const ic=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[n]||''}</svg>`;
+const av=n=>`https://i.pravatar.cc/160?img=${n}`;
+const U='https://images.unsplash.com/photo-';
+const PIC={
+ tho:U+'1621905251189-08b45d6a269e?auto=format&fit=crop&w=900&q=70',
+ xay:U+'1738440618035-ee494c4e66ee?auto=format&fit=crop&w=900&q=70',
+ que:U+'1743485754031-a674557a83cf?auto=format&fit=crop&w=1400&q=70',
+ nguoi:U+'1758272133786-ee98adcc6837?auto=format&fit=crop&w=900&q=70',
+ nghe:U+'1758611971270-89ce7ed506e1?auto=format&fit=crop&w=900&q=70'};
+const PL=[PIC.tho,PIC.xay,PIC.nguoi,PIC.nghe,PIC.que];
+
+const NAV_=()=>[
+ {items:[{r:'viec',l:'Việc của tôi',i:'ck',n:2},{r:'nha',l:'Bảng nhà',i:'hm'}]},
+ {g:'NGƯỜI',items:[{r:'nguoi',l:'Con người',i:'us',n:52},{r:'nangluc',l:'Năng lực',i:'st',n:148}]},
+ {g:'LÀM VIỆC',items:[{r:'viechoi',l:'Việc trong Hội',i:'wk',n:6},{r:'giup',l:'Giúp nhau',i:'hr',n:5},{r:'hoatdong',l:'Hoạt động',i:'cl',dt:1}]},
+ {g:'MINH BẠCH',items:[{r:'quy',l:'Quỹ Hội',i:'cn'},{r:'kyuc',l:'Ký ức',i:'im'}]},
+ {g:'GIẢI TRÍ',items:[{r:'co',l:'Cờ tướng',i:'gd'}]},
+ {items:[{r:'hoso',l:'Hồ sơ của tôi',i:'pf'}]},
+ ...(co('duyetBai')||co('ghiSoQuy')||co('xemNhatKy')||co('doiQuyen')?[{g:'VẬN HÀNH',items:[
+   ...(co('duyetBai')?[{r:'duyet',l:'Duyệt & kiểm duyệt',i:'sh',n:3}]:[]),
+   ...(co('ghiSoQuy')?[{r:'soquy',l:'Sổ quỹ nội bộ',i:'cn',n:1}]:[]),
+   ...(co('xemNhatKy')?[{r:'nhatky',l:'Nhật ký',i:'bk'}]:[]),
+   ...(co('doiQuyen')?[{r:'quyen',l:'Quyền tài khoản',i:'lk'}]:[])
+ ]}]:[])
+];
+
+const JOBS=[
+ {id:1,pic:'tho',t:'Cần 2 thợ ốp lát làm dài hạn',k:'Có trả công',ar:'Xã Bắc Thái Ninh',ng:'Xây dựng — hoàn thiện',py:'Tính theo mét vuông',by:'Đỗ Văn Sơn',a:12,s:'Đang mở',d:2,sp:1,ap:0,urg:1,
+  bd:'Công trình nhà dân hai tầng, phần ốp lát khoảng 3 tuần. Cần một tổ 2–3 người làm được liên tục. Vật tư chủ nhà lo, chỉ tính công.',wn:'Ngõ nhỏ, xe tải không vào tận nơi, phải chuyển vật tư khoảng 40 m.',
+  turn:{me:1,q:'Anh Sơn đang chờ bạn trả lời có nhận việc này không',d:'Hạn: thứ Sáu 22-08 · còn 3 ngày',a:[['Tôi nhận việc','p','mo(\'nhanviec\')'],['Lần này tôi bận','']]},
+  ev:[['16-08','Anh Sơn gửi việc tới 7 người đúng nghề, gần khu vực'],['14-08','Đỗ Văn Sơn đăng việc']],pp:[[12,'Đỗ Văn Sơn','Người đăng việc','']]},
+ {id:2,pic:'xay',t:'Cần người chở đồ giúp chuyển nhà',k:'Nhờ giúp',ar:'Xã Yên Mỹ',ng:'Vận tải, chở hàng',py:'Không trả công',by:'Trần Thị Lan',a:5,s:'Có người nhận',d:4,sp:2,ap:2,
+  bd:'Nhà chuyển từ khu 5 sang khu 4, đồ đạc một chuyến xe tải nhỏ là hết. Cần thêm hai người phụ khiêng đồ nặng.',wn:'Sáng chủ nhật 24-08, khoảng 3 tiếng.',
+  turn:{q:'Đang chờ anh Phạm Văn Dũng xác nhận giờ lấy xe',d:'Hạn: 22-08 · còn 2 ngày',a:[['Nhắc anh Dũng một lần','']]},
+  ev:[['18-08','Nguyễn Văn Sáng nhận khiêng đồ'],['17-08','Phạm Văn Dũng nhận chở xe'],['16-08','Trần Thị Lan đăng việc']],pp:[[5,'Trần Thị Lan','Người nhờ',''],[33,'Phạm Văn Dũng','Chở xe','g'],[47,'Nguyễn Văn Sáng','Khiêng đồ','g']]},
+ {id:3,pic:'nguoi',t:'Góp sách vở đầu năm học cho các cháu',k:'Việc của Hội',ar:'TP. Hưng Yên',ng:'Nghề khác',py:'Việc chung',by:'Ban điều hành',a:33,s:'Đang làm',d:9,sp:3,ap:14,
+  bd:'Gom sách giáo khoa, truyện thiếu nhi còn tốt để lập tủ sách cho các cháu trong xã. Nhận đến hết tháng 8.',wn:'',
+  turn:{q:'Đang gom sách, 14 người đã góp',d:'Đến 31-08 · còn 9 ngày',a:[['Tôi cũng góp','p']]},
+  ev:[['20-08','Đã gom được 86 quyển'],['10-08','Ban điều hành mở việc']],pp:[[33,'Ban điều hành','Điều phối','']]},
+ {id:4,pic:'nghe',t:'Tuyển kế toán bán thời gian',k:'Có trả công',ar:'Khu trung tâm',ng:'Kế toán, thuế',py:'3 buổi mỗi tuần',by:'Trần Thị Lan',a:5,s:'Đang mở',d:5,sp:1,ap:1,
+  bd:'Cửa hàng vật liệu cần người làm sổ sách, 3 buổi mỗi tuần. Ưu tiên người trong Hội.',wn:'',
+  turn:{q:'Đang chờ thêm người nhận',d:'Hạn nhận: 27-08 · còn 5 ngày',a:[['Tôi nhận việc','p']]},
+  ev:[['19-08','Trần Thị Lan đăng việc']],pp:[[5,'Trần Thị Lan','Người đăng việc','']]},
+];
+const PEOPLE=[
+ {id:1,n:'Đỗ Văn Sơn',j:'Điện nước dân dụng',ar:'Xã Bắc Thái Ninh',ng:'Điện — nước dân dụng',s:'Nhận việc',w:4,a:12,by:'Phạm Văn Dũng',jn:'07-2026',
+  bd:'Nhận sửa chập cháy, thay đường nước, lắp điện nhà mới và kéo lại hệ thống cho xưởng nhỏ. Khảo sát trước rồi báo giá, báo thế nào làm thế ấy.',
+  sk:['Sửa chữa điện nước dân dụng','Lắp điện nhà mới','Kéo lại hệ thống điện xưởng'],
+  wk:[['08-2026','Sửa hệ thống điện xưởng may — chị Trần Thị Lan xác nhận'],['07-2026','Lắp điện nhà mới hai tầng — anh Nguyễn Hữu Tuấn xác nhận']]},
+ {id:2,n:'Mai Văn Khánh',j:'Ốp lát, hoàn thiện',ar:'Xã Yên Mỹ',ng:'Xây dựng — hoàn thiện',s:'Nhận việc',w:6,a:52,by:'Phạm Văn Dũng',jn:'05-2026',
+  bd:'Ốp lát sàn tường 12 năm, cán nền chống thấm, dẫn tổ 3–5 người. Nhận việc dài ngày, làm liên tục.',
+  sk:['Ốp lát sàn, tường','Cán nền, chống thấm','Dẫn tổ 3–5 người'],
+  wk:[['09-2026','Ốp lát nhà hai tầng — anh Đỗ Văn Sơn xác nhận'],['06-2026','Cán nền sân thượng — chị Lan xác nhận']]},
+ {id:3,n:'Trần Thị Lan',j:'Cửa hàng vật liệu',ar:'Xã Văn Giang',ng:'Nghề khác',s:'Nhận việc',w:3,a:5,by:'Lê Quang Minh',jn:'04-2026',
+  bd:'Bán gạch, xi măng, sắt thép. Giao trong khu vực trong ngày. Cho anh em trong Hội mượn giàn giáo không lấy phí.',
+  sk:['Vật liệu xây dựng','Cho mượn giàn giáo','Thiết bị điện, dây dẫn'],wk:[['08-2026','Cấp vật liệu công trình anh Sơn — hai bên xác nhận']]},
+ {id:4,n:'Phạm Văn Dũng',j:'Vận tải hàng hóa',ar:'Xã Khoái Châu',ng:'Vận tải, chở hàng',s:'Bận đến cuối tuần',w:5,a:33,by:'—',jn:'03-2026',
+  bd:'Xe tải 1,5 tấn, chạy tuyến liên tỉnh. Cho anh em mượn xe khi cần chuyển nhà.',sk:['Chở hàng tuyến liên tỉnh','Cho mượn xe tải 1,5 tấn'],
+  wk:[['08-2026','Chở đồ giúp chuyển nhà — chị Lan xác nhận']]},
+ {id:5,n:'Ngô Thị Hiền',j:'Nấu cỗ, tiệc tại nhà',ar:'Xã Phù Cừ',ng:'Thực phẩm, nấu cỗ',s:'Nhận việc',w:2,a:47,by:'Trần Thị Lan',jn:'06-2026',
+  bd:'Nhận đặt cỗ từ 5 mâm, báo trước ba ngày. Nấu giúp khi nhà có việc, không lấy công.',sk:['Nấu cỗ, tiệc tại nhà','Nấu giúp khi nhà có việc'],wk:[]},
+];
+const AID=[
+ {id:1,t:'Một gia đình cần người trông cụ nằm viện',s:'Gấp',d:'Ba ngày cuối tuần · Ban điều hành giữ kín danh tính',urg:1,turn:{q:'Chưa ai nhận. Ban điều hành đang tìm người',d:'Rất gấp · quá hạn 6 giờ',a:[['Tôi nhận trông một ca','p']]}},
+ {id:2,t:'Cần người biết chữ Hán đọc giúp gia phả',s:'Không gấp',d:'Ai rảnh thì nhận',turn:{q:'Chưa ai nhận sau 9 ngày',d:'Không có hạn',a:[['Tôi nhận','p']]}},
+ {id:3,t:'Nhờ tìm chỗ học nghề cho một cháu vừa nghỉ học',s:'Có hẹn',d:'Gia đình đồng ý công khai việc này',turn:{q:'Anh Sơn đang hỏi mấy xưởng quen',d:'Còn 3 ngày',a:[['Tôi biết một chỗ','p']]}},
+];
+const ACTS=[
+ {id:1,pic:'que',t:'Gặp mặt quý III',dt:'14-09 · 18:00',pl:'Nhà hàng Sông Quê',s:'23 nhận lời',
+  turn:{me:1,q:'Anh có tới được không?',d:'Hạn trả lời 08-09 · còn 5 ngày',a:[['Tôi tới','p'],['Lần này tôi bận',''],['Chưa chắc','']]},
+  tk:[['Đặt bàn và chốt món','chưa có ai'],['Thu tiền góp và ghi sổ','chưa có ai'],['Chụp ảnh và giữ ảnh','chưa có ai'],['Đón anh em mới','Trần Thị Lan']]},
+ {id:2,pic:'nguoi',t:'Thăm gia đình anh Bình',dt:'20-09 · 09:00',pl:'Nhà anh Bình',s:'9 nhận lời',
+  turn:{me:1,q:'Anh có đi cùng không?',d:'Gia đình có việc buồn',a:[['Tôi đi','p'],['Tôi không đi được','']]},tk:[['Chuẩn bị quà','Trần Thị Lan']]},
+ {id:3,pic:'nghe',t:'Gặp mặt quý II',dt:'21-06 · đã xong',pl:'31 người dự',s:'Đã tổng kết',
+  turn:{k:1,q:'Đã tổng kết thu chi công khai',d:'Chi 7.640.000 đ · còn thừa 360.000 đã nộp lại quỹ',a:[['Xem tổng kết','']]},tk:[]},
+];
+/* ============ VAI VÀ QUYỀN ============ */
+const ROLES=[
+ {k:'tv', l:'Thành viên', s:'TV', d:'Đăng việc, nhận việc, mời người mới — bài quan trọng phải qua duyệt'},
+ {k:'bdh',l:'Ban điều hành', s:'BĐH', d:'Duyệt bài, duyệt thành viên mới, chế tài — không giữ tiền'},
+ {k:'tq', l:'Thủ quỹ', s:'TQ', d:'Giữ tiền, ghi sổ quỹ, đối soát — không duyệt thành viên'},
+ {k:'kt', l:'Kỹ thuật', s:'KT', d:'Sao lưu, khôi phục, đổi quyền tài khoản — không xem nội dung riêng tư'}
+];
+/* Ai làm được gì. Mỗi dòng là một hành động thật trong app. */
+const CAN={
+ dangViec:      ['tv','bdh','tq','kt'],
+ nhanViec:      ['tv','bdh','tq','kt'],
+ moiNguoiMoi:   ['tv','bdh','tq','kt'],
+ duyetBai:      ['bdh'],
+ duyetThanhVien:['bdh'],
+ cheTai:        ['bdh'],
+ ghiSoQuy:      ['tq'],
+ duyetChiLon:   ['bdh','tq'],
+ xemNhatKy:     ['bdh','kt'],
+ doiQuyen:      ['kt'],
+ saoLuu:        ['kt']
+};
+const co=a=>CAN[a]&&CAN[a].includes(S.vai);
+const aiLam=a=>(CAN[a]||[]).map(k=>ROLES.find(r=>r.k===k).l).join(', ');
+const vaiNow=()=>ROLES.find(r=>r.k===S.vai)||ROLES[0];
+
+const CHO_DUYET=[
+ {id:101,t:'Cần 5 người phụ dựng rạp đám hiếu nhà bác Tư',by:'Đỗ Văn Sơn',a:12,when:'2 giờ trước',ly:'Việc hiếu — quy chế bắt duyệt trước khi gửi cả Hội',u:1},
+ {id:102,t:'Nhận đặt cỗ cưới, tiệc tại nhà',by:'Ngô Thị Hiền',a:47,when:'hôm qua',ly:'Bài có tính chào mời dịch vụ — duyệt để tránh biến thành chợ'},
+ {id:103,t:'Mời anh Trần Văn Hùng vào Hội',by:'Nguyễn Việt',a:13,when:'hôm qua',ly:'Người mới — cần Ban điều hành duyệt sau khi người bảo lãnh xác nhận gặp mặt',nm:1}
+];
+const S={vai:'tv',r:'viec',id:null,tab:0,wz:1,pop:null,
+ f:{q:'',nghe:[],kv:[],loai:[],tt:[],khan:[],sort:'moi'}};
+
+/* ============ BỘ LỌC ============ */
+const FSET={
+ nghe:{l:'Nghề',o:[['Xây dựng — hoàn thiện',14],['Điện — nước dân dụng',9],['Cơ khí, cửa sắt',6],['Vận tải, chở hàng',7],['Kế toán, thuế',4],['Thực phẩm, nấu cỗ',7],['Dạy kèm, đào tạo',5],['Tư vấn pháp lý',2],['Nông nghiệp',5],['May mặc',4],['Y tế, sức khoẻ',3],['Nghề khác',6]]},
+ kv:{l:'Khu vực',o:[['Xã Bắc Thái Ninh',8],['Xã Yên Mỹ',6],['Xã Khoái Châu',5],['Xã Ân Thi',4],['Xã Kim Động',4],['Xã Phù Cừ',3],['Xã Tiên Lữ',3],['Xã Văn Giang',5],['Xã Tân Hưng',4],['Xã Bảo Khê',3],['TP. Hưng Yên',5],['Khu trung tâm',2]]},
+ loai:{l:'Loại việc',o:[['Có trả công',3],['Nhờ giúp',2],['Việc của Hội',1]]},
+ tt:{l:'Trạng thái',o:[['Đang mở',2],['Có người nhận',1],['Đang làm',1],['Xong',0]]},
+ khan:{l:'Mức khẩn',o:[['Gấp',1],['Có hẹn',1],['Không gấp',1]]}
+};
+const SORTS={moi:'Mới nhất',han:'Sắp hết hạn',gan:'Gần tôi nhất',it:'Ít người nhận nhất'};
+
+function fpop(k){S.pop=S.pop===k?null:k;paint()}
+function fpick(k,v){const a=S.f[k];const i=a.indexOf(v);i<0?a.push(v):a.splice(i,1);paint()}
+function fclear(k){if(k){S.f[k]=[]}else{S.f={q:'',nghe:[],kv:[],loai:[],tt:[],khan:[],sort:S.f.sort}}S.pop=null;paint()}
+function fsort(v){S.f.sort=v;paint()}
+function fq(v){S.f.q=v;paint()}
+const fcount=()=>['nghe','kv','loai','tt','khan'].reduce((n,k)=>n+S.f[k].length,0);
+
+function filterBar(keys,total,shown){
+ return `<div class="fbar">
+  <div class="fsch">${ic('' ,0)}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B8B8B" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+   <input placeholder="Tìm trong danh sách..." value="${S.f.q}" oninput="fq(this.value)">
+   ${S.f.q?`<button class="mx" style="width:26px;height:26px" onclick="fq('')">✕</button>`:''}</div>
+  <div class="frow">
+   ${keys.map(k=>{const F=FSET[k],n=S.f[k].length;return `<div class="fb">
+    <button class="fbtn ${n?'act':''}" onclick="event.stopPropagation();fpop('${k}')">${F.l}${n?`<span class="c">${n}</span>`:''} <span style="font-size:10px;color:var(--fnt)">▾</span></button>
+    <div class="fpop ${S.pop===k?'on':''}" onclick="event.stopPropagation()">
+     <div class="hd2"><b>CHỌN NHIỀU ĐƯỢC</b>${n?`<a onclick="fclear('${k}')">Bỏ chọn</a>`:''}</div>
+     ${F.o.map(o=>`<div class="opt ${S.f[k].includes(o[0])?'on':''}" onclick="fpick('${k}','${o[0]}')"><span class="bxx">${S.f[k].includes(o[0])?'✓':''}</span><span>${o[0]}</span><span class="n2">${o[1]}</span></div>`).join('')}
+    </div></div>`}).join('')}
+   ${fcount()?`<button class="fbtn" onclick="fclear()" style="color:var(--rd);border-color:var(--rd-s)">Xoá hết lọc</button>`:''}
+  </div>
+  ${fcount()?`<div class="tags">${keys.flatMap(k=>S.f[k].map(v=>`<span class="tagx">${v}<i onclick="fpick('${k}','${v}')">✕</i></span>`)).join('')}</div>`:''}
+  <div class="fsum">Hiện <b>${shown}</b> trên ${total}${fcount()?` · lọc theo ${fcount()} điều kiện`:''}
+   <select onchange="fsort(this.value)">${Object.entries(SORTS).map(([k,v])=>`<option value="${k}" ${S.f.sort===k?'selected':''}>Sắp: ${v}</option>`).join('')}</select></div>
+ </div>`;
+}
+function applyF(items,get){
+ return items.filter(x=>{
+  const g=get(x);
+  if(S.f.q && !(g.text||'').toLowerCase().includes(S.f.q.toLowerCase())) return false;
+  for(const k of ['nghe','kv','loai','tt','khan']){
+   if(S.f[k].length && !S.f[k].includes(g[k])) return false;
+  }
+  return true;
+ });
+}
+const V={};
+
+/* ---------- HAI KHUNG ---------- */
+function split(cfg){
+  const sel=cfg.items.find(x=>x.id===S.id)||cfg.items[0];
+  return `<div class="pane list">
+    <div class="lh"><h2>${cfg.title}</h2><div class="s">${cfg.sub}</div></div>
+    ${cfg.fbar||''}
+    <div class="lb">${cfg.items.map(x=>cfg.row(x,sel&&x.id===sel.id)).join('')}</div>
+  </div>
+  <div class="pane det">${sel?cfg.detail(sel):`<div class="ph">Chọn một mục bên trái để xem chi tiết</div>`}</div>`;
+}
+const turnBox=t=>!t?'':`<div class="tn ${t.me?'':t.k?'k':'w'}">
+  <div class="l">${t.me?'ĐẾN LƯỢT BẠN':t.k?'ĐÃ XONG':'ĐANG CHỜ'}</div>
+  <div class="q">${t.q}</div><div class="d">${t.d}</div>
+  <div class="a">${t.a.map(a=>`<button class="bt ${a[1]} s" onclick="${a[2]||`alert('${a[0]}')`}">${a[0]}</button>`).join('')}</div></div>`;
+const steps=n=>{const L=['Đang mở','Có người nhận','Đang làm','Xong'];return `<div class="st">${L.map((l,i)=>`<div class="sx ${i+1<n?'o':i+1===n?'n':''}"><div class="p"></div><div class="l">${l}</div></div>`).join('')}</div>`;};
+
+/* ---------- MÀN ---------- */
+V.viec=()=>{const need=[{id:9,t:'Anh Dũng xin xem số điện thoại của bạn',r2:'Trả lời đồng ý hoặc từ chối',tg:'còn 2 ngày',u:1},{id:8,t:'Xác nhận bạn đã gặp mặt anh Bùi Đức Thắng',r2:'Anh Thắng đang chờ để vào Hội',tg:'còn 6 ngày'}];
+ const mine=JOBS.filter(j=>[1,4].includes(j.id));
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Việc của tôi</h1><div class="sub">Việc gấp xếp lên trước.</div></div></div>
+ ${vhint()}
+ <div class="sc">CẦN BẠN LÀM <i>2</i></div>
+ <div class="g2">${need.map(n=>`<button class="bx" style="border-color:var(--or-l);background:var(--or-s)" onclick="go('viechoi',1)">
+   <div style="display:flex;gap:9px;align-items:flex-start"><div class="sp"><b style="font-size:15.5px">${n.t}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${n.r2}</div></div><span class="tg ${n.u?'r':'o'}">${n.tg}</span></div></button>`).join('')}</div>
+ <div class="sc">BẠN ĐANG CHỜ NGƯỜI KHÁC <i>2</i></div>
+ <div class="g2">${mine.map(j=>`<button class="bx" onclick="go('viechoi',${j.id})"><div style="display:flex;gap:9px"><div class="sp"><b style="font-size:15.5px">${j.t}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${j.s} · ${j.ap?j.ap+' người đã nhận':'chưa ai nhận'} · còn ${j.d} ngày</div></div>${ic('ar',18)}</div></button>`).join('')}</div>
+ ${S.vai==='tv'?`<div class="sc">BÀI CỦA BẠN ĐANG CHỜ DUYỆT <i>1</i></div>
+ <div class="bx" style="border-color:var(--ln);background:var(--soft)">
+  <div style="display:flex;gap:12px"><div class="sp"><b style="font-size:15.5px">Mời anh Trần Văn Hùng vào Hội</b>
+   <div style="font-size:13.5px;color:var(--mut);margin-top:4px">Anh đã xác nhận gặp mặt · đang chờ Ban điều hành duyệt</div>
+   <div style="font-size:12.5px;color:var(--fnt);margin-top:5px">Gửi hôm qua · hạn xử lý 7 ngày</div></div><span class="tg o">Chờ duyệt</span></div>
+  <div class="row" style="margin-top:11px"><button class="bt s" onclick="alert('Xem lại nội dung')">Xem lại</button><button class="bt s" onclick="xoa('lời mời này')">Rút lại</button></div></div>`:''}
+ <div class="sc">BẠN ĐANG THAM GIA</div><div class="em">Chưa nhận việc nào. <a onclick="go('viechoi')">Xem việc đang cần người →</a></div>
+ <div class="sc">VIỆC BẠN ĐÃ LÀM XONG <i>4</i></div>
+ <div class="tl"><span class="d">08-2026</span><span>Sửa hệ thống điện xưởng may — chị Lan xác nhận</span></div>
+ <div class="tl"><span class="d">07-2026</span><span>Lắp điện nhà mới hai tầng — anh Tuấn xác nhận</span></div></div>`;};
+
+V.nha=()=>`<div class="one wide">
+ <div style="position:relative;border-radius:16px;overflow:hidden;height:170px;margin-bottom:22px">
+  <img src="${PIC.que}" style="width:100%;height:100%;object-fit:cover" alt="">
+  <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,12,12,.82),rgba(12,12,12,.18))"></div>
+  <div style="position:absolute;left:28px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;color:#fff">
+   <h1 style="color:#fff;font-size:27px">Chào anh Việt</h1>
+   <div style="font-size:15px;color:rgba(255,255,255,.88);margin-top:5px">Hôm nay Hội có 3 việc mới và 2 việc đang chờ anh.</div></div></div>
+ <div class="g4" style="margin-top:20px">
+  <div class="bx"><div class="l">Việc chờ bạn</div><div class="v" style="color:var(--or)">2</div></div>
+  <div class="bx"><div class="l">Thành viên</div><div class="v">52</div></div>
+  <div class="bx"><div class="l">Việc đang mở</div><div class="v">6</div></div>
+  <div class="bx"><div class="l">Quỹ Hội</div><div class="v" style="font-size:21px">18.310.000 đ</div></div>
+ </div>
+ <div class="gmain" style="margin-top:24px">
+  <div class="col">
+   <div class="sc" style="margin-top:0">CẦN BẠN LÀM <i>2</i></div>
+   <div class="g2">
+    ${[['Anh Dũng xin xem số điện thoại','Còn 2 ngày để trả lời'],['Xác nhận đã gặp mặt anh Thắng','Còn 6 ngày']].map(n=>`<button class="bx" style="border-color:var(--or-l);background:var(--or-s)" onclick="go('viec')"><b style="font-size:15.5px">${n[0]}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${n[1]}</div></button>`).join('')}
+   </div>
+   <div class="sc">VIỆC MỚI TRONG HỘI <i>3</i></div>
+   <div class="g2">
+    ${JOBS.slice(0,3).map(j=>`<button class="bx" onclick="go('viechoi',${j.id})"><div style="display:flex;gap:8px"><b class="sp" style="font-size:15px">${j.t}</b><span class="tg ${j.s==='Đang mở'?'':'g'}">${j.s}</span></div><div style="font-size:13px;color:var(--mut);margin-top:4px">${j.k} · ${j.ar} · còn ${j.d} ngày</div></button>`).join('')}
+   </div>
+   <div class="sc">GẦN ĐÂY TRONG HỘI</div>
+   <div class="tl"><span class="d">Hôm nay</span><span>Mai Văn Khánh nhận việc ốp lát của anh Sơn</span></div>
+   <div class="tl"><span class="d">Hôm qua</span><span>Ngô Thị Hiền công bố năng lực mới: nhận đặt cỗ</span></div>
+   <div class="tl"><span class="d">2 ngày</span><span>Quỹ quý III đã công bố · còn thừa 360.000 nộp lại</span></div>
+  </div>
+  <div class="col">
+   <div class="sc" style="margin-top:0">HOẠT ĐỘNG SẮP TỚI</div>
+   ${ACTS.slice(0,2).map(a=>`<button class="bx" style="width:100%;margin-bottom:11px" onclick="go('hoatdong',${a.id})"><b style="font-size:15.5px">${a.t}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${a.dt} · ${a.pl}</div><span class="tg g" style="margin-top:9px;display:inline-block">${a.s}</span></button>`).join('')}
+   <div class="sc">HỘI ĐANG THIẾU</div>
+   ${[['Thợ ốp lát nhận việc dài hạn','3 người hỏi trong tháng'],['Người biết làm hồ sơ vay ngân hàng','2 người hỏi'],['Khu vực 7 chưa có ai làm điện nước','khoảng trống']].map(x=>`<div style="padding:9px 0;border-bottom:1px solid var(--ln2)"><b style="font-size:14px;font-weight:600">${x[0]}</b><div style="font-size:12.5px;color:var(--fnt);margin-top:2px">${x[1]}</div></div>`).join('')}
+   <button class="bt f" style="margin-top:13px" onclick="go('nangluc')">Xem năng lực của Hội</button>
+  </div>
+ </div></div>`;
+
+V.viechoi=()=>{const L=applyF(JOBS,j=>({text:j.t+' '+j.by+' '+j.ar+' '+j.ng,nghe:j.ng,kv:j.ar,loai:j.k,tt:j.s}));
+ return split({title:'Việc trong Hội',sub:'6 việc · ai cần người, ai nhận việc',items:L.length?L:JOBS,
+ fbar:filterBar(['loai','nghe','kv','tt'],JOBS.length,L.length),
+ row:(j,on)=>`<button class="it ${on?'on':''} ${j.urg?'urg':''}" onclick="go('viechoi',${j.id})"><div style="display:flex;gap:12px"><img class="thumb" src="${PIC[j.pic]}" alt=""><div style="flex:1;min-width:0"><div class="r1"><span class="t">${j.t}</span><span class="tg ${j.s==='Đang mở'?'':'g'}">${j.s}</span></div><div class="r2">${j.k} · ${j.ar} · còn ${j.d} ngày</div><div class="r3"><img src="${av(j.a)}" alt="">${j.by} · ${j.ap?j.ap+' người đã nhận':'chưa ai nhận'}</div></div></div></button>`,
+ detail:j=>`<img class="ban" src="${PIC[j.pic]}" alt="" style="margin-bottom:18px">
+  <div class="hd"><div class="sp"><h1>${j.t}</h1><div class="sub">${j.by} đăng · ${j.k}</div></div><button class="bt s" onclick="alert('Chia sẻ')">Chia sẻ</button></div>
+  ${steps(j.sp)}${turnBox(j.turn)}
+  <div class="sc">NỘI DUNG</div><p style="font-size:15px;line-height:1.65;color:var(--body)">${j.bd}</p>
+  <div style="margin-top:16px"><div class="kv"><span class="k">Khu vực</span><span class="v">${j.ar}</span></div><div class="kv"><span class="k">Trả công</span><span class="v">${j.py}</span></div>${j.wn?`<div class="kv"><span class="k">Cần nói trước</span><span class="v">${j.wn}</span></div>`:''}</div>
+  <div class="sc">AI ĐANG THAM GIA <i>${j.pp.length}</i></div>
+  ${j.pp.map(p=>`<div class="pr"><img src="${av(p[0])}" alt=""><div class="i"><b>${p[1]}</b><span>${p[2]}</span></div>${p[3]?'<span class="tg g">Đã nhận</span>':''}</div>`).join('')}
+  <div class="sc">ĐÃ XẢY RA</div>${j.ev.map(e=>`<div class="tl"><span class="d">${e[0]}</span><span>${e[1]}</span></div>`).join('')}
+  <div class="sc">ẢNH KÈM THEO <i>do người đăng gửi</i></div>
+  <div class="gal">${PL.slice(0,3).map(u=>`<img src="${u}" alt="">`).join('')}</div>
+  <div class="sc">TRAO ĐỔI</div>
+  <div class="sch" style="max-width:none;height:44px"><input placeholder="Nhắn cho những người trong việc này..."><button class="bt p s">Gửi</button></div>
+  <div class="row" style="margin-top:10px"><button class="bt s" onclick="alert('Mở Zalo')">Nhắn Zalo</button><button class="bt s" onclick="alert('Gọi 09•• ••• 638')">Gọi điện</button></div>
+  <div class="nt">Nhà Chung chỉ ghi lại việc. Giá cả và tiến độ là thỏa thuận riêng giữa hai bên — nền tảng không giữ tiền, không đứng giữa.</div>`})};
+
+V.nguoi=()=>{const L=applyF(PEOPLE,p=>({text:p.n+' '+p.j+' '+p.ar+' '+p.ng,nghe:p.ng,kv:p.ar}));
+ return split({title:'Con người',sub:'52 thành viên · hiện theo mức mỗi người cho phép',items:L.length?L:PEOPLE,
+ fbar:filterBar(['nghe','kv'],PEOPLE.length,L.length),
+ row:(p,on)=>`<button class="it ${on?'on':''}" onclick="go('nguoi',${p.id})"><div class="r1"><img src="${av(p.a)}" style="width:34px;height:34px;border-radius:50%" alt=""><span class="t">${p.n}</span><span class="tg ${p.s==='Nhận việc'?'g':''}">${p.s}</span></div><div class="r2" style="margin-left:43px">${p.j} · ${p.ar}</div><div class="r3" style="margin-left:43px">Đã làm ${p.w} việc trong Hội</div></button>`,
+ detail:p=>`<div class="cov"><img src="${PL[(p.id-1)%PL.length]}" alt=""></div>
+  <div style="display:flex;gap:17px;align-items:flex-end;padding-left:6px"><img class="ava-b" src="${av(p.a)}" alt="">
+  <div class="sp"><h1>${p.n}</h1><div class="sub">${p.j} · ${p.ar}</div>
+   <div style="margin-top:9px"><span class="tg ${p.s==='Nhận việc'?'g':''}">${p.s}</span></div>
+   <div style="font-size:13.5px;color:var(--fnt);margin-top:9px">Vào Hội ${p.jn}${p.by!=='—'?` · ${p.by} đưa vào`:''} · đã làm ${p.w} việc</div>
+   <div class="row" style="margin-top:13px"><button class="bt p" onclick="alert('Đã gửi lời xin. ${p.n} sẽ trả lời.')">Xin xem số điện thoại</button><button class="bt" onclick="go('tinnhan')">Nhắn tin</button><button class="bt" onclick="alert('Mời vào việc')">Mời vào một việc</button></div></div></div>
+  <div class="sc">LÀM ĐƯỢC GÌ</div><p style="font-size:15px;line-height:1.65;color:var(--body)">${p.bd}</p>
+  <div class="g3" style="margin-top:14px">${p.sk.map((s,i)=>`<div class="bx pcard" style="padding:13px"><img src="${PL[i%PL.length]}" alt=""><b style="font-size:14.5px">${s}</b></div>`).join('')}</div>
+  <div style="margin-top:16px"><div class="kv"><span class="k">Khu vực nhận</span><span class="v">${p.ar} và lân cận</span></div><div class="kv"><span class="k">Số điện thoại</span><span class="v" style="color:var(--mut)">09•• ••• 638 — cần ${p.n} đồng ý</span></div></div>
+  <div class="sc">VIỆC ĐÃ LÀM TRONG HỘI <i>hai bên cùng xác nhận</i></div>
+  ${p.wk.length?p.wk.map(w=>`<div class="tl"><span class="d">${w[0]}</span><span>${w[1]}</span></div>`).join(''):'<div class="em">Chưa có việc nào được ghi vào sổ.</div>'}
+  <div class="nt">Hội xác minh ${p.n} là người thật và do ai đưa vào. Hội không xác minh tay nghề — điều đó anh chị tự xem và tự quyết.</div>`})};
+
+V.nangluc=()=>{const C=[['Chuyên môn nghề',62,['Điện — nước dân dụng · 9 người','Xây dựng, sửa chữa · 14 người','Cơ khí, cửa sắt · 6 người','Kế toán, thuế · 4 người','Dạy kèm, đào tạo · 5 người','Thực phẩm, nấu cỗ · 7 người']],['Phương tiện',28,['Xe tải 1,5 tấn · 3 xe','Xe bán tải · 2 xe','Máy trộn bê tông · 2 máy','Giàn giáo, cốp pha · 4 bộ','Xe khách 16 chỗ · 1 xe']],['Mặt bằng, kho bãi',11,['Kho chứa hàng khô · 3 kho','Xưởng cơ khí · 2 xưởng','Bếp làm cỗ · 2 bếp','Nhà kho lạnh · 1 kho']],['Thời gian đóng góp',47,['Cuối tuần · 19 người','Buổi tối trong tuần · 12 người','Nhận việc gấp · 14 người','Dạy nghề cho con em · 6 người']]];
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Năng lực của Hội</h1><div class="sub">Cộng đồng đang có gì trong tay.</div></div><button class="bt p" onclick="alert('Thêm năng lực')">+ Thêm năng lực của tôi</button></div>
+ <div class="g4" style="margin-top:20px">${C.map(c=>`<div class="bx"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${c[0]}</b><span class="tg">${c[1]}</span></div><div style="margin-top:11px">${c[2].map(x=>`<div style="font-size:13.5px;color:var(--body);padding:5px 0;border-bottom:1px solid var(--ln2)">${x}</div>`).join('')}</div></div>`).join('')}</div>
+ <div class="gmain" style="margin-top:24px">
+ <div class="col"><div class="sc" style="margin-top:0">MỚI CÔNG BỐ <i>7 ngày qua</i></div>
+  ${[['Kéo lại hệ thống điện xưởng nhỏ','Đỗ Văn Sơn',12],['Nhận đặt cỗ, tiệc tại nhà','Ngô Thị Hiền',47],['Cho mượn giàn giáo, cốp pha','Trần Thị Lan',5]].map(x=>`<div class="pr"><img src="${av(x[2])}" alt=""><div class="i"><b>${x[0]}</b><span>${x[1]}</span></div><span class="tg g">Sẵn sàng</span></div>`).join('')}</div>
+ <div class="col"><div class="sc" style="margin-top:0">HỘI ĐANG THIẾU</div>
+  ${[['Thợ ốp lát nhận việc dài hạn','3 người hỏi trong tháng'],['Người biết làm hồ sơ vay ngân hàng','2 người hỏi'],['Khu vực 7 chưa có ai làm điện nước','khoảng trống']].map(x=>`<div class="tl"><span class="d">Cần</span><span><b style="font-weight:600">${x[0]}</b><br><span style="color:var(--fnt);font-size:13px">${x[1]}</span></span></div>`).join('')}</div></div></div>`;};
+
+V.giup=()=>{const L=applyF(AID,a=>({text:a.t+' '+a.d,khan:a.s==='Gấp'?'Gấp':a.s==='Có hẹn'?'Có hẹn':'Không gấp'}));
+ return split({title:'Giúp nhau',sub:'5 việc đang cần · không trả công',items:L.length?L:AID,
+ fbar:filterBar(['khan','kv'],AID.length,L.length),
+ row:(a,on)=>`<button class="it ${on?'on':''} ${a.urg?'urg':''}" onclick="go('giup',${a.id})"><div class="r1"><span class="t">${a.t}</span><span class="tg ${a.urg?'r':''}">${a.s}</span></div><div class="r2">${a.d}</div></button>`,
+ detail:a=>`<div class="hd"><div class="sp"><h1>${a.t}</h1><div class="sub">${a.d}</div></div>
+   <button class="bt s" onclick="alert('Đã sao chép link')">Chia sẻ</button></div>
+  ${a.id===2?steps(1):steps(2)}
+  ${turnBox(a.turn)}
+  <div class="gmain" style="margin-top:6px"><div class="col">
+   <div class="sc" style="margin-top:0">CẦN GÌ</div>
+   <p style="font-size:15px;line-height:1.65;color:var(--body)">${a.id===1?'Một cụ già nằm viện tuyến tỉnh, gia đình ít người. Cần anh em thay nhau trông ba ngày cuối tuần, mỗi người một ca. Bệnh viện có chỗ nghỉ cho người trông.':a.id===2?'Nhà có cuốn gia phả chữ Hán từ đời cụ, muốn nhờ ai đọc và dịch lại giúp để con cháu còn biết.':'Cháu vừa nghỉ học lớp 9, gia đình muốn tìm chỗ học nghề tử tế. Cháu thích cơ khí và điện.'}</p>
+   ${a.id===1?`
+   <div class="sc">LỊCH ĐÃ XẾP <i>mỗi ô do chính người đó bấm nhận</i></div>
+   ${[['Thứ Bảy sáng','7:00 – 13:00',[[12,'Đỗ Văn Sơn']],1],['Thứ Bảy chiều','13:00 – 19:00',[[47,'Ngô Thị Hiền']],1],['Chủ nhật sáng','7:00 – 13:00',[],0],['Chủ nhật chiều','13:00 – 19:00',[[5,'Trần Thị Lan']],1]].map(s=>`
+     <div class="slot"><div class="h"><b>${s[0]}</b><span>${s[1]}</span></div>
+      <div class="chips">${s[2].map(x=>`<span class="chip"><img src="${av(x[0])}" alt="">${x[1]}</span>`).join('')}${s[3]?'':'<span class="chip miss">còn thiếu 1 người</span>'}</div>
+      ${s[3]?'<span class="tg g">Đủ</span>':'<button class="bt s p" onclick="alert(\'Bạn đã nhận ca này\')">Tôi nhận ca này</button>'}</div>`).join('')}
+   <div class="sc">ĐỒ VÀ PHƯƠNG TIỆN</div>
+   <div class="pr"><img src="${av(33)}" alt=""><div class="i"><b>Xe đưa đón ca đêm</b><span>Phạm Văn Dũng nhận</span></div><span class="tg g">Đã xác nhận</span></div>
+   <div class="pr"><div class="i"><b>Chăn mỏng và phích nước</b><span>Chưa ai nhận</span></div><button class="bt s" onclick="alert('Bạn nhận mang')">Tôi mang</button></div>`:''}
+   <div class="sc">ĐÃ XẢY RA</div>
+   ${(a.id===1?[['Hôm nay','Ban điều hành nhận điều phối việc này'],['Hôm nay','Gia đình gửi lời nhờ, xin giữ kín danh tính']]:a.id===2?[['9 ngày trước','Gửi tới cả cộng đồng, chưa ai nhận']]:[['3 ngày trước','Anh Sơn nhận đi hỏi mấy xưởng quen'],['5 ngày trước','Gia đình đồng ý công khai việc này']]).map(x=>`<div class="tl"><span class="d">${x[0]}</span><span>${x[1]}</span></div>`).join('')}
+   <div class="sc">TRAO ĐỔI</div>
+   <div class="sch" style="max-width:none;height:44px"><input placeholder="Nhắn cho những người trong việc này..."><button class="bt p s">Gửi</button></div>
+  </div><div class="col">
+   <div class="sc" style="margin-top:0">AI ĐÃ NHẬN <i>${a.id===1?'3 người':a.id===2?'0':'1 người'}</i></div>
+   ${a.id===1?[[12,'Đỗ Văn Sơn','trông ca sáng thứ Bảy'],[47,'Ngô Thị Hiền','trông ca chiều thứ Bảy'],[5,'Trần Thị Lan','trông ca chiều chủ nhật'],[33,'Phạm Văn Dũng','đưa đón ca đêm']].map(x=>`<div class="pr"><img src="${av(x[0])}" alt=""><div class="i"><b>${x[1]}</b><span>${x[2]}</span></div></div>`).join(''):a.id===2?'<div class="em">Chưa ai nhận sau 9 ngày. <a onclick="alert(\'Đã hỏi ngoài Hội\')">Hỏi thêm bên ngoài Hội →</a></div>':`<div class="pr"><img src="${av(12)}" alt=""><div class="i"><b>Đỗ Văn Sơn</b><span>Đang đi hỏi các xưởng quen</span></div></div>`}
+   <div class="sc">CÒN THIẾU GÌ</div>
+   ${a.id===1?`<div class="pr"><div class="i"><b>1 người trông ca sáng chủ nhật</b><span>7:00 – 13:00</span></div><span class="tg r">Cần gấp</span></div>
+   <div class="pr"><div class="i"><b>Chăn mỏng, phích nước</b><span>Trước thứ Bảy</span></div><span class="tg">Đang tìm</span></div>
+   <button class="bt f s" style="margin-top:11px" onclick="alert('Đã nhắc một lần')">Nhắc một lần tới người phù hợp</button>
+   <p class="em" style="font-size:12.5px">Chỉ nhắc được một lần cho mỗi việc. Nhắc nhiều lần thành làm phiền.</p>`:'<div class="em">Chưa rõ còn thiếu gì.</div>'}
+   ${a.id===1?`<div class="sc">GIỮ KÍN</div><div class="nt" style="margin-top:0">Danh tính gia đình chỉ Ban điều hành biết. Người nhận việc chỉ thấy “một anh em trong Hội”. Khi hai bên đồng ý gặp nhau thì mới lộ tên.</div>`:''}
+   <div class="nt">Giúp nhau không phải món nợ. Sổ ghi lại để mười năm sau còn nhớ, không phải để ai nhắc ai còn nợ mình.</div>
+  </div></div>`})};
+
+V.hoatdong=()=>split({title:'Hoạt động',sub:'Gặp mặt, hiếu hỉ, giao lưu',items:ACTS,
+ row:(a,on)=>`<button class="it ${on?'on':''}" onclick="go('hoatdong',${a.id})"><div style="display:flex;gap:12px"><img class="thumb" src="${PIC[a.pic]}" alt=""><div style="flex:1;min-width:0"><div class="r1"><span class="t">${a.t}</span><span class="tg ${a.s==='Đã tổng kết'?'':'g'}">${a.s}</span></div><div class="r2">${a.dt} · ${a.pl}</div></div></div></button>`,
+ detail:a=>`<img class="ban" src="${PIC[a.pic]}" alt="" style="margin-bottom:18px">
+  <div class="hd"><div class="sp"><h1>${a.t}</h1><div class="sub">${a.dt} · ${a.pl} · anh Lê Quang Minh chủ trì</div></div>
+   <button class="bt s" onclick="alert('Đã sao chép link')">Chia sẻ</button></div>
+  ${turnBox(a.turn)}
+  ${a.id!==3?`
+  <div class="gmain" style="margin-top:6px"><div class="col">
+   <div class="sc" style="margin-top:0">PHẦN VIỆC HÔM ĐÓ <i>ai nhận thì bấm nhận</i></div>
+   ${a.tk.map(t=>`<div class="pr"><div class="i"><b>${t[0]}</b><span>${t[1]==='chưa có ai'?'Chưa ai nhận':t[1]+' đã nhận'}</span></div>${t[1]==='chưa có ai'?`<button class="bt s p" onclick="alert('Bạn đã nhận: ${t[0]}')">Tôi nhận</button>`:'<span class="tg g">Đã có người</span>'}</div>`).join('')}
+   <div class="sc">ĐỒ CẦN MANG</div>
+   <div class="pr"><div class="i"><b>Máy chiếu nhỏ để trình chiếu báo cáo</b><span>Chưa ai mang được</span></div><button class="bt s p" onclick="alert('Bạn nhận mang máy chiếu')">Tôi mang</button></div>
+   <div class="pr"><img src="${av(33)}" alt=""><div class="i"><b>Loa cầm tay</b><span>Phạm Văn Dũng mang</span></div><span class="tg g">Đã có</span></div>
+   <div class="sc">DỰ TRÙ CHI</div>
+   ${[['Tiền bàn, khoảng 25 người','6.000.000'],['Nước, hoa quả','900.000'],['Quà cho anh em mới vào','600.000'],['Dự phòng','500.000']].map(x=>`<div class="mn"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}
+   <div class="mn tot"><span>Tổng dự trù</span><b>8.000.000</b></div>
+   <div class="mn"><span>Quỹ Hội chi</span><b>3.000.000</b></div>
+   <div class="mn"><span>Mỗi người góp</span><b>150.000</b></div>
+  </div><div class="col">
+   <div class="sc" style="margin-top:0">AI ĐÃ NHẬN LỜI <i>23 người</i></div>
+   ${[['Đã nhận lời','23 người + 6 người nhà'],['Lần này bận','9 người'],['Chưa trả lời','16 người'],['Chưa chắc','4 người']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}
+   <div class="chips" style="margin-top:12px">${[12,52,5,33,47].map(n=>`<span class="chip"><img src="${av(n)}" alt="">${['Đỗ Văn Sơn','Mai Văn Khánh','Trần Thị Lan','Phạm Văn Dũng','Ngô Thị Hiền'][[12,52,5,33,47].indexOf(n)]}</span>`).join('')}<span class="chip miss">+18 người</span></div>
+   <p class="em" style="font-size:12.5px">Danh sách chỉ người có tới mới xem được. Ai bận thì không ai biết là ai.</p>
+   <div class="sc">QUYỀN HÌNH ẢNH <i>đã chốt khi tạo</i></div>
+   ${[['Có chụp ảnh không','Có'],['Trước khi đăng','Hỏi từng người'],['Đăng ở đâu','Kho ký ức nội bộ'],['Lên Facebook','Không']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}
+   <button class="bt f s" style="margin-top:11px" onclick="alert('Đã báo người giữ ảnh')">Tôi không muốn lên ảnh</button>
+   <div class="nt">Chín anh em đã báo bận. Không ai bị nhắc lại, không ai bị hỏi lý do, và việc này không ghi vào sổ của ai.</div>
+  </div></div>`:`
+  <div class="gmain" style="margin-top:6px"><div class="col">
+   <div class="sc" style="margin-top:0">TỔNG KẾT THU CHI <i>công khai cả Hội</i></div>
+   <div class="g2"><div>
+    <div class="sc" style="margin-top:0;font-size:10.5px">THU</div>
+    ${[['Quỹ Hội chi','3.000.000'],['29 người góp 150.000','4.350.000'],['Anh Dũng ủng hộ thêm','650.000']].map(x=>`<div class="mn"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}
+    <div class="mn tot"><span>Tổng thu</span><b>8.000.000</b></div></div>
+   <div><div class="sc" style="margin-top:0;font-size:10.5px">CHI — CÓ HÓA ĐƠN</div>
+    ${[['Tiền bàn 25 mâm','5.750.000'],['Nước và hoa quả','890.000'],['Quà cho 4 anh em mới','600.000'],['Thuê loa, máy chiếu','400.000']].map(x=>`<div class="mn"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}
+    <div class="mn tot"><span>Tổng chi</span><b>7.640.000</b></div></div></div>
+   <div class="bx" style="margin-top:16px;border-color:var(--or-l);background:var(--or-s)"><div style="display:flex;gap:12px;align-items:center"><div class="sp"><b style="font-size:15px">Còn thừa 360.000 đ — đã nộp lại quỹ ngày 15-09</b><div style="font-size:13px;color:var(--mut);margin-top:3px">Phiếu thu số PT-2026-041, thủ quỹ ký nhận</div></div><button class="bt s" onclick="alert('Xem phiếu thu')">Xem phiếu</button></div></div>
+   <div class="sc">BẰNG CHỨNG ĐÃ LƯU</div>
+   ${[['4 hóa đơn nhà hàng và cửa hàng','Ảnh chụp rõ · đã đối chiếu với sổ quỹ','Đủ 4/4'],['Phiếu thu tiền góp của 29 người','Ký nhận đủ · thủ quỹ giữ bản gốc','Đủ'],['12 ảnh buổi gặp mặt','Đã hỏi 29 người · 2 người xin không lên ảnh','Đã lọc'],['Biên bản nội dung đã bàn','Anh Minh ghi · gửi cả Hội 16-09','Đã gửi']].map(x=>`<div class="pr"><div class="i"><b>${x[0]}</b><span>${x[1]}</span></div><span class="tg g">${x[2]}</span></div>`).join('')}
+   <div class="sc">ẢNH BUỔI HÔM ĐÓ <i>12 ảnh · đã hỏi đủ người</i></div>
+   <div class="gal">${PL.map(u=>`<img src="${u}" alt="">`).join('')}</div>
+  </div><div class="col">
+   <div class="sc" style="margin-top:0">BÀI HỌC RÚT RA</div>
+   ${[['Đặt bàn muộn nên phải ngồi hai phòng','Lần sau đặt trước 10 ngày'],['Máy chiếu thuê ngoài, tốn 400 nghìn','Anh Sáng có máy, lần sau hỏi trước'],['Có 6 người nhà đi cùng ngoài dự kiến','Lần sau hỏi rõ số người nhà']].map(x=>`<div style="padding:10px 0;border-bottom:1px solid var(--ln2)"><b style="font-size:14px">${x[0]}</b><div style="font-size:12.5px;color:var(--fnt);margin-top:3px">${x[1]}</div></div>`).join('')}
+   <div class="sc">ĐƯỢC PHÉP LƯU GÌ</div>
+   ${[['Số liệu thu chi','Cả Hội xem'],['Danh sách người dự','Chỉ người dự xem'],['Ảnh buổi gặp','Kho ký ức nội bộ'],['Ảnh 2 người xin ẩn','Đã xóa khỏi kho']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}
+   <div class="nt">Hoạt động nào chi tiền quỹ mà không có tổng kết công khai kèm hóa đơn thì lần sau quỹ không chi nữa. Không phải vì nghi ngờ ai — mà vì người giữ tiền cũng cần chỗ chứng minh mình làm đúng.</div>
+  </div></div>`}`});
+
+V.quy=()=>`<div class="one wide">${co('ghiSoQuy')?'':`<div class="lock" style="margin-bottom:18px">🔒 Anh xem được toàn bộ sổ quỹ, nhưng ghi sổ là việc của thủ quỹ. Thấy sai thì báo Ban điều hành.</div>`}<div class="hd"><div class="sp"><h1>Quỹ Hội</h1><div class="sub">Mọi khoản thu chi đều có chứng từ và người duyệt.</div></div><div class="row"><button class="bt" onclick="alert('Xuất bảng tính')">Xuất bảng tính</button>${co('ghiSoQuy')?`<button class="bt p" onclick="mo('buttoan')">+ Ghi bút toán</button>`:''}</div></div>
+ <div class="g3" style="margin-top:20px">
+  <div class="bx" style="background:var(--ink);color:#fff;border-color:var(--ink)"><div class="l" style="color:#A8A8A8">Số dư đến 30-09-2026</div><div class="v">18.310.000 đ</div><div class="l" style="color:#A8A8A8;margin-top:6px">Thủ quỹ Trần Thị Lan giữ</div></div>
+  <div class="bx"><div class="l">Tổng thu từ đầu năm</div><div class="v">24.550.000</div></div>
+  <div class="bx"><div class="l">Tổng chi từ đầu năm</div><div class="v">6.240.000</div></div></div>
+ <div class="g2" style="margin-top:22px">
+ <div><div class="sc" style="margin-top:0">SỔ THU CHI QUÝ III</div>
+  ${[['15-09','Còn thừa gặp mặt nộp lại','+360.000',1],['14-09','29 người góp gặp mặt','+4.350.000',1],['14-09','Anh Dũng ủng hộ','+650.000',1],['14-09','Chi gặp mặt quý III','−7.640.000',0],['12-05','Viếng bác cả họ Nguyễn','−2.000.000',0]].map(r=>`<div class="mn"><span><span style="color:var(--fnt);font-size:13px">${r[0]}</span> ${r[1]}</span><b style="color:${r[3]?'var(--gr)':'var(--rd)'}">${r[2]}</b></div>`).join('')}</div>
+ <div><div class="sc" style="margin-top:0">CHI VÀO VIỆC GÌ</div>
+  <div class="kv"><span class="k">Hoạt động chung</span><span class="v">7.640.000 đ</span></div><div class="kv"><span class="k">Hiếu hỉ</span><span class="v">2.000.000 đ</span></div><div class="kv"><span class="k">Hạ tầng</span><span class="v">0 đ</span></div>
+  <div class="sc">AI ĐƯỢC LÀM GÌ</div>
+  <div class="kv"><span class="k">Giữ tiền</span><span class="v">Thủ quỹ — Trần Thị Lan</span></div><div class="kv"><span class="k">Duyệt chi dưới 1 triệu</span><span class="v">Chủ trì hoặc thủ quỹ</span></div><div class="kv"><span class="k">Duyệt chi từ 1 triệu</span><span class="v">Hai người cùng ký</span></div><div class="kv"><span class="k">Sửa sổ đã chốt</span><span class="v">Không ai được</span></div></div></div>
+ <div class="nt">Sổ đã chốt thì không ai sửa được — sai thì ghi thêm dòng điều chỉnh, có ghi ngày và người phát hiện.</div></div>`;
+
+V.kyuc=()=>`<div class="one wide"><div class="hd"><div class="sp"><h1>Ký ức của Hội</h1><div class="sub">Việc đã làm, buổi đã gặp, lời anh em nói với nhau.</div></div><button class="bt p" onclick="alert('Thêm vào kho')">+ Thêm vào kho</button></div>
+ <div class="tb"><b class="on">2026</b><b>2025</b><b>Gặp mặt</b><b>Giúp nhau</b><b>Nghề nghiệp</b></div>
+ <div class="g3">${[['24-09','Ốp lát xong công trình nhà anh Sơn','Việc đầu tiên khép vòng đủ hai bên xác nhận',0],['14-09','Gặp mặt quý III','29 anh chị em có mặt · 12 ảnh',12],['24-08','Sáu anh em giúp một nhà chuyển nhà','Xong trong một buổi sáng',0],['08-08','Ra mắt Nhà Chung','28 người dự · 19 hồ sơ điền tại chỗ',12]].map((k,i)=>`<div class="bx pcard"><img src="${PL[i%PL.length]}" alt=""><div style="font-size:12.5px;color:var(--fnt)">${k[0]}</div><b style="font-size:15.5px;display:block;margin-top:4px">${k[1]}</b><div style="font-size:13.5px;color:var(--mut);margin-top:5px">${k[2]}</div>${k[3]?`<div style="font-size:12.5px;color:var(--or);font-weight:600;margin-top:9px">${k[3]} ảnh →</div>`:''}</div>`).join('')}</div>
+ <div class="sc">LỜI ANH EM NÓI</div>
+ <div class="g2">${[['Anh em sang từ sớm. Nhà tôi ít người, không có anh em chắc phải hai ngày mới xong.','một anh em trong Hội · 24-08'],['Tổ anh Khánh làm đúng hẹn, sạch sẽ, hôm cuối còn ở lại dọn giúp.','Đỗ Văn Sơn · 19-09']].map(q=>`<div style="border-left:3px solid var(--or);padding:4px 0 4px 16px"><p style="font-size:15px;font-style:italic;line-height:1.6;color:var(--body)">“${q[0]}”</p><div style="font-size:13px;color:var(--fnt);margin-top:7px;font-weight:600">— ${q[1]}</div></div>`).join('')}</div>
+ <div class="nt">Kho này đóng, không ai ngoài Hội xem được. Để mười năm nữa con cái mở ra, thấy bố mẹ mình đã sống với nhau thế nào.</div></div>`;
+
+V.co=()=>{const CH={r:{K:'帥',A:'仕',E:'相',H:'傌',R:'俥',C:'炮',P:'兵'},b:{K:'將',A:'士',E:'象',H:'馬',R:'車',C:'砲',P:'卒'}};
+ const bk=['R','H','E','A','K','A','E','H','R'];const B=Array.from({length:10},()=>Array(9).fill(null));
+ for(let c=0;c<9;c++){B[0][c]={t:bk[c],s:'b'};B[9][c]={t:bk[c],s:'r'}}
+ B[2][1]={t:'C',s:'b'};B[2][7]={t:'C',s:'b'};B[7][1]={t:'C',s:'r'};B[7][7]={t:'C',s:'r'};
+ for(let c=0;c<9;c+=2){B[3][c]={t:'P',s:'b'};B[6][c]={t:'P',s:'r'}}
+ let ln='';for(let r=0;r<10;r++)ln+=`<line x1="0" y1="${r*54}" x2="432" y2="${r*54}"/>`;
+ for(let c=0;c<9;c++){if(c===0||c===8)ln+=`<line x1="${c*54}" y1="0" x2="${c*54}" y2="486"/>`;else ln+=`<line x1="${c*54}" y1="0" x2="${c*54}" y2="216"/><line x1="${c*54}" y1="270" x2="${c*54}" y2="486"/>`}
+ ln+=`<line x1="162" y1="0" x2="270" y2="108"/><line x1="270" y1="0" x2="162" y2="108"/><line x1="162" y1="378" x2="270" y2="486"/><line x1="270" y1="378" x2="162" y2="486"/>`;
+ let pt='';for(let r=0;r<10;r++)for(let c=0;c<9;c++){const p=B[r][c];pt+=`<div class="xp" style="left:${c*54}px;top:${r*54}px" onclick="alert('Chọn quân')">${p?`<div class="xc ${p.s}">${CH[p.s][p.t]}</div>`:''}</div>`}
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Cờ tướng</h1><div class="sub">Giao lưu giữa anh em · Đỏ đi trước.</div></div><button class="bt" onclick="alert('Bật/tắt tiếng')">🔊 Tiếng: bật</button></div>
+ <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:20px">
+  <div class="xq"><div class="xg"><svg class="xl" viewBox="0 0 432 486">${ln}</svg><div class="riv">楚 河　漢 界</div>${pt}</div></div>
+  <div style="flex:1;min-width:250px">
+   <div class="bx"><div style="display:flex;align-items:center;gap:9px"><span style="width:15px;height:15px;border-radius:50%;background:#C0392B;border:2px solid #7A4E24"></span><b style="font-size:16px">Đỏ đi</b></div><div style="font-size:13.5px;color:var(--mut);margin-top:5px">Nước thứ 1 · chúc hai bên chơi vui</div>
+    <div class="row" style="margin-top:13px"><button class="bt s" onclick="alert('Lùi một nước')">↺ Đi lại</button><button class="bt s d" onclick="alert('Ván mới')">Ván mới</button></div></div>
+   <div class="bx" style="margin-top:14px"><b style="font-size:14.5px">Quân đã bị ăn</b><div class="em" style="padding:6px 0 0">Chưa mất quân nào</div></div>
+   <div class="bx" style="margin-top:14px"><b style="font-size:14.5px">Biên bản ván cờ</b><div class="em" style="padding:6px 0 0">Chưa có nước nào. Đỏ đi trước.</div></div>
+  </div></div></div>`;};
+
+const HS_TABS=['Năng lực','Quan hệ','Việc đã làm','Ai thấy gì'];
+V.hoso=()=>`<div class="one wide">
+ <div class="cov"><img src="${PIC.que}" alt=""><span style="position:absolute;right:14px;bottom:12px;z-index:3;font-size:12px;color:rgba(255,255,255,.9)">Ảnh bìa nghề nghiệp — do chính chủ đăng</span></div>
+ <div style="display:flex;gap:17px;align-items:flex-end;padding-left:6px">
+ <img class="ava-b" src="${av(13)}" alt="">
+ <div class="sp"><h1>Nguyễn Việt</h1><div class="sub">Xây dựng & sửa chữa · Xã Bắc Thái Ninh</div>
+  <div style="margin-top:9px"><span class="tg g">Đang nhận việc</span></div>
+  <div style="font-size:13.5px;color:var(--fnt);margin-top:9px">Vào Hội 21-08-2026 · anh Lê Văn Mới đưa vào · đã làm 4 việc</div>
+  <div class="row" style="margin-top:13px"><button class="bt p" onclick="mo('suahoso')">Sửa hồ sơ</button><button class="bt" onclick="go('nguoi',1)">Xem như người khác thấy</button><button class="bt" onclick="mo('anhbia')">Đổi ảnh bìa</button></div></div></div>
+ <div class="tb">${HS_TABS.map((t,i)=>`<b class="${S.tab===i?'on':''}" onclick="tab(${i})">${t}</b>`).join('')}</div>
+ ${S.tab===0?`
+  <div class="g3">${[['Cung cấp vật tư y tế','Y tế & sức khoẻ','Nhận đặt hàng theo tuần, giao trong khu vực','Mọi thành viên'],['Sửa chữa nhà cửa','Xây dựng','Nhận việc nhỏ, báo trước một ngày','Mọi thành viên']].map((s,i)=>`
+   <div class="bx pcard"><img src="${PL[i%PL.length]}" alt=""><div style="display:flex;gap:8px"><b class="sp" style="font-size:15px">${s[0]}</b><span class="tg">${s[1]}</span></div>
+   <div style="font-size:13.5px;color:var(--mut);margin-top:5px">${s[2]}</div>
+   <div style="font-size:12.5px;color:var(--fnt);margin-top:7px">Ai thấy: ${s[3]}</div>
+   <div class="row" style="margin-top:11px"><button class="bt s" onclick="mo('nangluc')">Sửa</button><button class="bt s" onclick="xoa('năng lực này')">Ẩn</button></div></div>`).join('')}</div>
+  <button class="bt f" style="margin-top:13px" onclick="mo('nangluc')">+ Thêm năng lực</button>`
+ :S.tab===1?`
+  <div class="gmain"><div class="col">
+   <div class="sc" style="margin-top:0">NGƯỜI ĐƯA TÔI VÀO</div>
+   <div class="pr"><img src="${av(24)}" alt=""><div class="i"><b>Lê Văn Mới</b><span>Vận tải · Khu vực 3 · đã xác nhận gặp mặt 21-08-2026</span></div><span class="tg g">Cố định</span></div>
+   <div class="sc">TÔI ĐÃ ĐƯA VÀO HỘI <i>0 trên 3 lượt trong năm</i></div>
+   <div class="em">Chưa đưa ai vào. <a onclick="mo('moi')">Tạo link mời →</a></div>
+   <div class="sc">ĐÃ CÙNG LÀM VIỆC <i>3 người</i></div>
+   ${[[12,'Đỗ Văn Sơn','2 việc · gần nhất 08-2026'],[5,'Trần Thị Lan','1 việc · 08-2026'],[52,'Mai Văn Khánh','1 việc · 07-2026']].map(x=>`<div class="pr"><img src="${av(x[0])}" alt=""><div class="i"><b>${x[1]}</b><span>${x[2]}</span></div><span class="tg g">Hai bên xác nhận</span></div>`).join('')}
+  </div><div class="col">
+   <div class="nt" style="margin-top:0">Bản đồ này chỉ vẽ lại điều đã xảy ra. Nhà Chung không suy đoán quan hệ, không gợi ý người lạ và không xếp ai gần xa hơn ai.</div>
+   <div class="sc">LƯỢT BẢO LÃNH</div>
+   <div class="kv"><span class="k">Đã dùng</span><span class="v">0 trên 3</span></div>
+   <div class="kv"><span class="k">Tính theo</span><span class="v">12 tháng gần nhất</span></div>
+  </div></div>`
+ :S.tab===2?`
+  <div class="g4" style="margin-bottom:20px">${[['4','việc đã làm, hai bên xác nhận'],['3','người khác nhau đã nhờ'],['1','người nhờ lại lần hai'],['7','tháng có mặt trong Hội']].map(x=>`<div class="bx"><div class="v" style="font-size:26px">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('')}</div>
+  <div class="gmain"><div class="col">
+   <div class="sc" style="margin-top:0">DÒNG THỜI GIAN</div>
+   ${[['24-09-2026','Sửa mái tôn nhà chị Lan','Xong trong buổi sáng · hai bên xác nhận'],['12-09-2026','Giúp chuyển nhà anh Sơn','Cùng 5 anh em · hai bên xác nhận'],['28-08-2026','Cung cấp vật tư y tế cho trạm xá','Giao đúng hẹn · hai bên xác nhận'],['21-08-2026','Anh Lê Văn Mới đưa tôi vào Hội','Đã gặp mặt xác nhận']].map(x=>`<div class="tl"><span class="d">${x[0].slice(0,5)}</span><span><b style="font-weight:600">${x[1]}</b><br><span style="color:var(--fnt);font-size:13px">${x[2]}</span></span></div>`).join('')}
+  </div><div class="col">
+   <div class="sc" style="margin-top:0">ANH EM NÓI VỀ VIỆC TÔI LÀM</div>
+   ${[['Việt sang ngay trong tối, sáng hôm sau lợp xong mái.','Trần Thị Lan · 24-09'],['Hẹn giờ nào sang giờ đấy, không phải nhắc.','Đỗ Văn Sơn · 12-09']].map(q=>`<div style="border-left:3px solid var(--or);padding:2px 0 2px 14px;margin-bottom:14px"><p style="font-size:14.5px;font-style:italic;line-height:1.6;color:var(--body)">“${q[0]}”</p><div style="font-size:12.5px;color:var(--fnt);margin-top:5px;font-weight:600">— ${q[1]}</div></div>`).join('')}
+   <div class="nt">Sổ chỉ ghi việc có hai bên xác nhận. Không có điểm số, không xếp hạng, không so sánh sổ của anh với sổ ai khác.</div>
+  </div></div>`
+ :`
+  <div class="gmain"><div class="col">
+   <div class="sc" style="margin-top:0">THÔNG TIN LIÊN HỆ <i>nhóm nhạy cảm nhất</i></div>
+   ${[['Số điện thoại','Khi tôi đồng ý','Hiện 09•• ••• 638'],['Zalo','Khi tôi đồng ý','Cần tôi duyệt'],['Messenger','Mọi thành viên','Nút hiện sẵn'],['Địa chỉ nhà','Đóng','Không ai thấy']].map(x=>`
+    <div style="display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln2)">
+     <div class="sp"><b style="font-size:14.5px">${x[0]}</b><div style="font-size:12.5px;color:var(--fnt)">${x[2]}</div></div>
+     <div class="row" style="gap:4px">${['Mọi thành viên','Khi tôi đồng ý','Đóng'].map(o=>`<button class="bt s" style="min-height:32px;padding:0 10px;font-size:12.5px;${o===x[1]?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('Đã đặt: ${o}')">${o}</button>`).join('')}</div></div>`).join('')}
+   <div class="sc">NGHỀ NGHIỆP VÀ NĂNG LỰC</div>
+   ${[['Nghề, năng lực','Mọi thành viên'],['Khu vực nhận việc','Mọi thành viên'],['Giá tham khảo','Khi tôi đồng ý']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}
+  </div><div class="col">
+   <div class="sc" style="margin-top:0">AI ĐÃ XEM HỒ SƠ TÔI</div>
+   ${[[5,'Trần Thị Lan','Xem hồ sơ và năng lực','Hôm nay 09:14'],[12,'Đỗ Văn Sơn','Xin xem số điện thoại','Hôm qua 20:41'],[33,'Phạm Văn Dũng','Xem hồ sơ','06-08']].map(x=>`<div class="pr"><img src="${av(x[0])}" alt=""><div class="i"><b>${x[1]}</b><span>${x[2]}</span></div><span style="font-size:11.5px;color:var(--fnt)">${x[3]}</span></div>`).join('')}
+   <div class="sc">QUYỀN CỦA ANH</div>
+   <div class="bx" style="background:var(--ink);color:#fff;border-color:var(--ink)">
+    ${['Xem toàn bộ dữ liệu Hội đang giữ về mình','Sửa hoặc ẩn bất kỳ trường nào','Yêu cầu xóa — Hội xử lý trong 7 ngày','Tải toàn bộ dữ liệu của mình mang đi'].map(x=>`<div style="font-size:13px;color:#D4D4D4;padding:6px 0 6px 16px;position:relative"><span style="position:absolute;left:0;color:#6A6A6A">—</span>${x}</div>`).join('')}
+    <button class="bt f" style="margin-top:12px" onclick="alert('Đang chuẩn bị tệp dữ liệu của anh')">Tải dữ liệu của tôi</button></div>
+   <button class="bt f" style="margin-top:11px" onclick="xoa('toàn bộ dữ liệu của anh khỏi Hội')">Yêu cầu xóa dữ liệu</button>
+  </div></div>`}</div>`;
+
+V.duyet=()=>{if(!co('duyetBai'))return khoa('Duyệt bài và duyệt thành viên là việc của '+aiLam('duyetBai')+'. Thủ quỹ giữ tiền, kỹ thuật lo hệ thống — mỗi người một việc, không ai kiêm hết.');
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Duyệt & kiểm duyệt</h1><div class="sub">Ban điều hành duyệt bài và duyệt thành viên. Không giữ tiền, không đổi quyền tài khoản.</div></div><button class="bt" onclick="alert('Quy tắc')">Quy tắc nội dung</button></div>
+ ${vhint()}
+ <div class="g4" style="margin-top:20px">${[['3','đang chờ duyệt'],['1','quá hạn 24 giờ'],['2,4 giờ','xử lý trung bình'],['1','cần hai người ký']].map(x=>`<div class="bx"><div class="v" style="font-size:24px">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('')}</div>
+ <div class="gmain" style="margin-top:24px">
+  <div class="col">
+   <div class="sc" style="margin-top:0">BÀI THÀNH VIÊN CHỜ DUYỆT <i>3</i></div>
+   ${CHO_DUYET.map(x=>`<div class="bx" style="margin-bottom:11px;${x.u?'border-color:var(--or-l);background:var(--or-s)':''}">
+    <div style="display:flex;gap:12px"><img src="${av(x.a)}" style="width:38px;height:38px;border-radius:50%" alt="">
+     <div class="sp"><b style="font-size:15.5px">${x.t}</b>
+      <div style="font-size:13px;color:var(--mut);margin-top:3px">${x.by} · ${x.when}</div>
+      <div style="font-size:12.5px;color:var(--or-d);margin-top:5px">Vì sao phải duyệt: ${x.ly}</div></div>
+     ${x.u?'<span class="tg r">Việc hiếu</span>':x.nm?'<span class="tg o">Người mới</span>':''}</div>
+    <div class="row" style="margin-top:11px"><button class="bt s p" onclick="alert('Đã duyệt và gửi tới anh em')">Duyệt và gửi đi</button><button class="bt s" onclick="alert('Đã gửi lại kèm góp ý')">Gửi lại kèm góp ý</button><button class="bt s" onclick="alert('Xem đầy đủ')">Xem đầy đủ</button></div></div>`).join('')}
+   <div class="sc">CẦN DUYỆT KHÁC <i>3</i></div>
+   ${[['Đơn gia nhập — Bùi Đức Thắng','Người bảo lãnh chưa xác nhận đã gặp mặt','quá hạn 2 ngày','r',['Nhắc người bảo lãnh','Xem đơn']],['Đơn gia nhập — Ngô Thị Mai','Đủ giấy tờ · anh Dũng đã xác nhận gặp mặt','còn 4 ngày','o',['Duyệt','Từ chối']],['Bài đăng có dấu hiệu huy động vốn','“Cơ hội đầu tư sinh lời 15% mỗi tháng”','Nghiêm trọng','r',['Ẩn ngay','Xem chi tiết']]].map(x=>`
+    <div class="bx" style="margin-bottom:11px;${x[3]==='r'?'border-color:var(--or-l);background:var(--or-s)':''}"><div style="display:flex;gap:12px;align-items:flex-start"><div class="sp"><b style="font-size:15.5px">${x[0]}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${x[1]}</div></div><span class="tg ${x[3]}">${x[2]}</span></div>
+    <div class="row" style="margin-top:11px">${x[4].map((b,i)=>`<button class="bt s ${i===0?'p':''}" onclick="alert('${b}')">${b}</button>`).join('')}</div></div>`).join('')}
+   <div class="sc">ĐÃ XỬ LÝ HÔM NAY <i>4</i></div>
+   ${[['08:02','Duyệt đơn gia nhập — Lê Thị Hoa','Lê Quang Minh'],['Hôm qua','Nhắc riêng một thành viên đăng quá 2 bài/tuần','Trần Thị Lan'],['Hôm qua','Tạm ẩn 3 ảnh chưa hỏi ý kiến người trong ảnh','Trần Thị Lan'],['2 ngày','Duyệt năng lực mới của Ngô Thị Hiền','Lê Quang Minh']].map(x=>`<div class="tl"><span class="d">${x[0]}</span><span>${x[1]}<br><span style="color:var(--fnt);font-size:12.5px">${x[2]}</span></span></div>`).join('')}
+  </div>
+  <div class="col">
+   <div class="sc" style="margin-top:0">CẦN ĐỂ MẮT <i>2</i></div>
+   <div class="bx" style="border-color:var(--or-l)"><div style="display:flex;gap:8px"><b class="sp" style="font-size:14.5px">Tổ kỹ thuật chỉ còn một người</b><span class="tg r">Cao</span></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Anh Sáng đi công tác 3 tuần, chưa có người thứ hai vào được hệ thống</div></div>
+   <div class="bx" style="margin-top:11px"><div style="display:flex;gap:8px"><b class="sp" style="font-size:14.5px">Tên miền hết hạn sau 74 ngày</b><span class="tg o">Vừa</span></div><div style="font-size:13px;color:var(--mut);margin-top:4px">Đã nhắc anh Sáng và anh Minh, chưa ai xác nhận gia hạn</div></div>
+   <div class="sc">SỨC NGƯỜI TỔ VẬN HÀNH</div>
+   ${[['Lê Quang Minh','Phê duyệt + trực tuần',88,'gánh nặng'],['Trần Thị Lan','Thủ quỹ + nội dung',55,'vừa phải'],['Nguyễn Văn Sáng','Kỹ thuật · sắp đi vắng',62,'sắp vắng'],['Đỗ Văn Sơn','Điều phối giúp nhau',30,'còn sức']].map(x=>`
+    <div style="margin-bottom:12px"><div style="display:flex;gap:8px;font-size:13.5px"><b class="sp" style="font-weight:600">${x[0]}</b><span style="color:var(--fnt);font-size:12.5px">${x[3]}</span></div>
+    <div style="font-size:12px;color:var(--fnt);margin:2px 0 5px">${x[1]}</div>
+    <div style="height:6px;border-radius:4px;background:var(--ln2)"><span style="display:block;height:100%;border-radius:4px;width:${x[2]}%;background:${x[2]>80?'var(--rd)':x[2]>55?'var(--or)':'var(--gr)'}"></span></div></div>`).join('')}
+   <div class="nt" style="margin-top:14px">Anh Minh đang gánh 88% — nhiều nhất trong tổ. Nên chuyển bớt việc trực tuần trước khi anh Sáng đi vắng.</div>
+  </div>
+ </div>
+ <div class="nt">Mọi thao tác ở đây đều ghi lại tên người làm và thời điểm. Không có nút nào không để lại dấu vết.</div></div>`};
+
+V.nhatky=()=>{if(!co('xemNhatKy'))return khoa('Nhật ký kiểm toán chỉ '+aiLam('xemNhatKy')+' đọc được.');
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Nhật ký</h1><div class="sub">Ai đã xem hoặc đổi dữ liệu quan trọng · chỉ ghi thêm, không sửa được.</div></div><button class="bt p" onclick="alert('Đang kiểm chuỗi băm...')">Kiểm tra chuỗi</button></div>
+ <div class="fl" style="border:0;padding:14px 0"><select class="sl"><option>7 ngày</option></select><select class="sl"><option>Mọi người</option></select><select class="sl"><option>Mọi loại</option></select><select class="sl"><option>Dữ liệu nhạy cảm</option></select></div>
+ ${[['09:14','TL','Trần Thị Lan xem hồ sơ Đỗ Văn Sơn','Thành viên'],['08:02','LM','Lê Quang Minh duyệt một hồ sơ mới','Phê duyệt'],['Hôm qua 21:36','LM','Mở hồ sơ khiếu nại VV-2026-0007','Phê duyệt'],['Hôm qua 20:41','ĐS','Đỗ Văn Sơn đổi mức hiển thị số điện thoại','Thành viên'],['08-10','NS','Nguyễn Văn Sáng cập nhật hệ thống','Kỹ thuật']].map(l=>`
+  <div class="pr"><span style="width:96px;font-size:12.5px;color:var(--fnt);flex:none">${l[0]}</span><div style="width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none">${l[1]}</div><div class="i"><b style="font-size:14.5px">${l[2]}</b></div><span class="tg">${l[3]}</span></div>`).join('')}
+ <div class="g3" style="margin-top:22px">${[['Lần kiểm gần nhất','hôm nay 03:00'],['Số dòng đã kiểm','12.847'],['Chuỗi băm','liên mạch']].map(x=>`<div class="bx"><div class="l">${x[0]}</div><div style="font-size:17px;font-weight:600;margin-top:3px">${x[1]}</div></div>`).join('')}</div></div>`};
+
+V.quyen=()=>{if(!co('doiQuyen'))return khoa('Đổi quyền tài khoản chỉ '+aiLam('doiQuyen')+' làm được. Người duyệt nội dung không được tự nâng quyền cho mình.');
+ const C=['KHÁCH','THÀNH VIÊN','VẬN HÀNH','PHÊ DUYỆT','KỸ THUẬT'];
+ const R=[['Xem danh bạ công khai','—','✓','✓','✓','✓'],['Xem liên hệ người khác','—','tùy chủ','✓','✓','—'],['Xem sổ quỹ','—','✓','✓','✓','—'],['Đăng năng lực, việc','—','✓','✓','✓','✓'],['Ẩn bài người khác','—','—','✓','✓','—'],['Duyệt thành viên mới','—','—','—','✓','—'],['Chấm dứt tư cách','—','—','—','2 người','—'],['Đổi quyền tài khoản','—','—','—','—','✓'],['Xuất toàn bộ danh bạ','—','—','—','—','2 người'],['Sửa hoặc xóa nhật ký','—','—','—','—','—']];
+ return `<div class="one wide"><h1>Quyền</h1><div class="sub">Vai nào làm được gì, việc nào cần hai người ký.</div>
+ <div style="overflow-x:auto;margin-top:20px;border:1.5px solid var(--ln);border-radius:13px">
+ <table style="width:100%;border-collapse:collapse;font-size:13.5px"><thead><tr style="background:var(--soft)"><th style="text-align:left;padding:11px 14px;font-size:11px;letter-spacing:.05em;color:var(--fnt)">HÀNH ĐỘNG</th>${C.map(c=>`<th style="padding:11px 8px;font-size:11px;letter-spacing:.05em;color:var(--fnt)">${c}</th>`).join('')}</tr></thead>
+ <tbody>${R.map(r=>`<tr style="border-top:1px solid var(--ln2)"><td style="padding:10px 14px;font-weight:500">${r[0]}</td>${r.slice(1).map(v=>`<td style="padding:10px 8px;text-align:center;${v==='✓'?'color:var(--gr);font-weight:700':v==='—'?'color:var(--ln)':'color:var(--or-d);font-weight:600;font-size:11.5px'}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+ <div class="sc">BỐN VIỆC CẦN HAI NGƯỜI</div>
+ <div class="g2">${[['Xóa hồ sơ hoặc dữ liệu','Không lấy lại được'],['Xuất toàn bộ danh bạ','Một lần xuất là ra khỏi tầm kiểm soát'],['Khôi phục từ sao lưu','Ghi đè dữ liệu hiện tại'],['Chấm dứt tư cách','Ảnh hưởng danh dự một con người']].map(x=>`<div class="bx"><b style="font-size:14.5px">${x[0]}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${x[1]}</div></div>`).join('')}</div>
+ <div class="nt">Ở hội nhỏ, một người kiêm hai vai là chuyện thường. Nhưng một tài khoản có đủ mọi quyền thì không bao giờ chấp nhận được — vì khi có chuyện, không ai truy được ai đã làm gì.</div></div>`;};
+
+V.soquy=()=>{if(!co('ghiSoQuy'))return khoa('Sổ quỹ nội bộ chỉ thủ quỹ mở được.');
+ return `<div class="one wide"><div class="hd"><div class="sp"><h1>Sổ quỹ nội bộ</h1><div class="sub">Chỗ làm việc của thủ quỹ. Cả Hội xem bản công khai ở mục Quỹ Hội.</div></div>
+  <div class="row"><button class="bt" onclick="alert('Đối soát quý')">Đối soát quý</button><button class="bt p" onclick="mo('buttoan')">+ Ghi bút toán</button></div></div>
+ ${vhint()}
+ <div class="g4" style="margin-top:20px">${[['18.310.000 đ','số dư đang giữ'],['1','bút toán chờ chữ ký thứ hai'],['30-09','đối soát lần cuối'],['0','khoản thiếu chứng từ']].map(x=>`<div class="bx"><div class="v" style="font-size:${x[0].length>9?'19px':'26px'}">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('')}</div>
+ <div class="gmain" style="margin-top:24px"><div class="col">
+  <div class="sc" style="margin-top:0">CHỜ CHỮ KÝ THỨ HAI <i>1</i></div>
+  <div class="bx" style="border-color:var(--or-l);background:var(--or-s)">
+   <div style="display:flex;gap:12px"><div class="sp"><b style="font-size:15.5px">Chi gặp mặt quý III — 7.640.000 đ</b>
+    <div style="font-size:13.5px;color:var(--mut);margin-top:4px">Anh ký lúc 14-09 16:20 · đã gửi anh Lê Quang Minh</div>
+    <div style="font-size:12.5px;color:var(--fnt);margin-top:5px">Khoản từ 1 triệu bắt buộc hai người ký · tự huỷ sau 24 giờ</div></div><span class="tg o">còn 6 giờ</span></div>
+   <div class="row" style="margin-top:11px"><button class="bt s" onclick="alert('Đã nhắc anh Minh')">Nhắc anh Minh</button><button class="bt s" onclick="xoa('bút toán chờ ký này')">Huỷ bút toán</button></div></div>
+  <div class="sc">SỔ THU CHI QUÝ III <i>12 khoản</i></div>
+  <div style="overflow-x:auto;border:1.5px solid var(--ln);border-radius:12px">
+  <table class="tbl"><thead><tr><th>NGÀY</th><th>NỘI DUNG</th><th>CHỨNG TỪ</th><th>NGƯỜI DUYỆT</th><th style="text-align:right">SỐ TIỀN</th><th></th></tr></thead><tbody>
+  ${[['15-09','Còn thừa gặp mặt nộp lại','PT-041','Trần Thị Lan','+360.000',1,1],['14-09','29 người góp gặp mặt','PT-040','Trần Thị Lan','+4.350.000',1,1],['14-09','Anh Dũng ủng hộ','PT-039','Trần Thị Lan','+650.000',1,1],['14-09','Chi gặp mặt quý III','4 hoá đơn','Minh + Lan','−7.640.000',0,1],['12-05','Viếng bác cả họ Nguyễn','PC-018','Minh + Lan','−2.000.000',0,1],['04-04','Quỹ đầu năm — 47 người','PT-001…047','Trần Thị Lan','+18.800.000',1,1]].map(r=>`
+   <tr><td style="color:var(--fnt)">${r[0]}</td><td><b style="font-weight:600">${r[1]}</b></td><td style="color:var(--or-d);font-weight:600">${r[2]}</td><td>${r[3]}</td>
+   <td style="text-align:right;font-weight:700;color:${r[5]?'var(--gr)':'var(--rd)'}">${r[4]}</td>
+   <td><span class="tg" style="font-size:11px">${r[6]?'Đã chốt':'Mở'}</span></td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="nt">Bút toán đã chốt thì <b>không sửa, không xoá</b> — kể cả thủ quỹ. Sai thì ghi một bút toán điều chỉnh, có ghi ngày và người phát hiện.</div>
+ </div><div class="col">
+  <div class="sc" style="margin-top:0">RANH GIỚI CỦA THỦ QUỸ</div>
+  ${[['Giữ tiền và ghi sổ','được',1],['Ghi bút toán dưới 1 triệu','được',1],['Ghi bút toán từ 1 triệu','cần thêm 1 chữ ký',2],['Sửa bút toán đã chốt','không ai được',0],['Duyệt thành viên mới','không phải việc của thủ quỹ',0],['Duyệt bài đăng','không phải việc của thủ quỹ',0]].map(x=>`
+   <div class="kv"><span class="k">${x[0]}</span><span class="v" style="color:${x[2]===1?'var(--gr)':x[2]===2?'var(--or-d)':'var(--fnt)'}">${x[1]}</span></div>`).join('')}
+  <div class="sc">AI ĐỐI SOÁT VỚI TÔI</div>
+  <div class="pr"><img src="${av(12)}" alt=""><div class="i"><b>Lê Quang Minh</b><span>Chủ trì · ký khoản lớn</span></div></div>
+  <div class="pr"><img src="${av(5)}" alt=""><div class="i"><b>Cả Ban điều hành</b><span>Đối soát mỗi quý</span></div></div>
+  <div class="nt">Công khai đến từng đồng không phải vì nghi ngờ thủ quỹ — mà vì người giữ tiền cũng cần một chỗ để chứng minh mình làm đúng.</div>
+ </div></div></div>`};
+
+V.thongbao=()=>`<div class="one wide"><span class="bk" onclick="go('viec')">${ic('lf',16)} Quay lại</span><h1 style="margin-top:6px">Thông báo</h1>
+ <div class="sc">CẦN BẠN LÀM <i>2</i></div>
+ ${[['Anh Dũng xin xem số điện thoại','Trả lời đồng ý hoặc từ chối','2 giờ trước'],['Xác nhận đã gặp mặt anh Thắng','Anh Thắng đang chờ để vào Hội','hôm qua']].map(n=>`
+  <button class="bx" style="width:100%;margin-bottom:11px;border-color:var(--or-l);background:var(--or-s)" onclick="go('viec')"><div style="display:flex;gap:10px"><div class="sp"><b style="font-size:15.5px">${n[0]}</b><div style="font-size:13.5px;color:var(--mut);margin-top:4px">${n[1]}</div></div><span class="tg">${n[2]}</span></div></button>`).join('')}
+ <div class="sc">CHO BẠN BIẾT</div>
+ <div class="tl"><span class="d">3 ngày</span><span>Đơn gia nhập của bạn đã được duyệt</span></div>
+ <div class="tl"><span class="d">5 ngày</span><span>Quỹ quý III đã công bố</span></div>
+ <button class="bt f" style="margin-top:18px" onclick="alert('Đã đánh dấu đã đọc')">Đánh dấu đã đọc hết</button>
+ <div class="nt">Chuông chỉ đếm việc cần bạn làm. Tin “cho bạn biết” không kêu — nếu mọi thứ đều kêu thì không gì đáng chú ý.</div></div>`;
+
+V.tinnhan=()=>split({title:'Tin nhắn',sub:'Trao đổi gắn theo từng việc',items:[{id:1,n:'Mai Văn Khánh',a:52,m:'Chiều nay em qua xem mặt bằng được không anh?',t:'10:22',jb:'Cần 2 thợ ốp lát làm dài hạn'},{id:2,n:'Trần Thị Lan',a:5,m:'Xe tải mình rảnh sáng chủ nhật nhé.',t:'hôm qua',jb:'Cần người chở đồ giúp chuyển nhà'}],
+ row:(m,on)=>`<button class="it ${on?'on':''}" onclick="go('tinnhan',${m.id})"><div class="r1"><img src="${av(m.a)}" style="width:32px;height:32px;border-radius:50%" alt=""><span class="t">${m.n}</span><span class="tg">${m.t}</span></div><div class="r2" style="margin-left:41px">${m.m}</div><div class="r3" style="margin-left:41px">Trong việc: ${m.jb}</div></button>`,
+ detail:m=>`<div class="hd"><div class="sp"><h1>${m.n}</h1><div class="sub">Trong việc: <a style="color:var(--or);font-weight:600;cursor:pointer" onclick="go('viechoi',1)">${m.jb}</a></div></div><button class="bt s" onclick="alert('Gọi')">Gọi điện</button></div>
+  <div style="margin-top:20px">
+   <div style="display:flex;gap:10px;margin-bottom:13px"><img src="${av(m.a)}" style="width:34px;height:34px;border-radius:50%" alt=""><div style="background:var(--soft);border-radius:12px;padding:11px 14px;font-size:15px;max-width:70%">${m.m}<div style="font-size:11.5px;color:var(--fnt);margin-top:4px">${m.t}</div></div></div>
+   <div style="display:flex;gap:10px;justify-content:flex-end"><div style="background:var(--or-s);border:1px solid var(--or-l);border-radius:12px;padding:11px 14px;font-size:15px;max-width:70%">Được, 4 giờ chiều anh có ở đó.<div style="font-size:11.5px;color:var(--fnt);margin-top:4px">10:31</div></div></div>
+  </div>
+  <div class="sch" style="max-width:none;height:46px;margin-top:22px"><input placeholder="Nhắn tin..."><button class="bt p s">Gửi</button></div>
+  <div class="nt">Trao đổi ở đây gắn với việc, nên ba tháng sau mở lại vẫn thấy. Việc gấp thì cứ gọi điện — nhanh hơn.</div>`});
+
+V.taoviec=()=>{mo('taoviec');return V.viechoi()};V._taoviec=()=>`<div class="one wide"><span class="bk" onclick="go('viechoi')">${ic('lf',16)} Việc trong Hội</span>
+ <h1 style="margin-top:6px">Đăng một việc</h1><div class="sub">Bước 1 trên 3 — việc này thế nào?</div>
+ <div class="g3" style="margin-top:22px">${[['Có trả công','Thuê người làm, có trả tiền công',1],['Nhờ giúp','Nhờ anh em giúp, không trả công',0],['Việc của Hội','Việc chung, cả Hội cùng làm',0]].map(o=>`
+  <button class="bx" style="${o[2]?'border-color:var(--or);background:var(--or-s)':''}" onclick="alert('Sang bước 2: nội dung việc')"><div style="display:flex;gap:8px"><b class="sp" style="font-size:16px">${o[0]}</b>${o[2]?ic('ck',19):''}</div><div style="font-size:13.5px;color:var(--mut);margin-top:5px">${o[1]}</div></button>`).join('')}</div>
+ <div class="row" style="margin-top:18px"><button class="bt p" onclick="alert('Sang bước 2')">Tiếp tục</button><button class="bt" onclick="go('viechoi')">Hủy</button></div>
+ <div class="nt">Hỏi một câu lúc anh chị đang nghĩ về việc đó — dễ hơn bắt chọn cửa trước khi biết mình sắp làm gì.</div></div>`;
+
+/* ============ CỬA SỔ POPUP ============ */
+const MD={};
+const AREAS=['Xã Bắc Thái Ninh','Xã Yên Mỹ','Xã Khoái Châu','Xã Ân Thi','Xã Kim Động','Xã Phù Cừ','Xã Tiên Lữ','Xã Văn Giang','Xã Tân Hưng','Xã Bảo Khê','TP. Hưng Yên','Khu trung tâm'];
+const NGHE=['Xây dựng — hoàn thiện','Điện — nước dân dụng','Cơ khí, cửa sắt','Vận tải, chở hàng','Kế toán, thuế','Thực phẩm, nấu cỗ','Dạy kèm, đào tạo','Tư vấn pháp lý','Nông nghiệp','May mặc','Y tế, sức khoẻ','Nghề khác'];
+const opt=(a,v)=>a.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
+const anhTam=n=>`<div class="thumbs">${PL.slice(0,n).map((u,i)=>`<div class="t"><img src="${u}" alt=""><i onclick="event.stopPropagation();alert('Đã bỏ ảnh')">✕</i>${i===n-1?'<u style="width:64%"></u>':''}</div>`).join('')}</div>`;
+
+MD.taoviec=()=>{const W=['Việc gì','Điều kiện','Ai thấy'];
+ return `<div class="md"><div class="mh"><div class="sp"><h3>Đăng một việc</h3><div class="s">Bước ${S.wz} trên 3 — ${W[S.wz-1]}</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="wz">${W.map((w,i)=>`<div class="${S.wz>i+1?'o':S.wz===i+1?'n':''}"><span>${S.wz>i+1?'✓':i+1}</span>${w}</div>`).join('')}</div>
+ <div class="mb">${S.wz===1?`
+  <div class="fd"><label>Việc này thế nào? <span class="req">*</span></label>
+   ${[['Có trả công','Thuê người làm, có trả tiền công',1],['Nhờ giúp','Nhờ anh em giúp, không trả công',0],['Việc của Hội','Việc chung, cả Hội cùng làm',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="k" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Tên việc <span class="req">*</span></label><input class="in" maxlength="90" placeholder="Cần 2 thợ ốp lát làm dài hạn">
+   <div class="cnt">0 / 90</div><div class="err">Tên việc cần ít nhất 8 ký tự</div>
+   <div class="hint">Viết như đang nói với anh em. Người đọc phải hiểu ngay trong một dòng.</div></div>
+  <div class="fd"><label>Nói rõ hơn <span class="req">*</span></label><textarea class="in" maxlength="1500" placeholder="Công trình nhà dân hai tầng, phần ốp lát khoảng 3 tuần. Cần một tổ 2–3 người làm được liên tục. Vật tư chủ nhà lo, chỉ tính công."></textarea>
+   <div class="cnt">0 / 1500</div><div class="err">Cần ít nhất 20 ký tự</div></div>
+  <div class="r2c">
+   <div class="fd"><label>Thuộc nghề <span class="req">*</span></label><select class="in">${opt(NGHE,'Xây dựng — hoàn thiện')}</select></div>
+   <div class="fd"><label>Cần mấy người</label><input class="in" type="number" min="1" max="50" value="2"></div></div>
+  <div class="fd"><label>Ảnh kèm theo <span style="color:var(--fnt);font-weight:400">— không bắt buộc, tối đa 6 ảnh</span></label>
+   <label class="drop">📷<b>Bấm chọn, kéo thả, hoặc dán ảnh vào đây</b><span style="font-size:12.5px">JPG, PNG, WEBP · ảnh được nén xuống dưới 300KB trước khi gửi</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
+   ${anhTam(3)}
+   <div class="hint">Toạ độ GPS trong ảnh điện thoại sẽ bị xoá trước khi gửi lên.</div></div>`
+ :S.wz===2?`
+  <div class="r2c">
+   <div class="fd"><label>Khu vực làm việc <span class="req">*</span></label><select class="in">${opt(AREAS,'Xã Bắc Thái Ninh')}</select></div>
+   <div class="fd"><label>Nơi làm cụ thể</label><input class="in" placeholder="Thôn Đông, gần chợ"><div class="hint">Không bắt buộc</div></div></div>
+  <div class="fd"><label>Trả công thế nào <span class="req">*</span></label><input class="in" placeholder="Tính theo mét vuông · trả theo tuần"><div class="err">Vui lòng ghi rõ cách trả công</div>
+   <div class="hint">Ghi "thoả thuận" cũng được, nhưng ghi rõ thì đỡ mất công hỏi lại.</div></div>
+  <div class="r3c">
+   <div class="fd"><label>Bắt đầu</label><input class="in" type="date"></div>
+   <div class="fd"><label>Dự kiến kéo dài</label><input class="in" placeholder="Khoảng 3 tuần"></div>
+   <div class="fd"><label>Hạn nhận trả lời <span class="req">*</span></label><input class="in" type="date"><div class="err">Chọn hạn trả lời</div></div></div>
+  <div class="fd"><label>Yêu cầu với người nhận việc</label><textarea class="in" placeholder="Có kinh nghiệm ốp lát, tự lo đồ nghề cơ bản, làm được liên tục ít nhất ba tuần."></textarea></div>
+  <div class="fd"><label>Điều cần nói trước <span style="color:var(--fnt);font-weight:400">— kể cả điều bất lợi</span></label>
+   <textarea class="in" placeholder="Ngõ nhỏ, xe tải không vào tận nơi, phải chuyển vật tư khoảng 40 m. Chưa có điện ba pha."></textarea>
+   <div class="hint">Giấu bây giờ thì hai tuần nữa người ta bỏ việc. Nói trước là tôn trọng nhau.</div></div>
+  <div class="fd"><label>Người chịu trách nhiệm</label><input class="in" value="Nguyễn Việt" disabled style="background:var(--soft)"><div class="hint">Tên anh đi kèm việc này suốt từ đầu đến cuối</div></div>`
+ :`
+  <div class="fd"><label>Ai thấy việc này <span class="req">*</span></label>
+   ${[['Người đúng nghề và ở gần','7 người · họ nhận được thông báo ngay',1],['Cả cộng đồng','52 người · dùng cho việc chung của Hội',0],['Vài người tôi tự chọn','Chọn từng người một',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="v" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Ai được liên hệ trực tiếp với tôi</label>
+   <div class="row">${['Ai cũng được','Người tôi duyệt','Qua Ban điều hành'].map((o,i)=>`<button class="bt s" style="${i===1?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Hiện số điện thoại của tôi trong việc này</label>
+   <div class="row">${['Có','Khi tôi đồng ý từng người','Không'].map((o,i)=>`<button class="bt s" style="${i===1?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Nhắc lại</label>
+   <div class="row">${['Nhắc một lần','Nhắc lại sau 2 ngày','Không nhắc'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="bx" style="background:var(--soft);border:0"><div style="font-size:11px;letter-spacing:.1em;color:var(--fnt);font-weight:700;margin-bottom:9px">NGƯỜI KHÁC SẼ THẤY THẾ NÀY</div>
+   <div style="display:flex;gap:11px"><img class="thumb" src="${PIC.tho}" alt=""><div>
+    <b style="font-size:15px">Cần 2 thợ ốp lát làm dài hạn</b>
+    <div style="font-size:13px;color:var(--mut);margin-top:4px">Có trả công · Xã Bắc Thái Ninh · còn 7 ngày<br>Cần nói trước: ngõ nhỏ, phải chuyển vật tư 40 m</div>
+    <div style="font-size:12.5px;color:var(--fnt);margin-top:6px;display:flex;align-items:center;gap:6px"><img src="${av(13)}" style="width:19px;height:19px;border-radius:50%" alt="">Nguyễn Việt · chưa ai nhận</div></div></div></div>
+  <div class="gh"><b>Sau khi đăng</b><div>Việc hiện trong "Việc trong Hội" và gửi tới 7 người phù hợp. Anh sửa hoặc đóng lại được bất cứ lúc nào khi chưa ai nhận.</div></div>`}</div>
+ <div class="mf">${S.wz>1?'<button class="bt" onclick="wz(-1)">Quay lại</button>':'<button class="bt" onclick="dong()">Hủy</button>'}
+  <button class="bt" onclick="alert('Đã lưu nháp. Lần sau vào lại còn nguyên.')">Lưu nháp</button>
+  <button class="bt p" onclick="${S.wz<3?'wz(1)':"xong('Đã đăng việc và gửi tới 7 người phù hợp.')"}">${S.wz<3?'Tiếp tục':'Đăng việc'}</button></div></div>`};
+
+MD.suahoso=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Sửa hồ sơ</h3><div class="s">Thông tin anh chị công bố với Hội</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb">
+  <div class="fd"><label>Ảnh đại diện</label><div style="display:flex;gap:14px;align-items:center"><img src="${av(13)}" style="width:64px;height:64px;border-radius:50%" alt=""><label class="bt s">Đổi ảnh<input type="file" accept="image/*" hidden></label></div>
+   <div class="hint">Ảnh được nén ngay trên máy trước khi gửi, và xóa toạ độ GPS</div></div>
+  <div class="r2c"><div class="fd"><label>Họ và tên</label><input class="in" value="Nguyễn Việt"></div>
+   <div class="fd"><label>Năm sinh</label><input class="in" value="1986" disabled style="background:var(--soft)"></div></div>
+  <div class="r2c"><div class="fd"><label>Nghề đang làm</label><input class="in" value="Xây dựng & sửa chữa"></div>
+   <div class="fd"><label>Khu vực</label><select class="in"><option>Xã Bắc Thái Ninh</option></select></div></div>
+  <div class="fd"><label>Tôi làm được việc gì cho anh em</label><textarea class="in">Nhận sửa chữa nhà cửa, mái tôn, và cung cấp vật tư y tế theo tuần.</textarea></div>
+  <div class="fd"><label>Trạng thái nhận việc</label>
+   <div class="row">${['Đang nhận việc','Nhận theo hẹn','Tạm nghỉ'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div>
+   <div class="hint">Quá 30 ngày không cập nhật, hệ thống sẽ hỏi lại một lần</div></div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Hủy</button><button class="bt p" onclick="xong('Đã cập nhật hồ sơ.')">Lưu hồ sơ</button></div></div>`;
+
+MD.nangluc=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Thêm một năng lực</h3><div class="s">Để anh em biết có nên gọi mình hay không</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb">
+  <div class="fd"><label>Tên năng lực</label><input class="in" placeholder="Kéo lại hệ thống điện cho xưởng nhỏ"></div>
+  <div class="r2c"><div class="fd"><label>Thuộc nhóm</label><select class="in"><option>Chuyên môn nghề</option><option>Phương tiện</option><option>Mặt bằng, kho bãi</option><option>Thời gian đóng góp</option></select></div>
+   <div class="fd"><label>Khu vực phục vụ</label><input class="in" placeholder="Khu vực 5, 4, trung tâm"></div></div>
+  <div class="fd"><label>Mô tả</label><textarea class="in" placeholder="Nhận kéo lại toàn bộ hệ thống điện cho xưởng dưới 200 m². Khảo sát trước rồi báo giá."></textarea></div>
+  <div class="r2c"><div class="fd"><label>Thời gian nhận</label><input class="in" placeholder="Cả tuần, kể cả buổi tối"></div>
+   <div class="fd"><label>Giá tham khảo</label><input class="in" placeholder="Để trống nếu ghi &quot;liên hệ&quot;"></div></div>
+  <div class="fd"><label>Ảnh công việc</label><label class="drop">📷<b>Bấm chọn hoặc kéo ảnh vào đây</b><span style="font-size:12.5px">Tối đa 6 ảnh · JPG, PNG</span><input type="file" accept="image/*" multiple hidden></label>
+   <div class="hint">Không đăng: ảnh giấy tờ tùy thân, ảnh có mặt trẻ em, ảnh trong nhà người khác khi chưa xin phép</div></div>
+  <div class="fd"><label>Ai thấy năng lực này</label>
+   <div class="row">${['Mọi thành viên','Cùng khu vực','Chỉ mình tôi'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="nt" style="margin-top:0"><b>Bằng chứng mạnh nhất không phải ảnh.</b> Là khi việc làm xong, anh bấm “đã xong” và người kia xác nhận lại. Lúc đó việc mới vào sổ.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Hủy</button><button class="bt p" onclick="xong('Đã gửi duyệt. Ban điều hành xem trong 3 ngày.')">Gửi duyệt</button></div></div>`;
+
+MD.moi=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Mời một người vào Hội</h3><div class="s">Anh còn 3 lượt trong 12 tháng</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb">
+  <div class="fd"><label>Người anh muốn mời</label><input class="in" placeholder="Họ tên"><div class="hint">Anh đứng tên bảo lãnh, nên phải là người anh biết mặt</div></div>
+  <div class="fd"><label>Vì sao anh đưa người này vào</label><textarea class="in" placeholder="Làm cùng khu với tôi nhiều năm, việc gì cũng gọn gàng, hẹn giờ nào sang giờ đấy."></textarea>
+   <div class="hint">Ghi chú này hiện trên hồ sơ người đó và <b>không sửa được</b> về sau</div></div>
+  <div class="bx" style="background:var(--soft);border:0"><b style="font-size:14px">Sau khi tạo link</b>
+   <div style="font-size:13px;color:var(--mut);margin-top:5px;line-height:1.6">1. Anh gửi link qua Zalo cho người đó<br>2. Người đó điền hồ sơ tối thiểu<br>3. Anh xác nhận đã gặp mặt<br>4. Ban điều hành duyệt trong 7 ngày</div></div>
+  <div class="nt" style="margin-top:14px">Link dùng một lần, hết hạn sau 14 ngày. Anh thu hồi được bất cứ lúc nào, suất bảo lãnh trả lại ngay.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Hủy</button><button class="bt p" onclick="xong('Đã tạo link mời. Sao chép và gửi qua Zalo.')">Tạo link mời</button></div></div>`;
+
+MD.anhbia=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Đổi ảnh bìa</h3><div class="s">Ảnh nghề nghiệp, do chính chủ đăng</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb"><img src="${PIC.que}" style="width:100%;height:170px;object-fit:cover;border-radius:12px" alt="">
+  <label class="drop" style="margin-top:14px">📷<b>Chọn ảnh khác</b><span style="font-size:12.5px">Nên là ảnh công việc, không phải ảnh chân dung</span><input type="file" accept="image/*" hidden></label>
+  <div class="nt">Ảnh được nén còn dưới 300KB và xóa toạ độ GPS trước khi gửi lên.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Hủy</button><button class="bt p" onclick="xong('Đã đổi ảnh bìa.')">Lưu</button></div></div>`;
+
+MD.xoa=()=>`<div class="md" style="max-width:460px"><div class="mh"><div class="sp"><h3>Xác nhận</h3></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb"><p style="font-size:15.5px;line-height:1.6">Anh chắc muốn ẩn <b>${S.xoaWhat||'mục này'}</b> chứ?</p>
+ <div class="nt" style="margin-top:14px">Dữ liệu giữ lại 30 ngày, trong thời gian đó khôi phục được. Việc đã hai bên xác nhận thì không xóa được — đó là bằng chứng của cả người kia.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Không</button><button class="bt" style="background:var(--rd);border-color:var(--rd);color:#fff" onclick="xong('Đã ẩn. Bấm hoàn tác trong 10 giây nếu nhầm.')">Ẩn đi</button></div></div>`;
+
+MD.taohoatdong=()=>{const W=['Mục đích và lịch','Tiền nong','Quyền hình ảnh'];
+ return `<div class="md"><div class="mh"><div class="sp"><h3>Tạo một hoạt động</h3><div class="s">Bước ${S.wz} trên 3 — ${W[S.wz-1]}</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="wz">${W.map((w,i)=>`<div class="${S.wz>i+1?'o':S.wz===i+1?'n':''}"><span>${S.wz>i+1?'✓':i+1}</span>${w}</div>`).join('')}</div>
+ <div class="mb">${S.wz===1?`
+  <div class="fd"><label>Loại hoạt động <span class="req">*</span></label>
+   ${[['Gặp mặt định kỳ','Họp quý, tất niên',1],['Việc hiếu hỉ','Cưới, tang, thăm hỏi',0],['Giao lưu, thi đấu','Cờ tướng, bóng đá, dã ngoại',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="lo" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Tên hoạt động <span class="req">*</span></label><input class="in" maxlength="90" placeholder="Gặp mặt quý III năm 2026"><div class="cnt">0 / 90</div></div>
+  <div class="fd"><label>Mục đích <span class="req">*</span></label><textarea class="in" placeholder="Anh chị em gặp nhau cuối quý, nghe báo cáo quỹ và bàn việc quý sau. Có mấy anh em mới vào Hội, nhân dịp giới thiệu với cả nhà."></textarea>
+   <div class="hint">Ghi rõ để anh em đọc là biết có nên đi hay không</div></div>
+  <div class="r3c">
+   <div class="fd"><label>Ngày <span class="req">*</span></label><input class="in" type="date"></div>
+   <div class="fd"><label>Giờ bắt đầu</label><input class="in" type="time" value="18:00"></div>
+   <div class="fd"><label>Dự kiến xong</label><input class="in" type="time" value="21:00"></div></div>
+  <div class="r2c">
+   <div class="fd"><label>Địa điểm <span class="req">*</span></label><input class="in" placeholder="Nhà hàng Sông Quê"></div>
+   <div class="fd"><label>Khu vực</label><select class="in">${opt(AREAS,'TP. Hưng Yên')}</select></div></div>
+  <div class="r2c">
+   <div class="fd"><label>Hạn nhận lời <span class="req">*</span></label><input class="in" type="date"><div class="hint">Để còn đặt bàn</div></div>
+   <div class="fd"><label>Số người dự kiến</label><input class="in" type="number" value="30"></div></div>
+  <div class="fd"><label>Ảnh bìa hoạt động</label><label class="drop">📷<b>Chọn ảnh bìa</b><span style="font-size:12.5px">Ảnh địa điểm hoặc ảnh buổi trước</span><input type="file" accept="image/*" hidden></label></div>`
+ :S.wz===2?`
+  <div class="fd"><label>Cách chi trả <span class="req">*</span></label>
+   ${[['Quỹ Hội chi một phần, mỗi người góp một phần','Quỹ chi 3 triệu, mỗi người góp 150 nghìn',1],['Quỹ Hội chi toàn bộ','Cần Ban điều hành duyệt trước',0],['Mỗi người tự lo phần mình','Không dùng quỹ',0],['Có anh em nhận tài trợ','Phải ghi rõ tên người tài trợ trong tổng kết',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="tr" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Dự trù chi — tính theo 30 người</label>
+   ${[['Tiền bàn, khoảng 25 người','6000000'],['Nước, hoa quả','900000'],['Quà cho anh em mới vào','600000'],['Dự phòng','500000']].map(x=>`<div class="r2c" style="margin-bottom:8px"><input class="in" value="${x[0]}"><input class="in" type="number" value="${x[1]}"></div>`).join('')}
+   <button class="bt s" onclick="alert('Thêm dòng')">+ Thêm khoản</button></div>
+  <div class="gh"><b>Tổng dự trù 8.000.000 đ</b><div>Quỹ Hội chi 3.000.000 · mỗi người góp 150.000 · cần 5.000.000 từ người dự</div></div>
+  <div class="r2c">
+   <div class="fd"><label>Quỹ Hội chi</label><input class="in" type="number" value="3000000"></div>
+   <div class="fd"><label>Mỗi người góp</label><input class="in" type="number" value="150000"></div></div>
+  <div class="nt" style="margin-top:0">Sau buổi này <b>bắt buộc phải có tổng kết thu chi công khai</b>, kèm ảnh hoá đơn. Không có tổng kết thì quỹ không chi cho hoạt động lần sau.</div>`
+ :`
+  <div class="fd"><label>Chụp ảnh trong buổi này <span class="req">*</span></label>
+   ${[['Có chụp, nhưng hỏi từng người trước khi đăng','Người giữ ảnh gửi cho từng người xem trước',1],['Chỉ chụp ảnh chung, không chụp cận','Ai không muốn vào ảnh thì đứng ngoài khung',0],['Không chụp gì cả','Dùng cho việc hiếu, việc riêng tư',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="ah" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Ảnh được đăng ở đâu</label><div class="row">${['Kho ký ức nội bộ','Cả Facebook Group','Không đăng'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Danh sách người dự cho ai xem</label><div class="row">${['Ai cũng xem','Chỉ người dự','Chỉ Ban điều hành'].map((o,i)=>`<button class="bt s" style="${i===1?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Phần việc cần người — anh em sẽ tự nhận</label>
+   ${['Đặt bàn và chốt món','Thu tiền góp và ghi sổ','Chụp ảnh và giữ ảnh','Đón và giới thiệu anh em mới'].map(x=>`<div style="display:flex;gap:9px;margin-bottom:8px"><input class="in" value="${x}"><button class="bt s" onclick="alert('Bỏ dòng')">✕</button></div>`).join('')}
+   <button class="bt s" onclick="alert('Thêm phần việc')">+ Thêm phần việc</button></div>
+  <div class="fd"><label>Chủ trì buổi</label><input class="in" value="Nguyễn Việt" disabled style="background:var(--soft)"></div>`}</div>
+ <div class="mf">${S.wz>1?'<button class="bt" onclick="wz(-1)">Quay lại</button>':'<button class="bt" onclick="dong()">Hủy</button>'}
+  <button class="bt" onclick="alert('Đã lưu nháp')">Lưu nháp</button>
+  <button class="bt p" onclick="${S.wz<3?'wz(1)':"xong('Đã đăng hoạt động và mời anh em.')"}">${S.wz<3?'Tiếp tục':'Đăng và mời anh em'}</button></div></div>`};
+
+MD.taogiup=()=>{const W=['Việc đang cần','Điều giữ kín','Ai được xem'];
+ return `<div class="md"><div class="mh"><div class="sp"><h3>Nhờ anh em giúp một việc</h3><div class="s">Bước ${S.wz} trên 3 — ${W[S.wz-1]}</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="wz">${W.map((w,i)=>`<div class="${S.wz>i+1?'o':S.wz===i+1?'n':''}"><span>${S.wz>i+1?'✓':i+1}</span>${w}</div>`).join('')}</div>
+ <div class="mb">${S.wz===1?`
+  <div class="gh" style="margin-top:0"><b>Không phải xin</b><div>Ai trong nhà cũng có lúc cần, và có lúc giúp được người khác. Nói thẳng điều mình cần, không cần kể khổ.</div></div>
+  <div class="fd"><label>Loại việc <span class="req">*</span></label>
+   <div class="row">${['Cần người','Cần đồ, phương tiện','Cần chỉ dẫn'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Việc gì <span class="req">*</span></label><input class="in" maxlength="90" placeholder="Cần xe chở đồ giúp chuyển nhà"><div class="cnt">0 / 90</div></div>
+  <div class="fd"><label>Nói rõ hơn <span class="req">*</span></label><textarea class="in" placeholder="Nhà chuyển từ khu 5 sang khu 4, đồ đạc một chuyến xe tải nhỏ là hết. Cần thêm hai người phụ khiêng đồ nặng."></textarea></div>
+  <div class="r2c">
+   <div class="fd"><label>Khi nào cần <span class="req">*</span></label><input class="in" type="date"></div>
+   <div class="fd"><label>Khoảng mấy giờ</label><input class="in" placeholder="Sáng, khoảng 3 tiếng"></div></div>
+  <div class="fd"><label>Ở đâu <span class="req">*</span></label><select class="in">${opt(AREAS,'Xã Bắc Thái Ninh')}</select></div>
+  <div class="fd"><label>Mức khẩn <span class="req">*</span></label>
+   ${[['Rất gấp','Trong 24 giờ · sức khoẻ, tai nạn, việc tang',0],['Có hẹn trước','Trong vài ngày',1],['Không vội','Ai rảnh thì nhận',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="kh" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Cần mấy người</label><input class="in" type="number" value="2"></div>`
+ :S.wz===2?`
+  <div class="fd"><label>Có thông tin nào cần giữ kín không <span class="req">*</span></label>
+   <div class="row">${['Không có','Có, phải che'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="fd"><label>Phần chỉ Ban điều hành đọc được</label><textarea class="in" placeholder="Ví dụ: chuyện sức khoẻ, chuyện tiền nong, chuyện gia đình. Để trống nếu không có gì cần giữ kín."></textarea></div>
+  <div class="gh"><b>Ba loại thông tin hệ thống tự che, kể cả khi anh chị lỡ viết ra</b><div>Bệnh tật và hồ sơ sức khoẻ · số tiền cụ thể đang thiếu · chuyện riêng trong gia đình.<br>Ban điều hành vẫn đọc được để biết đường giúp, nhưng anh em khác thì không.</div></div>
+  <div class="nt" style="margin-top:14px"><b>Nhà Chung không làm ba việc này:</b> không mở quyên góp tiền công khai, không đăng ảnh hoàn cảnh khó khăn, không kể chuyện nhà ai lên bản tin nếu chưa hỏi.</div>`
+ :`
+  <div class="fd"><label>Ai được xem <span class="req">*</span></label>
+   ${[['Người ở gần và người có xe','7 người phù hợp',1],['Cả cộng đồng','52 người',0],['Chỉ Ban điều hành','Ban tự đi hỏi giúp, không ai biết là anh chị nhờ',0],['Vài người tôi tự chọn','Chọn từng người một',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="checkbox" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="fd"><label>Hiện tên tôi không <span class="req">*</span></label>
+   <div class="row">${['Hiện tên','Ẩn tên'].map((o,i)=>`<button class="bt s" style="${i===0?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div>
+   <div class="hint">Ẩn tên thì chỉ Ban điều hành biết là ai, người nhận việc chỉ thấy "một anh em trong Hội". Khi hai bên đồng ý gặp nhau thì mới lộ tên.</div></div>
+  <div class="gh"><b>Sau khi gửi</b><div>Lời nhờ tới 7 người phù hợp. Không ai bị nhắc quá một lần về việc này.</div></div>`}</div>
+ <div class="mf">${S.wz>1?'<button class="bt" onclick="wz(-1)">Quay lại</button>':'<button class="bt" onclick="dong()">Hủy</button>'}
+  <button class="bt" onclick="alert('Đã lưu nháp')">Lưu nháp</button>
+  <button class="bt p" onclick="${S.wz<3?'wz(1)':"xong('Đã gửi lời nhờ tới 7 người phù hợp.')"}">${S.wz<3?'Tiếp tục':'Gửi lời nhờ'}</button></div></div>`};
+
+MD.nhanviec=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Nhận việc này</h3><div class="s">Cần 2 thợ ốp lát làm dài hạn — anh Đỗ Văn Sơn</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb">
+  <div class="fd"><label>Khả năng của tôi <span class="req">*</span></label>
+   ${[['Tôi nhận toàn bộ','Làm được từ đầu đến cuối',1],['Tôi nhận một phần','Ghi rõ phần nào ở dưới',0],['Tôi giới thiệu người khác','Tên tôi đi kèm người tôi giới thiệu',0]].map(o=>`<label class="pick ${o[2]?'on':''}"><input type="radio" name="kn" ${o[2]?'checked':''}><div><b>${o[0]}</b><span>${o[1]}</span></div></label>`).join('')}</div>
+  <div class="r2c">
+   <div class="fd"><label>Có thể bắt đầu <span class="req">*</span></label><input class="in" type="date"></div>
+   <div class="fd"><label>Dự kiến làm xong</label><input class="in" placeholder="Khoảng 18–20 ngày công"></div></div>
+  <div class="r2c">
+   <div class="fd"><label>Tôi đưa vào mấy người</label><input class="in" placeholder="Tổ 3 người, thợ chính 12 năm nghề"></div>
+   <div class="fd"><label>Đồ nghề, phương tiện</label><input class="in" placeholder="Máy cắt gạch, máy khoan, xe chở đồ"></div></div>
+  <div class="fd"><label>Giá công dự kiến</label><input class="in" placeholder="Tính theo mét vuông · báo giá chính thức sau khi xem mặt bằng"></div>
+  <div class="fd"><label>Điều kiện tôi cần <span class="req">*</span></label><textarea class="in" placeholder="Vật tư chủ nhà lo như tin đã ghi. Cần có điện nước tại công trình và chỗ để đồ nghề khoá được."></textarea></div>
+  <div class="fd"><label>Ảnh việc tôi đã làm <span style="color:var(--fnt);font-weight:400">— không bắt buộc</span></label>
+   <label class="drop" style="padding:18px">📷<b>Chọn ảnh</b></label>${anhTam(2)}</div>
+  <div class="nt" style="margin-top:0">Nhận được thì nói nhận. Không chắc thì nói không chắc. Đừng hứa để giữ chỗ — một lần lỡ hẹn với anh em đắt hơn nhiều so với một lần từ chối thẳng.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Để nghĩ thêm</button><button class="bt p" onclick="xong('Đã gửi. Anh Sơn sẽ so với các phương án khác rồi trả lời.')">Gửi phản hồi</button></div></div>`;
+
+MD.buttoan=()=>`<div class="md"><div class="mh"><div class="sp"><h3>Ghi một bút toán</h3><div class="s">Sổ quỹ Hội — mọi khoản đều có chứng từ</div></div><button class="mx" onclick="dong()">✕</button></div>
+ <div class="mb">
+  <div class="fd"><label>Loại khoản <span class="req">*</span></label><div class="row">${['Thu','Chi'].map((o,i)=>`<button class="bt s" style="${i===1?'background:var(--ink);color:#fff;border-color:var(--ink)':''}" onclick="alert('${o}')">${o}</button>`).join('')}</div></div>
+  <div class="r2c">
+   <div class="fd"><label>Ngày <span class="req">*</span></label><input class="in" type="date"></div>
+   <div class="fd"><label>Số tiền <span class="req">*</span></label><input class="in" type="number" placeholder="7640000"></div></div>
+  <div class="fd"><label>Nội dung <span class="req">*</span></label><input class="in" placeholder="Chi gặp mặt quý III"></div>
+  <div class="fd"><label>Mục đích <span class="req">*</span></label><select class="in">${opt(['Hoạt động chung','Hiếu hỉ','Hạ tầng Nhà Chung','Hoàn quỹ','Quỹ thường niên'],'Hoạt động chung')}</select></div>
+  <div class="fd"><label>Chứng từ <span class="req">*</span></label><label class="drop" style="padding:18px">📄<b>Ảnh hoá đơn hoặc phiếu thu</b><span style="font-size:12.5px">Bắt buộc với khoản chi</span><input type="file" accept="image/*" multiple hidden></label>${anhTam(2)}</div>
+  <div class="gh"><b>Khoản này 7.640.000 đ — cần hai người duyệt</b><div>Anh ký là chữ ký thứ nhất. Cần thêm một approver khác ký trong 24 giờ, nếu không bút toán tự huỷ.</div></div>
+  <div class="fd"><label>Người duyệt thứ hai <span class="req">*</span></label><select class="in">${opt(['— Chọn người —','Lê Quang Minh','Trần Thị Lan'],'— Chọn người —')}</select></div>
+  <div class="nt" style="margin-top:0">Ghi rồi <b>không sửa được</b>. Nếu sai thì ghi một bút toán điều chỉnh, có ghi ngày và người phát hiện.</div></div>
+ <div class="mf"><button class="bt" onclick="dong()">Hủy</button><button class="bt p" onclick="xong('Đã ghi và gửi anh Minh ký. Chờ chữ ký thứ hai.')">Ghi và gửi ký</button></div></div>`;
+
+function mo(n){S.md=n;S.wz=1;const o=document.getElementById('ov');o.innerHTML=(MD[n]||MD.xoa)();o.classList.add('on');document.body.style.overflow='hidden'}
+function dong(){document.getElementById('ov').classList.remove('on');document.body.style.overflow='';S.md=null}
+function wz(d){S.wz=Math.max(1,Math.min(3,S.wz+d));document.getElementById('ov').innerHTML=MD[S.md]()}
+function xong(m){dong();alert(m);paint()}
+function xoa(w){S.xoaWhat=w;mo('xoa')}
+function tab(i){S.tab=i;paint()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){dong();sbCl();if(S.pop){S.pop=null;paint()}}});
+document.addEventListener('click',()=>{if(S.pop){S.pop=null;paint()}});
+
+const R_EXTRA=['soquy'];
+const SPLIT=['viechoi','nguoi','giup','hoatdong','tinnhan'];
+function paint(){
+ document.getElementById('vsw').innerHTML=ROLES.map(r=>`<button class="${S.vai===r.k?'on':''}" onclick="doiVai('${r.k}')" title="${r.d}">${r.s}</button>`).join('');
+ document.getElementById('nav').innerHTML=NAV_().map(g=>`${g.g?`<div class="cap">${g.g}</div>`:''}${g.items.map(it=>`<a class="nv ${S.r===it.r?'on':''}" onclick="go('${it.r}')">${ic(it.i)}<span>${it.l}</span>${it.n?`<span class="n">${it.n}</span>`:it.dt?'<span class="dt"></span>':''}</a>`).join('')}`).join('');
+ const b=document.getElementById('body');
+ b.className='body'+(SPLIT.includes(S.r)?' split':'')+(S.id?' sel':'');
+ b.innerHTML=(V[S.r]||V.viec)();
+ b.querySelectorAll('.pane').forEach(p=>p.scrollTop=0);
+}
+function khoa(m){return `<div class="one wide"><div class="bx" style="max-width:560px;margin:60px auto;text-align:center;padding:34px">
+ <div style="font-size:34px">🔒</div><h1 style="font-size:20px;margin-top:12px">Vai của anh không mở được mục này</h1>
+ <p style="font-size:14.5px;color:var(--mut);margin-top:8px;line-height:1.6">${m}</p>
+ <div class="row" style="justify-content:center;margin-top:18px">${ROLES.map(r=>`<button class="bt s" onclick="doiVai('${r.k}')">Xem như ${r.l}</button>`).join('')}</div></div></div>`}
+function vhint(){const v=vaiNow();return `<div class="vhint">👤<div><b>Anh đang xem với vai ${v.l}.</b> ${v.d}</div></div>`}
+function doiVai(v){S.vai=v;S.r=(v==='tq')?'quy':(v==='bdh')?'duyet':(v==='kt')?'quyen':'viec';S.id=null;S.tab=0;paint()}
+function go(r,id){if(r!==S.r)S.tab=0;S.r=r;S.id=id||null;location.hash=r+(id?'/'+id:'');sbCl();paint();}
+function sbOp(){document.getElementById('sb').classList.add('op');document.getElementById('scr').classList.add('on')}
+function sbCl(){document.getElementById('sb').classList.remove('op');document.getElementById('scr').classList.remove('on')}
+window.addEventListener('hashchange',()=>{const[r,id]=location.hash.slice(1).split('/');if(r&&(r!==S.r||id!=S.id)){S.r=r;S.id=id?+id:null;paint()}});
+const[r0,i0]=location.hash.slice(1).split('/');if(r0)  {S.r=r0;S.id=i0?+i0:null}
+paint();
+</script>
+</body>
+</html>

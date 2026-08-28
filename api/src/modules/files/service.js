@@ -245,15 +245,55 @@ export async function read({ actor, id }) {
     const {
       rows: [row],
     } = await trx.raw(
-      `SELECT id, owner_id, storage_key, mime, byte_size, attached_type, attached_id
+      `SELECT id, owner_id, storage_key, mime, byte_size, attached_type, attached_id,
+              EXISTS (
+                SELECT 1 FROM job_need_images ji
+                JOIN job_needs j ON j.id = ji.job_need_id AND j.community_id = ji.community_id
+                WHERE ji.file_id = files.id AND ji.community_id = ?
+                  AND j.status IN ('open', 'closed', 'filled')
+              ) AS job_image_visible,
+              EXISTS (
+                SELECT 1 FROM activities a
+                WHERE a.community_id = ?
+                  AND a.image_url = '/files/' || files.id::text
+                  AND a.status IN ('open', 'running', 'done')
+              ) AS activity_image_visible,
+              EXISTS (
+                SELECT 1 FROM activities a
+                WHERE a.community_id = ?
+                  AND a.image_url = '/files/' || files.id::text
+              ) AS activity_image_attached,
+              -- Ảnh minh chứng năng lực: cùng luật hiển thị năng lực chính nó
+              -- (capabilities/service.js) — công khai khi đã 'published', còn
+              -- 'draft'/'hidden' thì chỉ chính chủ (đã có ở owner_id === actor.id).
+              EXISTS (
+                SELECT 1 FROM capability_photos cp
+                JOIN capabilities c ON c.id = cp.capability_id AND c.community_id = cp.community_id
+                WHERE cp.community_id = ? AND cp.url = '/files/' || files.id::text
+                  AND c.status = 'published'
+              ) AS capability_photo_visible,
+              -- Ảnh lời nhờ giúp: aid_requests không lọc theo status khi hiển thị
+              -- (GET /aid liệt kê mọi trạng thái cho người trong Hội) — ảnh đi
+              -- kèm theo đúng luật đó, không cần lọc status ở đây.
+              EXISTS (
+                SELECT 1 FROM aid_request_photos ap
+                JOIN aid_requests ar ON ar.id = ap.aid_request_id AND ar.community_id = ap.community_id
+                WHERE ap.community_id = ? AND ap.url = '/files/' || files.id::text
+              ) AS aid_photo_visible
          FROM files
         WHERE id = ? AND community_id = ? AND deleted_at IS NULL`,
-      [id, actor.communityId]
+      [actor.communityId, actor.communityId, actor.communityId, actor.communityId, actor.communityId, id, actor.communityId]
     );
     if (!row) return { kind: 'not_found' };
 
     const allowed =
-      row.owner_id === actor.id || ATTACH_READERS[row.attached_type ?? ''] === 'community';
+      row.owner_id === actor.id ||
+      ATTACH_READERS[row.attached_type ?? ''] === 'community' ||
+      row.job_image_visible ||
+      row.activity_image_visible ||
+      row.capability_photo_visible ||
+      row.aid_photo_visible ||
+      (row.activity_image_attached && actor.roles?.some((r) => ['approver', 'content_ops'].includes(r)));
 
     await auditLog(trx, {
       communityId: actor.communityId,

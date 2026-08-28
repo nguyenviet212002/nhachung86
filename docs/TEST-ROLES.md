@@ -67,6 +67,9 @@ GET/PATCH/DELETE          /api/v1/jobs/:id
 GET/PUT/DELETE            /api/v1/jobs/ready[/me]
 POST/DELETE               /api/v1/jobs/:id/applications[/me]
 PATCH                     /api/v1/jobs/:id/applications/:connectionId
+GET/POST                  /api/v1/projects
+GET/PATCH/DELETE          /api/v1/projects/:id
+POST                      /api/v1/projects/:id/join
 ```
 
 Không có API xóa tài khoản thành viên trực tiếp. Việc rời cộng đồng/xóa dữ liệu cá nhân là quy trình quản trị có nhật ký, không phải nút CRUD thông thường.

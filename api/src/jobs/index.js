@@ -5,6 +5,7 @@ import * as overdue from './overdue.js';
 import * as reminders from './reminders.js';
 import * as auditPartition from './audit-partition.js';
 import * as purgeJoinSecrets from './purge-join-secrets.js';
+import * as purgeIdempotencyKeys from './purge-idempotency-keys.js';
 
 // ---------------------------------------------------------------------------
 // Khung tác vụ định kỳ — Task 18, bước 3.
@@ -27,7 +28,7 @@ import * as purgeJoinSecrets from './purge-join-secrets.js';
 // nên chính tác vụ ấy chạy hằng ngày và tạo trước hai tháng thay vì một.
 // ---------------------------------------------------------------------------
 
-export const JOBS = [auditPartition, trustRecount, purgeJoinSecrets, overdue, reminders];
+export const JOBS = [auditPartition, trustRecount, purgeJoinSecrets, purgeIdempotencyKeys, overdue, reminders];
 
 /** Lịch khớp không? `hour: null` nghĩa là mọi giờ. */
 export function matches(schedule, date) {

@@ -167,12 +167,35 @@ const BY_MESSAGE = {
   INVITE_USE_INCOMPLETE:       [500, 'INTERNAL', 'Lỗi hệ thống.'],
 };
 
+// DETAIL của hai trigger hạn mức mang số liệu thật, không chỉ câu tiếng Việt —
+// audit API mục 6: người dùng cần biết "đã dùng mấy trên mấy" và "bao giờ mở
+// lại" chứ không chỉ "đã hết lượt". DETAIL do chính RAISE EXCEPTION ... USING
+// DETAIL ghi ra (migration 031/043, 025), không phải suy đoán ở tầng này.
+function quotaFields(key, detail) {
+  if (!detail) return undefined;
+  if (key === 'GUARANTEE_QUOTA_EXCEEDED') {
+    // "3/3 trong 12 tháng gần nhất;next_slot_at=2027-03-14T00:00:00Z"
+    const m = detail.match(/^(\d+)\/(\d+)[^;]*(?:;next_slot_at=(\S+))?/);
+    if (!m) return undefined;
+    const fields = { used: Number(m[1]), cap: Number(m[2]) };
+    if (m[3]) fields.next_slot_at = m[3];
+    return fields;
+  }
+  if (key === 'MANUAL_PAIR_QUOTA_EXCEEDED') {
+    // "6 bản ghi thủ công giữa hai người trong 12 tháng" — DETAIL của 025
+    // chưa mang hạn mức cấu hình, chỉ mang số đã dùng.
+    const m = detail.match(/^(\d+)\s/);
+    return m ? { used: Number(m[1]) } : undefined;
+  }
+  return undefined;
+}
+
 export function mapPgError(err) {
   const raw = err?.message ?? '';
   for (const key of Object.keys(BY_MESSAGE)) {
     if (raw.includes(key)) {
       const [status, code, message] = BY_MESSAGE[key];
-      return new AppError(code, message, { status });
+      return new AppError(code, message, { status, fields: quotaFields(key, err?.detail) });
     }
   }
   if (err?.code === '23505') return new AppError('DUPLICATE', 'Dữ liệu này đã tồn tại.', { status: 409 });

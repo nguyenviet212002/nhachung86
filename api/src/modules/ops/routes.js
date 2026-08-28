@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { requirePermission } from '../../middleware/permission.js';
+import { idempotent } from '../../middleware/idempotency.js';
 import * as schema from './schema.js';
 import * as twoPerson from '../../core/twoPerson.js';
 import * as ops from './service.js';
@@ -156,7 +157,7 @@ router.get(
 // tầng middleware: vai cần thiết chỉ biết được sau khi đọc `action_key` của
 // thân request. `core/twoPerson.create()` hỏi `fn_pending_action_role()` —
 // cùng một bản đồ với trigger — rồi mới quyết định.
-router.post('/pending-actions', validate(schema.createActionSchema), async (req, res, next) => {
+router.post('/pending-actions', idempotent(), validate(schema.createActionSchema), async (req, res, next) => {
   try {
     const out = await twoPerson.create({
       actor: req.actor,
@@ -199,4 +200,10 @@ router.delete('/pending-actions/:id', validate(schema.idParamSchema, 'params'), 
   } catch (err) {
     next(err);
   }
+});
+
+// Lịch sử sao lưu — approver/tech, cùng mức nhạy cảm với /audit-log.
+router.get('/backups', requireRole('approver', 'tech'), validate(schema.listBackupsSchema, 'query'), async (req, res, next) => {
+  try { res.json(await ops.listBackups({ actor: req.actor, page: req.query.page, limit: req.query.limit })); }
+  catch (err) { next(err); }
 });
