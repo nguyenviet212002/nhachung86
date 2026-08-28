@@ -31,8 +31,8 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 h1,h2,h3,h4,p,.title,.tl-role,.mj-t{overflow-wrap:anywhere;word-break:break-word}
-html{scroll-behavior:smooth}
-body{font-family:var(--font);color:var(--ink);background:var(--bg2);line-height:1.62;-webkit-font-smoothing:antialiased;font-size:16px;min-height:100vh;letter-spacing:.1px}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{font-family:var(--font);color:var(--ink);background:var(--bg2);line-height:1.62;-webkit-font-smoothing:antialiased;font-size:16px;min-height:100vh;letter-spacing:.1px;overflow-x:hidden}
 #root{display:flex;flex-direction:column;min-height:100vh}
 #root main{flex:1}
 a{text-decoration:none;color:inherit}
@@ -181,6 +181,12 @@ ul{list-style:none}
 
 /* ===== Lưới thống kê (stat-grid) ===== */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.welcome-banner{position:relative;border-radius:var(--r2);overflow:hidden;margin-bottom:18px;min-height:150px;display:flex;align-items:flex-end}
+.welcome-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.welcome-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,0) 25%,rgba(15,23,42,.72) 100%);z-index:1}
+.welcome-banner-text{position:relative;z-index:2;padding:20px;color:#fff}
+.welcome-banner-text h1{font-size:21px;font-weight:800}
+.welcome-banner-text p{font-size:13.5px;margin-top:3px;color:#e2e8f0}
 .stat{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px}
 .stat-ico{width:38px;height:38px;border-radius:10px;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .stat-num{font-size:25.5px;font-weight:800;letter-spacing:-.3px}
@@ -589,6 +595,7 @@ tr:last-child td{border-bottom:none}
   .stat-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:768px){
+  .topbar{display:none}
   .wrap{padding:0 16px}
   .content{padding:18px 0 90px}
   .gigrow{flex-wrap:wrap}
@@ -608,7 +615,9 @@ tr:last-child td{border-bottom:none}
   .tabbar .fab .fb{width:44px;height:44px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;margin-top:-22px;box-shadow:0 6px 16px rgba(14,107,79,.4);border:3px solid #fff}
 }
 @media(max-width:600px){
-  .card-grid,.g3,.g2,.stat-grid,.why-grid,.role-pick{grid-template-columns:1fr}
+  .card-grid,.g3,.g2,.why-grid,.role-pick{grid-template-columns:1fr}
+  .stat-grid{gap:10px}
+  .stat{padding:14px}
   .foot-grid{grid-template-columns:1fr}
   .sb-stats{flex-direction:column;gap:14px}
 }
@@ -3064,8 +3073,10 @@ V.trongnha = ()=>{
   const upJobs = DATA.jobs.filter(j=>j.status==='open').slice(0,3);
   const prof = myProfileCompleteness();
   return `
-  <div style="margin-bottom:18px"><h1 style="font-size:21px;font-weight:800">Chào ${DATA.me.name.split(' ').pop()} 👋</h1>
-  <p style="font-size:13.5px;color:var(--ink2);margin-top:3px">Hôm nay Nhà Chung có ${upJobs.length} việc đang mở phù hợp với bạn.</p></div>
+  <div class="welcome-banner"><img src="assets/banner/banner2.png" alt="Nhà Chung 86">
+    <div class="welcome-banner-text"><h1>Chào ${DATA.me.name.split(' ').pop()} 👋</h1>
+    <p>Hôm nay Nhà Chung có ${upJobs.length} việc đang mở phù hợp với bạn.</p></div>
+  </div>
 
   ${turn.length?`<div class="card" style="border-color:var(--amber);background:var(--amber-l);margin-bottom:18px">
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;color:#8A5806;font-weight:800">${ic('bolt',17)}Đến lượt bạn (${turn.length})</div>
