@@ -1314,8 +1314,18 @@ function chessSound(kind){
   else if(kind==='check') beep([{hz:880,at:0,dur:.11,gain:.30},{hz:880,at:.15,dur:.11,gain:.30}]);
   else if(kind==='end') beep([{hz:392,at:0,dur:.14,gain:.28},{hz:494,at:.15,dur:.14,gain:.28},{hz:588,at:.30,dur:.26,gain:.30}]);
 }
-function unlockSound(){ soundUnlocked=true; getAudioCtx(); }
+// Một số trình duyệt di động (đặc biệt Safari/iOS) chỉ thật sự "mở khoá" âm
+// thanh nếu AudioContext được resume() VÀ một nốt thật được phát ngay trong
+// cùng thao tác chạm/bấm đầu tiên — resume() gọi sau đó (dù chỉ vài mili
+// giây) có thể không tính là trong cử chỉ người dùng nữa. Nên phát 1 nốt câm
+// lặng (gain cực nhỏ) ngay lúc mở khoá, không chờ tới lần chessSound() đầu.
+function unlockSound(){
+  soundUnlocked=true;
+  const ctx=getAudioCtx();
+  if(ctx) beep([{hz:440,at:0,dur:.01,gain:.0001}]);
+}
 document.addEventListener('click', unlockSound, {once:true});
+document.addEventListener('touchstart', unlockSound, {once:true});
 document.addEventListener('keydown', unlockSound, {once:true});
 
 /* GET /notifications/stream (SSE) — chỉ route này nhận Bearer qua query param
@@ -1656,8 +1666,7 @@ function drawerComp(variant, active){
     </div>`;
   const footHtml = variant==='public'
     ? `<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-    : `<a href="#cotuong" data-go="cotuong">${ic('star',17)} Cờ tướng</a>
-       <a href="#cotuong-online" data-go="cotuong-online">${ic('star',17)} Đấu giao lưu</a>
+    : `<a href="#cotuong-online" data-go="cotuong-online">${ic('star',17)} Đấu giao lưu</a>
        <a href="#cotuong-the" data-go="cotuong-the">${ic('star',17)} Cờ thế</a>
        <a href="#hoso-toi" data-go="hoso-toi">${ic('user',17)} Hồ sơ của tôi</a>
        <a href="#caidat" data-go="caidat">${ic('gear',17)} Cài đặt</a>
