@@ -1136,8 +1136,9 @@ async function bootstrap(){
       // GET /members/me trả area lồng {id,name} (xem mapMember() ở trên), không
       // phải area_name phẳng — cùng lỗi đã sửa cho danh sách thành viên.
       const meContact = meProfile&&meProfile.contact_values||{};
+      const meRoles = (meAuth&&meAuth.actor&&meAuth.actor.roles)||[];
       DATA.me = meProfile ? { id:meProfile.id, name:meProfile.full_name, ward:(meProfile.area&&meProfile.area.name)||'',
-        joined:meProfile.joined_at, role:(meAuth&&meAuth.actor&&meAuth.actor.roles&&meAuth.actor.roles[0])||'member',
+        joined:meProfile.joined_at, role:meRoles[0]||'member', roles:meRoles,
         avatar:meProfile.avatar_url||null, job:meProfile.job||'', bio:meProfile.bio||'',
         phone:meContact.phone||'', zalo:meContact.zalo||'', messenger:meContact.messenger||'', workStatus:meProfile.work_status||'',
         address:meContact.address||'', email:meProfile.email||'',
@@ -1188,7 +1189,7 @@ async function bootstrap(){
       DATA.memories=[];
       setConversationsFromMessages((msgRes&&msgRes.data)||[]);
 
-      ROLE = (DATA.me && (DATA.me.role==='admin'||DATA.me.role==='moderator'||DATA.me.role==='approver')) ? 'admin' : 'member';
+      ROLE = (DATA.me && DATA.me.roles && DATA.me.roles.some(r=>r==='tech'||r==='approver'||r==='content_ops')) ? 'admin' : 'member';
       startRealtime();
     }
     BOOTED = true;
