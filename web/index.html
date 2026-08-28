@@ -77,6 +77,11 @@ ul{list-style:none}
 .nav a .n{background:var(--brand-l);color:var(--brand-d);font-size:12px;font-weight:800;border-radius:100px;padding:1px 6px;flex:none;line-height:1.56}
 .header-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none;white-space:nowrap}
 .public-cta{display:flex;align-items:center;gap:10px}
+.search-ov{display:none}
+.search-panel-head{display:flex;gap:8px;align-items:center}
+.search-panel-head .input{flex:1;width:auto;min-width:0}
+.search-panel-head .search-close{flex:0 0 38px;width:38px;height:38px;border-radius:var(--r);border:1.5px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink2);cursor:pointer;padding:0}
+.search-panel-head .search-close:hover{background:var(--bg3)}
 .ic-bell{position:relative;color:var(--ink2);font-size:18px;width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center}
 .ic-bell:hover{background:var(--bg3)}
 .ic-bell .dot{position:absolute;top:3px;right:5px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff}
@@ -588,9 +593,12 @@ tr:last-child td{border-bottom:none}
   .nav{display:none}
   .hamb{display:flex}
   .header-right{gap:6px}
-  .header-right .admin-quicklink,.header-right .search-wrap #searchBtn,.header-right .avatar-mini{display:none}
+  .header-right .admin-quicklink,.header-right .avatar-mini{display:none}
   .public-cta{display:none}
-  #searchPanel{position:fixed;top:calc(64px + env(safe-area-inset-top));left:12px;right:12px;width:auto}
+  .search-ov.show{display:block;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:95}
+  #searchPanel{position:fixed !important;top:0;left:0;right:0;width:auto !important;max-height:none;border-radius:0;
+    padding:calc(12px + env(safe-area-inset-top)) 14px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:96}
+  #searchPanel #searchResults{max-height:calc(100vh - 140px);overflow-y:auto}
   .hero{min-height:0;padding:80px 0 68px}
   .hero-text{max-width:none}
   .hero h1{font-size:31.5px}
@@ -1577,8 +1585,12 @@ function headerComp(variant, active){
       ${variant==='member'&&ROLE==='admin'?`<a href="#admin-tongquan" class="btn btn-out btn-sm admin-quicklink" data-go="admin-tongquan">${ic('shield',14)}<span class="lbl"> Trang quản trị</span></a>`:''}
       <div class="search-wrap" style="position:relative">
         <button class="ic-bell" id="searchBtn" title="Tìm kiếm">${ic('search',17)}</button>
+        <div class="search-ov" id="searchOv"></div>
         <div class="umenu" id="searchPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:8px">
-          <input type="text" id="search-global" class="input" placeholder="Tìm việc, người, năng lực, hoạt động…" oninput="globalSearchInput()" autocomplete="off">
+          <div class="search-panel-head">
+            <input type="text" id="search-global" class="input" placeholder="Tìm việc, người, năng lực, hoạt động…" oninput="globalSearchInput()" autocomplete="off">
+            <button type="button" id="searchCloseBtn" class="search-close" title="Đóng">${ic('x',16)}</button>
+          </div>
           <div id="searchResults" style="margin-top:8px"></div>
         </div>
       </div>
@@ -1627,8 +1639,7 @@ function drawerComp(variant, active){
     </div>`;
   const footHtml = variant==='public'
     ? `<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-    : `<button id="drawerSearchBtn" class="dnav-item">${ic('search',17)} Tìm kiếm</button>
-       <a href="#cotuong" data-go="cotuong">${ic('star',17)} Cờ tướng</a>
+    : `<a href="#cotuong" data-go="cotuong">${ic('star',17)} Cờ tướng</a>
        <a href="#cotuong-online" data-go="cotuong-online">${ic('star',17)} Đấu giao lưu</a>
        <a href="#cotuong-the" data-go="cotuong-the">${ic('star',17)} Cờ thế</a>
        <a href="#hoso-toi" data-go="hoso-toi">${ic('user',17)} Hồ sơ của tôi</a>
@@ -1713,14 +1724,15 @@ function bindGlobal(){
   const dv=qs('#drawerOv'); if(dv)dv.addEventListener('click',closeDrawer);
   const ub=qs('#umenuBtn'); if(ub)ub.addEventListener('click',e=>{e.stopPropagation();qs('#umenu').classList.toggle('show');});
   const nb=qs('#bellBtn'); if(nb)nb.addEventListener('click',e=>{e.stopPropagation();qs('#notifPanel').classList.toggle('show');});
-  const sb=qs('#searchBtn'); if(sb)sb.addEventListener('click',e=>{e.stopPropagation();const p=qs('#searchPanel');p.classList.toggle('show');if(p.classList.contains('show')){const inp=qs('#search-global');if(inp)inp.focus();}});
+  const sb=qs('#searchBtn'); if(sb)sb.addEventListener('click',e=>{e.stopPropagation();const p=qs('#searchPanel');p.classList.toggle('show');const ov=qs('#searchOv');if(ov)ov.classList.toggle('show',p.classList.contains('show'));if(p.classList.contains('show')){const inp=qs('#search-global');if(inp)inp.focus();}});
   const sp=qs('#searchPanel'); if(sp)sp.addEventListener('click',e=>e.stopPropagation());
+  const sov=qs('#searchOv'); if(sov)sov.addEventListener('click',closeSearchPanel);
+  const scb=qs('#searchCloseBtn'); if(scb)scb.addEventListener('click',e=>{e.stopPropagation();closeSearchPanel();});
   const fmb=qs('#xqFsMenuBtn'); if(fmb)fmb.addEventListener('click',e=>{e.stopPropagation();XQ_FS_MENU_OPEN=!XQ_FS_MENU_OPEN;const p=qs('.xq-fs-panel');if(p)p.classList.toggle('show',XQ_FS_MENU_OPEN);});
   const fp=qs('.xq-fs-panel'); if(fp)fp.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');const sp2=qs('#searchPanel');if(sp2)sp2.classList.remove('show');const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
+  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');closeSearchPanel();const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
   const lb=qs('#logoutBtn'); if(lb)lb.addEventListener('click',doLogout);
   const lbd=qs('#logoutBtnDrawer'); if(lbd)lbd.addEventListener('click',doLogout);
-  const dsb=qs('#drawerSearchBtn'); if(dsb)dsb.addEventListener('click',()=>{closeDrawer();const sb2=qs('#searchBtn');if(sb2)sb2.click();});
 }
 
 /* ---------- 9. STATE bộ lọc + suggestField (chọn nhanh bằng chip) ---------- */
@@ -2024,7 +2036,7 @@ function globalSearchInput(){
     outBox.innerHTML = groups.map(g=>`<div style="padding:8px 10px 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">${g.label}</div>${g.items.map(it=>`<button type="button" onclick="closeSearchPanel();go('${it.go}')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><div style="font-size:13.5px;font-weight:600">${esc(it.title)}</div>${it.sub?`<div style="font-size:12px;color:var(--muted)">${esc(it.sub)}</div>`:''}</button>`).join('')}`).join('');
   }, 350);
 }
-function closeSearchPanel(){ const p=qs('#searchPanel'); if(p) p.classList.remove('show'); }
+function closeSearchPanel(){ const p=qs('#searchPanel'); if(p) p.classList.remove('show'); const ov=qs('#searchOv'); if(ov) ov.classList.remove('show'); }
 /* SUGGEST_VALUES nhớ lựa chọn qua NHIỀU BƯỚC của 1 wizard nhiều bước (đăng
    việc/nhờ giúp/thêm năng lực). openModal() thay TOÀN BỘ HTML của modal ở mỗi
    bước — input ẩn #val-<groupId> của bước 1 không còn trong DOM khi tới bước
