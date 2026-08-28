@@ -425,20 +425,20 @@ tr:last-child td{border-bottom:none}
 .pagination a.on{background:var(--brand);border-color:var(--brand);color:#fff}
 
 /* ===== Hero (trang chủ công khai) ===== */
-.hero{position:relative;padding:88px 0;min-height:560px;display:flex;align-items:center;overflow:hidden;background:var(--dark)}
+.hero{position:relative;padding:88px 0;min-height:560px;display:flex;align-items:center;overflow:hidden;background:var(--bg2)}
 .hero-bg{position:absolute;inset:0;z-index:0}
 .hero-bg img{width:100%;height:100%;object-fit:cover;display:block}
 .hero-bg::after{content:'';position:absolute;inset:0;
-  background:linear-gradient(100deg,rgba(15,36,29,.68) 0%,rgba(15,36,29,.5) 45%,rgba(15,36,29,.22) 100%)}
+  background:linear-gradient(100deg,rgba(255,255,255,.95) 0%,rgba(240,249,245,.88) 40%,rgba(234,245,240,.5) 100%)}
 .hero .wrap{position:relative;z-index:1;width:100%}
 .hero-text{max-width:540px}
-.hero h1{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.22;margin-bottom:14px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.45)}
-.hero h1 .b{color:#6EE7B7}
-.hero .lead{font-size:16.5px;color:#f1f5f9;margin-bottom:22px;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+.hero h1{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.22;margin-bottom:14px;color:var(--ink)}
+.hero h1 .b{color:var(--brand)}
+.hero .lead{font-size:16.5px;color:var(--ink2);margin-bottom:22px}
 .hero-btns{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
 .hero-trust{display:flex;gap:20px;flex-wrap:wrap}
-.ht-item{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.45)}
-.ht-item svg{color:#6EE7B7}
+.ht-item{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink)}
+.ht-item svg{color:var(--icon)}
 .sec{padding:48px 0}
 .sec-head{text-align:center;margin-bottom:32px}
 .sec-head h2{font-size:26.5px;font-weight:800;letter-spacing:-.4px;margin-bottom:6px}
@@ -1598,7 +1598,7 @@ function headerComp(variant, active){
     <a href="#congchung" class="logo" data-go="congchung"><img src="assets/logo/logo1.png" alt="Nhà Chung 86"></a>
     <nav class="nav">${navHtml}</nav>
     <div class="header-right">${rightHtml}</div>
-    <button class="hamb" id="drawerBtn">${ic('menu',22)}</button>
+    ${variant==='public'?'':`<button class="hamb" id="drawerBtn">${ic('menu',22)}</button>`}
   </div></header>`;
 }
 
