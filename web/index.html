@@ -441,6 +441,8 @@ tr:last-child td{border-bottom:none}
 .hero-visual img{width:100%;height:100%;object-fit:cover;display:block;
   -webkit-mask-image:linear-gradient(to bottom,#000 58%,rgba(0,0,0,0) 100%);
   mask-image:linear-gradient(to bottom,#000 58%,rgba(0,0,0,0) 100%)}
+.hero-visual-mobile{display:none}
+.hero-visual-mobile img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:var(--r2);display:block}
 .sec{padding:48px 0}
 .sec-head{text-align:center;margin-bottom:32px}
 .sec-head h2{font-size:26.5px;font-weight:800;letter-spacing:-.4px;margin-bottom:6px}
@@ -578,9 +580,13 @@ tr:last-child td{border-bottom:none}
   .nav{display:none}
   .hamb{display:flex}
   .header-right .avatar-mini .nm,.header-right .avatar-mini .rl{display:none}
-  .hero{min-height:0}
+  .header-right{gap:6px}
+  .admin-quicklink{padding:0;width:36px;height:36px;border-radius:50%;justify-content:center}
+  .admin-quicklink .lbl{display:none}
+  .hero{min-height:0;padding:32px 0 40px}
   .hero-text{max-width:none}
   .hero-visual{display:none}
+  .hero-visual-mobile{display:block;margin-bottom:18px}
   .hero h1{font-size:31.5px}
   .feat-grid{grid-template-columns:1fr}
   .how .wrap{grid-template-columns:1fr}
@@ -598,6 +604,9 @@ tr:last-child td{border-bottom:none}
   .topbar{display:none}
   .wrap{padding:0 16px}
   .content{padding:18px 0 90px}
+  .sec{padding:32px 0}
+  .sec-head{margin-bottom:24px}
+  .statsban-inner{padding:26px 22px}
   .gigrow{flex-wrap:wrap}
   .gigrow .actions{flex-direction:row;align-items:center;width:100%;justify-content:space-between;align-self:auto}
   .searchbar{flex-direction:column}
@@ -1559,7 +1568,7 @@ function headerComp(variant, active){
   }else{
     const roleLabel = variant==='admin' ? 'Ban điều hành' : (ROLE_LABELS[DATA.me&&DATA.me.role] || 'Thành viên');
     rightHtml = `
-      ${variant==='member'&&ROLE==='admin'?`<a href="#admin-tongquan" class="btn btn-out btn-sm" data-go="admin-tongquan">${ic('shield',14)} Trang quản trị</a>`:''}
+      ${variant==='member'&&ROLE==='admin'?`<a href="#admin-tongquan" class="btn btn-out btn-sm admin-quicklink" data-go="admin-tongquan">${ic('shield',14)}<span class="lbl"> Trang quản trị</span></a>`:''}
       <div style="position:relative">
         <button class="ic-bell" id="searchBtn" title="Tìm kiếm">${ic('search',17)}</button>
         <div class="umenu" id="searchPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:8px">
@@ -2687,8 +2696,9 @@ PUB.congchung = ()=> `
   <div class="hero-visual"><img src="assets/banner/banner1.png" alt="Anh chị em Bính Dần 1986 trong Nhà Chung"></div>
   <div class="wrap">
   <div class="hero-text">
+    <div class="hero-visual-mobile"><img src="assets/banner/banner1.png" alt="Anh chị em Bính Dần 1986 trong Nhà Chung"></div>
     <h1>Tìm Đúng Người<br><span class="b">Trong Chính Hội Mình</span></h1>
-    <p class="lead">52 anh chị em Bính Dần 1986 — kết nối việc, giúp nhau, không qua người lạ</p>
+    <p class="lead">Anh chị em Bính Dần 1986 — kết nối việc, giúp nhau, không qua người lạ</p>
     <div class="hero-btns">
       <a href="#viec" class="btn btn-blue btn-lg" data-go="viec">${ic('briefcase',16)} Xem việc đang mở</a>
       <a href="#khampha" class="btn btn-out btn-lg" data-go="khampha">${ic('users',16)} Tìm người trong Hội</a>
@@ -2749,12 +2759,7 @@ PUB.congchung = ()=> `
 
 <section class="sec" style="padding-top:0"><div class="wrap">
   <div class="statsban-inner">
-    <div class="sb-text"><h3>52 anh chị em đã tham gia Nhà Chung.<br>Bạn thì sao?</h3><a href="#gianhap" class="btn btn-lg" data-go="gianhap">Xin gia nhập ngay</a></div>
-    <div class="sb-stats">
-      <div class="sb-stat"><b>52</b><span>Thành viên</span></div>
-      <div class="sb-stat"><b>148</b><span>Năng lực</span></div>
-      <div class="sb-stat"><b>${DATA.jobs.filter(j=>j.status==='open').length}</b><span>Việc đang mở</span></div>
-    </div>
+    <div class="sb-text"><h3>Anh chị em Bính Dần 1986 đã tham gia Nhà Chung.<br>Bạn thì sao?</h3><a href="#gianhap" class="btn btn-lg" data-go="gianhap">Xin gia nhập ngay</a></div>
   </div>
 </div></section>
 
