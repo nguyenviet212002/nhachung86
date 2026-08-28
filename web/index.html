@@ -595,10 +595,10 @@ tr:last-child td{border-bottom:none}
   .header-right{gap:6px}
   .header-right .admin-quicklink,.header-right .avatar-mini{display:none}
   .public-cta{display:none}
-  .search-ov.show{display:block;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:95}
-  #searchPanel{position:fixed !important;top:0;left:0;right:0;width:auto !important;max-height:none;border-radius:0;
-    padding:calc(12px + env(safe-area-inset-top)) 14px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:96}
-  #searchPanel #searchResults{max-height:calc(100vh - 140px);overflow-y:auto}
+  .search-ov.show{display:block;position:fixed;top:81px;left:0;right:0;bottom:0;background:rgba(15,23,42,.45);z-index:95}
+  #searchPanel{position:fixed !important;top:81px;left:0;right:0;width:auto !important;max-height:none;border-radius:0;
+    padding:12px 14px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:96}
+  #searchPanel #searchResults{max-height:calc(100vh - 220px);overflow-y:auto}
   .hero{min-height:0;padding:80px 0 68px}
   .hero-text{max-width:none}
   .hero h1{font-size:31.5px}
