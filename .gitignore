@@ -8,3 +8,7 @@ api/.storage*/
 secrets/
 backups-test/
 .worktrees/
+
+# Chỉ dùng cục bộ để xem/sửa giao diện khi chưa có backend thật (?mock=1) —
+# không phải một phần app thật, không bao giờ đẩy lên git.
+web/js/mock.js

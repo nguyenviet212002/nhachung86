@@ -193,12 +193,13 @@ ul{list-style:none}
 
 /* ===== Lưới thống kê (stat-grid) ===== */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-.welcome-banner{position:relative;border-radius:var(--r2);overflow:hidden;margin-bottom:18px;min-height:150px;display:flex;align-items:flex-end}
+.welcome-banner{position:relative;border-radius:var(--r2);overflow:hidden;margin-bottom:18px;min-height:280px;display:flex;align-items:flex-end}
 .welcome-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 .welcome-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,0) 25%,rgba(15,23,42,.72) 100%);z-index:1}
-.welcome-banner-text{position:relative;z-index:2;padding:20px;color:#fff}
-.welcome-banner-text h1{font-size:21px;font-weight:800}
-.welcome-banner-text p{font-size:13.5px;margin-top:3px;color:#e2e8f0}
+.welcome-banner-text{position:relative;z-index:2;padding:28px 32px;color:#fff}
+.welcome-banner-text h1{font-size:24px;font-weight:700;letter-spacing:.1px;display:flex;align-items:center;gap:8px;text-shadow:0 2px 14px rgba(0,0,0,.25)}
+.welcome-banner-text h1 .wave-ic{color:#FBD98A;display:inline-flex}
+.welcome-banner-text p{font-size:14px;margin-top:7px;color:#e7ebf1;font-weight:400;letter-spacing:.1px;text-shadow:0 1px 10px rgba(0,0,0,.2)}
 .stat{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px}
 .stat-ico{width:38px;height:38px;border-radius:10px;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .stat-num{font-size:25.5px;font-weight:800;letter-spacing:-.3px}
@@ -1415,6 +1416,7 @@ const NAV_MEMBER = [
   {id:'viec', label:'Việc & hợp tác', icon:'briefcase', badge:()=>DATA.jobs.filter(j=>j.status==='open').length},
   {id:'khampha', label:'Con người', icon:'users'},
   {id:'giupnhau', label:'Giúp nhau', icon:'heart', badge:()=>DATA.aid.filter(a=>a.status==='queued'||a.status==='matched').length},
+  {id:'cotuong-online', label:'Cờ tướng', icon:'star'},
   {id:'nangluc', label:'Năng lực', icon:'star', overflow:true},
   {id:'hoatdong', label:'Hoạt động', icon:'calendar', overflow:true},
   {id:'kyuc', label:'Ký ức & quỹ', icon:'archive', overflow:true},
@@ -1427,6 +1429,7 @@ const NAV_ADMIN = [
   {id:'admin-hoatdong', label:'Hoạt động & ký ức', icon:'archive'},
   {id:'admin-nhatky', label:'Nhật ký', icon:'server'},
   {id:'admin-phanquyen', label:'Phân quyền', icon:'lock'},
+  {id:'cotuong-online', label:'Cờ tướng', icon:'star'},
 ];
 const TABBAR_MEMBER = [
   {id:'trongnha', label:'Bảng nhà', icon:'home'},
@@ -1630,8 +1633,6 @@ function headerComp(variant, active){
         <div><span class="nm">${DATA.me.name}</span><span class="rl">${roleLabel}</span></div>
         <div class="umenu" id="umenu">
           <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
-          <a href="#cotuong-online" data-go="cotuong-online">${ic('star',15)} Cờ tướng giao lưu</a>
-          <a href="#cotuong-the" data-go="cotuong-the">${ic('star',15)} Cờ thế</a>
           <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
           ${overflowHtml?`<div class="div"></div>${overflowHtml}`:''}
           ${variant==='admin'?`<a href="#trongnha" data-go="trongnha">${ic('home',15)} Về giao diện thành viên</a>`:''}
@@ -1889,22 +1890,14 @@ function setFilter(ns,key,val){STATE[ns][key]=val;render();}
    nguyên root.innerHTML nên gõ tới đâu mất focus/con trỏ tới đó. Mỗi màn có
    hàm "…SearchInput(el)" riêng: cập nhật STATE (để chuyển tab/rời màn rồi
    quay lại vẫn giữ đúng từ khoá), rồi chỉ vẽ lại đúng khung #…-results. */
-function searchKw(ns, placeholder, oninput){
+function searchKw(ns, placeholder, oninput, extraHtml){
   const q = (STATE[ns]&&STATE[ns].q)||'';
-  return `<div class="searchbar"><div class="kw">${ic('search',15)}<input value="${esc(q)}" placeholder="${esc(placeholder)}" oninput="${oninput}(this)"></div></div>`;
+  return `<div class="searchbar"><div class="kw">${ic('search',15)}<input value="${esc(q)}" placeholder="${esc(placeholder)}" oninput="${oninput}(this)"></div>${extraHtml||''}</div>`;
 }
 function matchKw(q, ...fields){
   if(!q) return true;
   const hay = fields.filter(Boolean).join(' ').toLowerCase();
   return hay.includes(q);
-}
-function myTurnItems(){
-  const items=[];
-  DATA.jobs.filter(j=>j.status==='open'&&j.poster===DATA.me.id&&j.apps>0).forEach(j=>
-    items.push({icon:'briefcase',text:`"${j.title}" có ${j.apps} người nhận`,go:`viec-detail:${j.id}`}));
-  DATA.aid.filter(a=>(a.status==='queued'||a.status==='matched')&&a.asker===DATA.me.id&&a.helpers>0).forEach(a=>
-    items.push({icon:'heart',text:`"${a.title}" có ${a.helpers} người muốn giúp`,go:`giupnhau-detail:${a.id}`}));
-  return items;
 }
 const CAT_ICON = {'Xây dựng':'briefcase','Vận tải':'briefcase','Kế toán':'doc','Y tế':'heart','Nông sản':'star',
   'Giáo dục':'book','Cơ khí':'gear','Ẩm thực':'star','Khác':'grid'};
@@ -2062,6 +2055,71 @@ function globalSearchInput(){
   }, 350);
 }
 function closeSearchPanel(){ const p=qs('#searchPanel'); if(p) p.classList.remove('show'); const ov=qs('#searchOv'); if(ov) ov.classList.remove('show'); }
+
+/* Ô tìm kiếm nhúng thẳng trên Bảng nhà (thay cho card "Đến lượt bạn" cũ) —
+   CÙNG 5 nguồn thật (jobs/members/capabilities/projects/aid) và cách vẽ như
+   globalSearchInput() ở trên, nhưng tự có id/timer/seq riêng (search-home,
+   searchResultsHome) thay vì dùng chung: 2 ô tìm cùng tồn tại trong DOM một
+   lúc (ô này luôn hiện trên Bảng nhà, ô kia luôn có sẵn trong panel topbar dù
+   đang ẩn) nên gộp chung state sẽ khiến gõ ở ô này huỷ mất kết quả đang chờ
+   của ô kia và ngược lại. */
+let HOME_SEARCH_TIMER = null, HOME_SEARCH_SEQ = 0, HOME_SEARCH_FILTER = 'all';
+const HOME_SEARCH_FILTERS = [
+  ['all','Tất cả'], ['jobs','Việc & hợp tác'], ['members','Con người'],
+  ['skills','Năng lực'], ['activities','Hoạt động'], ['aid','Giúp nhau'],
+];
+function homeSearchFilterRow(){
+  return HOME_SEARCH_FILTERS.map(([id,lb])=>
+    `<button type="button" class="fchip ${HOME_SEARCH_FILTER===id?'on':''}" style="height:32px;padding:0 12px;font-size:12.5px" onclick="setHomeSearchFilter('${id}')">${lb}</button>`).join('');
+}
+// Đổi bộ lọc nhóm — chỉ vẽ lại đúng hàng chip + chạy lại tìm kiếm với TỪ
+// KHOÁ ĐANG CÓ SẴN trong ô (không đụng tới input, không mất chữ đang gõ),
+// cùng kỹ thuật "vẽ lại đúng khung con" mà searchKw() dùng, không gọi render()
+// toàn trang.
+function setHomeSearchFilter(f){
+  HOME_SEARCH_FILTER = f;
+  const row = document.getElementById('home-search-filters');
+  if(row) row.innerHTML = homeSearchFilterRow();
+  homeSearchInput();
+}
+function homeSearchInput(){
+  clearTimeout(HOME_SEARCH_TIMER);
+  const input = document.getElementById('search-home');
+  const box = document.getElementById('searchResultsHome');
+  if(!input||!box) return;
+  const q = input.value.trim();
+  const mySeq = ++HOME_SEARCH_SEQ;
+  if(q.length<2){ box.innerHTML = q?'<p style="font-size:13px;color:var(--muted);padding:10px">Gõ ít nhất 2 ký tự để tìm.</p>':''; return; }
+  box.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:10px">Đang tìm…</p>';
+  HOME_SEARCH_TIMER = setTimeout(async ()=>{
+    let jobsRes,membersRes,capsRes,projRes,aidRes;
+    try{
+      [jobsRes,membersRes,capsRes,projRes,aidRes] = await Promise.all([
+        api.get('/jobs?q='+encodeURIComponent(q)+'&limit=5'),
+        api.get('/members?q='+encodeURIComponent(q)+'&limit=5'),
+        api.get('/capabilities?q='+encodeURIComponent(q)+'&limit=5'),
+        api.get('/projects?q='+encodeURIComponent(q)+'&limit=5'),
+        api.get('/aid?q='+encodeURIComponent(q)+'&limit=5'),
+      ]);
+    }catch(e){
+      if(mySeq!==HOME_SEARCH_SEQ) return; // ô tìm đã đổi chữ trong lúc chờ, kết quả cũ không còn giá trị
+      const b=document.getElementById('searchResultsHome'); if(b) b.innerHTML='<p style="font-size:13px;color:var(--muted);padding:10px">Có lỗi khi tìm, thử lại.</p>';
+      return;
+    }
+    if(mySeq!==HOME_SEARCH_SEQ) return; // trả lời không theo đúng thứ tự (mạng chậm) — chỉ vẽ lượt gõ mới nhất
+    const groups = [
+      {key:'jobs', label:'Việc & hợp tác', items:(jobsRes&&jobsRes.data||[]).map(j=>({title:j.title, sub:j.poster_name, go:'viec-detail:'+j.id}))},
+      {key:'members', label:'Con người', items:(membersRes&&membersRes.data||[]).map(m=>({title:m.full_name, sub:m.job||'', go:'congnguoi-detail:'+m.id}))},
+      {key:'skills', label:'Năng lực', items:(capsRes&&capsRes.data||[]).map(c=>({title:c.title, sub:c.full_name||'', go:'nangluc-detail:'+c.id}))},
+      {key:'activities', label:'Hoạt động', items:(projRes&&projRes.data||[]).map(p=>({title:p.title, sub:fmtDate(p.starts_at), go:'hoatdong-detail:'+p.id}))},
+      {key:'aid', label:'Giúp nhau', items:(aidRes&&aidRes.data||[]).map(a=>({title:a.title, sub:a.requester_name||'', go:'giupnhau-detail:'+a.id}))},
+    ].filter(g=>(HOME_SEARCH_FILTER==='all'||g.key===HOME_SEARCH_FILTER) && g.items.length);
+    const outBox = document.getElementById('searchResultsHome');
+    if(!outBox) return;
+    if(!groups.length){ outBox.innerHTML = `<p style="font-size:13px;color:var(--muted);padding:10px">Không tìm thấy kết quả nào cho "${esc(q)}".</p>`; return; }
+    outBox.innerHTML = groups.map(g=>`<div style="padding:8px 10px 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">${g.label}</div>${g.items.map(it=>`<button type="button" onclick="go('${it.go}')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><div style="font-size:13.5px;font-weight:600">${esc(it.title)}</div>${it.sub?`<div style="font-size:12px;color:var(--muted)">${esc(it.sub)}</div>`:''}</button>`).join('')}`).join('');
+  }, 350);
+}
 /* SUGGEST_VALUES nhớ lựa chọn qua NHIỀU BƯỚC của 1 wizard nhiều bước (đăng
    việc/nhờ giúp/thêm năng lực). openModal() thay TOÀN BỘ HTML của modal ở mỗi
    bước — input ẩn #val-<groupId> của bước 1 không còn trong DOM khi tới bước
@@ -3118,48 +3176,29 @@ V.notfound = (p,name)=> `<div class="empty"><div class="ic">${ic('search',24)}</
 
 /* ---- Bảng nhà (như dashboard.html) ---- */
 V.trongnha = ()=>{
-  const turn = myTurnItems();
   const upJobs = DATA.jobs.filter(j=>j.status==='open').slice(0,3);
-  const prof = myProfileCompleteness();
   return `
-  <div class="welcome-banner"><img src="assets/banner/banner2.png" alt="Nhà Chung 86">
-    <div class="welcome-banner-text"><h1>Chào ${DATA.me.name.split(' ').pop()} 👋</h1>
+  <div class="welcome-banner"><img src="assets/banner/banner3.png" alt="Nhà Chung 86">
+    <div class="welcome-banner-text"><h1>Chào ${DATA.me.name.split(' ').pop()}<span class="wave-ic">${ic('star',18)}</span></h1>
     <p>Hôm nay Nhà Chung có ${upJobs.length} việc đang mở phù hợp với bạn.</p></div>
   </div>
 
-  ${turn.length?`<div class="card" style="border-color:var(--amber);background:var(--amber-l);margin-bottom:18px">
-    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;color:#8A5806;font-weight:800">${ic('bolt',17)}Đến lượt bạn (${turn.length})</div>
-    <div class="stack">${turn.map(t=>`<a class="gigrow" style="margin-bottom:0;background:#fff" data-go="${t.go}"><div class="logo" style="background:#fff;color:#8A5806">${ic(t.icon,17)}</div><div class="body"><div class="title" style="font-size:13.5px">${t.text}</div></div></a>`).join('')}</div></div>`:''}
-
   <div class="card" style="margin-bottom:20px">
-    <div class="prog-top"><span style="font-weight:700">${ic('user',14)} Hồ sơ hoàn thiện</span><span class="pct">${prof.pct}%</span></div>
-    <div class="prog-bar"><i style="width:${prof.pct}%"></i></div>
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;font-weight:800">${ic('search',17)}Tìm nhanh trong Nhà Chung</div>
+    <input type="text" id="search-home" class="input" placeholder="Tìm việc, người, năng lực, hoạt động, lời nhờ giúp…" oninput="homeSearchInput()" autocomplete="off">
+    <div id="home-search-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${homeSearchFilterRow()}</div>
+    <div id="searchResultsHome" style="margin-top:6px"></div>
   </div>
 
-  <div class="stat-grid">
-    <div class="stat"><div class="stat-ico">${ic('send',16)}</div><div class="stat-num">${DATA.jobs.filter(j=>j.worker===DATA.me.id||j.poster===DATA.me.id).length}</div><div class="stat-lbl">Việc đã tham gia</div></div>
-    <div class="stat"><div class="stat-ico">${ic('star',16)}</div><div class="stat-num">${DATA.skills.filter(s=>s.memberId===DATA.me.id).length}</div><div class="stat-lbl">Năng lực đã đăng</div></div>
-    <div class="stat"><div class="stat-ico">${ic('heart',16)}</div><div class="stat-num">${DATA.aid.filter(a=>a.status==='queued'||a.status==='matched').length}</div><div class="stat-lbl">Lời nhờ đang mở</div></div>
-    <div class="stat"><div class="stat-ico">${ic('users',16)}</div><div class="stat-num">${DATA.members.length}</div><div class="stat-lbl">Thành viên Hội</div></div>
-  </div>
-
-  <div class="cols">
-    <div>
-      <div class="section" style="margin-bottom:16px">
-        <div class="card-head"><h3>${ic('wand',15)} Việc phù hợp với bạn</h3><a href="#viec" class="see-all" data-go="viec">Xem tất cả →</a></div>
-        <div style="padding:16px 18px">${upJobs.map(j=>`
-        <div class="gigrow"><div class="logo">${logoImg(j.cover,CAT_ICON[j.cat]||'briefcase')}</div>
-          <div class="body"><a href="#viec-detail:${j.id}" class="title" data-go="viec-detail:${j.id}">${j.title}</a>
-          <div class="co">${member(j.poster).name} ${ic('check',10)}<span class="verified"></span></div>
-          <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span></div></div>
-          <div class="actions"><a href="#viec-detail:${j.id}" class="btn btn-blue btn-sm" data-go="viec-detail:${j.id}">Xem</a></div>
-        </div>`).join('')}</div>
-      </div>
-    </div>
-    <div class="cols-side">
-      ${profileCompletenessBoxHtml(prof)}
-      <div class="bluebox"><div class="ico">${ic('medal',18)}</div><h4>Thêm năng lực</h4><p>Đăng năng lực kèm bằng chứng để được liên hệ nhiều hơn.</p><a class="bx-btn" data-open="themNangLuc">Thêm ngay</a></div>
-    </div>
+  <div class="section">
+    <div class="card-head"><h3>${ic('wand',15)} Việc phù hợp với bạn</h3><a href="#viec" class="see-all" data-go="viec">Xem tất cả →</a></div>
+    <div style="padding:16px 18px">${upJobs.map(j=>`
+    <div class="gigrow"><div class="logo">${logoImg(j.cover,CAT_ICON[j.cat]||'briefcase')}</div>
+      <div class="body"><a href="#viec-detail:${j.id}" class="title" data-go="viec-detail:${j.id}">${j.title}</a>
+      <div class="co">${member(j.poster).name} ${ic('check',10)}<span class="verified"></span></div>
+      <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span></div></div>
+      <div class="actions"><a href="#viec-detail:${j.id}" class="btn btn-blue btn-sm" data-go="viec-detail:${j.id}">Xem</a></div>
+    </div>`).join('')}</div>
   </div>`;
 };
 
@@ -3411,11 +3450,14 @@ V.viec = (params)=>{
   const st=STATE.viec;
   if(params && params[0] && ['can-nguoi','hop-tac','hoi-tim'].includes(params[0])) st.tab=params[0];
   const tabs = [['can-nguoi','Cần người'],['hop-tac','Hợp tác'],['hoi-tim','Hỏi & tìm']];
+  // Bộ lọc (3 tab loại tin) gộp thẳng vào thanh tìm kiếm (truyền làm extraHtml
+  // cho searchKw()) thay vì đứng riêng ở .filterrow bên dưới — 1 thanh duy
+  // nhất, .searchbar vốn đã flex-wrap nên chip tự xuống dòng ở màn hẹp.
+  const tabChips = `<div style="display:flex;gap:8px;flex-wrap:wrap">${tabs.map(([id,lb])=>`<button class="fchip ${st.tab===id?'on':''}" onclick="setFilter('viec','tab','${id}')">${lb} (${DATA.jobs.filter(j=>j.kind===id).length})</button>`).join('')}</div>`;
   return `
   <div class="page-head"><div><h1>Việc & hợp tác</h1><p>Việc cộng đồng đang mở — mỗi tin đều theo dõi hành trình tin cậy thật, từ lúc đăng tới lúc hoàn tất.</p></div>
     <button class="btn btn-blue" data-open="dangViec">${ic('plus',15)} Đăng tin</button></div>
-  ${searchKw('viec','Tìm theo tên việc, mô tả, khu vực…','viecSearchInput')}
-  <div class="filterrow"><div class="l">${tabs.map(([id,lb])=>`<button class="fchip ${st.tab===id?'on':''}" onclick="setFilter('viec','tab','${id}')">${lb} (${DATA.jobs.filter(j=>j.kind===id).length})</button>`).join('')}</div></div>
+  ${searchKw('viec','Tìm theo tên việc, mô tả, khu vực…','viecSearchInput', tabChips)}
   <div id="viec-results">${viecResultsHtml()}</div>`;
 };
 
@@ -4587,6 +4629,7 @@ V['cotuong-online'] = ()=>{
       <button class="btn btn-blue" data-open="ghepTranNhanh">${ic('bolt',15)} Ghép trận nhanh</button>
       <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
       <a href="#cotuong-may" data-go="cotuong-may" class="btn btn-out">${ic('star',15)} Đấu với máy</a>
+      <a href="#cotuong-the" data-go="cotuong-the" class="btn btn-out">${ic('star',15)} Cờ thế</a>
     </div>
   </div>
   ${GAMES_LIST.mine.length?`<div class="sec-title">${ic('user',14)} Ván của bạn</div>${GAMES_LIST.mine.map(gameRow).join('')}`:''}
