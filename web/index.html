@@ -182,6 +182,7 @@ ul{list-style:none}
 .searchbar.lg{padding:16px;border-radius:16px;margin-bottom:18px;position:relative}
 .searchbar.lg .kw input{height:56px;font-size:16px;padding-left:46px;border-radius:12px}
 .searchbar.lg .kw svg{left:16px;width:19px;height:19px}
+.searchbar.lg .btn{height:56px;border-radius:12px}
 /* Hộp gợi ý thả xuống khi bấm/gõ vào ô tìm chính (kiểu Chợ Tốt: rỗng thì gợi
    ý danh mục, có chữ thì liệt kê việc khớp kèm "trong <nghề>"). */
 .search-suggest{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:30;max-height:420px;overflow-y:auto;padding:10px}
@@ -685,6 +686,7 @@ tr:last-child td{border-bottom:none}
 @media(max-width:768px){
   .topbar{display:none}
   .welcome-banner{display:none}
+  .searchbar.lg .btn{display:none}
   .wrap{padding:0 16px}
   .content{padding:18px 0 90px}
   .sec{padding:32px 0}
@@ -1527,7 +1529,7 @@ const NAV_ADMIN = [
 ];
 const TABBAR_MEMBER = [
   {id:'trongnha', label:'Bảng nhà', icon:'home'},
-  {id:'viec', label:'Việc', icon:'briefcase'},
+  {id:'khampha', label:'Thành viên', icon:'users'},
   {id:'FAB', label:'Tạo', icon:'plus'},
   {id:'giupnhau', label:'Giúp nhau', icon:'heart'},
   {id:'hoso-toi', label:'Cá nhân', icon:'user'},
@@ -3519,7 +3521,8 @@ V.trongnha = (params)=>{
   return `
   <div class="welcome-banner"><img src="assets/banner/banner3.png" alt="Nhà Chung 86"></div>
 
-  <div class="searchbar lg"><div class="kw">${ic('search',17)}<input id="viec-search-input" value="${esc(st.q)}" placeholder="Tìm việc, hợp tác, dịch vụ…" oninput="viecSearchInput(this)" onfocus="viecSearchFocus()" onblur="viecSearchBlur()" autocomplete="off"></div>
+  <div class="searchbar lg"><div class="kw">${ic('search',17)}<input id="viec-search-input" value="${esc(st.q)}" placeholder="Tìm việc, hợp tác, dịch vụ…" oninput="viecSearchInput(this)" onfocus="viecSearchFocus()" onblur="viecSearchBlur()" onkeydown="if(event.key==='Enter') this.blur()" autocomplete="off"></div>
+    <button type="button" class="btn btn-blue" onclick="const i=qs('#viec-search-input'); if(i) i.blur();">${ic('search',16)} Tìm kiếm</button>
     <div id="viec-suggest" class="search-suggest"></div>
   </div>
 
