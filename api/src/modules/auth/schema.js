@@ -43,6 +43,12 @@ export const registerSchema = z.object({
   // service tiếp tục xác minh và tiêu thụ vé để giữ tương thích ngược.
   otp_token: z.string().min(20).optional(),
   phone: vnPhone,
+  // Bắt buộc từ đây — người nộp đơn đồng ý các kênh này công khai với thành
+  // viên khác ngay khi đơn được duyệt (contact_publish_on_join, migration 054),
+  // không qua luồng "xin phép" nữa. zalo dùng cùng khuôn số điện thoại VN;
+  // messenger là đường dẫn/tên người dùng Messenger, không có khuôn cố định.
+  zalo: vnPhone,
+  messenger: z.string().trim().min(3, 'Điền link hoặc tên người dùng Messenger').max(200),
   full_name: z.string().trim().min(2).max(120),
   birth_year: z.coerce.number().int().min(1900).max(2100),
   area_id: z.string().uuid(),

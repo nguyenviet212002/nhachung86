@@ -73,6 +73,8 @@ router.post('/register', normalLimit, validate(schema.registerSchema), async (re
       communityId,
       otpToken: req.body.otp_token,
       phone: req.body.phone,
+      zalo: req.body.zalo,
+      messenger: req.body.messenger,
       fullName: req.body.full_name,
       birthYear: req.body.birth_year,
       areaId: req.body.area_id,

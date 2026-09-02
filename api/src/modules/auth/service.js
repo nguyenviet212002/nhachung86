@@ -222,7 +222,7 @@ function inviteFailure(err) {
 }
 
 export async function register({
-  communityId, otpToken, phone, fullName, birthYear, areaId, inviteToken, password,
+  communityId, otpToken, phone, zalo, messenger, fullName, birthYear, areaId, inviteToken, password,
 }) {
   const phoneHash = hashPhone(phone);
   let claims = null;
@@ -347,9 +347,9 @@ export async function register({
           // app_role đọc lại được. Đường đọc duy nhất là join_secret_consume(),
           // và người gọi hợp lệ duy nhất là approve().
           await sp.raw(
-            `INSERT INTO join_request_secrets (join_request_id, community_id, phone, password_hash)
-             VALUES (?, ?, ?, ?)`,
-            [row.id, communityId, phone, passwordHash]
+            `INSERT INTO join_request_secrets (join_request_id, community_id, phone, password_hash, zalo, messenger)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [row.id, communityId, phone, passwordHash, zalo, messenger]
           );
           await sp.raw(
             `UPDATE guarantee_invites SET used_by_join_request = ?

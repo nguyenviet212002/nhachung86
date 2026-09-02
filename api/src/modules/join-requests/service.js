@@ -252,21 +252,26 @@ export async function reject({ actor, id, reasonCode, note }) {
 }
 
 /**
- * Duyệt đơn — MỘT giao dịch, và service chỉ làm đúng bốn việc (đặc tả mục 5,
- * phần "Gia nhập"):
+ * Duyệt đơn — MỘT giao dịch (đặc tả mục 5, phần "Gia nhập"):
  *
  *   1. INSERT INTO members
- *   2. SELECT contact_upsert(<member_id>, 'phone', <số của người nộp đơn>)
- *   3. UPDATE join_requests
- *   4. audit.log
+ *   2. SELECT contact_upsert(<member_id>, field, value) cho phone/zalo/messenger
+ *      — người nộp đơn đã bắt buộc điền cả ba lúc đăng ký (migration 054)
+ *   3. SELECT contact_publish_on_join(<member_id>, field) cho cùng ba trường —
+ *      công khai NGAY, người xem hồ sơ liên kết thẳng, không cần "xin phép"
+ *   4. UPDATE join_requests
+ *   5. audit.log
  *
- * SERVICE KHÔNG CHẠM member_contacts VÀ KHÔNG CHẠM member_relations. Hai bảng
- * đó nằm ngoài quyền của app_role (migration 005 và 012) — nếu mã dưới đây lỡ
- * chạm vào, CSDL trả `permission denied` chứ không im lặng làm sai. Hộp liên hệ
- * rỗng, tám mức riêng tư mặc định và cạnh guarantee do trg_member_bootstrap
- * sinh ngay sau bước 1.
+ * SERVICE KHÔNG CHẠM member_contacts, privacy_settings VÀ KHÔNG CHẠM
+ * member_relations trực tiếp. Ba bảng đó nằm ngoài quyền GHI của app_role
+ * (migration 005, 006 và 012) — nếu mã dưới đây lỡ chạm thẳng vào, CSDL trả
+ * `permission denied` chứ không im lặng làm sai. Hộp liên hệ rỗng, tám mức
+ * riêng tư mặc định và cạnh guarantee do trg_member_bootstrap sinh ngay sau
+ * bước 1; bước 3 chỉ ĐỔI mức của đúng ba hàng privacy_settings vừa sinh đó
+ * qua hàm SECURITY DEFINER riêng — không đụng communities.config (khoá bởi
+ * trg_community_config_guard, migration 028, cần hai chữ ký).
  *
- * Thứ tự bước 1 → bước 3 KHÔNG phải chuyện tuỳ nghi: trg_member_status_gate là
+ * Thứ tự bước 1 → bước 4 KHÔNG phải chuyện tuỳ nghi: trg_member_status_gate là
  * CONSTRAINT TRIGGER hoãn tới COMMIT (migration 010), nó tra join_requests theo
  * member_id. Ghi hàng members trước rồi mới nối đơn — kiểm tra chạy lúc COMMIT
  * khi cả hai đã có mặt. Đổi sang kiểm ngay lúc ghi thì luồng hợp lệ cũng chết.
@@ -309,11 +314,27 @@ export async function approve({ actor, id, note }) {
       ]
     );
 
-    // 2. Số điện thoại đi qua hàm SECURITY DEFINER; approver chỉ điền được ô
-    //    còn trống, đúng một lần, và lần đó để lại dòng contact.written.
+    // 2. Ba kênh liên hệ đi qua hàm SECURITY DEFINER; approver chỉ điền được ô
+    //    còn trống, đúng một lần, và mỗi lần để lại dòng contact.written. Canh
+    //    `if (secret.zalo)`/`if (secret.messenger)`: registerSchema bắt buộc cả
+    //    hai cho đơn nộp TỪ migration 054 trở đi, nhưng đơn đã 'pending' TRƯỚC
+    //    migration này chỉ có phone (hai cột kia mới thêm, hàng cũ là NULL) —
+    //    approve() một đơn cũ như vậy không được vỡ giữa chừng.
     await trx.raw(`SELECT contact_upsert(?, 'phone', ?)`, [m.id, secret.phone]);
+    if (secret.zalo) await trx.raw(`SELECT contact_upsert(?, 'zalo', ?)`, [m.id, secret.zalo]);
+    if (secret.messenger) await trx.raw(`SELECT contact_upsert(?, 'messenger', ?)`, [m.id, secret.messenger]);
 
-    // 3. Nối đơn với người vừa tạo. Constraint hoãn kiểm lúc COMMIT rằng đơn
+    // 3. Công khai luôn ba kênh đó cho member vừa tạo — người nộp đơn đã đồng ý
+    //    điều khoản "công khai liên hệ" trên form đăng ký trước khi gửi (xem
+    //    registerSchema). contact_publish_on_join() (migration 054) chỉ đổi mức
+    //    riêng tư của ĐÚNG hàng vừa được trg_member_bootstrap sinh ra ở bước 1
+    //    trong CÙNG giao dịch này — không đụng communities.config, không đụng
+    //    hàng của bất kỳ ai khác.
+    await trx.raw(`SELECT contact_publish_on_join(?, 'phone')`, [m.id]);
+    if (secret.zalo) await trx.raw(`SELECT contact_publish_on_join(?, 'zalo')`, [m.id]);
+    if (secret.messenger) await trx.raw(`SELECT contact_publish_on_join(?, 'messenger')`, [m.id]);
+
+    // 4. Nối đơn với người vừa tạo. Constraint hoãn kiểm lúc COMMIT rằng đơn
     //    này đã thành approved và referrer khớp với thành viên vừa tạo.
     await trx.raw(
       `UPDATE join_requests
@@ -323,7 +344,7 @@ export async function approve({ actor, id, note }) {
       [m.id, actor.id, note ?? null, id, actor.communityId]
     );
 
-    // 4. Nhật ký, cùng giao dịch.
+    // 5. Nhật ký, cùng giao dịch.
     await auditLog(trx, {
       communityId: actor.communityId,
       actorId: actor.id,

@@ -41,7 +41,7 @@ button{font-family:var(--font);cursor:pointer;border:none;background:none}
 ul{list-style:none}
 :focus-visible{outline:2.5px solid var(--brand);outline-offset:2px;border-radius:6px}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
-.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.wrap{max-width:1360px;margin:0 auto;padding:0 24px}
 
 /* ===== Nút ===== */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:var(--r);font-weight:700;font-size:15px;padding:13px 23px;transition:.15s;white-space:nowrap}
@@ -51,6 +51,16 @@ ul{list-style:none}
 .btn-out:hover{border-color:var(--brand);color:var(--brand)}
 .btn-green{background:#fff;color:var(--green);border:1.5px solid var(--green)}
 .btn-red{background:#fff;color:var(--red);border:1.5px solid #fecaca}
+.btn-amber{background:var(--amber);color:#fff}
+.btn-amber:hover{background:#d97706}
+.btn-dark{background:var(--dark);color:#fff}
+.btn-dark:hover{background:#000}
+.btn-call{background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;border:none}
+.btn-call:hover{background:linear-gradient(135deg,#16a34a,#14532d)}
+.btn-zalo{background:linear-gradient(135deg,#3b82f6,#0068ff);color:#fff;border:none}
+.btn-zalo:hover{background:linear-gradient(135deg,#2563eb,#0052cc)}
+.btn-messenger{background:linear-gradient(135deg,#8b5cf6,#2563eb);color:#fff;border:none}
+.btn-messenger:hover{background:linear-gradient(135deg,#7c3aed,#1d4ed8)}
 .btn-sm{padding:9px 16px;font-size:14.5px}
 .btn-lg{padding:14px 28px;font-size:16px}
 .btn-block{width:100%}
@@ -77,11 +87,6 @@ ul{list-style:none}
 .nav a .n{background:var(--brand-l);color:var(--brand-d);font-size:12px;font-weight:800;border-radius:100px;padding:1px 6px;flex:none;line-height:1.56}
 .header-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none;white-space:nowrap}
 .public-cta{display:flex;align-items:center;gap:10px}
-.search-ov{display:none}
-.search-panel-head{display:flex;gap:8px;align-items:center}
-.search-panel-head .input{flex:1;width:auto;min-width:0}
-.search-panel-head .search-close{flex:0 0 38px;width:38px;height:38px;border-radius:var(--r);border:1.5px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink2);cursor:pointer;padding:0}
-.search-panel-head .search-close:hover{background:var(--bg3)}
 .ic-bell{position:relative;color:var(--ink2);font-size:18px;width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center}
 .ic-bell:hover{background:var(--bg3)}
 .ic-bell .dot{position:absolute;top:3px;right:5px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff}
@@ -148,6 +153,7 @@ ul{list-style:none}
 .chip{font-size:14px;padding:6px 13px;border-radius:100px;background:var(--bg3);color:var(--ink2);display:inline-flex;align-items:center;gap:7px}
 .chip svg{width:12px;height:12px}
 .chip.salary{background:var(--brand-l);color:var(--brand-d);font-weight:700}
+.chip.amber{background:var(--amber-l);color:#b45309;font-weight:700}
 .fchip{height:42px;border:1.5px solid var(--line);border-radius:100px;padding:0 18px;font-size:14.5px;font-weight:600;color:var(--ink2);background:#fff;display:inline-flex;align-items:center;gap:7px;flex-shrink:0}
 .fchip:hover{border-color:var(--brand);color:var(--brand)}
 .fchip.on{background:var(--brand-l);color:var(--brand-d);border-color:var(--brand);font-weight:700}
@@ -163,17 +169,45 @@ ul{list-style:none}
 .verified{color:var(--green);font-size:12.5px;margin-left:3px}
 
 /* ===== Filter bar (tìm kiếm + chip lọc) ===== */
-.searchbar{display:flex;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 8px rgba(15,23,42,.04);padding:12px;margin-bottom:14px;flex-wrap:wrap}
+.searchbar{display:flex;gap:10px;background:#fff;border-radius:10px;box-shadow:0 1px 8px rgba(15,23,42,.04);padding:12px;margin-bottom:14px;flex-wrap:wrap}
 .searchbar .kw{position:relative;flex:1;min-width:180px}
 .searchbar .kw svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
 .searchbar input{width:100%;height:46px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 14px 0 40px;font-family:var(--font);font-size:15px;color:var(--ink)}
 .searchbar input:focus{outline:none;border-color:var(--brand)}
 .searchbar select{height:46px;min-width:150px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 14px;font-family:var(--font);font-size:15px;background:#fff}
 .searchbar .btn{height:46px}
+/* Bản to hơn cho khung tìm kiếm chính của Bảng nhà (gộp "Việc & hợp tác") —
+   cùng khung .searchbar, chỉ phóng to ô nhập + icon cho rõ, giống khung tìm
+   kiếm lớn kiểu Chợ Tốt. */
+.searchbar.lg{padding:16px;border-radius:16px;margin-bottom:18px;position:relative}
+.searchbar.lg .kw input{height:56px;font-size:16px;padding-left:46px;border-radius:12px}
+.searchbar.lg .kw svg{left:16px;width:19px;height:19px}
+/* Hộp gợi ý thả xuống khi bấm/gõ vào ô tìm chính (kiểu Chợ Tốt: rỗng thì gợi
+   ý danh mục, có chữ thì liệt kê việc khớp kèm "trong <nghề>"). */
+.search-suggest{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:30;max-height:420px;overflow-y:auto;padding:10px}
+.ss-head{font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:8px 8px 6px}
+.ss-row{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:10px 8px;border:none;background:none;border-radius:9px;cursor:pointer;font-size:14px}
+.ss-row:hover{background:var(--bg3)}
+.ss-row b{font-weight:700;color:var(--ink)}
+.ss-row .ss-in{color:var(--muted);font-size:12.5px}
+.ss-empty{padding:18px 8px;font-size:13.5px;color:var(--muted);text-align:center}
+.ss-cats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:2px}
+.ss-cat{display:flex;align-items:center;gap:10px;padding:8px;border:none;background:none;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px;color:var(--ink)}
+.ss-cat:hover{background:var(--bg3)}
+.ss-cat img{width:32px;height:32px;border-radius:8px;object-fit:cover;flex:none}
+.ss-cat svg{flex:none;color:var(--brand-d)}
 .filterrow{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .filterrow .l{display:flex;gap:8px;flex:1;overflow-x:auto;padding-bottom:2px}
 .result-cnt{font-size:14.5px;color:var(--ink2);margin-bottom:14px}
 .result-cnt b{color:var(--ink);font-weight:700}
+/* Hàng icon danh mục (duyệt nhanh theo nhóm nghề, kiểu Chợ Tốt) */
+.cat-row{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 16px;margin-bottom:4px}
+.cat-ic{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--ink2);font-size:12.5px;font-weight:600;width:78px;text-align:center}
+.cat-ic-i{width:64px;height:64px;border-radius:18px;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:var(--brand-d);transition:.15s;overflow:hidden;border:2px solid transparent}
+.cat-ic-i img{width:100%;height:100%;object-fit:cover;display:block}
+.cat-ic.on .cat-ic-i{border-color:var(--brand)}
+.cat-ic.on .cat-ic-i.icon{background:var(--brand);color:#fff}
+.cat-ic.on{color:var(--ink)}
 
 /* ===== Thẻ việc dạng hàng ngang (job row) ===== */
 .gigrow{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;display:flex;gap:16px;align-items:center;transition:.15s;margin-bottom:14px}
@@ -193,13 +227,18 @@ ul{list-style:none}
 
 /* ===== Lưới thống kê (stat-grid) ===== */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-.welcome-banner{position:relative;border-radius:var(--r2);overflow:hidden;margin-bottom:18px;min-height:280px;display:flex;align-items:flex-end}
+/* Rộng hết cỡ, tràn ra ngoài .wrap (kiểu banner Chợ Tốt) — kỹ thuật "full
+   bleed" kinh điển: left/right 50% (tính theo khung cha .content, vốn đã nằm
+   giữa viewport nhờ .wrap's margin:0 auto) rồi kéo lại đúng nửa viewport
+   bằng margin âm -50vw, bất kể .wrap đang max-width/padding bao nhiêu. */
+/* aspect-ratio 4.5/1 ~ 67% chiều cao so với tỉ lệ gốc ảnh (3/1, 2172×724) —
+   chủ đích thu ngắn theo yêu cầu, chấp nhận cover cắt bớt 1 chút trên/dưới
+   đổi lấy banner không bị "to quá". margin-top âm bù đúng .content's
+   padding-top (28px) để banner dán sát mép dưới header, không hở khoảng
+   trắng phía trên. */
+.welcome-banner{position:relative;overflow:hidden;margin-top:-28px;margin-bottom:18px;display:block;aspect-ratio:4.5/1;
+  width:100vw;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw}
 .welcome-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-.welcome-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,0) 25%,rgba(15,23,42,.72) 100%);z-index:1}
-.welcome-banner-text{position:relative;z-index:2;padding:28px 32px;color:#fff}
-.welcome-banner-text h1{font-size:24px;font-weight:700;letter-spacing:.1px;display:flex;align-items:center;gap:8px;text-shadow:0 2px 14px rgba(0,0,0,.25)}
-.welcome-banner-text h1 .wave-ic{color:#FBD98A;display:inline-flex}
-.welcome-banner-text p{font-size:14px;margin-top:7px;color:#e7ebf1;font-weight:400;letter-spacing:.1px;text-shadow:0 1px 10px rgba(0,0,0,.2)}
 .stat{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px}
 .stat-ico{width:38px;height:38px;border-radius:10px;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .stat-num{font-size:25.5px;font-weight:800;letter-spacing:-.3px}
@@ -238,6 +277,7 @@ tr:last-child td{border-bottom:none}
 .gcard .tag{font-size:12.5px;font-weight:700;color:var(--brand-d);background:var(--brand-l);padding:3px 9px;border-radius:100px}
 .gcard .title{font-size:15.5px;font-weight:700;margin:9px 0 8px;line-height:1.41}
 .gcard .meta{display:flex;gap:12px;font-size:13px;color:var(--muted)}
+.gcard .desc{font-size:13px;color:var(--ink2);line-height:1.5;margin:6px 0 2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pcard{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:24px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:.15s;text-decoration:none}
 .pcard:hover{box-shadow:0 6px 20px rgba(15,23,42,.08);transform:translateY(-2px)}
 .pcard .title{font-size:15px;font-weight:700;margin-top:12px;color:var(--ink)}
@@ -295,6 +335,36 @@ tr:last-child td{border-bottom:none}
    dung, xem CSS .btn). */
 .xq-ctrl-row{display:flex;flex-wrap:wrap;gap:8px}
 .xq-ctrl-row>.btn{flex:1 1 120px}
+/* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
+   (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
+   nhẹ nhàng, không phải nền game portal rực rỡ. */
+.xq-hub-topbar{display:flex;justify-content:flex-end;margin-bottom:14px}
+.xq-hub-hero{position:relative;overflow:hidden;border-radius:18px;border:1px solid var(--line);
+  background:linear-gradient(135deg,var(--brand-vl),#fff 60%);
+  padding:24px 28px;margin-bottom:22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.xq-hub-hero .l{display:flex;align-items:center;gap:14px;position:relative;z-index:1;min-width:0}
+.xq-hub-hero .l .tx{min-width:0}
+.xq-hub-hero .badge-ico{width:54px;height:54px;border-radius:50%;flex:none;background:#fff;box-shadow:0 4px 12px rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:7px}
+.xq-hub-hero .badge-ico img{width:100%;height:100%;object-fit:contain}
+.xq-hub-hero h1{font-size:25px;font-weight:800;letter-spacing:-.3px}
+.xq-hub-hero p{font-size:14.5px;color:var(--ink2);margin-top:3px}
+.xq-hub-hero .deco{position:absolute;right:14px;top:-16px;width:92px;opacity:.8;transform:rotate(-6deg);pointer-events:none}
+.xq-hub-cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.xq-hub-card{display:flex;gap:20px;align-items:flex-start;border-radius:18px;border:1px solid var(--line);
+  background:#fff;padding:24px;box-shadow:0 2px 14px rgba(15,23,42,.05);min-width:0}
+.xq-hub-card.play{background:linear-gradient(180deg,var(--brand-vl),#fff 55%)}
+.xq-hub-card.the{background:linear-gradient(180deg,var(--amber-l),#fff 55%)}
+.xq-hub-card .pic{width:128px;height:128px;object-fit:contain;flex:none;filter:drop-shadow(0 8px 16px rgba(15,23,42,.12))}
+.xq-hub-card .body{flex:1;min-width:0}
+.xq-hub-card h2{font-size:18.5px;font-weight:800;display:flex;align-items:center;gap:8px;color:var(--brand)}
+.xq-hub-card .desc{font-size:14px;color:var(--ink2);margin-top:6px;margin-bottom:14px}
+.xq-hub-card .badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.xq-hub-card .btns{display:flex;gap:10px;flex-wrap:wrap}
+.xq-hub-card .btns .btn{flex:1 1 auto}
+@media(max-width:760px){.xq-hub-cards{grid-template-columns:1fr}}
+@media(max-width:640px){.xq-hub-hero .deco{display:none}.xq-hub-hero{padding:20px}}
+@media(max-width:480px){.xq-hub-card{flex-direction:column;align-items:center;text-align:center}
+  .xq-hub-card .badges,.xq-hub-card .btns{justify-content:center}}
 /* Màn đánh cờ tướng full màn hình (xem xqFullscreenShell) — phủ kín viewport,
    không header/drawer/footer, chỉ có nút X tròn nổi góc trên để thoát, nút
    menu (☰) mở bảng điều khiển nổi (chọn cấp độ/thế/bên, Ván mới...), và 1
@@ -594,12 +664,8 @@ tr:last-child td{border-bottom:none}
   .nav{display:none}
   .hamb{display:flex}
   .header-right{gap:6px}
-  .header-right .admin-quicklink,.header-right .avatar-mini{display:none}
+  .header-right .admin-quicklink,.header-right .avatar-mini,.header-right .dangtin-quicklink{display:none}
   .public-cta{display:none}
-  .search-ov.show{display:block;position:fixed;top:81px;left:0;right:0;bottom:0;background:rgba(15,23,42,.45);z-index:95}
-  #searchPanel{position:fixed !important;top:81px;left:0;right:0;width:auto !important;max-height:none;border-radius:0;
-    padding:12px 14px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:96}
-  #searchPanel #searchResults{max-height:calc(100vh - 220px);overflow-y:auto}
   .hero{min-height:0;padding:80px 0 68px}
   .hero-text{max-width:none}
   .hero h1{font-size:31.5px}
@@ -811,7 +877,7 @@ const MOCK_DATA = {
     {id:'m14', name:'Nguyễn Thị Yến', ward:'Xã Dân Tiến', field:'Kế toán · Thủ quỹ', joined:'2026-06-22', status:'nhan-viec', ref:'chị Trần Thị Lan', role:'member'},
   ],
 
-  skillCats: ['Tất cả','Xây dựng','Vận tải','Kế toán','Y tế','Nông sản','Giáo dục','Cơ khí','Ẩm thực'],
+  skillCats: ['Tất cả','Xây dựng','Vận tải','Kế toán','Y tế','Nông sản','Giáo dục','Cơ khí','Ẩm thực','Dọn dẹp','Điện nước','Sửa xe'],
   skills: [
     {id:'s01', memberId:'m01', title:'Sửa chữa nhà cửa', cat:'Xây dựng', desc:'Nhận sửa các hư hỏng nhỏ trong nhà: cửa, tường, mái, ống nước. Khảo sát trước, báo giá rõ ràng trước khi làm.', proofs:3, exp:'3-5 năm', area:'Xã Bắc Thái Ninh và các xã lân cận', pay:'Thoả thuận theo việc'},
     {id:'s02', memberId:'m01', title:'Lắp mái tôn, chống dột', cat:'Xây dựng', desc:'Lắp mới hoặc sửa mái tôn bị dột, có đồ nghề đầy đủ, làm gọn trong ngày với việc nhỏ.', proofs:2, exp:'3-5 năm', area:'Xã Bắc Thái Ninh và các xã lân cận', pay:'Từ 300.000đ/ngày công'},
@@ -1141,6 +1207,34 @@ function contactStateRow(memberId, field, env){
   }
   return `<div class="info-row"><span class="lbl">${CONTACT_FIELD_LABEL[field]}</span><span class="val">${val}</span></div>`;
 }
+/* Nút liên hệ nhanh (SĐT/Zalo/Messenger) — không đoán trạng thái từ dữ liệu đã
+   tải sẵn (danh sách/thẻ member KHÔNG có state theo field, đặc tả "envelope"
+   chỉ trả chi tiết liên hệ ở GET /members/:id, không có ở GET /members). Mỗi
+   lần bấm LUÔN thử tiết lộ thẳng qua revealAndOpenContact() — phần lớn thành
+   viên đăng ký từ migration 054 trở đi có phone/zalo/messenger công khai nên
+   mở thẳng ngay; ai vẫn ở chế độ xin phép (member cũ, hoặc đã tự đổi lại) thì
+   revealAndOpenContact() tự rơi xuống mở form "Xin liên hệ" khi máy chủ từ chối. */
+function contactQuickBtn(memberId, memberName, field, label, icon, cls, style){
+  style = style ? ` style="${style}"` : '';
+  return `<button type="button" class="btn ${cls}"${style} onclick="revealAndOpenContact('${memberId}','${esc(memberName)}','${field}')">${ic(icon,14)} ${label}</button>`;
+}
+async function revealAndOpenContact(memberId, memberName, field){
+  const key = memberId+':'+field;
+  let val = REVEALED_CONTACTS[key];
+  if(val===undefined){
+    try{ const res = await api.get(`/members/${memberId}/contacts/${field}`); val = REVEALED_CONTACTS[key] = res.value; render(); }
+    catch(e){
+      // 403 (CONTACT_NEEDS_CONSENT/CONTACT_CLOSED) = chủ hồ sơ chưa công khai
+      // trường này — rơi xuống đúng luồng "Xin liên hệ" cũ thay vì chỉ báo lỗi.
+      if(e.status===403){ WIZ.lienHeQuaNhaChung({id:memberId, name:memberName, field:CONTACT_FIELD_LABEL[field]}); return; }
+      toast(e.message||'Không xem được thông tin này','flag'); return;
+    }
+  }
+  if(!val) return;
+  if(field==='phone') location.href = 'tel:'+val;
+  else if(field==='zalo') window.open('https://zalo.me/'+val,'_blank');
+  else if(field==='messenger') window.open(/^https?:\/\//.test(val)?val:'https://m.me/'+val,'_blank');
+}
 /* Ảnh thật (job_need_images, activities.image_url) đều nằm sau GET /files/:id
    — route đó đòi Bearer token, nên <img src="/files/..."> trần không tải được
    (trình duyệt không tự gắn header cho thẻ img). Cách đúng: tải bằng
@@ -1403,7 +1497,7 @@ function notReady(label){
 const NAV_PUBLIC = [
   {id:'congchung', label:'Trang chủ'},
   {id:'viec', label:'Việc & hợp tác'},
-  {id:'khampha', label:'Con người'},
+  {id:'khampha', label:'Thành viên'},
   {id:'kyuc', label:'Ký ức'},
 ];
 /* "overflow:true" = không chiếm chỗ trên thanh ngang chính, chỉ nằm trong
@@ -1413,8 +1507,7 @@ const NAV_PUBLIC = [
    vốn đã là 1 danh sách dọc, không cần gọn thêm. */
 const NAV_MEMBER = [
   {id:'trongnha', label:'Bảng nhà', icon:'home'},
-  {id:'viec', label:'Việc & hợp tác', icon:'briefcase', badge:()=>DATA.jobs.filter(j=>j.status==='open').length},
-  {id:'khampha', label:'Con người', icon:'users'},
+  {id:'khampha', label:'Thành viên', icon:'users'},
   {id:'giupnhau', label:'Giúp nhau', icon:'heart', badge:()=>DATA.aid.filter(a=>a.status==='queued'||a.status==='matched').length},
   {id:'cotuong-online', label:'Cờ tướng', icon:'star'},
   {id:'nangluc', label:'Năng lực', icon:'star', overflow:true},
@@ -1612,17 +1705,7 @@ function headerComp(variant, active){
     const roleLabel = variant==='admin' ? 'Ban điều hành' : (ROLE_LABELS[DATA.me&&DATA.me.role] || 'Thành viên');
     rightHtml = `
       ${variant==='member'&&ROLE==='admin'?`<a href="#admin-tongquan" class="btn btn-out btn-sm admin-quicklink" data-go="admin-tongquan">${ic('shield',14)}<span class="lbl"> Trang quản trị</span></a>`:''}
-      <div class="search-wrap" style="position:relative">
-        <button class="ic-bell" id="searchBtn" title="Tìm kiếm">${ic('search',17)}</button>
-        <div class="search-ov" id="searchOv"></div>
-        <div class="umenu" id="searchPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:8px">
-          <div class="search-panel-head">
-            <input type="text" id="search-global" class="input" placeholder="Tìm việc, người, năng lực, hoạt động…" oninput="globalSearchInput()" autocomplete="off">
-            <button type="button" id="searchCloseBtn" class="search-close" title="Đóng">${ic('x',16)}</button>
-          </div>
-          <div id="searchResults" style="margin-top:8px"></div>
-        </div>
-      </div>
+      ${variant==='member'?`<button class="btn btn-blue btn-sm dangtin-quicklink" data-open="dangViec">${ic('plus',14)} Đăng tin</button>`:''}
       <a href="#chat" class="ic-bell" data-go="chat" title="Tin nhắn" style="position:relative">${ic('mail',17)}${DATA.msgUnread>0?`<span class="conv-unread" style="position:absolute;top:-4px;right:-6px;font-size:10px;min-width:16px;height:16px">${DATA.msgUnread>99?'99+':DATA.msgUnread}</span>`:''}</a>
       <div style="position:relative">
         <button class="ic-bell" id="bellBtn">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
@@ -1666,9 +1749,7 @@ function drawerComp(variant, active){
     </div>`;
   const footHtml = variant==='public'
     ? `<a href="#dangnhap" class="btn btn-out" data-go="dangnhap">Đăng nhập</a><a href="#gianhap" class="btn btn-blue" data-go="gianhap">Xin gia nhập</a>`
-    : `<a href="#cotuong-online" data-go="cotuong-online">${ic('star',17)} Đấu giao lưu</a>
-       <a href="#cotuong-the" data-go="cotuong-the">${ic('star',17)} Cờ thế</a>
-       <a href="#hoso-toi" data-go="hoso-toi">${ic('user',17)} Hồ sơ của tôi</a>
+    : `<a href="#hoso-toi" data-go="hoso-toi">${ic('user',17)} Hồ sơ của tôi</a>
        <a href="#caidat" data-go="caidat">${ic('gear',17)} Cài đặt</a>
        ${variant==='member'&&ROLE==='admin'?`<a href="#admin-tongquan" data-go="admin-tongquan">${ic('shield',17)} Trang quản trị</a>`:''}
        ${variant==='admin'?`<a href="#trongnha" data-go="trongnha">${ic('home',17)} Về giao diện thành viên</a>`:''}
@@ -1706,7 +1787,7 @@ function footerFull(variant){
         <p class="foot-tag">Chợ việc &amp; tương trợ cộng đồng cho Hội Đồng Niên Bính Dần 1986, Hưng Yên.</p>
         <div class="socials"><a class="soc" href="#">${ic('mail',14)}</a><a class="soc" href="#">${ic('phone',14)}</a></div>
       </div>
-      <div class="foot-col"><h4>Cộng đồng</h4><a data-go="khampha">Con người</a><a data-go="viec">Việc & hợp tác</a><a data-go="giupnhau">Giúp nhau</a><a data-go="nangluc">Năng lực</a></div>
+      <div class="foot-col"><h4>Cộng đồng</h4><a data-go="khampha">Thành viên</a><a data-go="viec">Việc & hợp tác</a><a data-go="giupnhau">Giúp nhau</a><a data-go="nangluc">Năng lực</a></div>
       <div class="foot-col"><h4>Minh bạch</h4><a data-go="xacminh">Xác minh & tin cậy</a><a data-go="kyuc">Ký ức & sổ quỹ</a><a data-go="hoatdong">Hoạt động</a></div>
       ${col4}
     </div>
@@ -1750,13 +1831,9 @@ function bindGlobal(){
   const dv=qs('#drawerOv'); if(dv)dv.addEventListener('click',closeDrawer);
   const ub=qs('#umenuBtn'); if(ub)ub.addEventListener('click',e=>{e.stopPropagation();qs('#umenu').classList.toggle('show');});
   const nb=qs('#bellBtn'); if(nb)nb.addEventListener('click',e=>{e.stopPropagation();qs('#notifPanel').classList.toggle('show');});
-  const sb=qs('#searchBtn'); if(sb)sb.addEventListener('click',e=>{e.stopPropagation();const p=qs('#searchPanel');p.classList.toggle('show');const ov=qs('#searchOv');if(ov)ov.classList.toggle('show',p.classList.contains('show'));if(p.classList.contains('show')){const inp=qs('#search-global');if(inp)inp.focus();}});
-  const sp=qs('#searchPanel'); if(sp)sp.addEventListener('click',e=>e.stopPropagation());
-  const sov=qs('#searchOv'); if(sov)sov.addEventListener('click',closeSearchPanel);
-  const scb=qs('#searchCloseBtn'); if(scb)scb.addEventListener('click',e=>{e.stopPropagation();closeSearchPanel();});
   const fmb=qs('#xqFsMenuBtn'); if(fmb)fmb.addEventListener('click',e=>{e.stopPropagation();XQ_FS_MENU_OPEN=!XQ_FS_MENU_OPEN;const p=qs('.xq-fs-panel');if(p)p.classList.toggle('show',XQ_FS_MENU_OPEN);});
   const fp=qs('.xq-fs-panel'); if(fp)fp.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');closeSearchPanel();const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
+  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
   const lb=qs('#logoutBtn'); if(lb)lb.addEventListener('click',doLogout);
   const lbd=qs('#logoutBtnDrawer'); if(lbd)lbd.addEventListener('click',doLogout);
 }
@@ -1879,14 +1956,14 @@ async function uploadMultiFiles(fid){
 
 const STATE = {
   congnguoi:{ward:'Tất cả khu vực',q:''}, nangluc:{cat:'Tất cả',q:''},
-  viec:{tab:'can-nguoi',q:''}, giupnhau:{tab:'queued',q:''},
+  viec:{tab:'can-nguoi',q:'',cat:'Tất cả',visible:12}, giupnhau:{tab:'queued',q:''},
   hoatdong:{q:''}, chat:{q:''},
 };
 function setFilter(ns,key,val){STATE[ns][key]=val;render();}
 /* Ô tìm kiếm dùng chung cho các màn danh sách (Việc & hợp tác, Năng lực,
    Giúp nhau, Hoạt động…) — khung .searchbar/.kw tái dùng từ PUB.khampha.
    CỐ Ý không gọi setFilter()/render() toàn trang trên oninput: y hệt lý do
-   globalSearchInput()/areaSearchInput() ở trên đã ghi rõ — render() thay
+   areaSearchInput() ở trên đã ghi rõ — render() thay
    nguyên root.innerHTML nên gõ tới đâu mất focus/con trỏ tới đó. Mỗi màn có
    hàm "…SearchInput(el)" riêng: cập nhật STATE (để chuyển tab/rời màn rồi
    quay lại vẫn giữ đúng từ khoá), rồi chỉ vẽ lại đúng khung #…-results. */
@@ -1900,7 +1977,23 @@ function matchKw(q, ...fields){
   return hay.includes(q);
 }
 const CAT_ICON = {'Xây dựng':'briefcase','Vận tải':'briefcase','Kế toán':'doc','Y tế':'heart','Nông sản':'star',
-  'Giáo dục':'book','Cơ khí':'gear','Ẩm thực':'star','Khác':'grid'};
+  'Giáo dục':'book','Cơ khí':'gear','Ẩm thực':'star','Dọn dẹp':'trash','Điện nước':'gear','Sửa xe':'briefcase','Khác':'grid'};
+// Ảnh danh mục thật (web/assets/viec/) cho hàng icon duyệt nhanh ở Bảng nhà —
+// encodeURIComponent vì tên tệp có dấu tiếng Việt.
+const CAT_PHOTO = {
+  'Xây dựng': 'gạch_đất_nung_và_bay_xây_dựng.png',
+  'Vận tải': 'xe_tải_thùng_trắng_phong_cách_studio.png',
+  'Kế toán': 'kết_toán.png',
+  'Y tế': 'bộ_sơ_cứu_đỏ_cùng_thuốc_men.png',
+  'Nông sản': 'giỏ_rau_củ_tươi_đầy_màu_sắc.png',
+  'Giáo dục': 'sổ_tay_mở_cùng_chồng_sách.png',
+  'Cơ khí': 'bánh_răng_và_cờ_lê_kim_loại.png',
+  'Dọn dẹp': 'bộ_dụng_cụ_vệ_sinh_trên_nền_trắng.png',
+  'Điện nước': 'vòi_chrome_ống_nối_và_ổ_điện.png',
+  'Sửa xe': 'xe_máy_đen_cùng_bộ_dụng_cụ_sửa_chữa.png',
+  'Ẩm thực': 'phở_bò_việt_nam_cùng_rau_sống_và_ớt.png',
+};
+function catPhotoUrl(cat){ const f=CAT_PHOTO[cat]; return f?('assets/viec/'+encodeURIComponent(f)):null; }
 function imgph(iconName,label,h){
   return `<div class="imgph" style="${h?'height:'+h+'px':''}">${ic(iconName,26)}<span>${esc(label||'Ảnh')}</span></div>`;
 }
@@ -2011,127 +2104,18 @@ function areaSearchBlur(groupId){
   setTimeout(()=>{ const d=document.getElementById('ddown-'+groupId); if(d) d.style.display='none'; }, 150);
 }
 
-/* Tìm kiếm toàn cục (chuông tìm kiếm ở topbar) — tra song song 5 nguồn thật
-   (jobs/members/capabilities/projects/aid đều có sẵn ?q=). Vẽ trực tiếp vào
-   #searchResults thay vì gọi render() toàn trang — làm như areaSearchInput ở
-   trên, để không làm mất focus/con trỏ trong ô đang gõ mỗi khi có kết quả mới. */
-let GLOBAL_SEARCH_TIMER = null, GLOBAL_SEARCH_SEQ = 0;
-function globalSearchInput(){
-  clearTimeout(GLOBAL_SEARCH_TIMER);
-  const input = document.getElementById('search-global');
-  const box = document.getElementById('searchResults');
-  if(!input||!box) return;
-  const q = input.value.trim();
-  const mySeq = ++GLOBAL_SEARCH_SEQ;
-  if(q.length<2){ box.innerHTML = q?'<p style="font-size:13px;color:var(--muted);padding:10px">Gõ ít nhất 2 ký tự để tìm.</p>':''; return; }
-  box.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:10px">Đang tìm…</p>';
-  GLOBAL_SEARCH_TIMER = setTimeout(async ()=>{
-    let jobsRes,membersRes,capsRes,projRes,aidRes;
-    try{
-      [jobsRes,membersRes,capsRes,projRes,aidRes] = await Promise.all([
-        api.get('/jobs?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/members?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/capabilities?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/projects?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/aid?q='+encodeURIComponent(q)+'&limit=5'),
-      ]);
-    }catch(e){
-      if(mySeq!==GLOBAL_SEARCH_SEQ) return; // ô tìm đã đổi chữ trong lúc chờ, kết quả cũ không còn giá trị
-      const b=document.getElementById('searchResults'); if(b) b.innerHTML='<p style="font-size:13px;color:var(--muted);padding:10px">Có lỗi khi tìm, thử lại.</p>';
-      return;
-    }
-    if(mySeq!==GLOBAL_SEARCH_SEQ) return; // trả lời không theo đúng thứ tự (mạng chậm) — chỉ vẽ lượt gõ mới nhất
-    const groups = [
-      {label:'Việc & hợp tác', items:(jobsRes&&jobsRes.data||[]).map(j=>({title:j.title, sub:j.poster_name, go:'viec-detail:'+j.id}))},
-      {label:'Con người', items:(membersRes&&membersRes.data||[]).map(m=>({title:m.full_name, sub:m.job||'', go:'congnguoi-detail:'+m.id}))},
-      {label:'Năng lực', items:(capsRes&&capsRes.data||[]).map(c=>({title:c.title, sub:c.full_name||'', go:'nangluc-detail:'+c.id}))},
-      {label:'Hoạt động', items:(projRes&&projRes.data||[]).map(p=>({title:p.title, sub:fmtDate(p.starts_at), go:'hoatdong-detail:'+p.id}))},
-      {label:'Giúp nhau', items:(aidRes&&aidRes.data||[]).map(a=>({title:a.title, sub:a.requester_name||'', go:'giupnhau-detail:'+a.id}))},
-    ].filter(g=>g.items.length);
-    const outBox = document.getElementById('searchResults');
-    if(!outBox) return;
-    if(!groups.length){ outBox.innerHTML = `<p style="font-size:13px;color:var(--muted);padding:10px">Không tìm thấy kết quả nào cho "${esc(q)}".</p>`; return; }
-    outBox.innerHTML = groups.map(g=>`<div style="padding:8px 10px 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">${g.label}</div>${g.items.map(it=>`<button type="button" onclick="closeSearchPanel();go('${it.go}')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><div style="font-size:13.5px;font-weight:600">${esc(it.title)}</div>${it.sub?`<div style="font-size:12px;color:var(--muted)">${esc(it.sub)}</div>`:''}</button>`).join('')}`).join('');
-  }, 350);
-}
-function closeSearchPanel(){ const p=qs('#searchPanel'); if(p) p.classList.remove('show'); const ov=qs('#searchOv'); if(ov) ov.classList.remove('show'); }
-
-/* Ô tìm kiếm nhúng thẳng trên Bảng nhà (thay cho card "Đến lượt bạn" cũ) —
-   CÙNG 5 nguồn thật (jobs/members/capabilities/projects/aid) và cách vẽ như
-   globalSearchInput() ở trên, nhưng tự có id/timer/seq riêng (search-home,
-   searchResultsHome) thay vì dùng chung: 2 ô tìm cùng tồn tại trong DOM một
-   lúc (ô này luôn hiện trên Bảng nhà, ô kia luôn có sẵn trong panel topbar dù
-   đang ẩn) nên gộp chung state sẽ khiến gõ ở ô này huỷ mất kết quả đang chờ
-   của ô kia và ngược lại. */
-let HOME_SEARCH_TIMER = null, HOME_SEARCH_SEQ = 0, HOME_SEARCH_FILTER = 'all';
-const HOME_SEARCH_FILTERS = [
-  ['all','Tất cả'], ['jobs','Việc & hợp tác'], ['members','Con người'],
-  ['skills','Năng lực'], ['activities','Hoạt động'], ['aid','Giúp nhau'],
-];
-function homeSearchFilterRow(){
-  return HOME_SEARCH_FILTERS.map(([id,lb])=>
-    `<button type="button" class="fchip ${HOME_SEARCH_FILTER===id?'on':''}" style="height:32px;padding:0 12px;font-size:12.5px" onclick="setHomeSearchFilter('${id}')">${lb}</button>`).join('');
-}
-// Đổi bộ lọc nhóm — chỉ vẽ lại đúng hàng chip + chạy lại tìm kiếm với TỪ
-// KHOÁ ĐANG CÓ SẴN trong ô (không đụng tới input, không mất chữ đang gõ),
-// cùng kỹ thuật "vẽ lại đúng khung con" mà searchKw() dùng, không gọi render()
-// toàn trang.
-function setHomeSearchFilter(f){
-  HOME_SEARCH_FILTER = f;
-  const row = document.getElementById('home-search-filters');
-  if(row) row.innerHTML = homeSearchFilterRow();
-  homeSearchInput();
-}
-function homeSearchInput(){
-  clearTimeout(HOME_SEARCH_TIMER);
-  const input = document.getElementById('search-home');
-  const box = document.getElementById('searchResultsHome');
-  if(!input||!box) return;
-  const q = input.value.trim();
-  const mySeq = ++HOME_SEARCH_SEQ;
-  if(q.length<2){ box.innerHTML = q?'<p style="font-size:13px;color:var(--muted);padding:10px">Gõ ít nhất 2 ký tự để tìm.</p>':''; return; }
-  box.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:10px">Đang tìm…</p>';
-  HOME_SEARCH_TIMER = setTimeout(async ()=>{
-    let jobsRes,membersRes,capsRes,projRes,aidRes;
-    try{
-      [jobsRes,membersRes,capsRes,projRes,aidRes] = await Promise.all([
-        api.get('/jobs?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/members?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/capabilities?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/projects?q='+encodeURIComponent(q)+'&limit=5'),
-        api.get('/aid?q='+encodeURIComponent(q)+'&limit=5'),
-      ]);
-    }catch(e){
-      if(mySeq!==HOME_SEARCH_SEQ) return; // ô tìm đã đổi chữ trong lúc chờ, kết quả cũ không còn giá trị
-      const b=document.getElementById('searchResultsHome'); if(b) b.innerHTML='<p style="font-size:13px;color:var(--muted);padding:10px">Có lỗi khi tìm, thử lại.</p>';
-      return;
-    }
-    if(mySeq!==HOME_SEARCH_SEQ) return; // trả lời không theo đúng thứ tự (mạng chậm) — chỉ vẽ lượt gõ mới nhất
-    const groups = [
-      {key:'jobs', label:'Việc & hợp tác', items:(jobsRes&&jobsRes.data||[]).map(j=>({title:j.title, sub:j.poster_name, go:'viec-detail:'+j.id}))},
-      {key:'members', label:'Con người', items:(membersRes&&membersRes.data||[]).map(m=>({title:m.full_name, sub:m.job||'', go:'congnguoi-detail:'+m.id}))},
-      {key:'skills', label:'Năng lực', items:(capsRes&&capsRes.data||[]).map(c=>({title:c.title, sub:c.full_name||'', go:'nangluc-detail:'+c.id}))},
-      {key:'activities', label:'Hoạt động', items:(projRes&&projRes.data||[]).map(p=>({title:p.title, sub:fmtDate(p.starts_at), go:'hoatdong-detail:'+p.id}))},
-      {key:'aid', label:'Giúp nhau', items:(aidRes&&aidRes.data||[]).map(a=>({title:a.title, sub:a.requester_name||'', go:'giupnhau-detail:'+a.id}))},
-    ].filter(g=>(HOME_SEARCH_FILTER==='all'||g.key===HOME_SEARCH_FILTER) && g.items.length);
-    const outBox = document.getElementById('searchResultsHome');
-    if(!outBox) return;
-    if(!groups.length){ outBox.innerHTML = `<p style="font-size:13px;color:var(--muted);padding:10px">Không tìm thấy kết quả nào cho "${esc(q)}".</p>`; return; }
-    outBox.innerHTML = groups.map(g=>`<div style="padding:8px 10px 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">${g.label}</div>${g.items.map(it=>`<button type="button" onclick="go('${it.go}')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:8px;cursor:pointer"><div style="font-size:13.5px;font-weight:600">${esc(it.title)}</div>${it.sub?`<div style="font-size:12px;color:var(--muted)">${esc(it.sub)}</div>`:''}</button>`).join('')}`).join('');
-  }, 350);
-}
 /* SUGGEST_VALUES nhớ lựa chọn qua NHIỀU BƯỚC của 1 wizard nhiều bước (đăng
    việc/nhờ giúp/thêm năng lực). openModal() thay TOÀN BỘ HTML của modal ở mỗi
    bước — input ẩn #val-<groupId> của bước 1 không còn trong DOM khi tới bước
    xem trước/gửi ở bước cuối, nên getSuggestValue() đọc DOM sẽ luôn ra rỗng nếu
    không có chỗ nhớ riêng. Dọn ở closeModal() khi đóng hẳn 1 wizard. */
 let SUGGEST_VALUES = {};
-function suggestField(label,groupId,options,{other=true}={}){
-  const chips = options.map(o=>`<button type="button" class="fchip" onclick="chipPick(this,'${groupId}')" data-val="${esc(o)}">${esc(o)}</button>`).join('');
+function suggestField(label,groupId,options,{other=true,preset=''}={}){
+  const chips = options.map(o=>`<button type="button" class="fchip ${o===preset?'on':''}" onclick="chipPick(this,'${groupId}')" data-val="${esc(o)}">${esc(o)}</button>`).join('');
   return `<div class="field"><label class="label">${label}</label>
     <div class="suggest" id="grp-${groupId}">${chips}${other?`<button type="button" class="fchip" onclick="chipPick(this,'${groupId}',true)" data-val="">${ic('edit',13)} Khác…</button>`:''}</div>
     <input type="text" id="other-${groupId}" class="input" placeholder="Gõ điều bạn cần…" style="display:none;margin-top:8px" oninput="setSuggestOther('${groupId}',this.value)">
-    <input type="hidden" id="val-${groupId}">
+    <input type="hidden" id="val-${groupId}" value="${esc(preset)}">
   </div>`;
 }
 function chipPick(el,groupId,isOther){
@@ -2319,7 +2303,7 @@ WIZ.lienHeQuaNhaChung = (ds)=> openModal(`
   <div class="modal-head"><b>Liên hệ ${esc(ds.name||'')}</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
   <div class="modal-body">
     <div class="notice brand">${ic('shield',17)}Số điện thoại không hiện trực tiếp — lời nhắn được chuyển, hai bên đồng ý mới nối Zalo.</div>
-    <div style="margin-top:14px">${suggestField('Bạn muốn xin thông tin gì?','lienhe',['Số điện thoại','Zalo','Messenger','Địa chỉ'],{other:false})}</div>
+    <div style="margin-top:14px">${suggestField('Bạn muốn xin thông tin gì?','lienhe',['Số điện thoại','Zalo','Messenger','Địa chỉ'],{other:false,preset:ds.field||''})}</div>
     <div class="field"><label class="label">Lời nhắn (không bắt buộc)</label><textarea class="input" id="lh-msg" style="height:60px;padding-top:10px" placeholder="Chào bạn, mình muốn hỏi thêm…"></textarea></div>
     <div id="lh-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="lh-err-txt"></span></div>
   </div>
@@ -2881,9 +2865,18 @@ function khamphaResultsHtml(tab){
     return `
     <div class="result-cnt">Tìm thấy <b>${list.length}</b> người</div>
     <div class="card-grid">${list.map(m=>`
-      <a class="pcard" data-go="hosocongkhai:${m.id}">${avatarCircle(m.avatar,m.name,64)}
-        <div class="title">${m.name}</div>
-        <div class="meta">${m.field?ic('briefcase',11)+' '+esc(m.field):'Chưa cập nhật nghề'}</div></a>`).join('')||'<div class="empty"><p>Không tìm thấy ai khớp tìm kiếm.</p></div>'}</div>`;
+      <div class="pcard">
+        <a data-go="hosocongkhai:${m.id}" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;color:inherit;width:100%">${avatarCircle(m.avatar,m.name,64)}
+          <div class="title">${m.name}</div>
+          <div class="meta">${m.field?ic('briefcase',11)+' '+esc(m.field):'Chưa cập nhật nghề'}</div>
+          <div class="meta">${m.ward?ic('pin',11)+' '+esc(m.ward):'Chưa cập nhật khu vực'}</div></a>
+        <div style="display:flex;gap:6px;width:100%;margin-top:14px">
+          ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call btn-sm','flex:1;padding-left:8px;padding-right:8px')}
+          ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo btn-sm','flex:1;padding-left:8px;padding-right:8px')}
+          ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger btn-sm','flex:1;padding-left:8px;padding-right:8px')}
+        </div>
+        <button class="btn btn-out btn-block btn-sm" style="margin-top:8px" data-go="hosocongkhai:${m.id}">Xem hồ sơ</button>
+      </div>`).join('')||'<div class="empty"><p>Không tìm thấy ai khớp tìm kiếm.</p></div>'}</div>`;
   }
   const list = DATA.skills.filter(s=>{ const m=member(s.memberId); return (!wardFilter||m.ward===wardFilter) && matchKw(q, s.title, s.cat, m.name); });
   return `
@@ -2910,7 +2903,7 @@ PUB.khampha = (params)=>{
     <select id="khampha-ward" onchange="khamphaFilterChange()">${wards.map(w=>`<option ${st.ward===w?'selected':''}>${esc(w)}</option>`).join('')}</select>
   </div>
   <div class="tabs">
-    <button class="tab ${tab==='nguoi'?'on':''}" onclick="go('khampha:nguoi')">Con người</button>
+    <button class="tab ${tab==='nguoi'?'on':''}" onclick="go('khampha:nguoi')">Thành viên</button>
     <button class="tab ${tab==='nangluc'?'on':''}" onclick="go('khampha:nangluc')">Năng lực</button>
   </div>
   <div id="khampha-results">${khamphaResultsHtml(tab)}</div>`;
@@ -2955,9 +2948,16 @@ PUB.hosocongkhai = (params)=>{
           <div style="flex:1;min-width:200px">
             <div style="font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${m.name} ${m.status==='nhan-viec'?`<span class="status accepted">${ic('check',9)} Đang nhận việc</span>`:`<span class="status pending">Tạm ngưng nhận</span>`} ${m.role&&m.role!=='member'?roleTag(m.role):''}</div>
             <div style="font-size:13.5px;color:var(--ink2);margin-top:5px">${m.field||'Chưa cập nhật nghề'}${m.ward?` · ${m.ward}`:''}</div>
-            <div class="tags" style="display:flex;gap:8px;margin-top:9px">${detail&&detail.joined_at?`<span class="chip">${ic('calendar',11)} Tham gia ${fmtDate(detail.joined_at)}</span>`:''}<span class="chip">${ic('star',11)} ${mySkills.length} năng lực</span></div>
           </div>
-          ${isSelf?'':`<div style="display:flex;gap:8px"><button class="btn btn-blue" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',15)} Xin liên hệ</button><button class="btn btn-out" onclick="chatWith('${m.id}')" title="Nhắn tin">${ic('mail',15)} Nhắn tin</button></div>`}
+        </div>
+
+        <div class="tags" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${detail&&detail.joined_at?`<span class="chip">${ic('calendar',11)} Tham gia ${fmtDate(detail.joined_at)}</span>`:''}<span class="chip">${ic('star',11)} ${mySkills.length} năng lực</span></div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call')}
+          ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo')}
+          ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger')}
+          ${isSelf?'':`<button class="btn btn-out" onclick="chatWith('${m.id}')" title="Nhắn tin">${ic('mail',15)} Nhắn tin</button>`}
         </div>
 
         ${detail&&detail.bio?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Giới thiệu</div>
@@ -3003,8 +3003,14 @@ PUB.gianhap = ()=> `
         <div class="field"><label class="label">Họ và tên <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-name" placeholder="Nguyễn Văn A"></div>
         <div class="field"><label class="label">Năm sinh <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-birth" type="number" value="1986" placeholder="1986"></div>
       </div>
-      <div class="field"><label class="label">Số điện thoại (dùng Zalo) <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-phone" type="tel" placeholder="09xx xxx xxx"></div>
+      <div class="field"><label class="label">Số điện thoại <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-phone" type="tel" placeholder="09xx xxx xxx"></div>
       ${suggestFieldArea('Xã/phường hiện ở','xa')}
+
+      <div class="form-sec"><b>${ic('send',15)} Kênh liên hệ</b><span>Hiện công khai cho các thành viên khác ngay khi đơn được duyệt — họ bấm là liên lạc thẳng, không cần xin phép bạn trước.</span></div>
+      <div class="form-row">
+        <div class="field"><label class="label">Số Zalo <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-zalo" type="tel" placeholder="09xx xxx xxx (thường trùng SĐT)"></div>
+        <div class="field"><label class="label">Link/tên Messenger <span class="req" style="color:var(--red)">*</span></label><input class="input" id="dk-messenger" placeholder="m.me/ten-cua-ban"></div>
+      </div>
 
       <div class="form-sec"><b>${ic('lock',15)} Mật khẩu đăng nhập</b></div>
       <div class="form-row">
@@ -3028,17 +3034,18 @@ PUB.gianhap = ()=> `
           <div class="tl-item"><div class="tl-role">Đăng nhập & dùng luôn</div><div class="tl-desc">Bằng số điện thoại + mật khẩu vừa tạo</div></div>
         </div>
       </div>
-      <div class="notice brand">${ic('shield',16)}Chỉ hiển thị thông tin bạn cho phép. Số điện thoại và địa chỉ cụ thể mặc định luôn ẩn với thành viên khác.</div>
+      <div class="notice brand">${ic('shield',16)}SĐT, Zalo và Messenger bạn điền ở đây hiện công khai cho thành viên khác ngay khi đơn được duyệt, để ai cũng liên lạc được thẳng. Địa chỉ cụ thể vẫn mặc định ẩn.</div>
     </aside>
   </div></div>`;
 async function dangKySubmit(){
   const box=qs('#dk-err'), txt=qs('#dk-err-txt');
   const err=(m)=>{ if(box&&txt){txt.textContent=m;box.style.display='flex';} };
   const invite_token=getVal('dk-invite'), full_name=getVal('dk-name'), birth_year=getVal('dk-birth'),
-    phone=getVal('dk-phone'), area=getSuggestValue('xa'), password=getVal('dk-pw'), password2=getVal('dk-pw2'),
+    phone=getVal('dk-phone'), zalo=getVal('dk-zalo'), messenger=getVal('dk-messenger'),
+    area=getSuggestValue('xa'), password=getVal('dk-pw'), password2=getVal('dk-pw2'),
     referrer_phone=getVal('dk-refphone'), agree=qs('#dk-agree').checked;
   if(!invite_token) return err('Cần nhập mã mời — xin từ người quen trong Nhà Chung.');
-  if(!full_name||!phone||!birth_year||!area) return err('Điền đủ họ tên, năm sinh, số điện thoại, xã/phường.');
+  if(!full_name||!phone||!zalo||!messenger||!birth_year||!area) return err('Điền đủ họ tên, năm sinh, số điện thoại, Zalo, Messenger, xã/phường.');
   const area_id = areaIdByName(area);
   if(!area_id) return err('Chọn đúng xã/phường trong danh sách gợi ý.');
   if(password.length<8) return err('Mật khẩu cần tối thiểu 8 ký tự.');
@@ -3053,7 +3060,7 @@ async function dangKySubmit(){
     // (POST /join-requests/:id/confirm-met) và Ban duyệt duyệt đơn — không có
     // nhánh đăng nhập ngay sau khi gửi form.
     await api.post('/auth/register', {
-      phone, full_name, birth_year:Number(birth_year), area_id, invite_token, password, terms:true,
+      phone, zalo, messenger, full_name, birth_year:Number(birth_year), area_id, invite_token, password, terms:true,
       referrer_phone: referrer_phone||undefined,
     });
     toast('Đã gửi đơn đăng ký — chờ người bảo lãnh xác nhận đã gặp mặt và Ban duyệt duyệt đơn','check');
@@ -3175,33 +3182,6 @@ const V = {};
 V.notfound = (p,name)=> `<div class="empty"><div class="ic">${ic('search',24)}</div><h3>Chưa dựng "${esc(name)}"</h3></div>`;
 
 /* ---- Bảng nhà (như dashboard.html) ---- */
-V.trongnha = ()=>{
-  const upJobs = DATA.jobs.filter(j=>j.status==='open').slice(0,3);
-  return `
-  <div class="welcome-banner"><img src="assets/banner/banner3.png" alt="Nhà Chung 86">
-    <div class="welcome-banner-text"><h1>Chào ${DATA.me.name.split(' ').pop()}<span class="wave-ic">${ic('star',18)}</span></h1>
-    <p>Hôm nay Nhà Chung có ${upJobs.length} việc đang mở phù hợp với bạn.</p></div>
-  </div>
-
-  <div class="card" style="margin-bottom:20px">
-    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;font-weight:800">${ic('search',17)}Tìm nhanh trong Nhà Chung</div>
-    <input type="text" id="search-home" class="input" placeholder="Tìm việc, người, năng lực, hoạt động, lời nhờ giúp…" oninput="homeSearchInput()" autocomplete="off">
-    <div id="home-search-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${homeSearchFilterRow()}</div>
-    <div id="searchResultsHome" style="margin-top:6px"></div>
-  </div>
-
-  <div class="section">
-    <div class="card-head"><h3>${ic('wand',15)} Việc phù hợp với bạn</h3><a href="#viec" class="see-all" data-go="viec">Xem tất cả →</a></div>
-    <div style="padding:16px 18px">${upJobs.map(j=>`
-    <div class="gigrow"><div class="logo">${logoImg(j.cover,CAT_ICON[j.cat]||'briefcase')}</div>
-      <div class="body"><a href="#viec-detail:${j.id}" class="title" data-go="viec-detail:${j.id}">${j.title}</a>
-      <div class="co">${member(j.poster).name} ${ic('check',10)}<span class="verified"></span></div>
-      <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span></div></div>
-      <div class="actions"><a href="#viec-detail:${j.id}" class="btn btn-blue btn-sm" data-go="viec-detail:${j.id}">Xem</a></div>
-    </div>`).join('')}</div>
-  </div>`;
-};
-
 /* ---- Hồ sơ của tôi ----
    Trước đây gần như toàn bộ trang này là nội dung giả cứng (★4.8, "Đã xác
    minh" — không có hệ xác minh nào cả, đoạn giới thiệu Mad Libs, "3 việc hoàn
@@ -3431,35 +3411,125 @@ function jobProgressBar(idx){
 const KIND_LABEL = {['can-nguoi']:'Cần người ngay',['hop-tac']:'Hợp tác lâu dài',['hoi-tim']:'Hỏi & tìm thông tin'};
 const KIND_ICON = {['can-nguoi']:'briefcase',['hop-tac']:'handshake',['hoi-tim']:'bolt'};
 
+/* ---- Bảng nhà = "Việc & hợp tác" gộp thẳng vào trang chủ (kiểu Chợ Tốt:
+   banner + 1 ô tìm kiếm to + hàng icon danh mục + lưới card dọc), không còn
+   là 2 màn tách rời. V.viec giữ lại làm bí danh (bên dưới) để mọi link cũ
+   (#viec, breadcrumb, footer…) vẫn trỏ đúng chỗ, và vẫn nhận được params
+   (tab loại tin) để mở thẳng đúng tab khi có người bấm link sâu. ---- */
+function viecCardHtml(j){
+  return `<a class="gcard" data-go="viec-detail:${j.id}">${bannerImg(j.cover,KIND_ICON[j.kind],j.title,150)}
+    <div class="body">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span class="tag">${j.cat||'Khác'}</span>${j.urgent?'<span class="badge urgent">GẤP</span>':''}
+      </div>
+      <div class="title">${j.title}</div>
+      <div class="meta"><span>${ic('pin',12)} ${j.ward||'Chưa rõ khu vực'}</span></div>
+      <div class="meta" style="margin-top:4px"><span>${member(j.poster).name}</span><span>${j.kind==='hoi-tim'?`${j.apps} người trả lời`:`${j.apps} người nhận`}</span></div>
+    </div>
+  </a>`;
+}
 function viecResultsHtml(){
   const st=STATE.viec;
   const q=(st.q||'').trim().toLowerCase();
-  const list = DATA.jobs.filter(j=>j.kind===st.tab).filter(j=>matchKw(q, j.title, j.desc, j.cat, j.ward, j.posterName));
+  let list = DATA.jobs.filter(j=>j.kind===st.tab).filter(j=>matchKw(q, j.title, j.desc, j.cat, j.ward, j.posterName));
+  if(st.cat && st.cat!=='Tất cả') list = list.filter(j=>j.cat===st.cat);
+  const visible = st.visible||12;
+  const shown = list.slice(0, visible);
   return `
   <div class="result-cnt">Tìm thấy <b>${list.length}</b> ${st.tab==='hoi-tim'?'câu hỏi':'việc'}</div>
-  ${list.map(j=>`
-  <div class="gigrow"><div class="logo">${logoImg(j.cover,KIND_ICON[j.kind])}</div>
-    <div class="body"><div class="trow"><a href="#viec-detail:${j.id}" class="title" data-go="viec-detail:${j.id}">${j.title}</a>${j.urgent?'<span class="badge urgent">GẤP</span>':''}</div>
-      <div class="co">${member(j.poster).name} <i class="verified"></i></div>
-      <div class="tags"><span class="chip salary">${ic('pin',10)} ${j.ward}</span><span class="chip">${ic('doc',10)} ${j.cat}</span><span class="chip">${ic('bolt',10)} ${JOB_STATUS_LABEL[j.status]||'Đang mở'}</span></div></div>
-    <div class="actions"><span class="time">${j.kind==='hoi-tim'?`${j.apps} người trả lời`:`${j.apps} người nhận`}</span><div class="cta"><a href="#viec-detail:${j.id}" class="btn btn-blue btn-sm" data-go="viec-detail:${j.id}">Xem</a></div></div>
-  </div>`).join('') || `<div class="empty"><p>Chưa có ${st.tab==='hoi-tim'?'câu hỏi':'việc'} nào trong nhóm này.</p></div>`}`;
+  ${shown.length?`<div class="card-grid">${shown.map(viecCardHtml).join('')}</div>`
+    :`<div class="empty"><p>Chưa có ${st.tab==='hoi-tim'?'câu hỏi':'việc'} nào khớp bộ lọc.</p></div>`}
+  ${list.length>shown.length?`<div style="text-align:center;margin-top:22px"><button class="btn btn-out btn-lg" onclick="viecShowMore()">Xem thêm (còn ${list.length-shown.length})</button></div>`:''}`;
 }
-function viecSearchInput(el){ STATE.viec.q=el.value; const box=qs('#viec-results'); if(box) box.innerHTML=viecResultsHtml(); }
-V.viec = (params)=>{
+function viecSearchInput(el){
+  STATE.viec.q=el.value; STATE.viec.visible=12;
+  const box=qs('#viec-results'); if(box) box.innerHTML=viecResultsHtml();
+  const sug=qs('#viec-suggest'); if(sug){ sug.innerHTML=viecSuggestHtml(); sug.style.display='block'; }
+}
+// Hộp gợi ý của ô tìm chính — rỗng thì hiện danh mục (bấm 1 cái lọc thẳng
+// theo nghề đó); có chữ thì tra CẢ BỐN nguồn đã tải sẵn (jobs/members/
+// activities/aid — không gọi API, chỉ lọc trong DATA đã có), gộp theo từng
+// nhóm có tiêu đề riêng (Việc & hợp tác/Thành viên/Hoạt động/Giúp nhau),
+// mỗi dòng bấm là đi thẳng tới đúng trang chi tiết của đúng loại đó.
+function viecSuggestHtml(){
+  const raw=(STATE.viec.q||'').trim();
+  const q=raw.toLowerCase();
+  if(!q){
+    return `<div class="ss-head">Gợi ý cho bạn</div><div class="ss-cats">${DATA.skillCats.slice(1).map(c=>{
+      const photo=catPhotoUrl(c);
+      return `<button type="button" class="ss-cat" onmousedown="viecSuggestPickCat('${c}')">${photo?`<img src="${esc(photo)}" alt="">`:ic(CAT_ICON[c]||'star',20)}<span>${esc(c)}</span></button>`;
+    }).join('')}</div>`;
+  }
+  const groups = [
+    {label:'Việc & hợp tác', items: DATA.jobs.filter(j=>matchKw(q,j.title,j.cat)).slice(0,5)
+      .map(j=>({title:j.title, sub:j.cat||'Khác', go:'viec-detail:'+j.id}))},
+    {label:'Thành viên', items: DATA.members.filter(m=>matchKw(q,m.name,m.field)).slice(0,5)
+      .map(m=>({title:m.name, sub:m.field||'Chưa cập nhật nghề', go:'congnguoi-detail:'+m.id}))},
+    {label:'Hoạt động', items: DATA.activities.filter(a=>matchKw(q,a.title,a.place)).slice(0,4)
+      .map(a=>({title:a.title, sub:a.place||'Hoạt động', go:'hoatdong-detail:'+a.id}))},
+    {label:'Giúp nhau', items: DATA.aid.filter(a=>matchKw(q,a.title,a.cat)).slice(0,4)
+      .map(a=>({title:a.title, sub:a.cat||'Khác', go:'giupnhau-detail:'+a.id}))},
+  ].filter(g=>g.items.length);
+  if(!groups.length) return `<div class="ss-empty">Không tìm thấy gì khớp "${esc(raw)}"</div>`;
+  return groups.map(g=>`<div class="ss-head">${g.label}</div>${g.items.map(it=>`<button type="button" class="ss-row" onmousedown="go('${it.go}')"><b>${esc(it.title)}</b><span class="ss-in">${esc(it.sub)}</span></button>`).join('')}`).join('');
+}
+function viecSearchFocus(){
+  const box=qs('#viec-suggest'); if(!box) return;
+  box.innerHTML=viecSuggestHtml(); box.style.display='block';
+}
+// Trì hoãn để onmousedown của mục vừa bấm (nếu có) kịp chạy trước khi hộp bị ẩn.
+function viecSearchBlur(){
+  setTimeout(()=>{ const box=qs('#viec-suggest'); if(box) box.style.display='none'; }, 150);
+}
+function viecSuggestPickCat(cat){
+  setViecCat(cat);
+  const inp=qs('#viec-search-input'); if(inp) inp.blur();
+}
+// "Xem thêm" chỉ hiện thêm dữ liệu ĐÃ CÓ SẴN trong DATA.jobs (tải 1 lần lúc
+// bootstrap) — vẽ lại đúng #viec-results, không gọi thêm API, không render()
+// toàn trang nên vị trí cuộn không nhảy.
+function viecShowMore(){
+  STATE.viec.visible = (STATE.viec.visible||12) + 12;
+  const box=qs('#viec-results'); if(box) box.innerHTML=viecResultsHtml();
+}
+// Đổi tab loại tin / đổi danh mục nghề: khác ô tìm chữ (chỉ vẽ lại kết quả để
+// không mất focus), 2 việc này cần render() toàn trang để chip vừa bấm đổi
+// đúng trạng thái "on" — cùng khuôn setFilter() nhưng có thêm việc reset lại
+// số lượng đang hiện (visible) để mỗi lần đổi bộ lọc đều bắt đầu lại từ đầu.
+function setViecTab(id){ STATE.viec.tab=id; STATE.viec.visible=12; render(); }
+function setViecCat(id){ STATE.viec.cat=id; STATE.viec.visible=12; render(); }
+function viecCatRow(){
+  const st=STATE.viec;
+  const chip=(id,label,icon)=>{
+    const photo = catPhotoUrl(id);
+    const inner = photo ? `<img src="${esc(photo)}" alt="">` : ic(icon,24);
+    return `<button type="button" class="cat-ic ${st.cat===id?'on':''}" onclick="setViecCat('${id}')">
+      <span class="cat-ic-i ${photo?'photo':'icon'}">${inner}</span><span>${label}</span></button>`;
+  };
+  return `<div class="cat-row">${chip('Tất cả','Tất cả','grid')}${DATA.skillCats.slice(1).map(c=>chip(c,c,CAT_ICON[c]||'star')).join('')}</div>`;
+}
+V.trongnha = (params)=>{
   const st=STATE.viec;
   if(params && params[0] && ['can-nguoi','hop-tac','hoi-tim'].includes(params[0])) st.tab=params[0];
   const tabs = [['can-nguoi','Cần người'],['hop-tac','Hợp tác'],['hoi-tim','Hỏi & tìm']];
-  // Bộ lọc (3 tab loại tin) gộp thẳng vào thanh tìm kiếm (truyền làm extraHtml
-  // cho searchKw()) thay vì đứng riêng ở .filterrow bên dưới — 1 thanh duy
-  // nhất, .searchbar vốn đã flex-wrap nên chip tự xuống dòng ở màn hẹp.
-  const tabChips = `<div style="display:flex;gap:8px;flex-wrap:wrap">${tabs.map(([id,lb])=>`<button class="fchip ${st.tab===id?'on':''}" onclick="setFilter('viec','tab','${id}')">${lb} (${DATA.jobs.filter(j=>j.kind===id).length})</button>`).join('')}</div>`;
+  // Hàng tab gạch chân dưới (kiểu "Dành cho bạn / Mới nhất" của Chợ Tốt) —
+  // tách khỏi thanh tìm kiếm để ô tìm được thoáng, dài, chỉ còn đúng 1 việc.
+  const tabRow = `<div class="tabs">${tabs.map(([id,lb])=>`<button class="tab ${st.tab===id?'on':''}" onclick="setViecTab('${id}')">${lb} <span class="cnt">(${DATA.jobs.filter(j=>j.kind===id).length})</span></button>`).join('')}</div>`;
   return `
-  <div class="page-head"><div><h1>Việc & hợp tác</h1><p>Việc cộng đồng đang mở — mỗi tin đều theo dõi hành trình tin cậy thật, từ lúc đăng tới lúc hoàn tất.</p></div>
-    <button class="btn btn-blue" data-open="dangViec">${ic('plus',15)} Đăng tin</button></div>
-  ${searchKw('viec','Tìm theo tên việc, mô tả, khu vực…','viecSearchInput', tabChips)}
+  <div class="welcome-banner"><img src="assets/banner/banner3.png" alt="Nhà Chung 86"></div>
+
+  <div class="searchbar lg"><div class="kw">${ic('search',17)}<input id="viec-search-input" value="${esc(st.q)}" placeholder="Tìm việc, hợp tác, dịch vụ…" oninput="viecSearchInput(this)" onfocus="viecSearchFocus()" onblur="viecSearchBlur()" autocomplete="off"></div>
+    <div id="viec-suggest" class="search-suggest"></div>
+  </div>
+
+  ${viecCatRow()}
+  ${tabRow}
+
   <div id="viec-results">${viecResultsHtml()}</div>`;
 };
+// Bí danh — mọi link cũ trỏ #viec (footer, breadcrumb, nút "Xem tất cả"…)
+// vẫn ra đúng đúng trang này, kể cả kèm tham số chọn tab.
+V.viec = (params)=> V.trongnha(params);
 
 V['viec-detail'] = (params)=>{
   const j = DATA.jobs.find(x=>x.id===params[0]) || DATA.jobs[0];
@@ -3547,16 +3617,24 @@ V['viec-detail'] = (params)=>{
 };
 
 /* ---- Giúp nhau ---- */
+function giupNhauCardHtml(a){
+  return `<a class="gcard" data-go="giupnhau-detail:${a.id}">${bannerImg(a.cover,'heart',a.title,150)}
+    <div class="body">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${a.urgent?'<span class="badge urgent">KHẨN</span>':''}${a.cat?`<span class="tag">${esc(a.cat)}</span>`:''}
+      </div>
+      <div class="title">${esc(a.title)}</div>
+      <div class="desc">${a.desc?esc(a.desc):'Chưa có mô tả cụ thể đang thiếu/cần gì.'}</div>
+      <div class="meta"><span>${ic('pin',12)} ${a.ward||'Chưa rõ khu vực'}</span></div>
+      <div class="meta" style="margin-top:4px"><span>${esc(member(a.asker).name)}</span><span>${a.helpers} người muốn giúp</span></div>
+    </div>
+  </a>`;
+}
 function giupNhauResultsHtml(){
   const st=STATE.giupnhau;
   const q=(st.q||'').trim().toLowerCase();
   const list = DATA.aid.filter(a=>a.status===st.tab).filter(a=>matchKw(q, a.title, a.desc, a.cat, a.ward, member(a.asker).name));
-  return list.map(a=>`
-  <div class="gigrow"><div class="logo">${a.cover?logoImg(a.cover,'heart'):ic('heart',18)}</div>
-    <div class="body"><div class="trow"><a href="#giupnhau-detail:${a.id}" class="title" data-go="giupnhau-detail:${a.id}">${a.title}</a>${a.urgent?'<span class="badge urgent">KHẨN</span>':''}</div>
-    <div class="co">${member(a.asker).name}</div><div class="tags"><span class="chip">${ic('pin',10)}${a.ward}</span>${a.cat?`<span class="chip">${a.cat}</span>`:''}</div></div>
-    <div class="actions"><span class="time">${a.helpers} muốn giúp</span><a href="#giupnhau-detail:${a.id}" class="btn btn-out btn-sm" data-go="giupnhau-detail:${a.id}">Xem</a></div>
-  </div>`).join('')||'<div class="empty"><p>Không có lời nhờ.</p></div>';
+  return list.length?`<div class="card-grid">${list.map(giupNhauCardHtml).join('')}</div>`:'<div class="empty"><p>Không có lời nhờ.</p></div>';
 }
 function giupNhauSearchInput(el){ STATE.giupnhau.q=el.value; const box=qs('#giupnhau-results'); if(box) box.innerHTML=giupNhauResultsHtml(); }
 V.giupnhau = ()=>{
@@ -4596,9 +4674,10 @@ function xqAnnounceHtml(text, tone, fade){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   V['cotuong-online'] — thách đấu & xem trực tiếp giữa 2 tài khoản thật.
-   Khác V.cotuong (pass-and-play, giữ nguyên không đổi): màn này chỉ liệt kê
-   và điều hướng — bàn cờ thật vẽ ở V['cotuong-van'] (Task 7).
+   V['cotuong-online'] — hub Cờ tướng: Đấu cờ (ghép trận nhanh) và Cờ thế,
+   cộng nút Thách đấu riêng. Khác V.cotuong (pass-and-play, giữ nguyên không
+   đổi). Bàn cờ thật của 1 ván vẽ ở V['cotuong-van'].
+   GAMES_LIST vẫn cần tải để tính 2 badge số liệu thật trên thẻ "Đấu cờ".
    ══════════════════════════════════════════════════════════════ */
 let GAMES_LIST = null, GAMES_LIST_LOADING = false;
 function loadGamesList(){
@@ -4610,32 +4689,53 @@ function loadGamesList(){
   ]).then(([open,mine])=>{ GAMES_LIST={open:open.data||[], mine:mine.data||[]}; GAMES_LIST_LOADING=false; render(); })
     .catch(()=>{ GAMES_LIST={open:[],mine:[]}; GAMES_LIST_LOADING=false; render(); });
 }
-function gameRow(g){
-  const mine = DATA.me && (g.red_member_id===DATA.me.id || g.black_member_id===DATA.me.id);
-  const statusLabel = g.status==='pending' ? 'Chờ nhận lời' : (g.turn==='r'?'Đỏ đi':'Đen đi');
-  return `<a class="gigrow" style="cursor:pointer" onclick="go('cotuong-van:${g.id}')">
-    <div class="logo">${ic('star',20)}</div>
-    <div class="body"><div class="trow"><span class="title">${esc(g.red_name)} vs ${esc(g.black_name)}</span></div>
-      <div class="co">${mine?'Ván của bạn · ':''}${statusLabel}</div></div>
-  </a>`;
-}
 V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
-    return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Thách đấu, xem trực tiếp, hoặc đấu ngay với máy.</p></div></div>
+    return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Chơi cùng thành viên hoặc thử sức với cờ thế.</p></div></div>
     <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
+  const openCount = GAMES_LIST.open.length;
+  const pendingMineCount = GAMES_LIST.mine.filter(g=>g.status==='pending').length;
+  const puzzleTotal = CO_THE.length;
+  const levelCount = new Set(CO_THE.map(p=>p.level)).size;
   return `
-  <div class="page-head"><div><h1>Cờ tướng online</h1><p>Ghép trận nhanh, thách đấu một người cụ thể, xem ai đó đang chơi, hoặc đấu ngay với máy — tuỳ bạn chọn.</p></div>
-    <div class="xq-ctrl-row">
-      <button class="btn btn-blue" data-open="ghepTranNhanh">${ic('bolt',15)} Ghép trận nhanh</button>
-      <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
-      <a href="#cotuong-may" data-go="cotuong-may" class="btn btn-out">${ic('star',15)} Đấu với máy</a>
-      <a href="#cotuong-the" data-go="cotuong-the" class="btn btn-out">${ic('star',15)} Cờ thế</a>
+  <div class="xq-hub-topbar">
+    <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
+  </div>
+  <div class="xq-hub-hero">
+    <img class="deco" src="assets/cotuong/06-cap-quan-co-do-xanh.png" alt="">
+    <div class="l">
+      <div class="badge-ico"><img src="assets/cotuong/05-quan-co-xanh-don.png" alt=""></div>
+      <div class="tx"><h1>Cờ tướng online</h1><p>Chơi cùng thành viên hoặc thử sức với cờ thế.</p></div>
     </div>
   </div>
-  ${GAMES_LIST.mine.length?`<div class="sec-title">${ic('user',14)} Ván của bạn</div>${GAMES_LIST.mine.map(gameRow).join('')}`:''}
-  <div class="sec-title" style="margin-top:${GAMES_LIST.mine.length?'20px':'0'}">${ic('users',14)} Đang có người đánh</div>
-  ${GAMES_LIST.open.length?GAMES_LIST.open.map(gameRow).join(''):'<div class="empty"><p>Chưa có ván nào đang diễn ra.</p></div>'}
-  <p style="margin-top:18px;font-size:13px;color:var(--muted)">Muốn chơi 2 người chung 1 máy? <a data-go="cotuong" style="color:var(--brand);font-weight:700">Vào bàn tại chỗ →</a></p>`;
+  <div class="xq-hub-cards">
+    <div class="xq-hub-card play">
+      <img class="pic" src="assets/cotuong/08-bg-ban-co-co-diem-nhan.png" alt="">
+      <div class="body">
+        <h2>${ic('bolt',18)} Đấu cờ</h2>
+        <p class="desc">Ghép nhanh với một thành viên đang sẵn sàng chơi.</p>
+        <div class="badges">
+          <span class="chip">${ic('users',13)} ${openCount} ván đang diễn ra</span>
+          <span class="chip">${ic('clock',13)} ${pendingMineCount} lời mời đang chờ bạn</span>
+        </div>
+        <div class="btns"><button class="btn btn-blue" data-open="ghepTranNhanh">${ic('bolt',15)} Đấu ngay</button></div>
+      </div>
+    </div>
+    <div class="xq-hub-card the">
+      <img class="pic" src="assets/cotuong/03-ban-co-tuong-toi-gian.png" alt="">
+      <div class="body">
+        <h2 style="color:#92400e">${ic('book',18)} Cờ thế</h2>
+        <p class="desc">Luyện tư duy và giải các thế cờ từ dễ đến khó.</p>
+        <div class="badges">
+          <span class="chip amber">${ic('layers',13)} ${puzzleTotal} thế cờ</span>
+          <span class="chip amber">${ic('target',13)} ${levelCount} mức độ</span>
+        </div>
+        <div class="btns">
+          <a href="#cotuong-the" data-go="cotuong-the" class="btn btn-amber">${ic('wand',15)} Giải cờ thế</a>
+        </div>
+      </div>
+    </div>
+  </div>`;
 };
 
 let CHALLENGE_PICK = null, CHALLENGE_TIMER = null;
@@ -5261,7 +5361,7 @@ V.chat = ()=>{
     <div class="page-head"><div><h1>Tin nhắn</h1><p>Trao đổi nhanh trong Nhà Chung — việc quan trọng vẫn nên gọi điện hoặc hẹn Zalo.</p></div></div>
     <div class="empty"><div class="ic">${ic('mail',24)}</div><h3>Chưa có hội thoại nào</h3>
       <p>Bấm "Nhắn tin" hoặc "Xin liên hệ" ở hồ sơ ai đó để bắt đầu trò chuyện.</p>
-      <a class="btn btn-blue" data-go="congnguoi">${ic('users',15)} Xem Con người</a></div>`;
+      <a class="btn btn-blue" data-go="congnguoi">${ic('users',15)} Xem thành viên</a></div>`;
   }
   const cv = DATA.conversations.find(c=>c.id===CHAT_ACTIVE) || DATA.conversations[0];
   CHAT_ACTIVE = cv.id;
