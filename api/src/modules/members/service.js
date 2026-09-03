@@ -369,7 +369,7 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
         limit,
         status: status ?? null,
         work_status: workStatus ?? null,
-        area_id: areaId ?? null,
+        area_id: filters.areaId ?? null,
         has_q: q !== null,
         has_job: job !== null,
       },
