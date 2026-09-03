@@ -19,6 +19,7 @@ import { router as aidRouter } from './modules/aid/routes.js';
 import { router as complaintsRouter } from './modules/complaints/routes.js';
 import { router as verificationsRouter } from './modules/verifications/routes.js';
 import { router as fundRouter } from './modules/fund/routes.js';
+import { router as loansRouter } from './modules/loans/routes.js';
 import { router as moderationRouter } from './modules/moderation/routes.js';
 import { health as storageHealth } from './core/storage.js';
 import { buildOpenApi } from './openapi/build.js';
@@ -110,6 +111,7 @@ export function buildApp() {
   app.use('/api/v1/complaints', complaintsRouter);
   app.use('/api/v1/verifications', verificationsRouter);
   app.use('/api/v1/fund', fundRouter);
+  app.use('/api/v1/loans', loansRouter);
   app.use('/api/v1/moderation', moderationRouter);
 
   app.use(errorHandler);

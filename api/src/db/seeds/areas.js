@@ -1,6 +1,6 @@
 import { seedKnex } from './db.js';
 import { upsert, actAs } from './helpers.js';
-import { COMMUNITY_CODE, AREAS } from './data/community.js';
+import { COMMUNITY_CODE, ALL_AREAS } from './data/community.js';
 
 /**
  * Cập nhật riêng danh mục khu vực cho database đã có cộng đồng từ trước.
@@ -24,13 +24,13 @@ export async function seedAreas(db) {
       }
 
       await actAs(trx, null);
-      const rows = AREAS.map((area) => ({
+      const rows = ALL_AREAS.map((area) => ({
         ...area,
         community_id: community.id,
       }));
       inserted = await upsert(
-        trx, 'areas', ['id', 'community_id', 'name', 'lat', 'lng', 'is_active'], rows,
-        { update: ['name', 'lat', 'lng', 'is_active'] }
+        trx, 'areas', ['id', 'community_id', 'name', 'parent_id', 'lat', 'lng', 'is_active'], rows,
+        { update: ['name', 'parent_id', 'lat', 'lng', 'is_active'] }
       );
     });
     return { areas: inserted };

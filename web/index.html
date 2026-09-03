@@ -17,16 +17,19 @@
    Màu: giữ xanh lá đậm + trắng đã chốt (thay cho --blue của mẫu gốc).
    ══════════════════════════════════════════════════════════ */
 :root{
-  --brand:#0E6B4F; --brand-d:#0A5540; --brand-l:#EAF5F0; --brand-vl:#F2F9F6;
-  --ink:#1e293b; --ink2:#64748b; --muted:#94a3b8;
-  --line:#e5e7eb; --line2:#f1f5f9;
-  --bg:#fff; --bg2:#f9fafb; --bg3:#f8fafc;
-  --dark:#0F241D;
-  --green:#16a34a; --green-l:#ecfdf5;
+  /* Bảng màu v4: xanh rêu đậm + kem, thay cho xanh lá/blue-grey của v3 (xem
+     ghi chú thiết kế lại trang chủ) — vẫn giữ NGUYÊN tên biến cũ để không
+     phải sửa lại hàng nghìn chỗ dùng var(--brand)/var(--ink2)... trong file. */
+  --brand:#0B5638; --brand-d:#073D29; --brand-l:#EAF3ED; --brand-vl:#F4F8F5;
+  --ink:#16231D; --ink2:#68766F; --muted:#8A968F;
+  --line:#DDE5DF; --line2:#EDF1EE;
+  --bg:#fff; --bg2:#fff; --bg3:#EFEAE0;
+  --dark:#073D29; --footer-bg:#075136; --gold:#D7AA45;
+  --green:#16a34a; --green-l:f#ecfdf5;
   --amber:#f59e0b; --amber-l:#fffbeb;
   --red:#ef4444; --red-l:#fef2f2;
-  --icon:#64748b;
-  --r:8px; --r2:14px;
+  --icon:#68766F;
+  --r:10px; --r2:14px;
   --font:'Be Vietnam Pro',sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -81,7 +84,7 @@ ul{list-style:none}
 .logo .b{color:var(--brand)}
 .nav{display:flex;gap:20px;margin-left:6px;flex:none;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .nav::-webkit-scrollbar{display:none}
-.nav a{font-size:14.5px;font-weight:500;color:var(--ink2);padding:4px 0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;white-space:nowrap;flex:none}
+.nav a{font-size:16.5px;font-weight:500;color:var(--ink2);padding:4px 0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px;white-space:nowrap;flex:none}
 .nav a:hover,.nav a.on{color:var(--brand)}
 .nav a.on{font-weight:700;border-color:var(--brand)}
 .nav a .n{background:var(--brand-l);color:var(--brand-d);font-size:12px;font-weight:800;border-radius:100px;padding:1px 6px;flex:none;line-height:1.56}
@@ -182,7 +185,7 @@ ul{list-style:none}
 .searchbar.lg{padding:16px;border-radius:16px;margin-bottom:18px;position:relative}
 .searchbar.lg .kw input{height:56px;font-size:16px;padding-left:46px;border-radius:12px}
 .searchbar.lg .kw svg{left:16px;width:19px;height:19px}
-.searchbar.lg .btn{height:56px;border-radius:12px}
+.searchbar.lg .btn{height:56px;border-radius:12px;text-transform:uppercase;letter-spacing:.3px}
 /* Hộp gợi ý thả xuống khi bấm/gõ vào ô tìm chính (kiểu Chợ Tốt: rỗng thì gợi
    ý danh mục, có chữ thì liệt kê việc khớp kèm "trong <nghề>"). */
 .search-suggest{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:30;max-height:420px;overflow-y:auto;padding:10px}
@@ -201,10 +204,14 @@ ul{list-style:none}
 .filterrow .l{display:flex;gap:8px;flex:1;overflow-x:auto;padding-bottom:2px}
 .result-cnt{font-size:14.5px;color:var(--ink2);margin-bottom:14px}
 .result-cnt b{color:var(--ink);font-weight:700}
-/* Hàng icon danh mục (duyệt nhanh theo nhóm nghề, kiểu Chợ Tốt) */
-.cat-row{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 16px;margin-bottom:4px}
+/* Hàng icon danh mục (duyệt nhanh theo nhóm nghề, kiểu Chợ Tốt) — bọc khung
+   thẻ trắng có viền/đổ bóng nhẹ để tách hẳn khỏi nền trắng của trang (trước
+   đây icon nổi trần trên nền), và đẩy xuống thêm khỏi banner/ô tìm kiếm phía
+   trên bằng margin-top. */
+.cat-row{display:flex;gap:22px;overflow-x:auto;margin:26px 0 20px;padding:18px 18px 14px;
+  background:#fff;border:1px solid var(--line);border-radius:var(--r2);box-shadow:0 3px 14px rgba(11,86,56,.07)}
 .cat-ic{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--ink2);font-size:12.5px;font-weight:600;width:78px;text-align:center}
-.cat-ic-i{width:64px;height:64px;border-radius:18px;background:var(--bg3);display:flex;align-items:center;justify-content:center;color:var(--brand-d);transition:.15s;overflow:hidden;border:2px solid transparent}
+.cat-ic-i{width:64px;height:64px;border-radius:18px;background:none;display:flex;align-items:center;justify-content:center;color:var(--brand-d);transition:.15s;overflow:hidden;border:2px solid transparent}
 .cat-ic-i img{width:100%;height:100%;object-fit:cover;display:block}
 .cat-ic.on .cat-ic-i{border-color:var(--brand)}
 .cat-ic.on .cat-ic-i.icon{background:var(--brand);color:#fff}
@@ -232,28 +239,40 @@ ul{list-style:none}
    bleed" kinh điển: left/right 50% (tính theo khung cha .content, vốn đã nằm
    giữa viewport nhờ .wrap's margin:0 auto) rồi kéo lại đúng nửa viewport
    bằng margin âm -50vw, bất kể .wrap đang max-width/padding bao nhiêu. */
-/* aspect-ratio 4.5/1 ~ 67% chiều cao so với tỉ lệ gốc ảnh (3/1, 2172×724) —
-   chủ đích thu ngắn theo yêu cầu, chấp nhận cover cắt bớt 1 chút trên/dưới
-   đổi lấy banner không bị "to quá". margin-top âm bù đúng .content's
-   padding-top (28px) để banner dán sát mép dưới header, không hở khoảng
-   trắng phía trên. */
-.welcome-banner{position:relative;overflow:hidden;margin-top:-28px;margin-bottom:18px;display:block;aspect-ratio:4.5/1;
-  width:100vw;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw}
-.welcome-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-.stat{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px}
+/* Ảnh banner (11-banner-nha-chung.png) đã là banner hoàn chỉnh, đúng tỉ lệ,
+   không crop — để width:100%;height:auto thay vì ép aspect-ratio ngắn lại
+   như bản v3, tránh cắt mất người/chữ ở mép trên dưới. margin-top âm bù
+   đúng .content's padding-top (28px) để banner dán sát mép dưới header. */
+.welcome-banner{position:relative;overflow:hidden;display:block}
+.welcome-banner img{display:block;width:100%;height:auto}
+/* Bọc banner + ô tìm kiếm để desktop thả nổi ô tìm lên trên banner, canh
+   GIỮA theo chiều dọc và chỉ cách mép phải một khoảng nhỏ. .home-hero (chứ
+   không phải .welcome-banner) mới là phần tử full-bleed (100vw, kéo sát mép
+   dưới header) ở desktop — để right:%/top:% tính đúng theo khung ẢNH THẬT
+   (100vw) thay vì theo bề rộng hẹp hơn của .content, tránh bị lệch xa mép
+   phải trên màn hình rộng. Mobile giữ nguyên: .home-hero không full-bleed,
+   banner ẩn hẳn (xem @media 768px), ô tìm kiếm không đặt position:absolute
+   nên tự rơi về đúng vị trí cũ. */
+@media(min-width:769px){
+  .home-hero{position:relative;width:100vw;left:50%;margin-left:-50vw;margin-right:-50vw;margin-top:-28px;margin-bottom:0}
+  .home-hero>.searchbar.lg{position:absolute;top:45%;right:10%;transform:translateY(-50%);margin:0;width:520px;max-width:40%;z-index:5;align-items:center;box-shadow:0 14px 34px rgba(7,61,41,.22)}
+  .home-hero>.searchbar.lg .btn{height:42px;padding:0 16px;font-size:13px}
+}
+.stat{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px;min-width:0}
 .stat-ico{width:38px;height:38px;border-radius:10px;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-.stat-num{font-size:25.5px;font-weight:800;letter-spacing:-.3px}
+.stat-num{font-size:25.5px;font-weight:800;letter-spacing:-.3px;overflow-wrap:anywhere}
 .stat-lbl{font-size:14px;color:var(--ink2);margin-top:2px}
 .stat-delta{font-size:13px;color:var(--green);font-weight:600;margin-top:7px;display:flex;align-items:center;gap:4px}
 .stat-delta.muted{color:var(--muted)}
 
 /* ===== Tabs ===== */
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
-.tab{font-size:14.5px;font-weight:600;color:var(--ink2);padding:11px 15px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab{font-size:14.5px;font-weight:600;color:var(--ink2);padding:11px 15px;border-bottom:2px solid transparent;white-space:nowrap;display:inline-flex;align-items:center;gap:7px}
 .tab:hover{color:var(--ink)}
 .tab.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
 .tab .cnt{font-size:13px;color:var(--muted);margin-left:3px}
 .tab.on .cnt{color:var(--brand)}
+.tab img{width:30px;height:30px;object-fit:contain;flex:none}
 
 /* ===== Bảng (khu quản trị) ===== */
 table{width:100%;border-collapse:collapse}
@@ -279,10 +298,6 @@ tr:last-child td{border-bottom:none}
 .gcard .title{font-size:15.5px;font-weight:700;margin:9px 0 8px;line-height:1.41}
 .gcard .meta{display:flex;gap:12px;font-size:13px;color:var(--muted)}
 .gcard .desc{font-size:13px;color:var(--ink2);line-height:1.5;margin:6px 0 2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pcard{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:24px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:.15s;text-decoration:none}
-.pcard:hover{box-shadow:0 6px 20px rgba(15,23,42,.08);transform:translateY(-2px)}
-.pcard .title{font-size:15px;font-weight:700;margin-top:12px;color:var(--ink)}
-.pcard .meta{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-top:4px}
 
 /* ===== hành trình tin cậy 7 bước (trong màn chi tiết việc) ===== */
 .jflow-bar{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px}
@@ -574,18 +589,21 @@ tr:last-child td{border-bottom:none}
 .bs-item svg{color:var(--icon)}
 
 /* ===== Footer ===== */
-.footer{background:#fff;border-top:1px solid var(--line);padding:40px 0 0}
+.footer{background:var(--footer-bg);border-top:none;padding:40px 0 0;color:#DCEAE1}
 .foot-grid{display:grid;grid-template-columns:2fr 1.1fr 1.1fr 1fr;gap:30px;padding-bottom:28px}
-.foot-logo{display:flex;align-items:center;gap:8px;font-size:20.5px;font-weight:800;margin-bottom:9px}
+.foot-logo{display:flex;align-items:center;gap:8px;font-size:20.5px;font-weight:800;margin-bottom:9px;color:#fff}
 .foot-logo img{height:42px;width:auto;display:block}
-.foot-tag{font-size:14px;color:var(--ink2);line-height:1.66;margin-bottom:14px}
-.socials{display:flex;gap:9px}
-.soc{width:32px;height:32px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink2)}
-.foot-col h4{font-size:14px;font-weight:700;margin-bottom:12px}
-.foot-col a{display:block;font-size:14px;color:var(--ink2);line-height:2.16}
-.foot-col a:hover{color:var(--brand)}
-.foot-bottom{border-top:1px solid var(--line);padding:16px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:13px;color:var(--muted)}
-.foot-bottom .links{display:flex;gap:16px}
+.foot-tag{font-size:14px;color:#AFC9BB;line-height:1.66;margin-bottom:14px}
+.socials{display:flex;gap:10px;align-items:center}
+.soc{width:42px;height:42px;border-radius:50%;background:none;border:none;display:flex;align-items:center;justify-content:center;color:#fff;overflow:hidden}
+.soc img{width:36px;height:36px;object-fit:contain}
+.foot-col h4{font-size:14px;font-weight:700;margin-bottom:12px;color:#fff}
+.foot-col a{display:block;font-size:14px;color:#AFC9BB;line-height:2.16}
+.foot-col a:hover{color:#fff}
+.foot-bottom{border-top:1px solid rgba(255,255,255,.14);padding:16px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:13px;color:#AFC9BB}
+.foot-bottom .links{display:flex;gap:16px;flex-wrap:wrap}
+.foot-bottom .links a{color:#AFC9BB}
+.foot-bottom .links a:hover{color:#fff}
 
 /* ===== Auth (login/register) ===== */
 .auth-wrap{max-width:420px;margin:44px auto;padding:0 20px}
@@ -656,12 +674,35 @@ tr:last-child td{border-bottom:none}
 /* ===== khối 2 cột dùng chung ===== */
 .cols{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
 .cols-side{display:flex;flex-direction:column;gap:16px}
+
+/* ===== Bảng nhà: layout 2 cột riêng (không dùng chung breakpoint với .cols
+   ở các màn khác) + khối sidebar thống kê/hoạt động/đăng nhập ===== */
+.home-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+.home-side{display:flex;flex-direction:column;gap:16px}
+.home-side .see-all{display:flex;align-items:center;gap:4px}
+.hs-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hs-stat{border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.hs-stat img{width:38px;height:38px;object-fit:contain;margin-bottom:8px}
+.hs-stat b{display:block;font-size:20px;font-weight:800;letter-spacing:-.2px}
+.hs-stat span{font-size:12.5px;color:var(--ink2)}
+.hs-activity{display:flex;flex-direction:column;gap:2px}
+.hs-act-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line2)}
+.hs-act-item:last-child{border-bottom:none}
+.hs-act-ico{width:34px;height:34px;border-radius:9px;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;flex:none}
+.hs-act-body{min-width:0}
+.hs-act-title{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.4}
+.hs-act-meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.hs-login p{font-size:13.5px;color:var(--ink2);line-height:1.6;margin-bottom:14px}
+.hs-login .row{display:flex;gap:8px}
+.hs-login .row .btn{flex:1;padding:11px 10px;font-size:14px}
+@media(max-width:1024px){ .home-layout{grid-template-columns:1fr} }
+
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .stack>*+*{margin-top:15px}
 
 /* ===== Responsive ===== */
-@media(max-width:980px){
+@media(max-width:1100px){
   .nav{display:none}
   .hamb{display:flex}
   .header-right{gap:6px}
@@ -712,15 +753,298 @@ tr:last-child td{border-bottom:none}
   .card-grid,.g3,.g2,.role-pick{grid-template-columns:1fr}
   .stat-grid,.why-grid{gap:10px}
   .stat,.why-item{padding:14px}
+  .stat-num{font-size:20px}
   .why-card{padding:12px}
   .foot-grid{grid-template-columns:1fr}
   .sb-stats{flex-direction:column;gap:14px}
 }
 
+/* ══════════════════════════════════════════════════════════
+   HỒ SƠ THÀNH VIÊN (PUB.hosocongkhai) — content riêng, KHÔNG đụng Header/
+   Footer/Topbar. Toàn bộ lớp .mp-* chỉ dùng trong màn này (không tái dùng
+   .card/.box/.info-row/.chip/.status dùng chung ở nơi khác) để đổi màu/bố cục
+   ở đây không kéo theo mọi màn khác đang mượn các lớp đó. Biến --mp-* khai
+   trong .mp nên chỉ có hiệu lực trong phạm vi màn này. */
+.mp{
+  --mp-bg:#F7F9F8; --mp-surface:#fff;
+  --mp-primary:#0B5638; --mp-primary-dark:#073D29; --mp-primary-hover:#06452F;
+  --mp-primary-soft:#EAF3ED; --mp-primary-soft2:#F1F6F3;
+  --mp-text:#17221C; --mp-text2:#66736C; --mp-muted:#87918C;
+  --mp-border:#DDE5DF; --mp-border-light:#E8EDEA;
+  --mp-gold:#C79A3B; --mp-gold-dark:#A87924; --mp-gold-soft:#F8F1E3;
+  background:var(--mp-bg);
+  border-radius:16px;
+  padding:24px;
+}
+@media(min-width:1400px){ .mp{padding:28px 32px} }
+@media(max-width:768px){ .mp{padding:16px;border-radius:12px} }
+.mp-crumb-current{color:var(--mp-text);font-weight:600}
+
+.mp-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+@media(max-width:1199px){ .mp-layout{grid-template-columns:minmax(0,1fr) 300px} }
+@media(max-width:768px){ .mp-layout{grid-template-columns:1fr} }
+.mp-main{min-width:0}
+.mp-side{display:flex;flex-direction:column;gap:16px}
+
+/* ----- Thẻ hồ sơ đầu trang ----- */
+.mp-profile{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:26px 28px;box-shadow:0 2px 8px rgba(20,40,30,.04)}
+@media(max-width:768px){ .mp-profile{padding:18px 16px} }
+.mp-profile-top{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.mp-avatar{width:128px;height:128px;border-radius:50%;flex:none;overflow:hidden}
+.mp-avatar-img{width:100%;height:100%;object-fit:cover;display:block}
+.mp-avatar-fallback{width:100%;height:100%;border-radius:50%;background:var(--mp-primary-soft);color:var(--mp-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:46px}
+@media(max-width:768px){ .mp-avatar{width:88px;height:88px} .mp-avatar-fallback{font-size:32px} }
+.mp-profile-info{flex:1;min-width:220px}
+.mp-name-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.mp-name{font-size:32px;font-weight:700;color:var(--mp-text);letter-spacing:-.3px}
+@media(max-width:600px){ .mp-name{font-size:24px} }
+.mp-verified{display:inline-flex;flex:none}
+.mp-verified img{width:22px;height:22px;object-fit:contain;display:block}
+@media(max-width:600px){ .mp-verified img{width:18px;height:18px} }
+.mp-status-pill{font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--mp-primary-soft);color:var(--mp-primary);white-space:nowrap}
+.mp-status-pill.off{background:var(--mp-border-light);color:var(--mp-text2)}
+.mp-meta-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:15.5px;color:var(--mp-text2);margin-top:9px}
+.mp-meta-line span{display:inline-flex;align-items:center;gap:6px}
+.mp-meta-line svg{flex:none;color:var(--mp-primary)}
+.mp-meta-dot{color:var(--mp-border);font-size:12px}
+.mp-chips{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+.mp-chip{display:inline-flex;align-items:center;gap:6px;height:35px;padding:0 12px;border-radius:8px;border:1px solid var(--mp-border);background:var(--mp-surface);font-size:13.5px;color:var(--mp-text2);font-weight:500}
+.mp-chip svg{color:var(--mp-primary)}
+.mp-chip-dot{width:4px;height:4px;border-radius:50%;background:var(--mp-border);flex:none}
+.mp-actions{display:flex;gap:10px;flex-wrap:wrap;flex:0 1 auto;min-width:0}
+.mp-actions .btn{height:38px;border-radius:6px;padding:0 16px;font-size:13.5px;gap:6px}
+/* Dưới 600px, avatar (88px) + .mp-profile-info (min-width:220px, xem trên)
+   cộng lại đã gần hết bề ngang màn hình — xếp dọc thay vì cùng hàng để
+   .mp-actions (4 nút Gọi/Zalo/Messenger/Nhắn tin) có trọn bề ngang mà tự
+   xuống dòng (flex-wrap ở trên), thay vì bị đẩy tràn ra ngoài mép phải. */
+@media(max-width:600px){ .mp-profile-top{flex-direction:column;align-items:stretch} .mp-profile-info{min-width:0} .mp-actions{width:100%} }
+
+/* ----- Khối nội dung lớn: Giới thiệu / Năng lực / Hoạt động ----- */
+.mp-content{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:24px 28px;margin-top:16px}
+.mp-section{padding:22px 0;border-bottom:1px solid var(--mp-border-light)}
+.mp-section:first-child{padding-top:0}
+.mp-section:last-child{border-bottom:none;padding-bottom:0}
+.mp-section-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.mp-section-ic{width:32px;height:32px;border-radius:8px;background:var(--mp-primary-soft2);color:var(--mp-primary);display:flex;align-items:center;justify-content:center;flex:none}
+.mp-section-ic.gold{color:var(--mp-gold-dark);background:var(--mp-gold-soft)}
+.mp-section-head h2{font-size:18px;font-weight:700;color:var(--mp-text)}
+.mp-intro{font-size:15px;line-height:1.7;color:#4F5C55;white-space:pre-line}
+.mp-empty-text{font-size:13.5px;color:var(--mp-muted)}
+
+.mp-cap-list{display:flex;flex-direction:column;gap:12px}
+.mp-cap-row{display:flex;gap:16px;background:var(--mp-surface);border:1px solid #E1E7E3;border-radius:10px;padding:12px;text-decoration:none;color:inherit;transition:.15s}
+.mp-cap-row:hover{border-color:var(--mp-primary)}
+.mp-cap-img{width:270px;max-width:38%;height:145px;border-radius:8px;overflow:hidden;flex:none}
+.mp-cap-body{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.mp-cap-badge{align-self:flex-start;font-size:12.5px;font-weight:700;color:var(--mp-primary);background:var(--mp-primary-soft);padding:3px 10px;border-radius:100px}
+.mp-cap-title{font-size:20px;font-weight:700;color:var(--mp-primary-dark)}
+.mp-cap-desc{font-size:15px;line-height:1.6;color:#56635C}
+@media(max-width:600px){ .mp-cap-row{flex-direction:column} .mp-cap-img{width:100%;max-width:none} }
+
+.mp-activity-list{display:flex;flex-direction:column}
+.mp-activity-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--mp-border-light)}
+.mp-activity-row:last-child{border-bottom:none}
+.mp-activity-ic{width:40px;height:40px;border-radius:8px;background:var(--mp-primary-soft);color:var(--mp-primary);display:flex;align-items:center;justify-content:center;flex:none}
+.mp-activity-body{flex:1;min-width:0}
+.mp-activity-title{font-size:15px;font-weight:650;color:var(--mp-text)}
+.mp-activity-sub{font-size:14px;color:var(--mp-text2);margin-top:2px}
+.mp-activity-date{font-size:14px;color:var(--mp-text2);white-space:nowrap;flex:none}
+
+/* ----- Sidebar phải: 3 khối ----- */
+.mp-card{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:22px}
+.mp-card-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mp-card-head svg{color:var(--mp-primary);flex:none}
+.mp-card-head h3{font-size:18px;font-weight:700;color:var(--mp-text)}
+.mp-row{display:flex;justify-content:space-between;align-items:center;min-height:52px;border-bottom:1px solid var(--mp-border-light);gap:10px}
+.mp-row:last-child{border-bottom:none}
+.mp-row-label{font-size:14px;color:var(--mp-text2);flex:none}
+.mp-row-value{font-size:14px;font-weight:600;color:var(--mp-text);text-align:right;display:inline-flex;align-items:center;gap:6px}
+.mp-row-value.muted{font-weight:500;color:var(--mp-text2)}
+.mp-row-value svg{color:var(--mp-text2);flex:none}
+
+.mp-privacy{display:flex;gap:11px;background:var(--mp-primary-soft2);border:1px solid #D6E6DC;border-radius:12px;padding:20px}
+.mp-privacy svg{color:var(--mp-primary);flex:none;margin-top:1px}
+.mp-privacy p{font-size:14px;line-height:1.6;color:var(--mp-primary)}
+
+/* ══════════════════════════════════════════════════════════
+   TRANG CHI TIẾT DÙNG CHUNG (.dp-*) — Việc & hợp tác, Giúp nhau, Năng lực,
+   Hoạt động, Ký ức. Cùng ngôn ngữ thiết kế và cùng bộ biến màu --mp-* với
+   Hồ sơ thành viên (.mp-*, xem khối phía trên) nhưng tách lớp riêng: đổi
+   màu/bố cục ở đây không đụng tới màn hồ sơ đang chạy tốt, và ngược lại. */
+.dp{
+  --mp-bg:#F7F9F8; --mp-surface:#fff;
+  --mp-primary:#0B5638; --mp-primary-dark:#073D29; --mp-primary-hover:#06452F;
+  --mp-primary-soft:#EAF3ED; --mp-primary-soft2:#F1F6F3;
+  --mp-text:#17221C; --mp-text2:#66736C; --mp-muted:#87918C;
+  --mp-border:#DDE5DF; --mp-border-light:#E8EDEA;
+  --mp-gold:#C79A3B; --mp-gold-dark:#A87924; --mp-gold-soft:#F8F1E3;
+  --mp-red:#B3403A; --mp-red-soft:#FBEBEA;
+  background:var(--mp-bg);
+  border-radius:16px;
+  padding:24px;
+}
+@media(min-width:1400px){ .dp{padding:28px 32px} }
+@media(max-width:768px){ .dp{padding:16px;border-radius:12px} }
+.dp-crumb-current{color:var(--mp-text);font-weight:600}
+
+.dp-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;margin-top:14px}
+@media(max-width:960px){ .dp-layout{grid-template-columns:1fr} }
+.dp-main{min-width:0}
+.dp-side{display:flex;flex-direction:column;gap:16px}
+
+.dp-hero{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(20,40,30,.04)}
+.dp-hero-cover{aspect-ratio:16/7;position:relative;background:var(--mp-primary-soft2)}
+.dp-hero-body{padding:22px 26px}
+.dp-badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dp-badge{font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:100px;background:var(--mp-primary-soft);color:var(--mp-primary);white-space:nowrap}
+.dp-badge.gold{background:var(--mp-gold-soft);color:var(--mp-gold-dark)}
+.dp-badge.muted{background:var(--mp-border-light);color:var(--mp-text2)}
+.dp-badge.urgent{background:var(--mp-red-soft);color:var(--mp-red)}
+.dp-title{font-size:23px;font-weight:700;color:var(--mp-text);letter-spacing:-.2px;margin-top:10px}
+.dp-meta-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:14.5px;color:var(--mp-text2);margin-top:9px}
+.dp-meta-line span{display:inline-flex;align-items:center;gap:6px}
+.dp-meta-line svg{flex:none;color:var(--mp-primary)}
+.dp-meta-dot{color:var(--mp-border);font-size:12px}
+.dp-chips{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+.dp-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--mp-border);background:var(--mp-surface);font-size:13px;color:var(--mp-text2);font-weight:500}
+.dp-chip svg{color:var(--mp-primary)}
+
+.dp-content{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:24px 26px;margin-top:16px}
+.dp-section{padding:20px 0;border-bottom:1px solid var(--mp-border-light)}
+.dp-section:first-child{padding-top:0}
+.dp-section:last-child{border-bottom:none;padding-bottom:0}
+.dp-section-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.dp-section-ic{width:32px;height:32px;border-radius:8px;color:var(--mp-primary);display:flex;align-items:center;justify-content:center;flex:none}
+.dp-section-ic.gold{color:var(--mp-gold-dark)}
+.dp-section-ic.red{color:var(--mp-red)}
+.dp-section-head h2{font-size:16.5px;font-weight:700;color:var(--mp-text)}
+.dp-text{font-size:14.5px;line-height:1.7;color:#4F5C55;white-space:pre-line}
+.dp-empty-text{font-size:13.5px;color:var(--mp-muted)}
+
+.dp-people{display:flex;flex-direction:column;gap:4px}
+.dp-people-row{display:flex;align-items:center;gap:12px;padding:9px 0}
+.dp-people-row:not(:last-child){border-bottom:1px solid var(--mp-border-light)}
+.dp-people-ic{width:38px;height:38px;border-radius:50%;background:var(--mp-primary-soft);color:var(--mp-primary);display:flex;align-items:center;justify-content:center;flex:none;font-weight:700;font-size:13.5px}
+.dp-people-body{flex:1;min-width:0}
+.dp-people-name{font-size:14px;font-weight:650;color:var(--mp-text)}
+.dp-people-name a{color:inherit}
+.dp-people-sub{font-size:12.5px;color:var(--mp-text2);margin-top:2px}
+
+.dp-card{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:22px}
+.dp-card-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dp-card-head svg{color:var(--mp-primary);flex:none}
+.dp-card-head h3{font-size:16.5px;font-weight:700;color:var(--mp-text)}
+.dp-row{display:flex;justify-content:space-between;align-items:center;min-height:46px;border-bottom:1px solid var(--mp-border-light);gap:10px}
+.dp-row:last-child{border-bottom:none}
+.dp-row-label{font-size:13.5px;color:var(--mp-text2);flex:none}
+.dp-row-value{font-size:13.5px;font-weight:600;color:var(--mp-text);text-align:right}
+
+.dp-person-card{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:12px;padding:22px;text-align:center}
+.dp-person-avatar{display:flex;justify-content:center;margin-bottom:10px}
+.dp-person-name{font-size:15px;font-weight:700;color:var(--mp-text)}
+.dp-person-sub{font-size:12.5px;color:var(--mp-text2);margin:5px 0 14px}
+.dp-person-actions{display:flex;flex-direction:column;gap:8px}
+
+.dp-mini{display:flex;flex-direction:column}
+.dp-mini-row{display:flex;align-items:center;gap:12px;padding:9px 0;text-decoration:none;color:inherit}
+.dp-mini-row:not(:last-child){border-bottom:1px solid var(--mp-border-light)}
+.dp-mini-img{width:44px;height:44px;border-radius:8px;overflow:hidden;flex:none;background:var(--mp-primary-soft2);display:flex;align-items:center;justify-content:center;color:var(--mp-primary)}
+.dp-mini-title{font-size:13.5px;font-weight:650;color:var(--mp-text)}
+.dp-mini-sub{font-size:12px;color:var(--mp-text2);margin-top:1px}
+
+.dp-notice{display:flex;gap:11px;background:var(--mp-primary-soft2);border:1px solid #D6E6DC;border-radius:12px;padding:18px}
+.dp-notice svg{color:var(--mp-primary);flex:none;margin-top:1px}
+.dp-notice p{font-size:13.5px;line-height:1.6;color:var(--mp-primary)}
+.dp-notice.wait{background:var(--mp-gold-soft);border-color:#EAD9AF}
+.dp-notice.wait svg,.dp-notice.wait p{color:var(--mp-gold-dark)}
+
+/* ══════════════════════════════════════════════════════════
+   CỘNG ĐỒNG THÀNH VIÊN (PUB.khampha, tab "nguoi") — content riêng, KHÔNG
+   đụng Header/Footer/Topbar. Lớp .cd-* chỉ dùng trong màn này (không tái
+   dùng .pcard/.searchbar/.rchip cũ) để đổi hẳn bố cục theo ảnh tham chiếu mà
+   không kéo theo màn khác. Biến --cd-* khai trong .cd nên chỉ có hiệu lực ở
+   đây, giống cách .mp/.dp đã làm với --mp-*. */
+.cd{
+  --cd-green:#0B5638; --cd-green-d:#073D29; --cd-green-l:var(--brand-l);
+  --cd-gold:#C9932C; --cd-gold-l:#F2CF7A; --cd-gold-l-hover:#E7BE5A;
+  --cd-ink:#17221C; --cd-ink2:#66736C;
+  --cd-line:#E1E6E2; --cd-card-bg:rgba(255,255,255,.97);
+}
+/* ----- Banner toàn chiều rộng, "thoát" khỏi .wrap 1360px của render() bằng
+   margin âm theo viewport — không đụng CSS .wrap dùng chung, chỉ áp cho
+   riêng khối này. html/body đã có sẵn overflow-x:hidden nên không phát sinh
+   thanh cuộn ngang. Dùng ảnh gốc, KHÔNG overlay/opacity/blur/gradient phủ
+   lên — đúng yêu cầu (ảnh banner-member.png đã xử lý sáng/mờ sẵn). */
+.cd-hero{position:relative;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);
+  margin-top:-28px;background-image:url('assets/00-banner/banner-member.png');background-size:cover;
+  background-position:top center;background-repeat:no-repeat;min-height:360px}
+.cd-hero::after{content:'';position:absolute;left:0;right:0;bottom:0;height:80px;
+  background:linear-gradient(to bottom,rgba(255,255,255,0),#fff);pointer-events:none}
+.cd-hero-in{position:relative;z-index:1;padding:36px 24px 16px}
+@media(max-width:1024px){.cd-hero{min-height:320px}}
+@media(max-width:768px){.cd-hero{min-height:0;margin-top:-18px}.cd-hero-in{padding:26px 16px 18px}}
+.cd-title{font-size:clamp(32px,5.5vw,58px);font-weight:700;color:var(--cd-green-d);line-height:1.1;text-align:center}
+.cd-sub{font-size:16px;line-height:1.6;color:#344D41;text-align:center;margin:11px auto 0;max-width:640px}
+.cd-searchrow{display:flex;gap:12px;margin-top:24px}
+@media(max-width:768px){.cd-searchrow{flex-direction:column}}
+.cd-search{position:relative;flex:1 1 74%;display:flex;align-items:center}
+.cd-search svg{position:absolute;left:18px;color:var(--cd-ink2);pointer-events:none}
+.cd-search input{width:100%;height:58px;border:1px solid var(--cd-line);border-radius:12px;padding:0 18px 0 46px;
+  font-family:var(--font);font-size:15px;color:var(--cd-ink);background:rgba(255,255,255,.96)}
+.cd-search input::placeholder{color:#7C8882}
+.cd-search input:focus{outline:none;border-color:var(--cd-green)}
+.cd-province{position:relative;flex:0 0 25%;min-width:220px}
+@media(max-width:768px){.cd-province{flex:1 1 auto;min-width:0}}
+.cd-province-btn{width:100%;height:58px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:12px;
+  background:var(--cd-gold-l);border:1px solid rgba(180,130,40,.15);color:#554016;font-weight:700;font-size:14.5px}
+.cd-province-btn span{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-province-btn:hover{background:var(--cd-gold-l-hover)}
+.cd-province-panel{display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:420px;
+  overflow-y:auto;background:#fff;border:1px solid var(--cd-line);border-radius:12px;
+  box-shadow:0 12px 32px rgba(30,45,36,.10);z-index:30;padding:10px}
+.cd-province-panel.show{display:block}
+@media(max-width:768px){.cd-province-panel{left:0;right:0;width:auto}}
+.cd-province-search{position:relative;margin-bottom:8px}
+.cd-province-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--cd-ink2)}
+.cd-province-search input{width:100%;height:38px;border:1px solid var(--cd-line);border-radius:8px;
+  padding:0 12px 0 32px;font-family:var(--font);font-size:13.5px;color:var(--cd-ink)}
+.cd-province-search input:focus{outline:none;border-color:var(--cd-green)}
+.cd-province-list{display:flex;flex-direction:column}
+.cd-province-item{display:flex;align-items:center;gap:7px;text-align:left;padding:9px 10px;border-radius:7px;
+  font-size:13.5px;color:var(--cd-ink)}
+.cd-province-item:hover{background:var(--cd-green-l)}
+.cd-province-item.on{color:var(--cd-green);font-weight:700;background:var(--cd-green-l)}
+.cd-province-empty{padding:14px 8px;font-size:13px;color:var(--cd-ink2);text-align:center}
+/* ----- Lưới thẻ thành viên ----- */
+.cd-grid-section{margin-top:22px}
+.cd-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media(max-width:1199px){.cd-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:768px){.cd-grid{grid-template-columns:1fr}}
+.cd-card{background:var(--cd-card-bg);border:1px solid var(--cd-line);border-radius:12px;padding:18px;
+  box-shadow:0 3px 12px rgba(20,40,28,.05);display:flex;flex-direction:column}
+.cd-card-top{display:flex;gap:12px;align-items:flex-start;text-decoration:none;color:inherit}
+.cd-card-info{flex:1;min-width:0}
+.cd-card-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cd-card-name{font-size:20px;font-weight:700;color:var(--cd-ink)}
+.cd-card-tick{width:17px;height:17px;object-fit:contain;flex:none}
+.cd-card-field-label{font-size:10.5px;font-weight:700;color:var(--cd-green);letter-spacing:.03em;
+  text-transform:uppercase;margin-top:9px}
+.cd-card-field-value{font-size:13px;color:#263E32;margin-top:2px}
+.cd-card-region{margin-top:11px;font-size:12.5px;color:#395268;display:flex;align-items:center;gap:5px;
+  background:none;border:none;padding:0;font-family:inherit;text-align:left}
+button.cd-card-region:hover{text-decoration:underline}
+.cd-card-actions{display:flex;gap:8px;margin-top:16px}
+.cd-card-actions .btn{height:36px;border-radius:6px;flex:1;padding:0 6px;font-size:12.5px;gap:5px}
+.cd-card-view{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;height:38px;
+  border-radius:6px;background:#FFFDF7;border:1px solid var(--cd-gold);color:var(--cd-gold);font-weight:600;
+  font-size:13.5px;width:100%}
+.cd-card-view:hover{background:var(--cd-gold);color:#fff}
+.cd-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:14px}
 </style>
 </head>
 <body>
 <div id="root"></div>
+<script src="js/mock.js"></script>
 <script src="js/api.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -878,6 +1202,64 @@ const MOCK_DATA = {
     {id:'m12', name:'Lương Thị Huệ', ward:'Xã Liên Khê', field:'Ẩm thực — nấu cỗ', joined:'2026-05-19', status:'nhan-viec', ref:'chị Bùi Thị Hồng', role:'member'},
     {id:'m13', name:'Phan Văn Hùng', ward:'TT. Khoái Châu', field:'Vận tải & giao hàng', joined:'2026-08-05', status:'ban', ref:'anh Lê Văn Mới', role:'member'},
     {id:'m14', name:'Nguyễn Thị Yến', ward:'Xã Dân Tiến', field:'Kế toán · Thủ quỹ', joined:'2026-06-22', status:'nhan-viec', ref:'chị Trần Thị Lan', role:'member'},
+    // Không còn giới hạn trong Hưng Yên — 2 người này minh hoạ thành viên ở
+    // tỉnh khác (xem provinceOfWard() + areasTree bên dưới cho cách suy ra
+    // "Thành phố Hà Nội"/"Tỉnh Thái Nguyên" từ tên xã/phường của họ).
+    {id:'m15', name:'Nguyễn Thị Hạnh', ward:'Phường Cầu Giấy', field:'Thiết kế nội thất', joined:'2026-08-10', status:'nhan-viec', ref:'anh Nguyễn Việt', role:'member'},
+    {id:'m16', name:'Vũ Đình Khoa', ward:'Phường Trưng Vương', field:'Sửa chữa xe máy', joined:'2026-07-05', status:'nhan-viec', ref:'chị Trần Thị Lan', role:'member'},
+  ],
+
+  /* Cây khu vực dùng khi KHÔNG có máy chủ (mở file tĩnh hoặc mất mạng, xem
+     loadAreas()) — hình dạng giống hệt GET /areas thật: {id,name,parent_id,
+     children}, 2 cấp tỉnh/thành → xã/phường. Đủ 34 tỉnh/thành sau sáp nhập
+     2025, cùng tên như PROVINCES_VN_2025 ở backend (api/src/db/seeds/data/
+     community.js) — để màn đăng ký lúc xem thử khớp với dữ liệu thật lúc
+     triển khai, không chỉ vài tỉnh cho có. */
+  areasTree: [
+    {id:'prov-hn', name:'Thành phố Hà Nội', parent_id:null, children:[
+      {id:'w-cg', name:'Phường Cầu Giấy', parent_id:'prov-hn', children:[]},
+    ]},
+    {id:'prov-cb', name:'Tỉnh Cao Bằng', parent_id:null, children:[]},
+    {id:'prov-db', name:'Tỉnh Điện Biên', parent_id:null, children:[]},
+    {id:'prov-lc', name:'Tỉnh Lai Châu', parent_id:null, children:[]},
+    {id:'prov-ls', name:'Tỉnh Lạng Sơn', parent_id:null, children:[]},
+    {id:'prov-lca', name:'Tỉnh Lào Cai', parent_id:null, children:[]},
+    {id:'prov-pt', name:'Tỉnh Phú Thọ', parent_id:null, children:[]},
+    {id:'prov-qn', name:'Tỉnh Quảng Ninh', parent_id:null, children:[]},
+    {id:'prov-sl', name:'Tỉnh Sơn La', parent_id:null, children:[]},
+    {id:'prov-tn', name:'Tỉnh Thái Nguyên', parent_id:null, children:[
+      {id:'w-tv', name:'Phường Trưng Vương', parent_id:'prov-tn', children:[]},
+    ]},
+    {id:'prov-tq', name:'Tỉnh Tuyên Quang', parent_id:null, children:[]},
+    {id:'prov-hp', name:'Thành phố Hải Phòng', parent_id:null, children:[]},
+    {id:'prov-bn', name:'Tỉnh Bắc Ninh', parent_id:null, children:[]},
+    {id:'prov-hy', name:'Tỉnh Hưng Yên', parent_id:null, children:[
+      {id:'w-btn', name:'Xã Bắc Thái Ninh', parent_id:'prov-hy', children:[]},
+      {id:'w-kc', name:'TT. Khoái Châu', parent_id:'prov-hy', children:[]},
+      {id:'w-dt', name:'Xã Dân Tiến', parent_id:'prov-hy', children:[]},
+      {id:'w-dk', name:'Xã Đông Kết', parent_id:'prov-hy', children:[]},
+      {id:'w-lk', name:'Xã Liên Khê', parent_id:'prov-hy', children:[]},
+    ]},
+    {id:'prov-nb', name:'Tỉnh Ninh Bình', parent_id:null, children:[]},
+    {id:'prov-th', name:'Tỉnh Thanh Hóa', parent_id:null, children:[]},
+    {id:'prov-na', name:'Tỉnh Nghệ An', parent_id:null, children:[]},
+    {id:'prov-ht', name:'Tỉnh Hà Tĩnh', parent_id:null, children:[]},
+    {id:'prov-qt', name:'Tỉnh Quảng Trị', parent_id:null, children:[]},
+    {id:'prov-hue', name:'Thành phố Huế', parent_id:null, children:[]},
+    {id:'prov-dn', name:'Thành phố Đà Nẵng', parent_id:null, children:[]},
+    {id:'prov-qng', name:'Tỉnh Quảng Ngãi', parent_id:null, children:[]},
+    {id:'prov-gl', name:'Tỉnh Gia Lai', parent_id:null, children:[]},
+    {id:'prov-dlk', name:'Tỉnh Đắk Lắk', parent_id:null, children:[]},
+    {id:'prov-kh', name:'Tỉnh Khánh Hòa', parent_id:null, children:[]},
+    {id:'prov-ld', name:'Tỉnh Lâm Đồng', parent_id:null, children:[]},
+    {id:'prov-dna', name:'Tỉnh Đồng Nai', parent_id:null, children:[]},
+    {id:'prov-tni', name:'Tỉnh Tây Ninh', parent_id:null, children:[]},
+    {id:'prov-hcm', name:'Thành phố Hồ Chí Minh', parent_id:null, children:[]},
+    {id:'prov-dt', name:'Tỉnh Đồng Tháp', parent_id:null, children:[]},
+    {id:'prov-ag', name:'Tỉnh An Giang', parent_id:null, children:[]},
+    {id:'prov-vlo', name:'Tỉnh Vĩnh Long', parent_id:null, children:[]},
+    {id:'prov-ct', name:'Thành phố Cần Thơ', parent_id:null, children:[]},
+    {id:'prov-cm', name:'Tỉnh Cà Mau', parent_id:null, children:[]},
   ],
 
   skillCats: ['Tất cả','Xây dựng','Vận tải','Kế toán','Y tế','Nông sản','Giáo dục','Cơ khí','Ẩm thực','Dọn dẹp','Điện nước','Sửa xe'],
@@ -982,10 +1364,11 @@ const MOCK_DATA = {
    Giữ ĐÚNG hình dạng MOCK_DATA để mọi màn hình (đã viết theo DATA.xxx) chạy
    y nguyên, không phải sửa lại từng nơi khi chuyển từ mẫu sang API thật. */
 let DATA = {
-  me:null, members:[], skillCats:MOCK_DATA.skillCats, skills:[], jobs:[], aid:[],
+  me:null, members:[], skillCats:MOCK_DATA.skillCats, skills:[], jobs:[], aid:[], ready:[],
   activities:[], memories:[], verifications:[], opsLogs:[], fund:{balance:0,income:0,expense:0,lastUpdate:null},
   fundEntries:[], conversations:[], areasFlat:[], notifications:[], notifUnread:0, msgUnread:0, complaints:[],
   joinRequests:[], myVerifications:[], rolesMatrix:[], backups:[], moderationQueue:[],
+  loans:[], loanRequests:[],
 };
 let BOOTED = false, BOOT_ERROR = null;
 
@@ -1008,6 +1391,12 @@ function mapMember(m){
 function mapCapability(c){
   return { id:c.id, memberId:c.member_id, title:c.title, cat:c.category, desc:c.description,
     cover:c.cover_url||null, exp:c.years_experience||'', area:c.service_area||'', pay:c.price||'' };
+}
+/* Hồ sơ "sẵn sàng nhận việc" (GET /jobs/ready) — SELECT r.*, m.full_name, m.job,
+   m.avatar_url, a.name AS area_name (xem jobs/service.js#listReady). */
+function mapReady(r){
+  return { id:r.id, memberId:r.member_id, name:r.full_name, job:r.job||'', avatar:r.avatar_url||null,
+    headline:r.headline, availability:r.availability||'', ward:r.area_name||'', status:r.status, note:r.note||'' };
 }
 const JOBTYPE_TO_KIND = {dai_han:'hop-tac', hop_tac:'hop-tac', thoi_vu:'can-nguoi', hoc_nghe:'can-nguoi', hoi_tim:'hoi-tim'};
 /* Trạng thái việc thật chỉ có 4 giá trị (xem jobs/schema.js): open/filled/
@@ -1048,17 +1437,42 @@ function mapAid(a){
 function mapOpsLog(l){
   return { id:l.id, actor:l.actor_id, action:l.action||l.kind||'', target:l.target_type?`${l.target_type} #${l.target_id}`:(l.target||''), at:l.created_at };
 }
-/* Khu vực thật: GET /areas trả về CÂY {id,name,parent_id,children:[]}, không
-   đăng nhập vẫn gọi được (đặc tả cho phép, vì màn đăng ký cần nó). Làm phẳng ra
-   để dùng làm danh sách chọn (suggestFieldArea) và tra tên → id khi gửi lên. */
+/* Khu vực thật: GET /areas trả về CÂY {id,name,parent_id,children:[]} — giờ 2
+   cấp (34 tỉnh/thành gốc → xã/phường con, xem db/seeds/data/community.js),
+   không chỉ Hưng Yên nữa. Không đăng nhập vẫn gọi được (đặc tả cho phép, vì
+   màn đăng ký cần nó). Làm phẳng ra để dùng làm danh sách chọn
+   (suggestFieldArea), tra tên → id khi gửi lên (areaIdByName), và suy ra tỉnh
+   của một xã/phường (provinceOfWard) — giữ parent_id lại nên cần cho việc đó. */
 function flattenAreas(nodes,acc){
   acc = acc||[];
-  (nodes||[]).forEach(n=>{ acc.push({id:n.id,name:n.name}); if(n.children&&n.children.length) flattenAreas(n.children,acc); });
+  (nodes||[]).forEach(n=>{ acc.push({id:n.id,name:n.name,parent_id:n.parent_id||null}); if(n.children&&n.children.length) flattenAreas(n.children,acc); });
   return acc;
 }
 async function loadAreas(){
-  try{ const res = await api.get('/areas'); DATA.areasFlat = flattenAreas((res&&res.data)||[]); }
-  catch(e){ DATA.areasFlat = []; }
+  try{
+    const res = await api.get('/areas');
+    const data = (res&&res.data)||[];
+    // API trả rỗng khi cộng đồng chưa seed khu vực (hoặc mở file tĩnh, không
+    // có máy chủ) — dùng cây mẫu ngoại tuyến để màn chọn/lọc khu vực vẫn xem
+    // thử được thay vì trắng trơn, cùng tinh thần MOCK_DATA ở phần dưới.
+    DATA.areasFlat = data.length ? flattenAreas(data) : flattenAreas(MOCK_DATA.areasTree);
+  }catch(e){ DATA.areasFlat = flattenAreas(MOCK_DATA.areasTree); }
+}
+/* Tỉnh/thành chứa một xã/phường (theo TÊN, vì mapMember() ở trên chỉ giữ tên
+   khu vực chứ không giữ id — xem ghi chú tại đó). Trèo lên hết chuỗi parent_id
+   trong DATA.areasFlat; nếu bản thân name đã là một khu vực gốc (thành viên tự
+   chọn thẳng cấp tỉnh lúc đăng ký, chưa có xã/phường chi tiết) thì trả về
+   chính nó. Không thấy trong cây (khu vực cũ/đã ẩn) thì trả rỗng. */
+function provinceOfWard(name){
+  if(!name) return '';
+  let node = DATA.areasFlat.find(a=>a.name===name);
+  if(!node) return '';
+  for(let guard=0; node.parent_id && guard<10; guard++){
+    const parent = DATA.areasFlat.find(a=>a.id===node.parent_id);
+    if(!parent) break;
+    node = parent;
+  }
+  return node.name;
 }
 function notifPanelHtml(){
   if(!DATA.notifications.length) return `<div style="padding:20px 14px;text-align:center;font-size:13px;color:var(--muted)">Chưa có thông báo nào.</div>`;
@@ -1103,6 +1517,9 @@ function notifClick(id){
   if(n.kind==='contact_request') go('caidat'); // yêu cầu đang chờ bạn duyệt/từ chối
   else if(n.kind==='message' && n.actor_id) chatWith(n.actor_id);
   else if((n.kind==='game_challenge'||n.kind==='game_turn') && n.target_id) go('cotuong-van:'+n.target_id);
+  // 'loan' đi hai chiều: đơn mới báo Ban điều hành (đưa tới hàng đợi duyệt ở
+  // Quỹ hội), quyết định báo lại người vay (đưa tới lịch sử vay của họ).
+  else if(n.kind==='loan') go(ROLE==='admin'?'admin-quy':'quyvay');
   else if(n.target_type==='member' && n.target_id) go('congnguoi-detail:'+n.target_id); // vd. yêu cầu liên hệ của bạn vừa được chấp thuận
 }
 function areaIdByName(name){
@@ -1206,9 +1623,11 @@ function contactStateRow(memberId, field, env){
       ? esc(REVEALED_CONTACTS[key]||'—')
       : `<button class="btn btn-out btn-sm" onclick="revealContact('${memberId}','${field}')">${ic('eye',12)} Xem</button>`;
   }else{
-    val = CONTACT_STATE_LABEL[env.state]||'Đã ẩn';
+    val = `${ic('lock',12)} ${CONTACT_STATE_LABEL[env.state]||'Đã ẩn'}`;
   }
-  return `<div class="info-row"><span class="lbl">${CONTACT_FIELD_LABEL[field]}</span><span class="val">${val}</span></div>`;
+  // .mp-row — chỉ dùng trong PUB.hosocongkhai (hồ sơ thành viên), xem khối
+  // CSS "HỒ SƠ THÀNH VIÊN" — hàm này không gọi ở màn nào khác.
+  return `<div class="mp-row"><span class="mp-row-label">${CONTACT_FIELD_LABEL[field]}</span><span class="mp-row-value muted">${val}</span></div>`;
 }
 /* Nút liên hệ nhanh (SĐT/Zalo/Messenger) — không đoán trạng thái từ dữ liệu đã
    tải sẵn (danh sách/thẻ member KHÔNG có state theo field, đặc tả "envelope"
@@ -1261,7 +1680,10 @@ async function bootstrap(){
   try{
     if(isAuthed()){
       const [membersRes, capsRes, meProfile, meAuth] = await Promise.all([
-        api.get('/members'), api.get('/capabilities'), api.get('/members/me'), api.get('/auth/me'),
+        // limit=100 (mức trần của listQuerySchema) chứ không để mặc định 20 —
+        // màn "Thành viên" giờ lọc theo khu vực toàn quốc ngay trên dữ liệu đã
+        // tải, mặc định cũ cắt cụt danh sách trước khi kịp lọc.
+        api.get('/members?limit=100'), api.get('/capabilities'), api.get('/members/me'), api.get('/auth/me'),
       ]);
       DATA.members = (membersRes&&membersRes.data||[]).map(mapMember);
       DATA.skills = (capsRes&&capsRes.data||[]).map(mapCapability);
@@ -1276,8 +1698,14 @@ async function bootstrap(){
         address:meContact.address||'', email:meProfile.email||'',
         history:meProfile.participation_history||[] } : null;
 
-      const [jobsRes, projRes, aidRes, opsRes, notifRes, unreadRes, msgRes, complaintsRes, joinReqRes, verifRes, myVerifRes, fundRes, rolesRes, backupsRes, modRes] = await Promise.all([
-        api.get('/jobs'), api.get('/projects'), api.get('/aid'), api.get('/ops/audit-log').catch(()=>({data:[]})),
+      const [jobsRes, projRes, aidRes, readyRes, opsRes, notifRes, unreadRes, msgRes, complaintsRes, joinReqRes, verifRes, myVerifRes, fundRes, rolesRes, backupsRes, modRes, myLoansRes, loanQueueRes] = await Promise.all([
+        api.get('/jobs'), api.get('/projects'), api.get('/aid'),
+        // Hồ sơ "sẵn sàng nhận việc" (GET /jobs/ready, xem jobs/schema.js#readyQuerySchema)
+        // — dùng cho tab "Tìm việc" ở Bảng nhà, tách khỏi /jobs (đó là VIỆC người khác
+        // đăng cần thuê, còn đây là NGƯỜI tự khai đang rảnh, đã có sẵn ở backend từ
+        // trước nhưng chưa có màn nào gọi tới).
+        api.get('/jobs/ready?status=ready&limit=50').catch(()=>({data:[]})),
+        api.get('/ops/audit-log').catch(()=>({data:[]})),
         api.get('/notifications?limit=20').catch(()=>({data:[]})),
         api.get('/notifications/unread-count').catch(()=>({count:0})),
         api.get('/messages').catch(()=>({data:[]})),
@@ -1298,10 +1726,17 @@ async function bootstrap(){
         api.get('/ops/backups').catch(()=>({data:[]})),
         // Chỉ approver/content_ops xem hàng đợi ảnh bị báo cáo.
         api.get('/moderation?status=open').catch(()=>({data:[]})),
+        // Lịch sử vay của chính người gọi — mọi thành viên đọc được.
+        api.get('/loans/me').catch(()=>({data:[]})),
+        // Hàng đợi đơn xin vay — chỉ approver/tech xem được (403 với thành
+        // viên thường, bắt lỗi để không chặn cả bootstrap, giống /fund không
+        // cần vì đó là GET công khai còn đây là GET có role-gate).
+        api.get('/loans?limit=100').catch(()=>({data:[]})),
       ]);
       DATA.jobs = (jobsRes&&jobsRes.data||[]).map(mapJob);
       DATA.activities = (projRes&&projRes.data||[]).map(mapActivity);
       DATA.aid = (aidRes&&aidRes.data||[]).map(mapAid);
+      DATA.ready = (readyRes&&readyRes.data||[]).map(mapReady);
       DATA.opsLogs = (opsRes&&opsRes.data||[]).map(mapOpsLog);
       DATA.notifications = (notifRes&&notifRes.data)||[];
       DATA.notifUnread = (unreadRes&&unreadRes.count)||0;
@@ -1316,6 +1751,8 @@ async function bootstrap(){
       DATA.rolesMatrix = (rolesRes&&rolesRes.data)||[];
       DATA.backups = (backupsRes&&backupsRes.data)||[];
       DATA.moderationQueue = (modRes&&modRes.data)||[];
+      DATA.loans = (myLoansRes&&myLoansRes.data)||[];
+      DATA.loanRequests = (loanQueueRes&&loanQueueRes.data)||[];
 
       // Chưa có route backend (xem audit) — để rỗng, màn tương ứng tự hiện thông báo "chưa sẵn sàng".
       DATA.memories=[];
@@ -1442,6 +1879,7 @@ function startRealtime(){
       DATA.notifUnread += 1;
       if(n.kind==='contact_request') MY_CONTACT_REQUESTS = null; // buộc nạp lại nếu đang mở Cài đặt
       if(n.kind==='join_request') refreshJoinRequests(); // đơn vừa được duyệt/từ chối — màn Duyệt & xác minh của approver khác tự cập nhật
+      if(n.kind==='loan') refreshLoans(); // đơn vay mới (Ban điều hành) hoặc quyết định (người vay) — Quỹ vay/Quỹ hội tự cập nhật
       playTing();
       render();
     }catch(err){}
@@ -1506,13 +1944,23 @@ const NAV_PUBLIC = [
 /* "overflow:true" = không chiếm chỗ trên thanh ngang chính, chỉ nằm trong
    menu avatar góc phải (cùng chỗ với Hồ sơ/Cờ tướng/Cài đặt) — theo đúng yêu
    cầu "mục nào không quan trọng đẩy vào dạng list cùng hồ sơ, cờ tướng cho
-   gọn". Drawer (menu hamburger di động) vẫn hiện ĐỦ cả 7 mục như cũ vì nó
+   gọn". Drawer (menu hamburger di động) vẫn hiện ĐỦ cả 8 mục như cũ vì nó
    vốn đã là 1 danh sách dọc, không cần gọn thêm. */
+/* 4 mục chính đổi tên/ảnh theo bộ nhận diện mới (Nhà Chung/Hệ Thống/Quỹ/Sảnh
+   Cờ, dùng ảnh assets/topbar/) — id/route giữ NGUYÊN như cũ (trongnha/
+   khampha/cotuong-online) nên không đụng tới logic điều hướng hiện có.
+   "Quỹ" (icon 03-quy.png) trỏ THẬT vào quỹ vay (V.quyvay — mục tiêu 1 tỷ,
+   hạn mức 3 triệu/khoản, đúng kế hoạch giai đoạn 1), không còn trỏ nhầm sang
+   Giúp nhau như bản trước. Giúp nhau chuyển xuống overflow — chỉ còn trong
+   menu avatar cạnh "Hồ sơ của tôi"/"Cài đặt" và trong drawer di động, không
+   còn chiếm 1 icon riêng trên thanh ngang lẫn tab bar di động (xem
+   TABBAR_MEMBER) — theo đúng yêu cầu "chuyển giúp nhau vào menu hồ sơ". */
 const NAV_MEMBER = [
-  {id:'trongnha', label:'Bảng nhà', icon:'home'},
-  {id:'khampha', label:'Thành viên', icon:'users'},
-  {id:'giupnhau', label:'Giúp nhau', icon:'heart', badge:()=>DATA.aid.filter(a=>a.status==='queued'||a.status==='matched').length},
-  {id:'cotuong-online', label:'Cờ tướng', icon:'star'},
+  {id:'trongnha', label:'Nhà Chung', img:'assets/topbar/01-nha-chung.png'},
+  {id:'khampha', label:'Hệ Thống', img:'assets/topbar/02-he-thong.png'},
+  {id:'quyvay', label:'Quỹ', img:'assets/topbar/03-quy.png'},
+  {id:'cotuong-online', label:'Sảnh Cờ', img:'assets/topbar/04-sanh-co.png'},
+  {id:'giupnhau', label:'Giúp nhau', icon:'heart', overflow:true},
   {id:'nangluc', label:'Năng lực', icon:'star', overflow:true},
   {id:'hoatdong', label:'Hoạt động', icon:'calendar', overflow:true},
   {id:'kyuc', label:'Ký ức & quỹ', icon:'archive', overflow:true},
@@ -1521,17 +1969,19 @@ const NAV_ADMIN = [
   {id:'admin-tongquan', label:'Tổng quan', icon:'grid'},
   {id:'admin-duyet', label:'Duyệt & xác minh', icon:'shield'},
   {id:'admin-dieuphoi', label:'Điều phối', icon:'handshake'},
-  {id:'admin-quy', label:'Quỹ hội', icon:'fund'},
+  {id:'admin-quy', label:'Quỹ hội', icon:'fund', badge:()=>(DATA.loanRequests||[]).filter(l=>l.status==='requested').length},
   {id:'admin-hoatdong', label:'Hoạt động & ký ức', icon:'archive'},
   {id:'admin-nhatky', label:'Nhật ký', icon:'server'},
   {id:'admin-phanquyen', label:'Phân quyền', icon:'lock'},
   {id:'cotuong-online', label:'Cờ tướng', icon:'star'},
 ];
+/* Giúp nhau bỏ khỏi tab bar (đã chuyển vào menu hồ sơ, xem NAV_MEMBER) —
+   còn 4 mục, nút "Tạo" (FAB) vẫn ở giữa. */
 const TABBAR_MEMBER = [
   {id:'trongnha', label:'Bảng nhà', icon:'home'},
   {id:'khampha', label:'Thành viên', icon:'users'},
   {id:'FAB', label:'Tạo', icon:'plus'},
-  {id:'giupnhau', label:'Giúp nhau', icon:'heart'},
+  {id:'cotuong-online', label:'Sảnh Cờ', icon:'star'},
   {id:'hoso-toi', label:'Cá nhân', icon:'user'},
 ];
 const TABBAR_ADMIN = [
@@ -1686,15 +2136,21 @@ function xqFullscreenShell(bodyHtml, closeTarget){
   </div>`;
 }
 
+// Icon 1 mục nav — ảnh thật (nav.img, bộ 4 icon topbar mới) nếu có, không thì
+// rơi về icon vector ic() như trước (mục overflow/NAV_ADMIN chưa có ảnh riêng).
+function navIcon(it, size){
+  if(it.img) return `<img src="${it.img}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none">`;
+  return it.icon?ic(it.icon,size):'';
+}
 function headerComp(variant, active){
   const navItems = variant==='admin'?NAV_ADMIN:variant==='member'?NAV_MEMBER:NAV_PUBLIC;
   const navHtml = navItems.filter(it=>!it.overflow).map(it=>{
     const on = active===it.id;
     const badge = it.badge?it.badge():null;
-    return `<a href="#${it.id}" class="${on?'on':''}" data-go="${it.id}">${it.icon?ic(it.icon,15):''}${it.label}${badge?`<span class="n">${badge}</span>`:''}</a>`;
+    return `<a href="#${it.id}" class="${on?'on':''}" data-go="${it.id}">${navIcon(it,24)}${it.label}${badge?`<span class="n">${badge}</span>`:''}</a>`;
   }).join('');
   const overflowHtml = navItems.filter(it=>it.overflow).map(it=>
-    `<a href="#${it.id}" data-go="${it.id}">${it.icon?ic(it.icon,15):''}${it.label}</a>`
+    `<a href="#${it.id}" data-go="${it.id}">${navIcon(it,15)}${it.label}</a>`
   ).join('');
 
   let rightHtml;
@@ -1743,7 +2199,7 @@ function headerComp(variant, active){
 
 function drawerComp(variant, active){
   const navItems = variant==='admin'?NAV_ADMIN:variant==='member'?NAV_MEMBER:NAV_PUBLIC;
-  const items = navItems.map(it=>`<a href="#${it.id}" class="${active===it.id?'on':''}" data-go="${it.id}">${it.icon?ic(it.icon,17):''}${it.label}</a>`).join('');
+  const items = navItems.map(it=>`<a href="#${it.id}" class="${active===it.id?'on':''}" data-go="${it.id}">${navIcon(it,17)}${it.label}</a>`).join('');
   const roleLabel = variant==='admin' ? 'Ban điều hành' : (ROLE_LABELS[DATA.me&&DATA.me.role] || 'Thành viên');
   const profileHtml = variant==='public' ? '' : `
     <div class="drawer-profile">
@@ -1782,19 +2238,25 @@ function footerFull(variant){
       <div class="foot-col"><h4>Quản trị</h4><a data-go="admin-tongquan">Tổng quan</a><a data-go="admin-phanquyen">Phân quyền</a><a data-go="trongnha">Về giao diện thành viên</a></div>`
     : `
       <div class="foot-col"><h4>Tài khoản</h4><a data-go="hoso-toi">Hồ sơ của tôi</a><a data-go="caidat">Cài đặt</a>${ROLE==='admin'?'<a data-go="admin-tongquan">Trang quản trị</a>':''}</div>`;
+  // Social — chưa có link mạng xã hội thật (xem audit), giữ href="#" như bản
+  // cũ (2 nút mail/phone cũng vốn href="#"), chỉ đổi sang đúng 4 icon ảnh
+  // thật theo yêu cầu thiết kế lại thay vì icon mail/phone chung chung.
+  const socials = [
+    ['09-zalo.png','Zalo'], ['10-facebook.png','Facebook'],
+  ].map(([f,label])=>`<a class="soc" href="#" title="${label}"><img src="assets/nha-chung/${f}" alt="${label}"></a>`).join('');
   return `
   <footer class="footer"><div class="wrap">
     <div class="foot-grid">
       <div>
-        <div class="foot-logo"><img src="assets/logo/logo1.png" alt="Nhà Chung 86"></div>
-        <p class="foot-tag">Chợ việc &amp; tương trợ cộng đồng cho Hội Đồng Niên Bính Dần 1986, Hưng Yên.</p>
-        <div class="socials"><a class="soc" href="#">${ic('mail',14)}</a><a class="soc" href="#">${ic('phone',14)}</a></div>
+        <div class="foot-logo"><span style="width:34px;height:34px;border-radius:9px;background:#fff;color:var(--brand-d);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none">86</span> Nhà Chung</div>
+        <p class="foot-tag">Chợ việc &amp; tương trợ cộng đồng cho Hội Đồng Niên Bính Dần 1986, Hưng Yên. · Community-001 · Trao đổi thật diễn ra qua Zalo hoặc điện thoại.</p>
+        <div class="socials">${socials}</div>
       </div>
       <div class="foot-col"><h4>Cộng đồng</h4><a data-go="khampha">Thành viên</a><a data-go="viec">Việc & hợp tác</a><a data-go="giupnhau">Giúp nhau</a><a data-go="nangluc">Năng lực</a></div>
       <div class="foot-col"><h4>Minh bạch</h4><a data-go="xacminh">Xác minh & tin cậy</a><a data-go="kyuc">Ký ức & sổ quỹ</a><a data-go="hoatdong">Hoạt động</a></div>
       ${col4}
     </div>
-    <div class="foot-bottom"><span>Community-001 · Hội Đồng Niên Bính Dần 1986 · Trao đổi thật diễn ra qua Zalo hoặc điện thoại</span><div class="links"><a href="#">Điều lệ</a><a href="#">Bảo mật</a></div></div>
+    <div class="foot-bottom"><span>© 2026 Nhà Chung 86 – Hội Đồng Niên Bính Dần 1986</span><div class="links"><a href="#">Quy chế hoạt động</a><a href="#">Chính sách bảo mật</a><a href="#">Điều khoản sử dụng</a><a href="#">Hướng dẫn sử dụng</a><a href="#">Liên hệ</a></div></div>
   </div></footer>`;
 }
 
@@ -1813,9 +2275,10 @@ async function doLogout(){
   // chỉ là xoá token phía trình duyệt, đúng như web/js/auth.js đang làm.
   stopRealtime();
   setTokens(null,null);
-  DATA.me=null; DATA.jobs=[]; DATA.aid=[]; DATA.activities=[]; DATA.memories=[];
+  DATA.me=null; DATA.jobs=[]; DATA.aid=[]; DATA.ready=[]; DATA.activities=[]; DATA.memories=[];
   DATA.verifications=[]; DATA.myVerifications=[]; DATA.opsLogs=[]; DATA.fundEntries=[]; DATA.conversations=[]; DATA.complaints=[];
   DATA.joinRequests=[]; DATA.rolesMatrix=[]; DATA.backups=[]; DATA.moderationQueue=[];
+  DATA.loans=[]; DATA.loanRequests=[];
   DATA.fund={balance:0,income:0,expense:0,lastUpdate:null};
   DATA.notifications=[]; DATA.notifUnread=0; DATA.msgUnread=0;
   MY_PRIVACY=null; MY_CONTACT_REQUESTS=null;
@@ -1958,7 +2421,7 @@ async function uploadMultiFiles(fid){
 }
 
 const STATE = {
-  congnguoi:{ward:'Tất cả khu vực',q:''}, nangluc:{cat:'Tất cả',q:''},
+  congnguoi:{province:'Tất cả khu vực',q:''}, nangluc:{cat:'Tất cả',q:''},
   viec:{tab:'can-nguoi',q:'',cat:'Tất cả',visible:12}, giupnhau:{tab:'queued',q:''},
   hoatdong:{q:''}, chat:{q:''},
 };
@@ -2018,6 +2481,11 @@ function logoImg(path, iconName){
 }
 function bannerImg(path, iconName, label, h){
   if(path){
+    // Ảnh tĩnh đóng gói sẵn trong project (assets/…, dùng cho ảnh minh hoạ
+    // nhóm nghề catPhotoUrl() khi tin chưa có ảnh thật) hiện thẳng, KHÔNG qua
+    // secureImageUrl() — hàm đó chỉ dành cho ảnh thật do backend cấp phát
+    // (/files/<id>, cần token+tải bất đồng bộ), không hiểu đường dẫn tĩnh.
+    if(/^assets\//.test(path)) return `<img src="${path}" alt="${esc(label||'')}" style="width:100%;${h?'height:'+h+'px':'height:100%'};object-fit:cover;display:block">`;
     const url = secureImageUrl(path);
     if(url) return `<img src="${url}" alt="${esc(label||'')}" style="width:100%;${h?'height:'+h+'px':'height:100%'};object-fit:cover;display:block">`;
   }
@@ -2862,26 +3330,53 @@ let KHAMPHA_TAB = 'nguoi';
 function khamphaResultsHtml(tab){
   const st = STATE.congnguoi;
   const q = (st.q||'').trim().toLowerCase();
-  const wardFilter = st.ward && st.ward!=='Tất cả khu vực' ? st.ward : '';
+  // Lọc theo TỈNH/THÀNH (provinceOfWard), không còn theo đúng xã/phường như
+  // trước — chọn "Hà Nội" phải ra hết người ở Hà Nội dù mỗi người một
+  // phường khác nhau. "toàn bộ Việt Nam" (đặc tả bổ sung) nghĩa là khu vực
+  // không còn khoanh trong Hưng Yên nữa — xem PROVINCES_VN_2025/ALL_AREAS ở
+  // backend và areasTree trong MOCK_DATA cho bản xem thử ngoại tuyến.
+  const provinceFilter = st.province && st.province!=='Tất cả khu vực' ? st.province : '';
   if(tab==='nguoi'){
-    const list = DATA.members.filter(m=>(!wardFilter||m.ward===wardFilter) && matchKw(q, m.name, m.field, m.ward));
+    const list = DATA.members.filter(m=>{
+      const prov = provinceOfWard(m.ward);
+      return (!provinceFilter||prov===provinceFilter) && matchKw(q, m.name, m.field, m.ward, prov);
+    });
+    const hasFilter = !!(q || provinceFilter);
     return `
+    <div class="cd-grid-section">
     <div class="result-cnt">Tìm thấy <b>${list.length}</b> người</div>
-    <div class="card-grid">${list.map(m=>`
-      <div class="pcard">
-        <a data-go="hosocongkhai:${m.id}" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;color:inherit;width:100%">${avatarCircle(m.avatar,m.name,64)}
-          <div class="title">${m.name}</div>
-          <div class="meta">${m.field?ic('briefcase',11)+' '+esc(m.field):'Chưa cập nhật nghề'}</div>
-          <div class="meta">${m.ward?ic('pin',11)+' '+esc(m.ward):'Chưa cập nhật khu vực'}</div></a>
-        <div style="display:flex;gap:6px;width:100%;margin-top:14px">
-          ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call btn-sm','flex:1;padding-left:8px;padding-right:8px')}
-          ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo btn-sm','flex:1;padding-left:8px;padding-right:8px')}
-          ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger btn-sm','flex:1;padding-left:8px;padding-right:8px')}
+    <div class="cd-grid">${list.map(m=>{
+      const prov = provinceOfWard(m.ward);
+      const placeLabel = esc(m.ward)+(prov&&prov!==m.ward?', '+esc(prov):'');
+      // Dòng khu vực bấm được — "card" để lọc theo khu vực, đúng yêu cầu
+      // "bấm chọn khu vực ví dụ Hà Nội sẽ hiện ra hết ở Hà Nội" — cạnh dropdown
+      // "Chọn tỉnh/thành" phía trên (khamphaSetProvince() dùng chung cho cả hai).
+      const regionHtml = !m.ward ? `<div class="cd-card-region">${ic('pin',12)} Chưa cập nhật khu vực</div>`
+        : !prov ? `<div class="cd-card-region">${ic('pin',12)} ${esc(m.ward)}</div>`
+        : `<button type="button" class="cd-card-region" onclick="khamphaSetProvince('${esc(prov).replace(/'/g,"\\'")}')">${ic('pin',12)} ${placeLabel}</button>`;
+      return `
+      <div class="cd-card">
+        <a data-go="hosocongkhai:${m.id}" class="cd-card-top">${avatarCircle(m.avatar,m.name,68)}
+          <div class="cd-card-info">
+            <div class="cd-card-name-row">
+              <span class="cd-card-name">${esc(m.name)}</span>
+              <img src="assets/icon/20-icon-tich.png" alt="Đã xác thực" class="cd-card-tick">
+            </div>
+            <div class="cd-card-field-label">Dịch vụ chính</div>
+            <div class="cd-card-field-value">${m.field?esc(m.field):'Chưa cập nhật nghề'}</div>
+          </div>
+        </a>
+        ${regionHtml}
+        <div class="cd-card-actions">
+          ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call')}
+          ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo')}
+          ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger')}
         </div>
-        <button class="btn btn-out btn-block btn-sm" style="margin-top:8px" data-go="hosocongkhai:${m.id}">Xem hồ sơ</button>
-      </div>`).join('')||'<div class="empty"><p>Không tìm thấy ai khớp tìm kiếm.</p></div>'}</div>`;
+        <button type="button" class="cd-card-view" data-go="hosocongkhai:${m.id}">Xem hồ sơ ${ic('arrowR',14)}</button>
+      </div>`;}).join('')||`<div class="empty cd-empty"><p>Không tìm thấy thành viên phù hợp.</p>${hasFilter?`<button type="button" class="btn btn-out btn-sm" onclick="khamphaClearFilters()">Xóa bộ lọc</button>`:''}</div>`}</div>
+    </div>`;
   }
-  const list = DATA.skills.filter(s=>{ const m=member(s.memberId); return (!wardFilter||m.ward===wardFilter) && matchKw(q, s.title, s.cat, m.name); });
+  const list = DATA.skills.filter(s=>{ const m=member(s.memberId); const prov=provinceOfWard(m.ward); return (!provinceFilter||prov===provinceFilter) && matchKw(q, s.title, s.cat, m.name); });
   return `
   <div class="result-cnt">Tìm thấy <b>${list.length}</b> năng lực</div>
   <div class="card-grid">${list.map(s=>{const m=member(s.memberId);return `
@@ -2889,27 +3384,102 @@ function khamphaResultsHtml(tab){
       <div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${m.name}</span></div></div></a>`;}).join('')||'<div class="empty"><p>Không tìm thấy năng lực nào khớp tìm kiếm.</p></div>'}</div>`;
 }
 function khamphaFilterChange(){
-  const inp = qs('#khampha-kw'), sel = qs('#khampha-ward');
+  const inp = qs('#khampha-kw');
   if(inp) STATE.congnguoi.q = inp.value;
-  if(sel) STATE.congnguoi.ward = sel.value;
-  const box = qs('#khampha-results'); if(box) box.innerHTML = khamphaResultsHtml(KHAMPHA_TAB);
+  const box = qs('#khampha-results');
+  if(box){
+    box.innerHTML = khamphaResultsHtml(KHAMPHA_TAB);
+    // Vá riêng #khampha-results (không render() lại cả trang) để không mất
+    // con trỏ đang gõ trong ô tìm — nhưng bindGlobal() (gắn click cho mọi
+    // [data-go]) chỉ chạy sau MỖI LẦN render() toàn trang, nên thẻ vừa vá
+    // vào (link mở hồ sơ) sẽ không bấm được nếu không gắn lại click ngay tại
+    // đây, chỉ trong phạm vi #khampha-results (không đụng nút header/chuông…
+    // để không gắn trùng listener cho các nút đó).
+    qsa('[data-go]', box).forEach(el=>el.addEventListener('click',e=>{e.preventDefault();go(el.getAttribute('data-go'));}));
+  }
 }
+/* Đổi khu vực đang lọc — gọi từ dropdown "Chọn tỉnh/thành" phía trên KẾT QUẢ
+   lẫn từ dòng khu vực bấm được trên mỗi thẻ người ("bộ lọc hoặc card" theo
+   đúng yêu cầu). render() lại toàn trang (không chỉ #khampha-results) để nút
+   tỉnh/thành + thẻ người đồng bộ theo state mới, khác khamphaFilterChange()
+   (ô gõ tìm) vốn cố ý chỉ vá #khampha-results để không mất con trỏ đang gõ. */
+function khamphaSetProvince(name){ STATE.congnguoi.province = name; render(); }
+function khamphaClearFilters(){ STATE.congnguoi.q=''; STATE.congnguoi.province='Tất cả khu vực'; render(); }
+/* Toàn bộ 34 tỉnh/thành hiện hành (không chỉ tỉnh đang có thành viên) — cùng
+   nguồn DATA.areasFlat thật mà provinceOfWard() dùng (nạp lúc boot qua
+   loadAreas(), xem PROVINCES_VN_2025/ALL_AREAS ở backend), khác rchip cũ vốn
+   cố ý CHỈ liệt kê tỉnh đang có người để không tràn 34 chip rỗng — dropdown
+   thì ngược lại, phải cho chọn được cả tỉnh chưa ai ở. */
+function cdAllProvinces(){
+  return DATA.areasFlat.filter(a=>!a.parent_id).map(a=>a.name).sort((a,b)=>a.localeCompare(b,'vi'));
+}
+function cdProvinceListHtml(q){
+  q = (q||'').trim().toLowerCase();
+  const cur = STATE.congnguoi.province;
+  const items = ['Tất cả khu vực', ...cdAllProvinces()].filter(n=> n==='Tất cả khu vực' || !q || n.toLowerCase().includes(q));
+  if(!items.length) return `<div class="cd-province-empty">Không tìm thấy tỉnh/thành phù hợp.</div>`;
+  return items.map(n=>`<button type="button" class="cd-province-item ${cur===n?'on':''}" onclick="khamphaSetProvince('${esc(n).replace(/'/g,"\\'")}')">${n==='Tất cả khu vực'?'':ic('pin',13)+' '}${esc(n==='Tất cả khu vực'?'Tất cả tỉnh / thành':n)}</button>`).join('');
+}
+function cdProvinceFilterInput(){
+  const inp = qs('#cd-province-q'), box = qs('#cd-province-list');
+  if(!inp||!box) return;
+  box.innerHTML = cdProvinceListHtml(inp.value);
+}
+function cdProvinceToggle(e){
+  e.stopPropagation();
+  const panel = qs('#cd-province-panel'); if(!panel) return;
+  const opening = !panel.classList.contains('show');
+  panel.classList.toggle('show', opening);
+  const trigger = qs('#cd-province-trigger'); if(trigger) trigger.setAttribute('aria-expanded', opening?'true':'false');
+  if(opening){
+    const inp = qs('#cd-province-q'); if(inp) inp.value='';
+    cdProvinceFilterInput();
+    requestAnimationFrame(()=>{ const i=qs('#cd-province-q'); if(i) i.focus(); });
+  }
+}
+function cdProvinceClose(){
+  const panel = qs('#cd-province-panel');
+  if(panel && panel.classList.contains('show')){
+    panel.classList.remove('show');
+    const trigger = qs('#cd-province-trigger'); if(trigger) trigger.setAttribute('aria-expanded','false');
+  }
+}
+// Đóng dropdown tỉnh/thành khi bấm ra ngoài hoặc nhấn ESC — gắn MỘT LẦN ở
+// phạm vi document lúc script chạy (không phải trong PUB.khampha/render())
+// nên sống sót qua mọi lần render() thay nguyên innerHTML#root, đúng cách
+// #umenu/#notifPanel ở bindGlobal() đã làm với panel đầu trang.
+document.addEventListener('click', e=>{ if(!e.target.closest('#cd-province')) cdProvinceClose(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') cdProvinceClose(); });
 PUB.khampha = (params)=>{
   const tab = params[0]||'nguoi';
   KHAMPHA_TAB = tab;
   const st = STATE.congnguoi;
-  const wards = ['Tất cả khu vực', ...new Set(DATA.members.map(m=>m.ward).filter(Boolean))];
   return `
-  <div class="page-head"><div><h1>Khám phá Nhà Chung</h1><p>Tìm người theo nghề hoặc xem năng lực đã công bố.</p></div></div>
-  <div class="searchbar">
-    <div class="kw">${ic('search',15)}<input id="khampha-kw" value="${esc(st.q||'')}" placeholder="Ví dụ: thợ điện, kế toán…" oninput="khamphaFilterChange()"></div>
-    <select id="khampha-ward" onchange="khamphaFilterChange()">${wards.map(w=>`<option ${st.ward===w?'selected':''}>${esc(w)}</option>`).join('')}</select>
-  </div>
-  <div class="tabs">
-    <button class="tab ${tab==='nguoi'?'on':''}" onclick="go('khampha:nguoi')">Thành viên</button>
-    <button class="tab ${tab==='nangluc'?'on':''}" onclick="go('khampha:nangluc')">Năng lực</button>
-  </div>
-  <div id="khampha-results">${khamphaResultsHtml(tab)}</div>`;
+  <div class="cd">
+    <div class="cd-hero">
+      <div class="wrap cd-hero-in">
+        <h1 class="cd-title">Cộng đồng Thành viên</h1>
+        <p class="cd-sub">Tập hợp cá nhân, hộ kinh doanh và doanh nghiệp cung cấp dịch vụ minh bạch, uy tín.<br>Kết nối đúng người – đúng dịch vụ – đúng nhu cầu.</p>
+        <div class="cd-searchrow">
+          <div class="cd-search">${ic('search',18)}<input id="khampha-kw" value="${esc(st.q||'')}" placeholder="Tìm theo tên, dịch vụ, nơi kinh doanh..." oninput="khamphaFilterChange()"></div>
+          <div class="cd-province" id="cd-province">
+            <button type="button" class="cd-province-btn" id="cd-province-trigger" onclick="cdProvinceToggle(event)" aria-haspopup="listbox" aria-expanded="false" aria-label="Chọn tỉnh, thành để lọc thành viên">
+              ${ic('pin',16)}<span>${st.province==='Tất cả khu vực'?'Chọn tỉnh / thành':esc(st.province)}</span>${ic('chevD',15)}
+            </button>
+            <div class="cd-province-panel" id="cd-province-panel" role="listbox" aria-label="Danh sách tỉnh, thành">
+              <div class="cd-province-search">${ic('search',14)}<input type="text" id="cd-province-q" placeholder="Tìm tỉnh / thành..." oninput="cdProvinceFilterInput()" aria-label="Tìm tỉnh, thành"></div>
+              <div class="cd-province-list" id="cd-province-list">${cdProvinceListHtml('')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab ${tab==='nguoi'?'on':''}" onclick="go('khampha:nguoi')">Thành viên</button>
+      <button class="tab ${tab==='nangluc'?'on':''}" onclick="go('khampha:nangluc')">Năng lực</button>
+    </div>
+    <div id="khampha-results">${khamphaResultsHtml(tab)}</div>
+  </div>`;
 };
 
 /* Lịch sử hoạt động thật (member.participation_history, xem members/service.js
@@ -2929,6 +3499,24 @@ function memberHistoryLine(h){
   const extra = (h.title && h.title!==label) ? ': '+esc(h.title) : '';
   return `<div class="tl-item"><div class="tl-role">${ic(MEMBER_HISTORY_ICON[h.kind]||'flag',12)} ${label}${extra}</div><div class="tl-meta">${timeAgo(h.occurred_at)}</div></div>`;
 }
+/* Một dòng "Hoạt động trong Nhà Chung" — tiêu đề đậm theo LOẠI sự kiện
+   (MEMBER_HISTORY_LABEL), dòng phụ là chi tiết thật (h.title, vd. tên năng
+   lực/việc/hoạt động cụ thể) khi khác với tiêu đề, ngày ở bên phải. Không có
+   "mô tả" riêng nào trong participation_history (xem members/service.js
+   #profileExtras: chỉ {kind,title,occurred_at,status}) nên KHÔNG bịa dòng phụ
+   — bỏ hẳn khi h.title trùng nhãn hoặc rỗng, thay vì viết cứng một câu mô tả. */
+function mpActivityRow(h){
+  const label = MEMBER_HISTORY_LABEL[h.kind]||h.kind;
+  const sub = (h.title && h.title!==label) ? esc(h.title) : '';
+  return `<div class="mp-activity-row">
+    <div class="mp-activity-ic">${ic(MEMBER_HISTORY_ICON[h.kind]||'flag',18)}</div>
+    <div class="mp-activity-body">
+      <div class="mp-activity-title">${esc(label)}</div>
+      ${sub?`<div class="mp-activity-sub">${sub}</div>`:''}
+    </div>
+    <div class="mp-activity-date">${fmtDate(h.occurred_at)}</div>
+  </div>`;
+}
 PUB.hosocongkhai = (params)=>{
   const id = params[0]||'m01';
   // Tên/ảnh/nghề/khu vực đã có sẵn từ danh sách "Con người" (đã qua bao bì
@@ -2941,51 +3529,96 @@ PUB.hosocongkhai = (params)=>{
   const history = (detail&&detail.participation_history)||[];
   const contacts = (detail&&detail.contacts)||{};
   const isSelf = id===DATA.me.id;
+
+  // Avatar tự dựng (không qua avatarCircle()) để cỡ chữ initials co theo
+  // đúng kích thước ô .mp-avatar ở mọi breakpoint (128px desktop → 88px di
+  // động, xem CSS) — avatarCircle() ghim cỡ chữ bằng px lúc dựng chuỗi, không
+  // tự nhỏ lại theo CSS được.
+  const avatarUrl = m.avatar ? secureImageUrl(m.avatar) : null;
+  const avatarHtml = avatarUrl
+    ? `<img src="${avatarUrl}" alt="${esc(m.name||'')}" class="mp-avatar-img">`
+    : `<div class="mp-avatar-fallback">${initials(m.name)}</div>`;
+
+  // Khu vực hiện "Xã/phường, Tỉnh/thành" khi suy được cấp tỉnh từ cây khu vực
+  // thật (provinceOfWard — cùng logic màn "Thành viên" dùng để lọc theo khu
+  // vực toàn quốc); không suy được thì chỉ hiện tên khu vực member đã chọn.
+  const province = provinceOfWard(m.ward);
+  const placeText = m.ward ? esc(m.ward)+(province&&province!==m.ward?', '+esc(province):'') : '';
+
   return `
-  <div class="crumb"><a data-go="khampha">Khám phá</a> ${ic('chev',10)} ${m.name}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="card">
-        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-          <div class="cand">${avatarCircle(m.avatar,m.name,64)}</div>
-          <div style="flex:1;min-width:200px">
-            <div style="font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${m.name} ${m.status==='nhan-viec'?`<span class="status accepted">${ic('check',9)} Đang nhận việc</span>`:`<span class="status pending">Tạm ngưng nhận</span>`} ${m.role&&m.role!=='member'?roleTag(m.role):''}</div>
-            <div style="font-size:13.5px;color:var(--ink2);margin-top:5px">${m.field||'Chưa cập nhật nghề'}${m.ward?` · ${m.ward}`:''}</div>
+  <div class="mp">
+    <div class="crumb"><a data-go="khampha">Khám phá</a> ${ic('chev',10)} <a data-go="khampha">Thành viên</a> ${ic('chev',10)} <span class="mp-crumb-current">${esc(m.name)}</span></div>
+    <div class="mp-layout">
+      <div class="mp-main">
+        <div class="mp-profile">
+          <div class="mp-profile-top">
+            <div class="mp-avatar">${avatarHtml}</div>
+            <div class="mp-profile-info">
+              <div class="mp-name-row">
+                <h1 class="mp-name">${esc(m.name)}</h1>
+                <span class="mp-verified" title="Thành viên đã xác thực qua người giới thiệu và gặp mặt xác nhận"><img src="assets/icon/20-icon-tich.png" alt="Đã xác thực"></span>
+                <span class="mp-status-pill ${m.status==='nhan-viec'?'':'off'}">${m.status==='nhan-viec'?'Đang nhận việc':'Tạm ngưng nhận'}</span>
+                ${m.role&&m.role!=='member'?roleTag(m.role):''}
+              </div>
+              <div class="mp-meta-line">
+                ${m.field?`<span>${ic('briefcase',15)} ${esc(m.field)}</span>`:`<span>${ic('briefcase',15)} Chưa cập nhật nghề</span>`}
+                ${placeText?`<span class="mp-meta-dot">•</span><span>${ic('pin',15)} ${placeText}</span>`:''}
+              </div>
+              <div class="mp-chips">
+                ${detail&&detail.joined_at?`<span class="mp-chip">${ic('calendar',15)} Tham gia ${fmtDate(detail.joined_at)}</span><span class="mp-chip-dot"></span>`:''}
+                <span class="mp-chip">${ic('star',15)} ${mySkills.length} năng lực</span>
+              </div>
+            </div>
+            <div class="mp-actions">
+              ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call')}
+              ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo')}
+              ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger')}
+              ${isSelf?'':`<button class="btn btn-out" onclick="chatWith('${m.id}')" title="Nhắn tin">${ic('mail',15)} Nhắn tin</button>`}
+            </div>
           </div>
         </div>
 
-        <div class="tags" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${detail&&detail.joined_at?`<span class="chip">${ic('calendar',11)} Tham gia ${fmtDate(detail.joined_at)}</span>`:''}<span class="chip">${ic('star',11)} ${mySkills.length} năng lực</span></div>
+        <div class="mp-content">
+          ${detail&&detail.bio?`<div class="mp-section">
+            <div class="mp-section-head"><span class="mp-section-ic">${ic('doc',16)}</span><h2>Giới thiệu</h2></div>
+            <p class="mp-intro">${esc(detail.bio)}</p>
+          </div>`:''}
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-          ${contactQuickBtn(m.id,m.name,'phone','Gọi','phone','btn-call')}
-          ${contactQuickBtn(m.id,m.name,'zalo','Zalo','send','btn-zalo')}
-          ${contactQuickBtn(m.id,m.name,'messenger','Messenger','mail','btn-messenger')}
-          ${isSelf?'':`<button class="btn btn-out" onclick="chatWith('${m.id}')" title="Nhắn tin">${ic('mail',15)} Nhắn tin</button>`}
+          <div class="mp-section">
+            <div class="mp-section-head"><span class="mp-section-ic gold">${ic('star',16)}</span><h2>Năng lực đã công bố</h2></div>
+            <div class="mp-cap-list">${mySkills.length?mySkills.map(s=>`
+              <a class="mp-cap-row" data-go="nangluc-detail:${s.id}">
+                <div class="mp-cap-img">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,145)}</div>
+                <div class="mp-cap-body">
+                  <span class="mp-cap-badge">${esc(s.cat||'Khác')}</span>
+                  <div class="mp-cap-title">${esc(s.title)}</div>
+                  ${s.desc?`<p class="mp-cap-desc">${esc(s.desc)}</p>`:''}
+                </div>
+              </a>`).join(''):'<p class="mp-empty-text">Chưa công bố năng lực nào.</p>'}</div>
+          </div>
+
+          <div class="mp-section">
+            <div class="mp-section-head"><span class="mp-section-ic">${ic('history',16)}</span><h2>Hoạt động trong Nhà Chung</h2></div>
+            <div class="mp-activity-list">${history.length?history.map(mpActivityRow).join(''):`<p class="mp-empty-text">${detail?'Chưa có hoạt động nào ghi nhận.':'Đang tải…'}</p>`}</div>
+          </div>
         </div>
-
-        ${detail&&detail.bio?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Giới thiệu</div>
-          <p style="font-size:13.5px;color:var(--ink2);line-height:1.7">${esc(detail.bio)}</p></div>`:''}
-
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('star',14)} Năng lực đã công bố</div>
-          <div class="card-grid">${mySkills.map(s=>`<a class="gcard" data-go="nangluc-detail:${s.id}">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat,150)}<div class="body"><span class="tag">${s.cat||'Khác'}</span><div class="title">${s.title}</div><div class="meta"><span>${s.cover?ic('camera',10)+' Có ảnh':'Chưa có ảnh'}</span></div></div></a>`).join('')||'<p style="font-size:13px;color:var(--muted)">Chưa công bố năng lực nào.</p>'}</div></div>
-
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('history',14)} Hoạt động trong Nhà Chung</div>
-          <div class="timeline">${history.length?history.map(memberHistoryLine).join(''):`<p style="font-size:13px;color:var(--muted)">${detail?'Chưa có hoạt động nào ghi nhận.':'Đang tải…'}</p>`}</div></div>
       </div>
+
+      <aside class="mp-side">
+        <div class="mp-card">
+          <div class="mp-card-head">${ic('user',18)}<h3>Thông tin chung</h3></div>
+          <div class="mp-row"><span class="mp-row-label">Khu vực</span><span class="mp-row-value">${m.ward||(detail?'Chưa chia sẻ':'Đang tải…')}</span></div>
+          <div class="mp-row"><span class="mp-row-label">Nghề chính</span><span class="mp-row-value">${m.field||(detail?'Chưa chia sẻ':'Đang tải…')}</span></div>
+          ${detail&&detail.joined_at?`<div class="mp-row"><span class="mp-row-label">Tham gia từ</span><span class="mp-row-value">${fmtDate(detail.joined_at)}</span></div>`:''}
+          ${detail&&detail.referrer?`<div class="mp-row"><span class="mp-row-label">Người giới thiệu</span><span class="mp-row-value">${esc(detail.referrer.full_name)}</span></div>`:''}
+        </div>
+        ${!isSelf&&detail?`<div class="mp-card">
+          <div class="mp-card-head">${ic('phone',18)}<h3>Liên hệ</h3></div>
+          ${['phone','zalo','messenger','address'].map(f=>contactStateRow(id,f,contacts[f])).join('')}
+        </div>`:''}
+        <div class="mp-privacy">${ic('shield',18)}<p>Thông tin hiện đúng theo mức riêng tư chủ hồ sơ đã chọn ở Cài đặt — không phải ai cũng thấy giống nhau.</p></div>
+      </aside>
     </div>
-
-    <aside class="cols-side">
-      <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">Khu vực</span><span class="val">${m.ward||(detail?'Chưa chia sẻ':'Đang tải…')}</span></div>
-        <div class="info-row"><span class="lbl">Nghề chính</span><span class="val">${m.field||(detail?'Chưa chia sẻ':'Đang tải…')}</span></div>
-        ${detail&&detail.joined_at?`<div class="info-row"><span class="lbl">Tham gia từ</span><span class="val">${fmtDate(detail.joined_at)}</span></div>`:''}
-        ${detail&&detail.referrer?`<div class="info-row"><span class="lbl">Người giới thiệu</span><span class="val">${esc(detail.referrer.full_name)}</span></div>`:''}
-      </div>
-      ${!isSelf&&detail?`<div class="box"><h3>${ic('shield',14)} Liên hệ</h3>
-        ${['phone','zalo','messenger','address'].map(f=>contactStateRow(id,f,contacts[f])).join('')}
-      </div>`:''}
-      <div class="notice brand">${ic('shield',16)}Thông tin hiện đúng theo mức riêng tư chủ hồ sơ đã chọn ở Cài đặt — không phải ai cũng thấy giống nhau.</div>
-    </aside>
   </div>`;
 };
 
@@ -3339,6 +3972,16 @@ V.nangluc = ()=>{
   <div class="filterrow"><div class="l">${['Tất cả','Nổi bật',...DATA.skillCats.slice(1)].map(c=>`<button class="fchip ${st.cat===c?'on':''}" onclick="setFilter('nangluc','cat','${c}')">${c}</button>`).join('')}</div></div>
   <div id="nangluc-results">${nangLucResultsHtml()}</div>`;
 };
+/* Các trang chi tiết khác (việc, giúp nhau, năng lực, hoạt động, ký ức) dùng
+   chung khung .dp-* (xem CSS "TRANG CHI TIẾT DÙNG CHUNG") — cùng ngôn ngữ
+   thiết kế với PUB.hosocongkhai (.mp-*): thẻ bo góc, hai cột nội dung/thông
+   tin bên, tiêu đề mục có icon vuông, nhãn trạng thái bo tròn 3 tông (chính/
+   vàng/nhạt). dpBadge() dựng đúng một nhãn đó; dpTone() dịch ba lớp trạng
+   thái đã có sẵn (accepted/done/pending, xem JOB_STATUS_CLASS/AID_STATUS_CLASS)
+   sang ba tông .dp-badge — không thêm bảng trạng thái mới song song. */
+function dpBadge(label, tone){ return `<span class="dp-badge${tone?' '+tone:''}">${esc(label)}</span>`; }
+function dpTone(cls){ return cls==='accepted'?'':cls==='done'?'gold':'muted'; }
+
 V['nangluc-detail'] = (params)=>{
   const s = DATA.skills.find(x=>x.id===params[0]) || DATA.skills[0];
   const m = member(s.memberId);
@@ -3347,35 +3990,54 @@ V['nangluc-detail'] = (params)=>{
   if(!detail) ensureCapabilityDetail(s.id);
   const photos = (detail&&detail.photos)||[];
   return `
-  <div class="crumb"><a data-go="nangluc">Năng lực</a> ${ic('chev',10)} ${s.title}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="section"><div style="aspect-ratio:16/8">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat)}</div>
-      <div style="padding:18px"><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="tag">${s.cat||'Khác'}</span>${s.exp?`<span class="chip">${ic('star',11)} Kinh nghiệm ${s.exp}</span>`:''}</div>
-      <h1 style="font-size:19px;margin-top:10px">${s.title}</h1><p style="font-size:13.5px;color:var(--ink2);margin-top:8px;line-height:1.7">${s.desc}</p></div>
-      <div style="padding:0 18px 18px"><div style="padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('camera',14)} ${photos.length} bằng chứng thật</div>
-      ${photos.length?`<div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh việc đã làm')}${photoReportBtn('capability_photo',p.id)}</div>`).join('')}</div>`:`<p style="font-size:13px;color:var(--muted)">Chưa có ảnh bằng chứng nào.</p>`}</div></div></div>
+  <div class="dp">
+  <div class="crumb"><a data-go="nangluc">Năng lực</a> ${ic('chev',10)} <span class="dp-crumb-current">${esc(s.title)}</span></div>
+  <div class="dp-layout">
+    <div class="dp-main">
+      <div class="dp-hero">
+        <div class="dp-hero-cover">${bannerImg(s.cover,CAT_ICON[s.cat]||'star',s.cat)}</div>
+        <div class="dp-hero-body">
+          <div class="dp-badges">${dpBadge(s.cat||'Khác')}${s.exp?`<span class="dp-chip">${ic('star',13)} Kinh nghiệm ${esc(s.exp)}</span>`:''}</div>
+          <h1 class="dp-title">${esc(s.title)}</h1>
+        </div>
+      </div>
+      <div class="dp-content">
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('doc',16)}</span><h2>Mô tả</h2></div>
+          <p class="dp-text">${esc(s.desc)||'Chưa có mô tả.'}</p>
+        </div>
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('camera',16)}</span><h2>${photos.length} bằng chứng thật</h2></div>
+          ${photos.length?`<div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh việc đã làm')}${photoReportBtn('capability_photo',p.id)}</div>`).join('')}</div>`:`<p class="dp-empty-text">Chưa có ảnh bằng chứng nào.</p>`}
+        </div>
+      </div>
     </div>
-    <div class="cols-side">
-      <div class="box company-card" style="text-align:center">
-        <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:56px;height:56px">${initials(m.name)}</div></div>
-        <h3 style="font-size:15px;font-weight:700">${m.name}</h3><div style="font-size:12.5px;color:var(--ink2);margin:6px 0">${m.ward}</div>
-        <button class="btn btn-blue btn-block" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',14)} Xin liên hệ</button>
-        ${m.id!==DATA.me.id?`<button class="btn btn-out btn-block btn-sm" style="margin-top:8px" onclick="chatWith('${m.id}')">${ic('mail',13)} Nhắn tin</button>`:''}
-        <button class="btn btn-out btn-block btn-sm" style="margin-top:8px" data-go="congnguoi-detail:${m.id}">Xem hồ sơ đầy đủ</button>
+    <aside class="dp-side">
+      <div class="dp-person-card">
+        <div class="dp-person-avatar">${avatarCircle(m.avatar,m.name,64)}</div>
+        <div class="dp-person-name">${esc(m.name)}</div>
+        <div class="dp-person-sub">${esc(m.ward||'')}</div>
+        <div class="dp-person-actions">
+          <button class="btn btn-blue btn-block" data-open="lienHeQuaNhaChung" data-name="${esc(m.name)}" data-id="${m.id}">${ic('send',14)} Xin liên hệ</button>
+          ${m.id!==DATA.me.id?`<button class="btn btn-out btn-block btn-sm" onclick="chatWith('${m.id}')">${ic('mail',13)} Nhắn tin</button>`:''}
+          <button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${m.id}">Xem hồ sơ đầy đủ</button>
+        </div>
       </div>
-      <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">Nhóm nghề</span><span class="val">${s.cat}</span></div>
-        <div class="info-row"><span class="lbl">Kinh nghiệm</span><span class="val">${s.exp||'Chưa cập nhật'}</span></div>
-        <div class="info-row"><span class="lbl">Phạm vi phục vụ</span><span class="val">${s.area||m.ward}</span></div>
-        <div class="info-row"><span class="lbl">Công / giá tham khảo</span><span class="val">${s.pay||'Thoả thuận'}</span></div>
-        <div class="info-row"><span class="lbl">Số bằng chứng</span><span class="val">${photos.length}</span></div>
+      <div class="dp-card">
+        <div class="dp-card-head">${ic('doc',18)}<h3>Thông tin chung</h3></div>
+        <div class="dp-row"><span class="dp-row-label">Nhóm nghề</span><span class="dp-row-value">${esc(s.cat)}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Kinh nghiệm</span><span class="dp-row-value">${esc(s.exp||'Chưa cập nhật')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Phạm vi phục vụ</span><span class="dp-row-value">${esc(s.area||m.ward||'')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Công / giá tham khảo</span><span class="dp-row-value">${esc(s.pay||'Thoả thuận')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Số bằng chứng</span><span class="dp-row-value">${photos.length}</span></div>
       </div>
-      ${similar.length?`<div class="box"><h3>Năng lực cùng nhóm nghề</h3>
-        ${similar.map(x=>`<div class="mini-job" data-go="nangluc-detail:${x.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px;overflow:hidden">${logoImg(x.cover,CAT_ICON[x.cat]||'star')}</div><div><div class="mj-t">${x.title}</div><div class="mj-c">${member(x.memberId).name}</div></div></div>`).join('')}
+      ${similar.length?`<div class="dp-card">
+        <div class="dp-card-head">${ic('star',18)}<h3>Năng lực cùng nhóm nghề</h3></div>
+        <div class="dp-mini">${similar.map(x=>`<a class="dp-mini-row" data-go="nangluc-detail:${x.id}"><div class="dp-mini-img">${logoImg(x.cover,CAT_ICON[x.cat]||'star')}</div><div><div class="dp-mini-title">${esc(x.title)}</div><div class="dp-mini-sub">${esc(member(x.memberId).name)}</div></div></a>`).join('')}</div>
       </div>`:''}
-      <div class="notice brand">${ic('shield',16)}Không xếp hạng — bằng chứng do chính chủ đăng.</div>
-    </div>
+      <div class="dp-notice">${ic('shield',18)}<p>Không xếp hạng — bằng chứng do chính chủ đăng.</p></div>
+    </aside>
+  </div>
   </div>`;
 };
 
@@ -3414,34 +4076,88 @@ function jobProgressBar(idx){
 const KIND_LABEL = {['can-nguoi']:'Cần người ngay',['hop-tac']:'Hợp tác lâu dài',['hoi-tim']:'Hỏi & tìm thông tin'};
 const KIND_ICON = {['can-nguoi']:'briefcase',['hop-tac']:'handshake',['hoi-tim']:'bolt'};
 
+/* 6 tab loại tin ở Bảng nhà (thiết kế lại) — 3 tab đầu vẫn là DATA.jobs lọc
+   theo kind như cũ; 3 tab còn lại gộp thêm 3 nguồn dữ liệu THẬT đã có sẵn từ
+   bootstrap(), không tạo API/màn hình mới: "Sản phẩm & Dịch vụ" = DATA.skills
+   (năng lực thành viên, GET /capabilities), "Cần giúp" = DATA.aid (GET /aid,
+   tính năng Giúp nhau), "Tìm việc" = DATA.ready (GET /jobs/ready, mapReady()
+   ở trên). Icon chỉ 20px trong tab, không phóng to. */
+const HOME_TABS = [
+  ['can-nguoi','Cần người','assets/nha-chung/05-them-cong-nhan.png'],
+  ['tim-viec','Tìm việc','assets/nha-chung/06-ho-so-va-cap-cong-viec.png'],
+  ['hop-tac','Hợp tác','assets/nha-chung/07-bat-tay-vong-tron.png'],
+  ['san-pham-dich-vu','Sản phẩm & Dịch vụ','assets/nha-chung/19-san-pham-va-dich-vu-3d.png'],
+  ['can-giup','Cần giúp','assets/nha-chung/04-trai-tim-cong-dong.png'],
+  ['hoi-tim','Hỏi & Tìm','assets/nha-chung/16-hoi-dap-va-tim-kiem-3d.png'],
+];
+// Số lượng hiện trên tab — luôn KHÔNG lọc theo q/cat (đếm toàn bộ nguồn ứng
+// với tab đó), giống hệt cách đếm cũ (DATA.jobs.filter(kind).length).
+function homeTabCount(tab){
+  if(tab==='san-pham-dich-vu') return DATA.skills.length;
+  if(tab==='can-giup') return DATA.aid.length;
+  if(tab==='tim-viec') return DATA.ready.length;
+  return DATA.jobs.filter(j=>j.kind===tab).length;
+}
 /* ---- Bảng nhà = "Việc & hợp tác" gộp thẳng vào trang chủ (kiểu Chợ Tốt:
    banner + 1 ô tìm kiếm to + hàng icon danh mục + lưới card dọc), không còn
    là 2 màn tách rời. V.viec giữ lại làm bí danh (bên dưới) để mọi link cũ
    (#viec, breadcrumb, footer…) vẫn trỏ đúng chỗ, và vẫn nhận được params
-   (tab loại tin) để mở thẳng đúng tab khi có người bấm link sâu. ---- */
-function viecCardHtml(j){
-  return `<a class="gcard" data-go="viec-detail:${j.id}">${bannerImg(j.cover,KIND_ICON[j.kind],j.title,150)}
+   (tab loại tin) để mở thẳng đúng tab khi có người bấm link sâu.
+   homeFeedItems() chuẩn hoá 1 mục lưới về CÙNG 1 khuôn (id/go/tag/title/ward/
+   cover/posterId hoặc posterName/right/urgent) bất kể tab đang lấy dữ liệu từ
+   nguồn nào trong 4 nguồn (jobs/skills/aid/ready), để card-grid + homeCardHtml
+   chỉ cần viết 1 lần dùng chung cho cả 6 tab. ---- */
+function homeFeedItems(tab){
+  const q=(STATE.viec.q||'').trim().toLowerCase();
+  const cat=STATE.viec.cat;
+  const byCat=(arr,getCat)=> (cat && cat!=='Tất cả') ? arr.filter(x=>getCat(x)===cat) : arr;
+  if(tab==='san-pham-dich-vu'){
+    const list = byCat(DATA.skills.filter(s=>matchKw(q, s.title, s.desc, s.cat)), s=>s.cat);
+    return list.map(s=>({id:s.id, go:'nangluc-detail:'+s.id, tag:s.cat||'Khác', title:s.title,
+      ward:s.area||'', cover:s.cover, posterId:s.memberId, right:s.pay||'Liên hệ để biết giá', urgent:false}));
+  }
+  if(tab==='can-giup'){
+    const list = byCat(DATA.aid.filter(a=>matchKw(q, a.title, a.cat)), a=>a.cat);
+    return list.map(a=>({id:a.id, go:'giupnhau-detail:'+a.id, tag:a.cat||'Khác', title:a.title,
+      ward:a.ward||'', cover:a.cover, posterId:a.asker, right:`${a.helpers} người nhận giúp`, urgent:a.urgent}));
+  }
+  if(tab==='tim-viec'){
+    const list = DATA.ready.filter(r=>matchKw(q, r.headline, r.job, r.ward));
+    return list.map(r=>({id:r.id, go:'hosocongkhai:'+r.memberId, tag:r.job||'Sẵn sàng nhận việc', title:r.headline,
+      ward:r.ward||'', cover:r.avatar, posterName:r.name, right:r.availability||'Sẵn sàng ngay', urgent:false}));
+  }
+  const list = byCat(DATA.jobs.filter(j=>j.kind===tab).filter(j=>matchKw(q, j.title, j.desc, j.cat, j.ward, j.posterName)), j=>j.cat);
+  return list.map(j=>({id:j.id, go:'viec-detail:'+j.id, tag:j.cat||'Khác', title:j.title,
+    ward:j.ward||'', cover:j.cover, posterId:j.poster, right: j.kind==='hoi-tim'?`${j.apps} người trả lời`:`${j.apps} người nhận`, urgent:j.urgent}));
+}
+// Ảnh thẻ: ưu tiên ảnh thật của tin (it.cover) — không có thì dùng ảnh minh
+// hoạ nhóm nghề đã có sẵn (CAT_PHOTO/catPhotoUrl), chỉ rơi về icon giữ chỗ
+// khi cả hai đều không có (ví dụ nhóm nghề "Khác"/tự do không khớp ảnh nào).
+function homeCardHtml(it){
+  const posterName = it.posterName || member(it.posterId).name;
+  const cover = it.cover || catPhotoUrl(it.tag);
+  return `<a class="gcard" data-go="${it.go}">${bannerImg(cover,'camera',it.title,150)}
     <div class="body">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="tag">${j.cat||'Khác'}</span>${j.urgent?'<span class="badge urgent">GẤP</span>':''}
+        <span class="tag">${esc(it.tag)}</span>${it.urgent?'<span class="badge urgent">GẤP</span>':''}
       </div>
-      <div class="title">${j.title}</div>
-      <div class="meta"><span>${ic('pin',12)} ${j.ward||'Chưa rõ khu vực'}</span></div>
-      <div class="meta" style="margin-top:4px"><span>${member(j.poster).name}</span><span>${j.kind==='hoi-tim'?`${j.apps} người trả lời`:`${j.apps} người nhận`}</span></div>
+      <div class="title">${esc(it.title)}</div>
+      <div class="meta"><span>${ic('pin',12)} ${esc(it.ward||'Chưa rõ khu vực')}</span></div>
+      <div class="meta" style="margin-top:4px"><span>${esc(posterName)}</span><span>${esc(it.right||'')}</span></div>
     </div>
   </a>`;
 }
+const HOME_TAB_NOUN = {['can-nguoi']:'việc', ['tim-viec']:'hồ sơ', ['hop-tac']:'việc',
+  ['san-pham-dich-vu']:'dịch vụ', ['can-giup']:'lời nhờ', ['hoi-tim']:'câu hỏi'};
 function viecResultsHtml(){
   const st=STATE.viec;
-  const q=(st.q||'').trim().toLowerCase();
-  let list = DATA.jobs.filter(j=>j.kind===st.tab).filter(j=>matchKw(q, j.title, j.desc, j.cat, j.ward, j.posterName));
-  if(st.cat && st.cat!=='Tất cả') list = list.filter(j=>j.cat===st.cat);
+  const list = homeFeedItems(st.tab);
+  const noun = HOME_TAB_NOUN[st.tab]||'tin';
   const visible = st.visible||12;
   const shown = list.slice(0, visible);
   return `
-  <div class="result-cnt">Tìm thấy <b>${list.length}</b> ${st.tab==='hoi-tim'?'câu hỏi':'việc'}</div>
-  ${shown.length?`<div class="card-grid">${shown.map(viecCardHtml).join('')}</div>`
-    :`<div class="empty"><p>Chưa có ${st.tab==='hoi-tim'?'câu hỏi':'việc'} nào khớp bộ lọc.</p></div>`}
+  ${shown.length?`<div class="card-grid">${shown.map(homeCardHtml).join('')}</div>`
+    :`<div class="empty"><p>Chưa có ${noun} nào khớp bộ lọc.</p></div>`}
   ${list.length>shown.length?`<div style="text-align:center;margin-top:22px"><button class="btn btn-out btn-lg" onclick="viecShowMore()">Xem thêm (còn ${list.length-shown.length})</button></div>`:''}`;
 }
 function viecSearchInput(el){
@@ -3511,25 +4227,80 @@ function viecCatRow(){
   };
   return `<div class="cat-row">${chip('Tất cả','Tất cả','grid')}${DATA.skillCats.slice(1).map(c=>chip(c,c,CAT_ICON[c]||'star')).join('')}</div>`;
 }
+// ===== Sidebar Bảng nhà: thống kê cộng đồng / hoạt động nổi bật / đăng nhập
+// — cả 3 khối đều dùng dữ liệu THẬT đã có sẵn trong DATA (không gọi thêm API,
+// không có số demo cứng). "Kết nối thành công" = việc đã đủ người (status
+// filled) + lời nhờ đã xong (status done); "Trường hợp hỗ trợ" = tổng số lời
+// nhờ Giúp nhau đã ghi nhận (DATA.aid.length). =====
+function homeStatsCardHtml(){
+  const totalPosts = DATA.jobs.length + DATA.skills.length + DATA.aid.length + DATA.activities.length;
+  const successConn = DATA.jobs.filter(j=>j.status==='filled').length + DATA.aid.filter(a=>a.status==='done').length;
+  const stat=(img,num,label)=>`<div class="hs-stat"><img src="${img}" alt="">
+    <b>${num}</b><span>${label}</span></div>`;
+  return `<div class="card">
+    <h3 class="sec-title">${ic('grid',15)} Thống kê cộng đồng</h3>
+    <div class="hs-stats">
+      ${stat('assets/nha-chung/01-cong-dong-tang-truong.png', DATA.members.length, 'Thành viên')}
+      ${stat('assets/nha-chung/02-tai-lieu-phan-tich.png', totalPosts, 'Tin đăng')}
+      ${stat('assets/nha-chung/03-bat-tay-hop-tac.png', successConn, 'Kết nối thành công')}
+      ${stat('assets/nha-chung/04-trai-tim-cong-dong.png', DATA.aid.length, 'Trường hợp hỗ trợ')}
+    </div>
+  </div>`;
+}
+function homeActivityCardHtml(){
+  const items = DATA.activities.slice().sort((a,b)=>new Date(b.when||0)-new Date(a.when||0)).slice(0,5);
+  return `<div class="card">
+    <h3 class="sec-title">${ic('calendar',15)} Hoạt động nổi bật</h3>
+    <div class="hs-activity">
+      ${items.length?items.map(a=>`<a class="hs-act-item" data-go="hoatdong-detail:${a.id}">
+        <div class="hs-act-ico">${ic('calendar',16)}</div>
+        <div class="hs-act-body"><div class="hs-act-title">${esc(a.title)}</div>
+          <div class="hs-act-meta">${esc(a.place||'')}${a.place&&a.when?' · ':''}${a.when?fmtDate(a.when):''}</div></div>
+      </a>`).join(''):`<p style="font-size:13px;color:var(--muted)">Chưa có hoạt động nào.</p>`}
+    </div>
+    <div style="margin-top:12px"><a class="see-all" data-go="hoatdong">Xem tất cả hoạt động ${ic('chev',12)}</a></div>
+  </div>`;
+}
+// Ẩn hẳn (không chừa khoảng trống) khi đã đăng nhập — gọi isAuthed() y hệt
+// chỗ headerComp()/variantOf() đang dùng để quyết định khung public/member.
+function homeLoginCardHtml(){
+  if(isAuthed()) return '';
+  return `<div class="card hs-login">
+    <h3 class="sec-title">${ic('lock',15)} Đăng nhập để kết nối</h3>
+    <p>Đăng nhập để xem thông tin liên hệ, nhắn tin và kết nối trực tiếp với thành viên trong cộng đồng.</p>
+    <div class="row">
+      <a href="#dangnhap" class="btn btn-blue" data-go="dangnhap">Đăng nhập</a>
+      <a href="#gianhap" class="btn btn-out" data-go="gianhap">Đăng ký</a>
+    </div>
+  </div>`;
+}
 V.trongnha = (params)=>{
   const st=STATE.viec;
-  if(params && params[0] && ['can-nguoi','hop-tac','hoi-tim'].includes(params[0])) st.tab=params[0];
-  const tabs = [['can-nguoi','Cần người'],['hop-tac','Hợp tác'],['hoi-tim','Hỏi & tìm']];
+  if(params && params[0] && HOME_TABS.some(([id])=>id===params[0])) st.tab=params[0];
   // Hàng tab gạch chân dưới (kiểu "Dành cho bạn / Mới nhất" của Chợ Tốt) —
   // tách khỏi thanh tìm kiếm để ô tìm được thoáng, dài, chỉ còn đúng 1 việc.
-  const tabRow = `<div class="tabs">${tabs.map(([id,lb])=>`<button class="tab ${st.tab===id?'on':''}" onclick="setViecTab('${id}')">${lb} <span class="cnt">(${DATA.jobs.filter(j=>j.kind===id).length})</span></button>`).join('')}</div>`;
+  const tabRow = `<div class="tabs">${HOME_TABS.map(([id,lb,img])=>`<button class="tab ${st.tab===id?'on':''}" onclick="setViecTab('${id}')"><img src="${img}" alt="">${lb} <span class="cnt">(${homeTabCount(id)})</span></button>`).join('')}</div>`;
   return `
-  <div class="welcome-banner"><img src="assets/banner/banner3.png" alt="Nhà Chung 86"></div>
+  <div class="home-hero">
+    <div class="welcome-banner"><img src="assets/00-banner/banner-home.png" alt="Nhà Chung 86"></div>
 
-  <div class="searchbar lg"><div class="kw">${ic('search',17)}<input id="viec-search-input" value="${esc(st.q)}" placeholder="Tìm việc, hợp tác, dịch vụ…" oninput="viecSearchInput(this)" onfocus="viecSearchFocus()" onblur="viecSearchBlur()" onkeydown="if(event.key==='Enter') this.blur()" autocomplete="off"></div>
-    <button type="button" class="btn btn-blue" onclick="const i=qs('#viec-search-input'); if(i) i.blur();">${ic('search',16)} Tìm kiếm</button>
-    <div id="viec-suggest" class="search-suggest"></div>
+    <div class="searchbar lg"><div class="kw">${ic('search',17)}<input id="viec-search-input" value="${esc(st.q)}" placeholder="Anh chị đang cần tìm gì?" oninput="viecSearchInput(this)" onfocus="viecSearchFocus()" onblur="viecSearchBlur()" onkeydown="if(event.key==='Enter') this.blur()" autocomplete="off"></div>
+      <button type="button" class="btn btn-blue" onclick="const i=qs('#viec-search-input'); if(i) i.blur();">${ic('search',16)} Tìm kiếm</button>
+      <div id="viec-suggest" class="search-suggest"></div>
+    </div>
   </div>
 
   ${viecCatRow()}
   ${tabRow}
 
-  <div id="viec-results">${viecResultsHtml()}</div>`;
+  <div class="home-layout">
+    <div><div id="viec-results">${viecResultsHtml()}</div></div>
+    <div class="home-side">
+      ${homeStatsCardHtml()}
+      ${homeActivityCardHtml()}
+      ${homeLoginCardHtml()}
+    </div>
+  </div>`;
 };
 // Bí danh — mọi link cũ trỏ #viec (footer, breadcrumb, nút "Xem tất cả"…)
 // vẫn ra đúng đúng trang này, kể cả kèm tham số chọn tab.
@@ -3552,73 +4323,193 @@ V['viec-detail'] = (params)=>{
   const isAsk = j.kind==='hoi-tim';
   const prog = jobProgress(j, jobDetail);
 
+  // Ảnh đầu trang: ảnh thật đã tải lên (jobDetail.images) nếu có — kèm lightbox
+  // phóng to + nút báo cáo, đúng như trước. KHÔNG có ảnh thật thì rơi về đúng
+  // ảnh mà thẻ danh sách (homeCardHtml) đã hiện cho tin này (j.cover, hoặc ảnh
+  // minh hoạ nhóm nghề catPhotoUrl(j.cat)) thay vì bỏ trắng cả khung — mở chi
+  // tiết một tin đang thấy ảnh ở ngoài danh sách mà vào trong lại trống trơn là
+  // vô lý. bannerImg() tự rơi về icon giữ chỗ khi cả hai đều không có.
+  const realImages = jobDetail&&jobDetail.images&&jobDetail.images.length;
+  const fallbackCover = j.cover || catPhotoUrl(j.cat);
   return `
-  <div class="crumb"><a data-go="viec">Việc & hợp tác</a> ${ic('chev',10)} ${j.title}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="section">
-        ${jobDetail&&jobDetail.images&&jobDetail.images.length?`<div style="aspect-ratio:16/8;cursor:zoom-in;position:relative" onclick="lightbox('/files/${jobDetail.images[0].id}')">${bannerImg('/files/'+jobDetail.images[0].id,isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),j.title)}${photoReportBtn('job_photo',jobDetail.images[0].id)}</div>
-        ${jobDetail.images.length>1?`<div style="display:flex;gap:6px;padding:10px;flex-wrap:wrap">${jobDetail.images.slice(1).map(im=>`<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;cursor:zoom-in;position:relative" onclick="lightbox('/files/${im.id}')">${bannerImg('/files/'+im.id,'camera','')}${photoReportBtn('job_photo',im.id)}</div>`).join('')}</div>`:''}`:''}
-      <div style="padding:20px">
-        <div>
-          <div style="flex:1"><div style="display:flex;gap:8px;flex-wrap:wrap">${j.urgent?'<span class="badge urgent">GẤP</span>':''}<span class="status ${JOB_STATUS_CLASS[j.status]||'accepted'}">${statusLabel}</span><span class="chip">${KIND_LABEL[j.kind]}</span></div>
-          <h1 style="font-size:20px;margin-top:8px">${j.title}</h1>
-          <div class="tags" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${isAsk?'':`<span class="chip salary">${ic('fund',11)} ${j.pay||'Thoả thuận'}</span>`}<span class="chip">${ic('pin',11)} ${j.ward}</span><span class="chip">${ic('doc',11)}${j.cat}</span><span class="chip">${ic('clock',11)}${timeAgo(j.posted)}</span></div></div>
-        </div>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} ${isAsk?'Chi tiết câu hỏi':'Mô tả công việc'}</div><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:6px">${j.desc||'Việc cụ thể trao đổi rõ khi hai bên nối Zalo.'}</p></div>
-        ${jobDetail&&jobDetail.requirements?`<div style="margin-top:14px"><b style="font-size:13px">${ic('check',12)} Yêu cầu với người nhận</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.requirements)}</p></div>`:''}
-        ${jobDetail&&jobDetail.warnings?`<div style="margin-top:14px"><b style="font-size:13px;color:var(--red)">${ic('flag',12)} Lưu ý</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.warnings)}</p></div>`:''}
-        ${jobDetail&&jobDetail.terms?`<div style="margin-top:14px"><b style="font-size:13px">${ic('scale',12)} Cam kết / điều khoản</b><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:4px">${esc(jobDetail.terms)}</p></div>`:''}
-
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px">
-          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14.5px">${initials(poster.name)}</div>
-          <div style="flex:1;min-width:0;font-size:12.5px;color:var(--ink2)">
-            Đăng bởi <a data-go="congnguoi-detail:${poster.id}" style="font-weight:700;color:var(--ink)">${poster.name}</a> <i class="verified">${ic('check',10)}</i>
-            ${jobDetail&&jobDetail.contact_owner?` · Liên hệ: ${esc(jobDetail.contact_owner)}`:''}
-            ${jobDetail&&jobDetail.contact_policy?` · ${CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy}`:''}
+  <div class="dp">
+  <div class="crumb"><a data-go="viec">Việc & hợp tác</a> ${ic('chev',10)} <span class="dp-crumb-current">${esc(j.title)}</span></div>
+  <div class="dp-layout">
+    <div class="dp-main">
+      <div class="dp-hero">
+        ${realImages?`<div class="dp-hero-cover" style="cursor:zoom-in" onclick="lightbox('/files/${jobDetail.images[0].id}')">${bannerImg('/files/'+jobDetail.images[0].id,isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),j.title)}${photoReportBtn('job_photo',jobDetail.images[0].id)}</div>
+        ${jobDetail.images.length>1?`<div style="display:flex;gap:6px;padding:10px 26px 0;flex-wrap:wrap">${jobDetail.images.slice(1).map(im=>`<div style="width:56px;height:56px;border-radius:8px;overflow:hidden;cursor:zoom-in;position:relative" onclick="lightbox('/files/${im.id}')">${bannerImg('/files/'+im.id,'camera','')}${photoReportBtn('job_photo',im.id)}</div>`).join('')}</div>`:''}`
+        :`<div class="dp-hero-cover">${bannerImg(fallbackCover,isAsk?'bolt':(CAT_ICON[j.cat]||'briefcase'),j.title)}</div>`}
+        <div class="dp-hero-body">
+          <div class="dp-badges">${j.urgent?dpBadge('GẤP','urgent'):''}${dpBadge(statusLabel, dpTone(JOB_STATUS_CLASS[j.status]))}<span class="dp-chip">${ic(KIND_ICON[j.kind]||'briefcase',13)} ${esc(KIND_LABEL[j.kind]||'')}</span></div>
+          <h1 class="dp-title">${esc(j.title)}</h1>
+          <div class="dp-chips">
+            ${isAsk?'':`<span class="dp-chip">${ic('fund',13)} ${esc(j.pay||'Thoả thuận')}</span>`}
+            <span class="dp-chip">${ic('pin',13)} ${esc(j.ward||'')}</span>
+            <span class="dp-chip">${ic('doc',13)} ${esc(j.cat||'')}</span>
+            <span class="dp-chip">${ic('clock',13)} ${esc(timeAgo(j.posted))}</span>
           </div>
-          ${poster.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:34px;height:34px;padding:0" onclick="chatWith('${poster.id}')" title="Nhắn tin">${ic('mail',13)}</button>`:''}
+        </div>
+      </div>
+      <div class="dp-content">
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('doc',16)}</span><h2>${isAsk?'Chi tiết câu hỏi':'Mô tả công việc'}</h2></div>
+          <p class="dp-text">${esc(j.desc)||'Việc cụ thể trao đổi rõ khi hai bên nối Zalo.'}</p>
+        </div>
+        ${jobDetail&&jobDetail.requirements?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('check',16)}</span><h2>Yêu cầu với người nhận</h2></div>
+          <p class="dp-text">${esc(jobDetail.requirements)}</p>
+        </div>`:''}
+        ${jobDetail&&jobDetail.warnings?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic red">${ic('flag',16)}</span><h2>Lưu ý</h2></div>
+          <p class="dp-text">${esc(jobDetail.warnings)}</p>
+        </div>`:''}
+        ${jobDetail&&jobDetail.terms?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('scale',16)}</span><h2>Cam kết / điều khoản</h2></div>
+          <p class="dp-text">${esc(jobDetail.terms)}</p>
+        </div>`:''}
+
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('user',16)}</span><h2>Người đăng</h2></div>
+          <div class="dp-people-row">
+            <div class="dp-people-ic">${initials(poster.name)}</div>
+            <div class="dp-people-body">
+              <div class="dp-people-name"><a data-go="congnguoi-detail:${poster.id}">${esc(poster.name)}</a> ${ic('check',11)}</div>
+              <div class="dp-people-sub">${jobDetail&&jobDetail.contact_owner?'Liên hệ: '+esc(jobDetail.contact_owner):''}${jobDetail&&jobDetail.contact_policy?(jobDetail.contact_owner?' · ':'')+esc(CONTACT_POLICY_LABEL[jobDetail.contact_policy]||jobDetail.contact_policy):''}</div>
+            </div>
+            ${poster.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:34px;height:34px;padding:0" onclick="chatWith('${poster.id}')" title="Nhắn tin">${ic('mail',13)}</button>`:''}
+          </div>
         </div>
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">${prog.idx<0?`<div class="sec-title">${ic('bolt',14)} Hành trình tin cậy</div>
-          <div class="notice wait" style="margin-top:10px">${ic('flag',16)}${prog.note}</div>`:`<div class="sec-title">${ic('bolt',14)} Hành trình tin cậy — ${JOB_PROGRESS_STEPS[prog.idx].label}</div>
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('bolt',16)}</span><h2>Hành trình tin cậy${prog.idx>=0?' — '+esc(JOB_PROGRESS_STEPS[prog.idx].label):''}</h2></div>
+          ${prog.idx<0?`<div class="dp-notice wait">${ic('flag',16)}<p>${esc(prog.note)}</p></div>`:`
           ${jobProgressBar(prog.idx)}
-          <div style="font-size:12px;color:var(--muted);margin-top:10px">${j.apps} người đã ${isAsk?'trả lời':'ứng tuyển'}${jobDetail?'':' — đang tải chi tiết…'}</div>`}
+          <div class="dp-empty-text" style="margin-top:10px">${j.apps} người đã ${isAsk?'trả lời':'ứng tuyển'}${jobDetail?'':' — đang tải chi tiết…'}</div>`}
         </div>
 
-        ${applicants.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${j.apps} người đã ${isAsk?'trả lời':'nhận'}</div>
-          <div class="stack">${applicants.map(m=>{
+        ${applicants.length?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('users',16)}</span><h2>${j.apps} người đã ${isAsk?'trả lời':'nhận'}</h2></div>
+          <div class="dp-people">${applicants.map(m=>{
             const isPoster = !isAsk && j.poster===DATA.me.id;
             const action = m.status==='contacted' && isPoster
-              ? `<div class="actions" style="display:flex;gap:6px"><button class="btn btn-out btn-sm" onclick="tuChoiUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Từ chối</button><button class="btn btn-blue btn-sm" onclick="chonUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Chọn</button></div>`
-              : m.status==='agreed'||m.status==='working' ? `<span class="status accepted">${ic('check',9)} Đã chọn</span>`
-              : m.status==='done' ? `<span class="status accepted">${ic('check',9)} Đã hoàn tất</span>`
-              : m.status==='failed' ? `<span class="status pending">Không chọn</span>` : '';
-            return `<div class="gigrow" style="margin-bottom:0${m.status==='failed'?';opacity:.6':''}"><div class="logo">${initials(m.name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${m.memberId}">${m.name}</a><div class="co">${m.field}</div></div>${action}</div>`;
+              ? `<div style="display:flex;gap:6px;flex:none"><button class="btn btn-out btn-sm" onclick="tuChoiUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Từ chối</button><button class="btn btn-blue btn-sm" onclick="chonUngVien('${j.id}','${m.connId}','${esc(m.name)}')">Chọn</button></div>`
+              : m.status==='agreed'||m.status==='working' ? dpBadge('Đã chọn')
+              : m.status==='done' ? dpBadge('Đã hoàn tất','gold')
+              : m.status==='failed' ? dpBadge('Không chọn','muted') : '';
+            return `<div class="dp-people-row"${m.status==='failed'?' style="opacity:.6"':''}><div class="dp-people-ic">${initials(m.name)}</div><div class="dp-people-body"><div class="dp-people-name"><a data-go="congnguoi-detail:${m.memberId}">${esc(m.name)}</a></div><div class="dp-people-sub">${esc(m.field)}</div></div>${action}</div>`;
           }).join('')}</div>
         </div>`:''}
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="apply-row" style="display:flex;gap:10px">
-          ${j.poster!==DATA.me.id&&j.status==='open'?`<button class="btn btn-blue btn-lg" style="flex:1" data-open="xinNhanViec" data-jobid="${j.id}" data-postername="${esc(poster.name)}" data-isask="${isAsk}">${ic(isAsk?'send':'handshake',16)} ${isAsk?'Tôi biết, để tôi trả lời':'Xin nhận việc'}</button>`:j.poster===DATA.me.id?`<div class="notice brand" style="flex:1">${ic('shield',16)}${isAsk?'Đây là câu hỏi bạn đăng.':'Đây là việc bạn đăng. Chọn người phù hợp bên trên.'}</div>`:`<div class="notice brand" style="flex:1">${ic('check',16)}${isAsk?'Câu hỏi này':'Việc này'} ${j.status==='cancelled'?'đã bị huỷ':j.status==='closed'?'đã đóng':'đã có người nhận'}.</div>`}
-        </div></div>
-      </div></div>
+        <div class="dp-section" style="display:flex;gap:10px">
+          ${j.poster!==DATA.me.id&&j.status==='open'?`<button class="btn btn-blue btn-lg" style="flex:1" data-open="xinNhanViec" data-jobid="${j.id}" data-postername="${esc(poster.name)}" data-isask="${isAsk}">${ic(isAsk?'send':'handshake',16)} ${isAsk?'Tôi biết, để tôi trả lời':'Xin nhận việc'}</button>`
+            :j.poster===DATA.me.id?`<div class="dp-notice" style="flex:1">${ic('shield',16)}<p>${isAsk?'Đây là câu hỏi bạn đăng.':'Đây là việc bạn đăng. Chọn người phù hợp bên trên.'}</p></div>`
+            :`<div class="dp-notice" style="flex:1">${ic('check',16)}<p>${isAsk?'Câu hỏi này':'Việc này'} ${j.status==='cancelled'?'đã bị huỷ':j.status==='closed'?'đã đóng':'đã có người nhận'}.</p></div>`}
+        </div>
+      </div>
     </div>
-    <aside class="cols-side">
-      <div class="box"><h3>Thông tin chung</h3>
-        ${isAsk?`<div class="info-row"><span class="lbl">Phản hồi</span><span class="val">${j.apps} lượt</span></div>`
-          :`<div class="info-row"><span class="lbl">Số lượng cần</span><span class="val">${j.qty||'1 người'}</span></div><div class="info-row"><span class="lbl">Công / thù lao</span><span class="val">${j.pay||'Thoả thuận'}</span></div>`}
-        <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(j.posted)}</span></div>
-        ${jobDetail&&jobDetail.start_at?`<div class="info-row"><span class="lbl">${ic('clock',12)} Bắt đầu lúc</span><span class="val">${fmtDateTime(jobDetail.start_at)}</span></div>`
-          :jobDetail&&jobDetail.start_note?`<div class="info-row"><span class="lbl">${ic('clock',12)} Thời gian mong muốn</span><span class="val">${esc(jobDetail.start_note)}</span></div>`:''}
-        ${jobDetail&&jobDetail.close_at?`<div class="info-row"><span class="lbl">Hạn nhận việc</span><span class="val">${fmtDate(jobDetail.close_at)}</span></div>`:''}
+    <aside class="dp-side">
+      <div class="dp-card">
+        <div class="dp-card-head">${ic('doc',18)}<h3>Thông tin chung</h3></div>
+        ${isAsk?`<div class="dp-row"><span class="dp-row-label">Phản hồi</span><span class="dp-row-value">${j.apps} lượt</span></div>`
+          :`<div class="dp-row"><span class="dp-row-label">Số lượng cần</span><span class="dp-row-value">${esc(j.qty||'1 người')}</span></div><div class="dp-row"><span class="dp-row-label">Công / thù lao</span><span class="dp-row-value">${esc(j.pay||'Thoả thuận')}</span></div>`}
+        <div class="dp-row"><span class="dp-row-label">Đăng lúc</span><span class="dp-row-value">${fmtDate(j.posted)}</span></div>
+        ${jobDetail&&jobDetail.start_at?`<div class="dp-row"><span class="dp-row-label">Bắt đầu lúc</span><span class="dp-row-value">${fmtDateTime(jobDetail.start_at)}</span></div>`
+          :jobDetail&&jobDetail.start_note?`<div class="dp-row"><span class="dp-row-label">Thời gian mong muốn</span><span class="dp-row-value">${esc(jobDetail.start_note)}</span></div>`:''}
+        ${jobDetail&&jobDetail.close_at?`<div class="dp-row"><span class="dp-row-label">Hạn nhận việc</span><span class="dp-row-value">${fmtDate(jobDetail.close_at)}</span></div>`:''}
         <button class="btn btn-out btn-block btn-sm" style="margin-top:14px" data-open="baoCaoVanDe" data-subject-type="job" data-subject-id="${j.id}" data-subject-label="${esc(j.title)}">${ic('flag',13)} Báo cáo vấn đề</button>
       </div>
+      ${similar.length?`<div class="dp-card">
+        <div class="dp-card-head">${ic('briefcase',18)}<h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3></div>
+        <div class="dp-mini">${similar.map(s=>`<a class="dp-mini-row" data-go="viec-detail:${s.id}"><div class="dp-mini-img">${logoImg(s.cover,KIND_ICON[s.kind])}</div><div><div class="dp-mini-title">${esc(s.title)}</div><div class="dp-mini-sub">${esc(member(s.poster).name)}</div></div></a>`).join('')}</div>
+      </div>`:''}
     </aside>
   </div>
-  ${similar.length?`<div class="section" style="padding:20px;margin-top:20px"><h3>${isAsk?'Câu hỏi khác':'Việc tương tự'}</h3>
-    <div style="margin-top:10px">${similar.map(s=>`<div class="mini-job" data-go="viec-detail:${s.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px;overflow:hidden">${logoImg(s.cover,KIND_ICON[s.kind])}</div><div><div class="mj-t">${s.title}</div><div class="mj-c">${member(s.poster).name}</div></div></div>`).join('')}</div>
-  </div>`:''}`;
+  </div>`;
 };
+
+/* ---- Quỹ vay ----
+   Khác với "Sổ quỹ hội" (kyuc:quy — sổ thu/chi thường niên do Ban điều hành
+   ghi, đã có dữ liệu thật DATA.fund). Đây là quỹ vay riêng theo kế hoạch
+   giai đoạn 1 — mục tiêu 1 tỷ, hạn mức 3 triệu/khoản — nay gọi API thật
+   (POST/GET /loans, api/src/modules/loans/). "Xin vay" gửi đơn thật, báo
+   Ban điều hành ngay qua notifications + SSE (cùng cơ chế 'ting'/chuông đang
+   dùng cho mọi thông báo khác — không cần dựng lại), Ban điều hành duyệt ở
+   admin-quy (ADM.quy). Chỉ luồng xin/duyệt là thật — giải ngân/trả góp/bảo
+   lãnh (loan_guarantors, loan_repayments) vẫn để giai đoạn 6 như đặc tả gốc:
+   bảng loans (migration 021) có sẵn cột due_on/disbursed_on nhưng chưa endpoint
+   nào ghi tới, nên trạng thái ở đây dừng ở requested/approved/rejected. */
+const LOAN_STATUS_LABEL = {requested:'Đang chờ duyệt', approved:'Đã duyệt', rejected:'Bị từ chối', disbursed:'Đã giải ngân', repaying:'Đang trả', closed:'Đã tất toán'};
+const LOAN_STATUS_CLASS = {requested:'pending', approved:'accepted', rejected:'rejected', disbursed:'accepted', repaying:'pending', closed:'done'};
+function loanHistoryRowHtml(l){
+  return `<tr><td class="t-strong">${money(l.amount)}</td><td>${esc(l.purpose)}</td><td class="t-time">${fmtDate(l.created_at)}</td>
+    <td style="text-align:right"><span class="status ${LOAN_STATUS_CLASS[l.status]||'pending'}">${LOAN_STATUS_LABEL[l.status]||l.status}</span></td></tr>`;
+}
+// Gọi khi SSE báo kind='loan' (đơn mới cho Ban điều hành, hoặc quyết định cho
+// người vay) — nạp lại CẢ HAI để dù đang đứng vai nào cũng thấy dữ liệu mới
+// ngay, không cần tải lại trang. /loans (hàng đợi) 403 với thành viên thường,
+// bắt lỗi để không chặn nạp /loans/me — cùng kiểu phòng thủ với bootstrap().
+async function refreshLoans(){
+  try{
+    const [mineRes, queueRes] = await Promise.all([
+      api.get('/loans/me').catch(()=>({data:DATA.loans})),
+      api.get('/loans?limit=100').catch(()=>({data:DATA.loanRequests})),
+    ]);
+    DATA.loans = (mineRes&&mineRes.data)||[];
+    DATA.loanRequests = (queueRes&&queueRes.data)||[];
+    render();
+  }catch(e){ /* giữ dữ liệu cũ nếu lỗi mạng — không chặn giao diện */ }
+}
+V.quyvay = ()=>{
+  const mine = DATA.loans||[];
+  return `
+  <div class="page-head"><div><h1>Quỹ vay</h1><p>Quỹ tương trợ cho thành viên vay khi gặp khó khăn đột xuất.</p></div>
+    <button class="btn btn-blue" onclick="WIZ.xinVay()">${ic('send',15)} Xin vay</button></div>
+  <div class="stat-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="stat"><div class="stat-ico">${ic('fund',16)}</div><div class="stat-num" style="color:var(--brand)">${money(1000000000)}</div><div class="stat-lbl">MỤC TIÊU QUỸ</div></div>
+    <div class="stat"><div class="stat-ico">${ic('handshake',16)}</div><div class="stat-num" style="color:var(--brand)">${money(3000000)}</div><div class="stat-lbl">HẠN MỨC MỖI KHOẢN VAY</div></div>
+  </div>
+  <div class="section"><div style="padding:20px">
+    <div class="sec-title">${ic('doc',14)} Quỹ vay hoạt động thế nào</div>
+    <p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:8px">Nhà Chung đang xây dựng quỹ vay chung, mục tiêu 1 tỷ đồng — mỗi thành viên được vay tối đa 3.000.000đ một khoản khi gặp khó khăn đột xuất. Gửi đơn ở đây, Ban điều hành nhận thông báo ngay và xét theo hoàn cảnh, không qua trung gian.</p>
+  </div></div>
+  <div class="section" style="margin-top:16px"><div class="card-head"><h3>${ic('history',14)} Lịch sử vay của tôi</h3></div>
+    <table><thead><tr><th>Số tiền</th><th>Lý do</th><th>Ngày gửi</th><th style="text-align:right">Trạng thái</th></tr></thead>
+    <tbody>${mine.length?mine.map(loanHistoryRowHtml).join(''):'<tr><td colspan="4" class="t-muted">Bạn chưa gửi đơn xin vay nào.</td></tr>'}</tbody></table>
+  </div>`;
+};
+WIZ.xinVay = ()=> openModal(`
+  <div class="modal-head"><b>Xin vay quỹ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body">
+    <div class="field"><label class="label">Số tiền muốn vay (đ) <span class="req" style="color:var(--red)">*</span></label>
+      <input class="input" id="xv-amount" type="number" min="1" max="3000000" step="1000" placeholder="3000000"></div>
+    <div class="field"><label class="label">Lý do vay <span class="req" style="color:var(--red)">*</span></label>
+      <textarea class="input" id="xv-purpose" style="height:90px;padding-top:10px" placeholder="Đóng học phí cho con, sửa xe đi làm…"></textarea></div>
+    <div class="notice brand">${ic('shield',15)}Hạn mức tối đa 3.000.000đ/khoản — Ban điều hành nhận thông báo ngay khi bạn gửi.</div>
+    <div id="xv-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="xv-err-txt"></span></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-blue" id="xv-submit" style="flex:2" onclick="xinVaySubmit()">Gửi đơn xin vay</button></div>`);
+async function xinVaySubmit(){
+  const amount = Number(getVal('xv-amount'));
+  const purpose = getVal('xv-purpose');
+  const errBox=qs('#xv-err'), errTxt=qs('#xv-err-txt');
+  if(errBox) errBox.style.display='none';
+  if(!amount || amount<=0){ if(errBox){errTxt.textContent='Nhập số tiền lớn hơn 0.'; errBox.style.display='flex';} return; }
+  if(amount>3000000){ if(errBox){errTxt.textContent='Mỗi khoản vay tối đa 3.000.000đ.'; errBox.style.display='flex';} return; }
+  if(purpose.length<10){ if(errBox){errTxt.textContent='Lý do vay cần ít nhất 10 ký tự.'; errBox.style.display='flex';} return; }
+  const btn=qs('#xv-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  try{
+    const created = await api.post('/loans', {amount, purpose});
+    DATA.loans.unshift(created);
+    closeModal(); toast('Đã gửi đơn xin vay, Ban điều hành sẽ xem xét','check');
+    render();
+  }catch(e){
+    if(errBox){errTxt.textContent=e.message||'Có lỗi, thử lại.'; errBox.style.display='flex';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi đơn xin vay';}
+  }
+}
 
 /* ---- Giúp nhau ---- */
 function giupNhauCardHtml(a){
@@ -3665,59 +4556,75 @@ V['giupnhau-detail'] = (params)=>{
   // areas) nên a.ward rỗng — detail (GET /aid/:id) luôn có area_name thật.
   const ward = (detail&&detail.area_name) || a.ward || '';
   return `
-  <div class="crumb"><a data-go="giupnhau">Giúp nhau</a> ${ic('chev',10)} ${a.title}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="section"><div style="padding:20px">
-        <div style="display:flex;gap:18px">
-          <div class="logo" style="width:60px;height:60px">${a.cover?logoImg(a.cover,'heart'):ic('heart',24)}</div>
-          <div style="flex:1">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">${a.urgent?'<span class="badge urgent">KHẨN</span>':''}${a.cat?`<span class="chip">${a.cat}</span>`:''}<span class="status ${AID_STATUS_CLASS[a.status]||'pending'}">${statusLabel}</span></div>
-            <h1 style="font-size:20px;margin-top:8px">${a.title}</h1>
-            <div style="font-size:13px;color:var(--ink2);margin-top:6px">${asker.name} <i class="verified">${ic('check',10)}</i>${ward?` · ${ward}`:''} · Đăng ${timeAgo(a.posted)}</div>
-          </div>
+  <div class="dp">
+  <div class="crumb"><a data-go="giupnhau">Giúp nhau</a> ${ic('chev',10)} <span class="dp-crumb-current">${esc(a.title)}</span></div>
+  <div class="dp-layout">
+    <div class="dp-main">
+      <div class="dp-hero">
+        <div class="dp-hero-cover">${bannerImg(a.cover,'heart',a.title)}</div>
+        <div class="dp-hero-body">
+          <div class="dp-badges">${a.urgent?dpBadge('KHẨN','urgent'):''}${a.cat?`<span class="dp-chip">${esc(a.cat)}</span>`:''}${dpBadge(statusLabel, dpTone(AID_STATUS_CLASS[a.status]))}</div>
+          <h1 class="dp-title">${esc(a.title)}</h1>
+          <div class="dp-meta-line"><span>${esc(asker.name)} ${ic('check',13)}</span>${ward?`<span class="dp-meta-dot">•</span><span>${ic('pin',13)} ${esc(ward)}</span>`:''}<span class="dp-meta-dot">•</span><span>Đăng ${esc(timeAgo(a.posted))}</span></div>
         </div>
-        ${a.onBehalf?`<div class="notice brand" style="margin-top:14px">${ic('user',15)}Nhờ hộ cho <b>${esc(a.onBehalf)}</b></div>`:''}
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Hoàn cảnh cụ thể</div><p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:6px">${esc(a.desc)||'Chưa có mô tả thêm.'}</p></div>
+      </div>
+      <div class="dp-content">
+        ${a.onBehalf?`<div class="dp-section"><div class="dp-notice">${ic('user',15)}<p>Nhờ hộ cho <b>${esc(a.onBehalf)}</b></p></div></div>`:''}
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('doc',16)}</span><h2>Hoàn cảnh cụ thể</h2></div>
+          <p class="dp-text">${esc(a.desc)||'Chưa có mô tả thêm.'}</p>
+        </div>
 
-        ${photos.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('camera',14)} ${photos.length} ảnh minh hoạ</div>
-          <div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh minh hoạ')}${photoReportBtn('aid_photo',p.id)}</div>`).join('')}</div></div>`:''}
+        ${photos.length?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('camera',16)}</span><h2>${photos.length} ảnh minh hoạ</h2></div>
+          <div class="g3">${photos.map(p=>`<div style="aspect-ratio:1/1;cursor:zoom-in;position:relative" onclick="lightbox('${esc(p.url)}')">${bannerImg(p.url,'camera','Ảnh minh hoạ')}${photoReportBtn('aid_photo',p.id)}</div>`).join('')}</div>
+        </div>`:''}
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${a.helpers} người muốn giúp</div>
-          ${offers.length?`<div class="stack">${offers.map(o=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(o.member_name)}</div><div class="body"><a class="title" style="font-size:13.5px" data-go="congnguoi-detail:${o.member_id}">${o.member_name}</a><div class="co">${esc(o.note)||o.member_job||''}</div></div></div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai nhận giúp — hãy là người đầu tiên.</p>'}</div>
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('users',16)}</span><h2>${a.helpers} người muốn giúp</h2></div>
+          ${offers.length?`<div class="dp-people">${offers.map(o=>`<div class="dp-people-row"><div class="dp-people-ic">${initials(o.member_name)}</div><div class="dp-people-body"><div class="dp-people-name"><a data-go="congnguoi-detail:${o.member_id}">${esc(o.member_name)}</a></div><div class="dp-people-sub">${esc(o.note)||esc(o.member_job||'')}</div></div></div>`).join('')}</div>`:'<p class="dp-empty-text">Chưa có ai nhận giúp — hãy là người đầu tiên.</p>'}
+        </div>
 
-        ${events.length?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('history',14)} Diễn biến</div>
-          <div class="timeline">${events.map(e=>`<div class="tl-item"><div class="tl-role">${aidEventLabel(e.kind)}</div><div class="tl-meta">${e.actor_name||'Hệ thống'} · ${timeAgo(e.at)}</div>${e.note?`<div class="tl-desc">${esc(e.note)}</div>`:''}</div>`).join('')}</div></div>`:''}
+        ${events.length?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('history',16)}</span><h2>Diễn biến</h2></div>
+          <div class="timeline">${events.map(e=>`<div class="tl-item"><div class="tl-role">${esc(aidEventLabel(e.kind))}</div><div class="tl-meta">${esc(e.actor_name||'Hệ thống')} · ${esc(timeAgo(e.at))}</div>${e.note?`<div class="tl-desc">${esc(e.note)}</div>`:''}</div>`).join('')}</div>
+        </div>`:''}
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:flex-start">${ic('scale',13)}<span>Nhà Chung không giữ tiền hộ — mọi hỗ trợ chuyển thẳng cho ${asker.name}, hai bên tự ghi nhận với nhau.</span></div>
-        </div></div>
+        <div class="dp-section" style="font-size:12.5px;color:var(--mp-muted);display:flex;gap:6px;align-items:flex-start">${ic('scale',13)}<span>Nhà Chung không giữ tiền hộ — mọi hỗ trợ chuyển thẳng cho ${esc(asker.name)}, hai bên tự ghi nhận với nhau.</span></div>
+      </div>
     </div>
 
-    <aside class="cols-side">
+    <aside class="dp-side">
       ${a.asker!==DATA.me.id&&(a.status==='queued'||a.status==='matched')?`<button class="btn btn-blue btn-lg btn-block" data-open="toiMuonGiup" data-aidid="${a.id}" data-askername="${esc(asker.name)}">${ic('heart',16)} Tôi muốn giúp</button>`
         :a.asker===DATA.me.id&&(a.status==='queued'||a.status==='matched')?`<button class="btn btn-blue btn-lg btn-block" onclick="danhDauXongGiupNhau('${a.id}')">${ic('check',16)} Đánh dấu đã xong</button>`
-        :a.status==='done'?`<div class="notice brand">${ic('check',16)}Lời nhờ này đã khép vòng.</div>`
-        :`<div class="notice brand">${ic('shield',16)}Lời nhờ này ${a.status==='cancelled'?'đã bị huỷ':'đã đóng'}.</div>`}
+        :a.status==='done'?`<div class="dp-notice">${ic('check',16)}<p>Lời nhờ này đã khép vòng.</p></div>`
+        :`<div class="dp-notice">${ic('shield',16)}<p>Lời nhờ này ${a.status==='cancelled'?'đã bị huỷ':'đã đóng'}.</p></div>`}
 
-      <div class="box company-card" style="text-align:center">
-        <div class="cand" style="justify-content:center;margin-bottom:8px">${avatarCircle(asker.avatar,asker.name,56)}</div>
-        <h3 style="font-size:15px">${asker.name} <i class="verified">${ic('check',11)}</i></h3>
-        <div style="font-size:12.5px;color:var(--ink2);margin:6px 0">${asker.ward}</div>
-        <div style="display:flex;gap:7px"><button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${asker.id}">Xem hồ sơ</button>${asker.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:38px;padding:0" onclick="chatWith('${asker.id}')" title="Nhắn tin">${ic('mail',14)}</button>`:''}</div>
+      <div class="dp-person-card">
+        <div class="dp-person-avatar">${avatarCircle(asker.avatar,asker.name,56)}</div>
+        <div class="dp-person-name">${esc(asker.name)} ${ic('check',12)}</div>
+        <div class="dp-person-sub">${esc(asker.ward||'')}</div>
+        <div class="dp-person-actions" style="flex-direction:row">
+          <button class="btn btn-out btn-block btn-sm" data-go="congnguoi-detail:${asker.id}">Xem hồ sơ</button>
+          ${asker.id!==DATA.me.id?`<button class="btn btn-out btn-sm" style="flex:none;width:38px;padding:0" onclick="chatWith('${asker.id}')" title="Nhắn tin">${ic('mail',14)}</button>`:''}
+        </div>
       </div>
 
-      <div class="box"><h3>Thông tin chung</h3>
-        ${a.cat?`<div class="info-row"><span class="lbl">Loại</span><span class="val">${a.cat}</span></div>`:''}
-        <div class="info-row"><span class="lbl">Khu vực</span><span class="val">${ward||'Chưa cập nhật'}</span></div>
-        <div class="info-row"><span class="lbl">Mức độ</span><span class="val">${a.urgent?'Khẩn cấp':'Bình thường'}</span></div>
-        ${a.onBehalf?`<div class="info-row"><span class="lbl">Nhờ hộ cho</span><span class="val">${esc(a.onBehalf)}</span></div>`:''}
-        <div class="info-row"><span class="lbl">Đăng lúc</span><span class="val">${fmtDate(a.posted)}</span></div>
+      <div class="dp-card">
+        <div class="dp-card-head">${ic('doc',18)}<h3>Thông tin chung</h3></div>
+        ${a.cat?`<div class="dp-row"><span class="dp-row-label">Loại</span><span class="dp-row-value">${esc(a.cat)}</span></div>`:''}
+        <div class="dp-row"><span class="dp-row-label">Khu vực</span><span class="dp-row-value">${esc(ward||'Chưa cập nhật')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Mức độ</span><span class="dp-row-value">${a.urgent?'Khẩn cấp':'Bình thường'}</span></div>
+        ${a.onBehalf?`<div class="dp-row"><span class="dp-row-label">Nhờ hộ cho</span><span class="dp-row-value">${esc(a.onBehalf)}</span></div>`:''}
+        <div class="dp-row"><span class="dp-row-label">Đăng lúc</span><span class="dp-row-value">${fmtDate(a.posted)}</span></div>
       </div>
 
-      ${similar.length?`<div class="box"><h3>Lời nhờ khác đang cần giúp</h3>
-        ${similar.map(s=>`<div class="mini-job" data-go="giupnhau-detail:${s.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px">${ic('heart',15)}</div><div><div class="mj-t">${s.title}</div><div class="mj-c">${member(s.asker).name}</div></div></div>`).join('')}
+      ${similar.length?`<div class="dp-card">
+        <div class="dp-card-head">${ic('heart',18)}<h3>Lời nhờ khác đang cần giúp</h3></div>
+        <div class="dp-mini">${similar.map(s=>`<a class="dp-mini-row" data-go="giupnhau-detail:${s.id}"><div class="dp-mini-img">${ic('heart',17)}</div><div><div class="dp-mini-title">${esc(s.title)}</div><div class="dp-mini-sub">${esc(member(s.asker).name)}</div></div></a>`).join('')}</div>
       </div>`:''}
     </aside>
+  </div>
   </div>`;
 };
 
@@ -3755,39 +4662,57 @@ V['hoatdong-detail'] = (params)=>{
   const organizer = a.creator ? member(a.creator) : null;
   const desc = a.desc || 'Hoạt động chung của Nhà Chung, mọi người đều có thể tham gia.';
   return `
-  <div class="crumb"><a data-go="hoatdong">Hoạt động</a> ${ic('chev',10)} ${a.title}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="section"><div style="aspect-ratio:16/8;position:relative">${bannerImg(a.image,a.upcoming?'calendar':'archive',a.title)}${a.image?photoReportBtn('activity_photo',a.id):''}</div>
-        <div style="padding:18px"><span class="tag">${a.cat||'Khác'}</span><h1 style="font-size:19px;margin-top:8px">${a.title}</h1>
-        ${organizer?`<div style="font-size:13px;color:var(--ink2);margin-top:6px">Đăng bởi ${organizer.name}</div>`:''}
-        <p style="font-size:13.5px;color:var(--ink2);line-height:1.65;margin-top:8px">${esc(desc)}</p>
-
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('users',14)} ${a.going} người tham gia</div>
-          ${attendees.length?`<div class="stack">${attendees.map(m=>`<div class="gigrow" style="margin-bottom:0"><div class="logo">${initials(m.name)}</div><div class="body"><div class="title" style="font-size:13.5px">${m.name}</div><div class="co">${m.ward}</div></div></div>`).join('')}${a.going>attendees.length?`<div style="font-size:12px;color:var(--muted);padding:6px 2px">+${a.going-attendees.length} người khác</div>`:''}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có ai đăng ký.</p>'}</div>
-
-        ${a.upcoming?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('doc',14)} Cần người phụ trách</div>
-          <div class="gigrow" style="margin-bottom:8px"><div class="logo">${ic('doc',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Đặt bàn & chốt món</div><div class="co">Cần 1 người · trước ngày diễn ra</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div>
-          <div class="gigrow" style="margin-bottom:0"><div class="logo">${ic('camera',16)}</div><div class="body"><div class="title" style="font-size:13.5px">Chụp ảnh & giữ ảnh</div><div class="co">Cần 1 người · hỏi trước khi đăng ảnh</div></div><div class="actions"><button class="btn btn-out btn-sm" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div></div>
+  <div class="dp">
+  <div class="crumb"><a data-go="hoatdong">Hoạt động</a> ${ic('chev',10)} <span class="dp-crumb-current">${esc(a.title)}</span></div>
+  <div class="dp-layout">
+    <div class="dp-main">
+      <div class="dp-hero">
+        <div class="dp-hero-cover">${bannerImg(a.image,a.upcoming?'calendar':'archive',a.title)}${a.image?photoReportBtn('activity_photo',a.id):''}</div>
+        <div class="dp-hero-body">
+          <div class="dp-badges">${dpBadge(a.cat||'Khác')}${a.upcoming?'':dpBadge('Đã diễn ra','muted')}</div>
+          <h1 class="dp-title">${esc(a.title)}</h1>
+          <div class="dp-meta-line">${organizer?`<span>Đăng bởi ${esc(organizer.name)}</span><span class="dp-meta-dot">•</span>`:''}<span>${ic('users',13)} ${a.going} người tham gia</span></div>
         </div>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><button class="btn btn-blue btn-lg btn-block" onclick="api.post('/projects/${a.id}/join',{}).then(()=>{toast('Đã đăng ký tham gia','check');render();}).catch(e=>toast(e.message||'Có lỗi, thử lại.','flag'))">${ic('check',16)} Tôi sẽ tham gia</button></div>`
-        :`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><div class="sec-title">${ic('fund',14)} Tổng kết minh bạch</div>
-          <p style="font-size:13px;color:var(--muted)">Nhà Chung chưa ghi sổ quỹ theo từng hoạt động — chưa có số liệu chi phí để hiện ở đây.</p></div>`}
-        </div></div>
-    </div>
-    <aside class="cols-side">
-      <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">${ic('calendar',12)} Ngày</span><span class="val">${fmtDate(a.when)}</span></div>
-        <div class="info-row"><span class="lbl">${ic('clock',12)} Giờ</span><span class="val">${fmtTime(a.when)}${a.endsAt?' – '+fmtTime(a.endsAt):''}</span></div>
-        <div class="info-row"><span class="lbl">${ic('pin',12)} Địa điểm</span><span class="val">${a.place||'Chưa chốt'}</span></div>
-        <div class="info-row"><span class="lbl">Loại hoạt động</span><span class="val">${a.cat}</span></div>
-        <div class="info-row"><span class="lbl">${ic('users',12)} Người dự</span><span class="val">${a.going}</span></div>
       </div>
-      ${organizer?`<div class="box company-card" style="text-align:center">
-        <div class="cand" style="justify-content:center;margin-bottom:8px"><div class="av" style="width:48px;height:48px">${initials(organizer.name)}</div></div>
-        <h3 style="font-size:14px">${organizer.name}</h3><div style="font-size:12px;color:var(--ink2);margin:4px 0">Người tổ chức</div>
+      <div class="dp-content">
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('doc',16)}</span><h2>Giới thiệu</h2></div>
+          <p class="dp-text">${esc(desc)}</p>
+        </div>
+
+        <div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('users',16)}</span><h2>${a.going} người tham gia</h2></div>
+          ${attendees.length?`<div class="dp-people">${attendees.map(m=>`<div class="dp-people-row"><div class="dp-people-ic">${initials(m.name)}</div><div class="dp-people-body"><div class="dp-people-name">${esc(m.name)}</div><div class="dp-people-sub">${esc(m.ward||'')}</div></div></div>`).join('')}</div>${a.going>attendees.length?`<div class="dp-empty-text" style="padding:8px 0 0">+${a.going-attendees.length} người khác</div>`:''}`:'<p class="dp-empty-text">Chưa có ai đăng ký.</p>'}
+        </div>
+
+        ${a.upcoming?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('doc',16)}</span><h2>Cần người phụ trách</h2></div>
+          <div class="dp-people-row"><div class="dp-people-ic">${ic('doc',16)}</div><div class="dp-people-body"><div class="dp-people-name">Đặt bàn & chốt món</div><div class="dp-people-sub">Cần 1 người · trước ngày diễn ra</div></div><button class="btn btn-out btn-sm" style="flex:none" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div>
+          <div class="dp-people-row"><div class="dp-people-ic">${ic('camera',16)}</div><div class="dp-people-body"><div class="dp-people-name">Chụp ảnh & giữ ảnh</div><div class="dp-people-sub">Cần 1 người · hỏi trước khi đăng ảnh</div></div><button class="btn btn-out btn-sm" style="flex:none" onclick="notReady('Phân công việc trong hoạt động')">Nhận</button></div>
+        </div>
+        <div class="dp-section"><button class="btn btn-blue btn-lg btn-block" onclick="api.post('/projects/${a.id}/join',{}).then(()=>{toast('Đã đăng ký tham gia','check');render();}).catch(e=>toast(e.message||'Có lỗi, thử lại.','flag'))">${ic('check',16)} Tôi sẽ tham gia</button></div>`
+        :`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('fund',16)}</span><h2>Tổng kết minh bạch</h2></div>
+          <p class="dp-empty-text">Nhà Chung chưa ghi sổ quỹ theo từng hoạt động — chưa có số liệu chi phí để hiện ở đây.</p>
+        </div>`}
+      </div>
+    </div>
+    <aside class="dp-side">
+      <div class="dp-card">
+        <div class="dp-card-head">${ic('doc',18)}<h3>Thông tin chung</h3></div>
+        <div class="dp-row"><span class="dp-row-label">Ngày</span><span class="dp-row-value">${fmtDate(a.when)}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Giờ</span><span class="dp-row-value">${fmtTime(a.when)}${a.endsAt?' – '+fmtTime(a.endsAt):''}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Địa điểm</span><span class="dp-row-value">${esc(a.place||'Chưa chốt')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Loại hoạt động</span><span class="dp-row-value">${esc(a.cat||'')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Người dự</span><span class="dp-row-value">${a.going}</span></div>
+      </div>
+      ${organizer?`<div class="dp-person-card">
+        <div class="dp-person-avatar">${avatarCircle(organizer.avatar,organizer.name,56)}</div>
+        <div class="dp-person-name">${esc(organizer.name)}</div>
+        <div class="dp-person-sub">Người tổ chức</div>
       </div>`:''}
     </aside>
+  </div>
   </div>`;
 };
 
@@ -3849,24 +4774,42 @@ V['kyuc-detail'] = (params)=>{
   const k = DATA.memories.find(x=>x.id===params[0]) || DATA.memories[0];
   const related = DATA.memories.filter(x=>x.id!==k.id).slice(0,3);
   return `
-  <div class="crumb"><a data-go="kyuc">Ký ức</a> ${ic('chev',10)} ${k.title}</div>
-  <div class="cols">
-    <div class="stack">
-      <div class="section"><div style="aspect-ratio:16/8">${imgph(k.count?'camera':'bolt',k.title,null)}</div>
-        <div style="padding:20px"><span class="tag">${k.cat}</span><h1 style="font-size:19px;margin-top:8px">${k.title}</h1><div style="font-size:12.5px;color:var(--muted);margin-top:6px">${ic('calendar',11)} ${fmtDate(k.date)}${k.count?` · ${k.count} ảnh`:''}</div>
-        ${k.count?`<div class="g3" style="margin-top:16px">${Array.from({length:Math.min(k.count,6)}).map(()=>imgph('camera','Ảnh',100)).join('')}</div>${k.count>6?`<div style="font-size:12px;color:var(--muted);margin-top:10px">+${k.count-6} ảnh khác</div>`:''}`
-          :`<p style="margin-top:14px;font-size:13.5px;color:var(--ink2);line-height:1.7">Chị Lan nhắn lên nhóm một dòng ngắn. Nửa tiếng sau anh Tuấn gọi lại, báo có người em làm cùng công trình. Sáng hôm sau xưởng chạy, đơn hàng kịp giao.</p>
-          <div class="notice brand" style="margin-top:14px">${ic('archive',16)}Kết nối thứ 47 của cộng đồng — đã được hai bên xác nhận.</div>`}</div></div>
-    </div>
-    <aside class="cols-side">
-      <div class="box"><h3>Thông tin chung</h3>
-        <div class="info-row"><span class="lbl">Loại</span><span class="val">${k.cat}</span></div>
-        <div class="info-row"><span class="lbl">Ngày</span><span class="val">${fmtDate(k.date)}</span></div>
+  <div class="dp">
+  <div class="crumb"><a data-go="kyuc">Ký ức</a> ${ic('chev',10)} <span class="dp-crumb-current">${esc(k.title)}</span></div>
+  <div class="dp-layout">
+    <div class="dp-main">
+      <div class="dp-hero">
+        <div class="dp-hero-cover">${imgph(k.count?'camera':'bolt',k.title,null)}</div>
+        <div class="dp-hero-body">
+          <div class="dp-badges">${dpBadge(k.cat||'Khác')}</div>
+          <h1 class="dp-title">${esc(k.title)}</h1>
+          <div class="dp-meta-line"><span>${ic('calendar',13)} ${fmtDate(k.date)}</span>${k.count?`<span class="dp-meta-dot">•</span><span>${k.count} ảnh</span>`:''}</div>
+        </div>
       </div>
-      ${related.length?`<div class="box"><h3>Ký ức khác</h3>
-        ${related.map(x=>`<div class="mini-job" data-go="kyuc-detail:${x.id}" style="cursor:pointer"><div class="logo" style="width:40px;height:40px;border-radius:8px">${ic(x.count?'camera':'bolt',15)}</div><div><div class="mj-t">${x.title}</div><div class="mj-c">${fmtDate(x.date)}</div></div></div>`).join('')}
+      <div class="dp-content">
+        ${k.count?`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic gold">${ic('camera',16)}</span><h2>Ảnh</h2></div>
+          <div class="g3">${Array.from({length:Math.min(k.count,6)}).map(()=>imgph('camera','Ảnh',100)).join('')}</div>
+          ${k.count>6?`<div class="dp-empty-text" style="padding-top:10px">+${k.count-6} ảnh khác</div>`:''}
+        </div>`:`<div class="dp-section">
+          <div class="dp-section-head"><span class="dp-section-ic">${ic('doc',16)}</span><h2>Câu chuyện</h2></div>
+          <p class="dp-text">Chị Lan nhắn lên nhóm một dòng ngắn. Nửa tiếng sau anh Tuấn gọi lại, báo có người em làm cùng công trình. Sáng hôm sau xưởng chạy, đơn hàng kịp giao.</p>
+          <div class="dp-notice" style="margin-top:14px">${ic('archive',16)}<p>Kết nối thứ 47 của cộng đồng — đã được hai bên xác nhận.</p></div>
+        </div>`}
+      </div>
+    </div>
+    <aside class="dp-side">
+      <div class="dp-card">
+        <div class="dp-card-head">${ic('doc',18)}<h3>Thông tin chung</h3></div>
+        <div class="dp-row"><span class="dp-row-label">Loại</span><span class="dp-row-value">${esc(k.cat||'')}</span></div>
+        <div class="dp-row"><span class="dp-row-label">Ngày</span><span class="dp-row-value">${fmtDate(k.date)}</span></div>
+      </div>
+      ${related.length?`<div class="dp-card">
+        <div class="dp-card-head">${ic('archive',18)}<h3>Ký ức khác</h3></div>
+        <div class="dp-mini">${related.map(x=>`<a class="dp-mini-row" data-go="kyuc-detail:${x.id}"><div class="dp-mini-img">${ic(x.count?'camera':'bolt',17)}</div><div><div class="dp-mini-title">${esc(x.title)}</div><div class="dp-mini-sub">${fmtDate(x.date)}</div></div></a>`).join('')}</div>
       </div>`:''}
     </aside>
+  </div>
   </div>`;
 };
 
@@ -4145,12 +5088,59 @@ ADM_RENDERERS.quyFundEntries = ()=>{
         <td style="text-align:right;font-weight:700;color:${amt>=0?'var(--green,#16a34a)':'var(--red,#ef4444)'}">${amt>=0?'+':'-'}${money(Math.abs(amt))}</td>
         <td style="text-align:right">${t.locked?`<span class="t-muted" style="font-size:12px">${ic('lock',11)} Đã chốt</span>`:`<button class="btn btn-out btn-sm" onclick="khoaButToan('${t.id}')">Chốt sổ</button>`}</td></tr>`;}).join('')||`<tr><td colspan="5" class="t-muted">${q?'Không tìm thấy bút toán nào khớp.':'Chưa có bút toán nào.'}</td></tr>`;
 };
+// Đơn xin vay chờ duyệt (DATA.loanRequests, xem bootstrap() — GET /loans,
+// chỉ approver/tech nạp được, đúng vai được ghi sổ quỹ). Cùng khuôn
+// joinRequestRowHtml/duyetDon/WIZ.tuChoiDon ở trên, đổi sang loans/service.js.
+function loanQueueRowHtml(l){
+  return `<tr><td><div class="cand"><div class="av">${initials(l.borrower_name||'')}</div><div><div class="ci-nm">${esc(l.borrower_name||'Ẩn danh')}</div></div></div></td>
+    <td class="t-strong">${money(l.amount)}</td><td>${esc(l.purpose)}</td><td class="t-time">${fmtDate(l.created_at)}</td>
+    <td><div class="act-btns"><button class="btn btn-blue btn-sm" onclick="duyetVay('${l.id}')">Duyệt</button><button class="btn btn-out btn-sm" onclick="WIZ.tuChoiVay('${l.id}')">Từ chối</button></div></td></tr>`;
+}
+async function duyetVay(id){
+  const l = DATA.loanRequests.find(x=>x.id===id); if(!l) return;
+  if(!confirm(`Duyệt khoản vay ${money(l.amount)} của ${l.borrower_name||'thành viên này'}?`)) return;
+  try{
+    await api.post(`/loans/${id}/approve`, {});
+    l.status='approved';
+    toast('Đã duyệt khoản vay','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
+WIZ.tuChoiVay = (id)=>{
+  const l = DATA.loanRequests.find(x=>x.id===id); if(!l) return;
+  openModal(`
+  <div class="modal-head"><b>Từ chối khoản vay ${money(l.amount)}</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body">
+    <div class="field"><label class="label">Ghi chú cho người vay (không bắt buộc)</label>
+      <textarea class="input" id="tcv-note" style="height:90px;padding-top:10px" placeholder="Vì sao chưa duyệt được lần này…"></textarea></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+    <button class="btn btn-red" id="tcv-submit" style="flex:2" onclick="tuChoiVaySubmit('${id}')">Từ chối khoản vay</button></div>`);
+};
+async function tuChoiVaySubmit(id){
+  const note = getVal('tcv-note');
+  const btn=qs('#tcv-submit'); if(btn){btn.disabled=true;btn.textContent='Đang gửi…';}
+  try{
+    await api.post(`/loans/${id}/reject`, note?{note}:{});
+    const l = DATA.loanRequests.find(x=>x.id===id); if(l) l.status='rejected';
+    closeModal(); toast('Đã từ chối khoản vay','check');
+    render();
+  }catch(e){
+    toast(e.message||'Có lỗi, thử lại.','flag');
+    if(btn){btn.disabled=false;btn.textContent='Từ chối khoản vay';}
+  }
+}
 ADM.quy = ()=>{
   const f = DATA.fund;
   const approvers = approversList();
+  const pendingLoans = (DATA.loanRequests||[]).filter(l=>l.status==='requested');
   return `
   <div class="page-head"><div><h1>Quỹ hội</h1><p>Sổ quỹ minh bạch — mọi khoản thu/chi đều ghi công khai, không hiện ai chuyển bao nhiêu riêng lẻ.</p></div>
     <button class="btn btn-blue" data-open="ghiSoQuy">${ic('plus',15)} Ghi khoản mới</button></div>
+  <div class="section" style="margin-bottom:16px"><div class="card-head"><h3>${ic('send',14)} Đơn xin vay chờ duyệt (${pendingLoans.length})</h3></div>
+    <table><thead><tr><th>Người vay</th><th>Số tiền</th><th>Lý do</th><th>Ngày gửi</th><th style="text-align:right">Thao tác</th></tr></thead>
+    <tbody>${pendingLoans.length?pendingLoans.map(loanQueueRowHtml).join(''):'<tr><td colspan="5" class="t-muted">Không có đơn nào đang chờ.</td></tr>'}</tbody></table>
+  </div>
   <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat"><div class="stat-ico">${ic('fund',16)}</div><div class="stat-num" style="color:var(--brand)">${money(f.balance)}</div><div class="stat-lbl">Số dư hiện tại</div></div>
     <div class="stat"><div class="stat-ico">${ic('check',16)}</div><div class="stat-num" style="color:var(--green,#16a34a)">+${money(f.income)}</div><div class="stat-lbl">Thu tháng này</div></div>

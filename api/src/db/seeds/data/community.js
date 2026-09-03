@@ -147,10 +147,72 @@ export const HUNG_YEN_2025_AREA_NAMES = [
   ['Phường Vũ Phúc', 'phường'],
 ];
 
+/**
+ * 34 tỉnh/thành sau sáp nhập 2025 (Nghị quyết 60-NQ/TW, hiệu lực từ
+ * 01/07/2025) — 28 tỉnh + 6 thành phố trực thuộc trung ương. Đây là CẤP CHA
+ * mới của cây khu vực: cộng đồng vốn dựng quanh Hưng Yên, nên "Tỉnh Hưng Yên"
+ * nhận nguyên 104 xã/phường ở trên làm con; 33 tỉnh/thành còn lại CHƯA có danh
+ * mục xã/phường chi tiết — thành viên ở nơi khác chọn tới cấp tỉnh, chi tiết
+ * hơn bổ sung dần khi cộng đồng có người thật ở đấy (đặc tả bổ sung: "khu vực
+ * không chỉ Hưng Yên mà toàn bộ Việt Nam").
+ *
+ * Thứ tự Bắc → Nam để màn chọn khu vực không xáo trộn ngẫu nhiên.
+ */
+export const PROVINCES_VN_2025 = [
+  ['Thành phố Hà Nội', 'thanh-pho'],
+  ['Tỉnh Cao Bằng', 'tinh'],
+  ['Tỉnh Điện Biên', 'tinh'],
+  ['Tỉnh Lai Châu', 'tinh'],
+  ['Tỉnh Lạng Sơn', 'tinh'],
+  ['Tỉnh Lào Cai', 'tinh'],
+  ['Tỉnh Phú Thọ', 'tinh'],
+  ['Tỉnh Quảng Ninh', 'tinh'],
+  ['Tỉnh Sơn La', 'tinh'],
+  ['Tỉnh Thái Nguyên', 'tinh'],
+  ['Tỉnh Tuyên Quang', 'tinh'],
+  ['Thành phố Hải Phòng', 'thanh-pho'],
+  ['Tỉnh Bắc Ninh', 'tinh'],
+  ['Tỉnh Hưng Yên', 'tinh'],
+  ['Tỉnh Ninh Bình', 'tinh'],
+  ['Tỉnh Thanh Hóa', 'tinh'],
+  ['Tỉnh Nghệ An', 'tinh'],
+  ['Tỉnh Hà Tĩnh', 'tinh'],
+  ['Tỉnh Quảng Trị', 'tinh'],
+  ['Thành phố Huế', 'thanh-pho'],
+  ['Thành phố Đà Nẵng', 'thanh-pho'],
+  ['Tỉnh Quảng Ngãi', 'tinh'],
+  ['Tỉnh Gia Lai', 'tinh'],
+  ['Tỉnh Đắk Lắk', 'tinh'],
+  ['Tỉnh Khánh Hòa', 'tinh'],
+  ['Tỉnh Lâm Đồng', 'tinh'],
+  ['Tỉnh Đồng Nai', 'tinh'],
+  ['Tỉnh Tây Ninh', 'tinh'],
+  ['Thành phố Hồ Chí Minh', 'thanh-pho'],
+  ['Tỉnh Đồng Tháp', 'tinh'],
+  ['Tỉnh An Giang', 'tinh'],
+  ['Tỉnh Vĩnh Long', 'tinh'],
+  ['Thành phố Cần Thơ', 'thanh-pho'],
+  ['Tỉnh Cà Mau', 'tinh'],
+];
+
+export const PROVINCE_AREAS = PROVINCES_VN_2025.map(([name], i) => ({
+  id: id(`province:${name}`),
+  community_id: COMMUNITY_ID,
+  name,
+  parent_id: null,
+  lat: null,
+  lng: null,
+  is_active: true,
+  idx: i,
+}));
+
+const HUNG_YEN_PROVINCE_ID = PROVINCE_AREAS.find((p) => p.name === 'Tỉnh Hưng Yên').id;
+
 export const AREAS = HUNG_YEN_2025_AREA_NAMES.map(([name], i) => ({
   id: id(`area:${name}`),
   community_id: COMMUNITY_ID,
   name,
+  parent_id: HUNG_YEN_PROVINCE_ID,
   lat: null,
   lng: null,
   is_active: true,
@@ -158,3 +220,9 @@ export const AREAS = HUNG_YEN_2025_AREA_NAMES.map(([name], i) => ({
 }));
 
 export const areaAt = (i) => AREAS[i % AREAS.length].id;
+
+/** Toàn bộ hàng cần ghi vào bảng `areas`: 34 tỉnh/thành (gốc) + 104 xã/phường
+ * của Hưng Yên (lá). `areaAt()` ở trên CỐ Ý chỉ cuộn qua `AREAS` (lá) — gán
+ * area_id cấp tỉnh cho một member/applicant mẫu là sai (tỉnh không phải nơi ở
+ * cụ thể), nên seed thành viên không được đổi sang dùng mảng này. */
+export const ALL_AREAS = [...PROVINCE_AREAS, ...AREAS];

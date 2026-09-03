@@ -3,7 +3,7 @@ import argon2 from 'argon2';
 import { seedKnex } from './db.js';
 import { id } from './ids.js';
 import { upsert, insertOnce, actAs } from './helpers.js';
-import { COMMUNITY_ID, COMMUNITY_CODE, CONFIG, AREAS } from './data/community.js';
+import { COMMUNITY_ID, COMMUNITY_CODE, CONFIG, ALL_AREAS } from './data/community.js';
 import { MEMBERS, JOIN_REQUESTS, EXTRA_REQUESTS, ROLE_GRANTS, byCode } from './data/tree.js';
 import { ALL_WORKS, CAPABILITIES } from './data/works.js';
 import { SIGNALS, JOB_NEEDS, AID_REQUESTS, ACTIVITIES, FUND_ENTRIES, LOANS } from './data/life.js';
@@ -76,8 +76,8 @@ async function seedCommunity(trx, stat) {
     [{ id: COMMUNITY_ID, code: COMMUNITY_CODE, name: 'Nhà Chung Bính Dần 1986', config: JSON.stringify(CONFIG) }]
   );
   stat.areas += await upsert(
-    trx, 'areas', ['id', 'community_id', 'name', 'lat', 'lng', 'is_active'], AREAS,
-    { update: ['name', 'lat', 'lng', 'is_active'] }
+    trx, 'areas', ['id', 'community_id', 'name', 'parent_id', 'lat', 'lng', 'is_active'], ALL_AREAS,
+    { update: ['name', 'parent_id', 'lat', 'lng', 'is_active'] }
   );
 }
 

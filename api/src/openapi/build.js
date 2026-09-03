@@ -13,6 +13,7 @@ import * as aid from '../modules/aid/schema.js';
 import * as complaints from '../modules/complaints/schema.js';
 import * as verifications from '../modules/verifications/schema.js';
 import * as fund from '../modules/fund/schema.js';
+import * as loans from '../modules/loans/schema.js';
 import * as moderation from '../modules/moderation/schema.js';
 
 const TYPE_NAMES = {
@@ -342,6 +343,13 @@ export function buildOpenApi() {
     endpoint('GET', '/api/v1/fund/entries', { query: fund.listQuerySchema }),
     endpoint('POST', '/api/v1/fund/entries', { body: fund.createEntrySchema, response: { description: 'Created' } }));
   add('/api/v1/fund/entries/{id}/lock', endpoint('POST', '/api/v1/fund/entries/{id}/lock', { pathParams: fund.idParamSchema }));
+
+  add('/api/v1/loans',
+    endpoint('GET', '/api/v1/loans', { query: loans.listQuerySchema }),
+    endpoint('POST', '/api/v1/loans', { body: loans.createLoanSchema, response: { description: 'Created' } }));
+  add('/api/v1/loans/me', endpoint('GET', '/api/v1/loans/me'));
+  add('/api/v1/loans/{id}/approve', endpoint('POST', '/api/v1/loans/{id}/approve', { pathParams: loans.idParamSchema, body: loans.decisionSchema }));
+  add('/api/v1/loans/{id}/reject', endpoint('POST', '/api/v1/loans/{id}/reject', { pathParams: loans.idParamSchema, body: loans.decisionSchema }));
 
   add('/api/v1/moderation',
     endpoint('GET', '/api/v1/moderation', { query: moderation.listQuerySchema }),

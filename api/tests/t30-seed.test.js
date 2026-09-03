@@ -4,7 +4,7 @@ import { v5 as uuidv5 } from 'uuid';
 import { resetDb } from './helpers/db.js';
 import { runSeed } from '../src/db/seeds/run.js';
 import { id } from '../src/db/seeds/ids.js';
-import { COMMUNITY_ID, HUNG_YEN_2025_AREA_NAMES } from '../src/db/seeds/data/community.js';
+import { COMMUNITY_ID, HUNG_YEN_2025_AREA_NAMES, PROVINCES_VN_2025 } from '../src/db/seeds/data/community.js';
 import { byCode, MEMBERS } from '../src/db/seeds/data/tree.js';
 import { verifyChain } from '../src/core/audit.js';
 import { buildApp } from '../src/app.js';
@@ -170,20 +170,39 @@ describe('T22/t29 — dữ liệu mẫu', () => {
       expect(n, table).toBe(want);
     }
 
+    // Cây khu vực giờ có hai cấp: 34 tỉnh/thành (gốc, parent_id NULL — đặc tả
+    // "khu vực không chỉ Hưng Yên mà toàn bộ Việt Nam") + 104 xã/phường của
+    // Hưng Yên (lá, parent_id trỏ về tỉnh Hưng Yên). Xem data/community.js.
     const { rows: [{ n: activeAreas }] } = await db.raw(
       `SELECT count(*)::int AS n FROM areas WHERE community_id = ? AND is_active = true`,
       [COMMUNITY_ID]
     );
-    expect(activeAreas).toBe(104);
+    expect(activeAreas).toBe(138);
     expect(HUNG_YEN_2025_AREA_NAMES).toHaveLength(104);
+    expect(PROVINCES_VN_2025).toHaveLength(34);
 
     const { rows: activeAreaRows } = await db.raw(
       `SELECT name FROM areas WHERE community_id = ? AND is_active = true ORDER BY name`,
       [COMMUNITY_ID]
     );
     expect(activeAreaRows.map((r) => r.name)).toEqual(
-      HUNG_YEN_2025_AREA_NAMES.map(([name]) => name).sort()
+      [...HUNG_YEN_2025_AREA_NAMES.map(([name]) => name), ...PROVINCES_VN_2025.map(([name]) => name)].sort()
     );
+
+    const { rows: [{ n: provinceRoots }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM areas
+        WHERE community_id = ? AND is_active = true AND parent_id IS NULL`,
+      [COMMUNITY_ID]
+    );
+    expect(provinceRoots).toBe(34);
+
+    const { rows: [{ n: hungYenWards }] } = await db.raw(
+      `SELECT count(*)::int AS n FROM areas a
+        JOIN areas p ON p.id = a.parent_id
+        WHERE a.community_id = ? AND a.is_active = true AND p.name = 'Tỉnh Hưng Yên'`,
+      [COMMUNITY_ID]
+    );
+    expect(hungYenWards).toBe(104);
 
     const { rows: [{ n: activeWards }] } = await db.raw(
       `SELECT count(*)::int AS n FROM areas

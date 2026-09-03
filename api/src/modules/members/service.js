@@ -234,6 +234,32 @@ function likeLiteral(s) {
 }
 
 /**
+ * Mở rộng MỘT area_id thành chính nó + toàn bộ khu vực con (đệ quy trong JS,
+ * không phải CTE — cây `areas` của một cộng đồng chỉ vài trăm hàng, đọc hết
+ * rồi duyệt bằng tay rẻ hơn hẳn so với thêm một dạng SQL đệ quy mới vào file
+ * vốn đã rất cẩn trọng với hình dạng WHERE dùng chung 2 câu). `null` giữ
+ * nguyên `null` để vị từ `?::uuid[] IS NULL` ở list() không lọc gì, đúng hành
+ * vi cũ khi không truyền area_id.
+ */
+async function resolveAreaIds(trx, communityId, areaId) {
+  if (!areaId) return null;
+  const { rows } = await trx.raw(`SELECT id, parent_id FROM areas WHERE community_id = ?`, [communityId]);
+  const childrenOf = new Map();
+  for (const r of rows) {
+    if (!r.parent_id) continue;
+    if (!childrenOf.has(r.parent_id)) childrenOf.set(r.parent_id, []);
+    childrenOf.get(r.parent_id).push(r.id);
+  }
+  const ids = [areaId];
+  const queue = [areaId];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const child of childrenOf.get(cur) || []) { ids.push(child); queue.push(child); }
+  }
+  return ids;
+}
+
+/**
  * Danh bạ. MỘT truy vấn trạng thái riêng tư cho CẢ TRANG (contactStates) và
  * MỘT dòng audit_log cho cả trang — xem đặc tả mục 6 và dòng 883.
  *
@@ -258,10 +284,16 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
     //
     // Vị từ dùng CHÍNH fn_privacy_state — cùng hàm mà contactStates() và
     // contact_read gọi — nên không có bản sao thứ hai của luật để trôi dạt.
+    //
+    // area_id giờ lọc theo CẢ khu vực con: cây khu vực có 2 cấp (tỉnh → xã/
+    // phường, xem db/seeds/data/community.js), nên lọc theo một tỉnh (vd. "Hà
+    // Nội") phải ra mọi người ở bất kỳ xã/phường nào của tỉnh đó, không chỉ
+    // người gán thẳng area_id = tỉnh. resolveAreaIds() mở rộng thành mảng
+    // (chính nó khi là khu vực lá, không có con nào) rồi so bằng ANY(...).
     const where = `m.community_id = ?
         AND (?::text IS NULL OR m.status = ?::text)
         AND (?::text IS NULL OR m.work_status = ?::text)
-        AND (?::uuid IS NULL OR (m.area_id = ?::uuid
+        AND (?::uuid[] IS NULL OR (m.area_id = ANY(?::uuid[])
              AND fn_privacy_state(?::uuid, m.id, 'area') IN ('self','visible')))
         AND (?::text IS NULL OR (m.job ILIKE '%' || ?::text || '%'
              AND fn_privacy_state(?::uuid, m.id, 'job') IN ('self','visible')))
@@ -282,13 +314,13 @@ export async function list({ actor, filters = {}, page = 1, limit = 20 }) {
     // sau thì phải đi sửa cả những chỗ đã trót dựa vào hành vi cũ.
     const status = filters.status ?? 'member';
     const workStatus = filters.workStatus ?? null;
-    const areaId = filters.areaId ?? null;
+    const areaIds = await resolveAreaIds(trx, actor.communityId, filters.areaId ?? null);
 
     const whereArgs = [
       actor.communityId,
       status, status,
       workStatus, workStatus,
-      areaId, areaId, actor.id,
+      areaIds, areaIds, actor.id,
       job, job, actor.id,
       q, q,
     ];
