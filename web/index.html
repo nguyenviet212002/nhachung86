@@ -2606,18 +2606,22 @@ function shAvatarPick(input){
 /* Chip khu vực dùng DATA.areasFlat thật (nạp lúc boot qua loadAreas()) thay vì
    danh sách xã hardcode — value đọc lại bằng getSuggestValue() vẫn là TÊN xã,
    dùng areaIdByName() để tra ra uuid thật lúc gửi lên API. */
-/* 107 khu vực thật trong DB — liệt kê hết thành chip (kiểu suggestField() ở
-   dưới) thì thành 1 hàng dài không tìm nổi. Thay bằng ô gõ-tìm: gõ vài ký tự,
-   lọc trong DATA.areasFlat, chọn 1 kết quả. Vẫn ghi vào #val-<groupId> +
-   SUGGEST_VALUES như suggestField() để getSuggestValue() dùng lại được nguyên
-   xi ở mọi wizard đang gọi suggestFieldArea(). */
+/* areasFlat gồm 34 tỉnh/thành (parent_id null) + 104 xã/phường CỦA RIÊNG Hưng
+   Yên (lá, xem HUNG_YEN_2025_AREA_NAMES/AREAS ở backend) — 33 tỉnh còn lại
+   chưa có xã/phường trong DB nên chỉ chọn được đúng tên tỉnh làm "khu vực".
+   provinceOfWard() vẫn suy đúng khi value là tên tỉnh (trả nguyên tên đó, vì
+   parent_id đã null). Liệt kê hết thành chip (kiểu suggestField() ở dưới) thì
+   thành 1 hàng dài không tìm nổi, nên thay bằng ô gõ-tìm: gõ vài ký tự, lọc
+   trong DATA.areasFlat (cả tỉnh lẫn xã/phường), chọn 1 kết quả. Vẫn ghi vào
+   #val-<groupId> + SUGGEST_VALUES như suggestField() để getSuggestValue()
+   dùng lại được nguyên xi ở mọi wizard đang gọi suggestFieldArea(). */
 function suggestFieldArea(label,groupId){
   const has = DATA.areasFlat.length>0;
   const current = SUGGEST_VALUES[groupId]||'';
   return `<div class="field"><label class="label">${label}</label>
     <div style="position:relative">
       <input type="text" class="input" id="search-${groupId}" autocomplete="off" value="${esc(current)}"
-        placeholder="${has?'Gõ tên xã/phường để tìm…':'Đang tải khu vực…'}"
+        placeholder="${has?'Gõ tên xã/phường (hoặc tỉnh/thành nếu ở ngoài Hưng Yên)…':'Đang tải khu vực…'}"
         oninput="areaSearchInput('${groupId}')" onfocus="areaSearchInput('${groupId}')" onblur="areaSearchBlur('${groupId}')">
       <div id="ddown-${groupId}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card,#fff);border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.14)"></div>
     </div>
@@ -2629,8 +2633,13 @@ function areaSearchInput(groupId){
   const ddown = document.getElementById('ddown-'+groupId);
   if(!input||!ddown) return;
   const q = input.value.trim().toLowerCase();
-  const all = DATA.areasFlat.map(a=>a.name);
-  const matches = (q?all.filter(n=>n.toLowerCase().includes(q)):all).slice(0,8);
+  // Ô trống (vừa bấm vào, chưa gõ gì) thì liệt kê ĐỦ 34 tỉnh/thành (parent_id
+  // null) để duyệt — trước đây lấy 8 mục đầu của areasFlat (tỉnh trộn xã,
+  // thứ tự chèn) nên phần lớn tỉnh không sao thấy được nếu không gõ đúng
+  // tên. Có gõ chữ thì tìm CẢ tỉnh lẫn xã/phường như cũ, chỉ nới trần 8→20.
+  const matches = q
+    ? DATA.areasFlat.map(a=>a.name).filter(n=>n.toLowerCase().includes(q)).slice(0,20)
+    : DATA.areasFlat.filter(a=>!a.parent_id).map(a=>a.name);
   if(!matches.length){ ddown.style.display='none'; ddown.innerHTML=''; return; }
   ddown.style.display='block';
   ddown.innerHTML = matches.map(n=>`<button type="button" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:none;font-size:13.5px;cursor:pointer" onmousedown="areaSearchPick('${groupId}','${esc(n).replace(/'/g,"\\'")}')">${esc(n)}</button>`).join('');
