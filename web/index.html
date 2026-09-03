@@ -231,6 +231,14 @@ ul{list-style:none}
 .loc-filter-btn span{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .loc-filter-btn:hover{border-color:var(--brand)}
 .loc-filter.on .loc-filter-btn{border-color:var(--brand);background:var(--brand-l);color:var(--brand-d)}
+/* Nút "Bộ lọc" gộp (Loại tin + Khu vực) chỉ hiện trên di động — thay cho
+   .loc-filter + hàng .tabs riêng (xem @media 768px), mở modal thật thay vì
+   dropdown/hàng tab ngang vốn choán chỗ trên màn hẹp. Ẩn mặc định trên
+   desktop vì .loc-filter/.tabs ở đó đã đủ chỗ hiện thẳng. */
+.mf-trigger{display:none;justify-content:center;width:100%;height:56px;align-items:center;gap:7px;padding:0 10px;
+  border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-weight:600;font-size:14px}
+.mf-trigger svg{flex:none;color:var(--brand)}
+.mf-trigger span{white-space:nowrap}
 .loc-filter-panel{display:none;position:absolute;top:calc(100% + 8px);left:0;min-width:270px;max-height:400px;
   overflow-y:auto;background:#fff;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:30;padding:10px}
 .loc-filter-panel.show{display:block}
@@ -244,6 +252,17 @@ ul{list-style:none}
 .loc-filter-item:hover{background:var(--bg3)}
 .loc-filter-item.on{color:var(--brand);font-weight:700;background:var(--brand-l)}
 .loc-filter-empty{padding:14px 8px;font-size:13px;color:var(--muted);text-align:center}
+/* Nội dung modal "Bộ lọc" trên di động (openViecMobileFilter()) — 2 khối:
+   Loại tin (thay hàng .tabs ngang) + Khu vực (dùng lại đúng khuôn .loc-filter-*
+   ở trên cho khối tìm/liệt kê tỉnh thành). */
+.mf-group{margin-bottom:20px}
+.mf-group:last-child{margin-bottom:0}
+.mf-group-label{font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:10px}
+.mf-tab-list{display:flex;flex-direction:column;gap:7px}
+.mf-tab-item{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:11px;border:1.5px solid var(--line);background:#fff;font-family:var(--font);font-size:14.5px;font-weight:600;color:var(--ink);text-align:left}
+.mf-tab-item img{width:22px;height:22px;object-fit:contain;flex:none}
+.mf-tab-item .cnt{margin-left:auto;color:var(--muted);font-weight:600;font-size:13px}
+.mf-tab-item.on{border-color:var(--brand);background:var(--brand-l);color:var(--brand-d)}
 
 /* ===== Thẻ việc dạng hàng ngang (job row) ===== */
 .gigrow{background:#fff;border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;display:flex;gap:16px;align-items:center;transition:.15s;margin-bottom:14px}
@@ -771,6 +790,27 @@ tr:last-child td{border-bottom:none}
   .gigrow .actions{flex-direction:row;align-items:center;width:100%;justify-content:space-between;align-self:auto}
   .searchbar{flex-direction:column}
   .searchbar .kw,.searchbar select,.searchbar .btn{width:100%}
+  /* Ô tìm + nút Bộ lọc của Bảng nhà (.searchbar.lg) là ngoại lệ — nút Tìm
+     kiếm đã ẩn trên di động (xem trên), Khu vực + hàng .tabs loại tin + hàng
+     Ngành (.cat-row-outer) đều gộp hết vào nút "Bộ lọc" (mở modal, xem
+     openViecMobileFilter()/viecMobileFilterBodyHtml()) thay vì hiện thẳng —
+     ngoài trang chỉ còn ô tìm + nút Bộ lọc, KHÔNG cân đôi 1:1: ô tìm ưu tiên
+     rộng hơn hẳn (flex:2.2), nút Bộ lọc chỉ cần đủ chỗ icon+chữ "Bộ lọc" cố
+     định (flex:1). .hero-center vốn align-items:center (co theo nội dung, để
+     căn giữa .hero-welcome trên desktop) khiến .searchbar.lg bị bó hẹp lại
+     thay vì rộng hết cỡ như card bên dưới — đổi stretch trên di động (không
+     ảnh hưởng .hero-welcome vì đã ẩn) để 2 ô tìm/Bộ lọc rộng bằng card. Độ ưu
+     tiên (3 lớp) cố ý cao hơn 2 rule chung phía trên. */
+  .hero-center{align-items:stretch}
+  .searchbar.lg{flex-direction:row;flex-wrap:nowrap;align-items:center;width:100%}
+  .searchbar.lg .kw{width:auto;flex:2.2;min-width:0}
+  .searchbar.lg .loc-filter{display:none}
+  .mf-trigger{display:flex;flex:1;min-width:0;justify-content:center}
+  .home-type-tabs{display:none}
+  .cat-row-outer{display:none}
+  .cat-row{gap:14px;margin:0;padding:14px 14px 10px}
+  .cat-ic{width:58px;gap:6px;font-size:11px}
+  .cat-ic-i{width:48px;height:48px;border-radius:14px}
   .filterrow{flex-direction:column;align-items:stretch}
   .filterrow .l{overflow-x:visible;flex-wrap:wrap}
   table thead{display:none}
@@ -4263,12 +4303,13 @@ function viecShowMore(){
 // số lượng đang hiện (visible) để mỗi lần đổi bộ lọc đều bắt đầu lại từ đầu.
 function setViecTab(id){ STATE.viec.tab=id; STATE.viec.visible=12; render(); }
 function setViecCat(id){ STATE.viec.cat=id; STATE.viec.visible=12; render(); }
-function viecCatRow(){
+function viecCatRow(clickFn){
   const st=STATE.viec;
+  clickFn = clickFn || 'setViecCat';
   const chip=(id,label,icon)=>{
     const photo = catPhotoUrl(id);
     const inner = photo ? `<img src="${esc(photo)}" alt="">` : ic(icon,24);
-    return `<button type="button" class="cat-ic ${st.cat===id?'on':''}" onclick="setViecCat('${id}')">
+    return `<button type="button" class="cat-ic ${st.cat===id?'on':''}" onclick="${clickFn}('${id}')">
       <span class="cat-ic-i ${photo?'photo':'icon'}">${inner}</span><span>${label}</span></button>`;
   };
   return `<div class="cat-row">${chip('Tất cả','Tất cả','grid')}${DATA.skillCats.slice(1).map(c=>chip(c,c,CAT_ICON[c]||'star')).join('')}</div>`;
@@ -4314,6 +4355,55 @@ function viecProvinceClose(){
 }
 document.addEventListener('click', e=>{ if(!e.target.closest('#viec-province')) viecProvinceClose(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') viecProvinceClose(); });
+/* Modal "Bộ lọc" trên di động (nút .mf-trigger, thay cho Khu vực + hàng
+   .tabs hiện thẳng như bản desktop) — gộp Loại tin + Khu vực vào 1 modal.
+   Chọn 1 mục gọi thẳng setViecTab()/setViecProvince() sẵn có (đổi state +
+   render() lại TRANG CHÍNH phía sau như bình thường) rồi tự vá lại riêng
+   nội dung modal (#viec-mobile-filter-body) để dấu chọn cập nhật ngay mà
+   không phải đóng modal — render() chỉ ghi vào #root, modal nằm ở .overlay
+   ngoài #root nên không bị ghi đè. */
+function viecMobileFilterBodyHtml(){
+  const st=STATE.viec;
+  return `
+  <div class="mf-group">
+    <div class="mf-group-label">Ngành</div>
+    ${viecCatRow('viecMobileSetCat')}
+  </div>
+  <div class="mf-group">
+    <div class="mf-group-label">Loại tin</div>
+    <div class="mf-tab-list">${HOME_TABS.map(([id,lb,img])=>`<button type="button" class="mf-tab-item ${st.tab===id?'on':''}" onclick="viecMobileSetTab('${id}')"><img src="${img}" alt="">${lb} <span class="cnt">(${homeTabCount(id)})</span></button>`).join('')}</div>
+  </div>
+  <div class="mf-group">
+    <div class="mf-group-label">Khu vực</div>
+    <div class="loc-filter-search">${ic('search',14)}<input type="text" id="mf-province-q" placeholder="Tìm tỉnh / thành..." oninput="mfProvinceFilterInput()" aria-label="Tìm tỉnh, thành"></div>
+    <div class="loc-filter-list" id="mf-province-list" style="max-height:240px;overflow-y:auto">${mfProvinceListHtml('')}</div>
+  </div>`;
+}
+function mfProvinceListHtml(q){
+  q=(q||'').trim().toLowerCase();
+  const cur=STATE.viec.province;
+  const items=['Tất cả khu vực', ...cdAllProvinces()].filter(n=>n==='Tất cả khu vực'||!q||n.toLowerCase().includes(q));
+  if(!items.length) return `<div class="loc-filter-empty">Không tìm thấy tỉnh/thành phù hợp.</div>`;
+  return items.map(n=>`<button type="button" class="loc-filter-item ${cur===n?'on':''}" onclick="viecMobileSetProvince('${esc(n).replace(/'/g,"\\'")}')">${n==='Tất cả khu vực'?'':ic('pin',13)+' '}${esc(n==='Tất cả khu vực'?'Tất cả tỉnh / thành':n)}</button>`).join('');
+}
+function mfProvinceFilterInput(){
+  const inp=qs('#mf-province-q'), box=qs('#mf-province-list');
+  if(!inp||!box) return;
+  box.innerHTML = mfProvinceListHtml(inp.value);
+}
+function viecMobileFilterRefresh(){
+  const body=qs('#viec-mobile-filter-body');
+  if(body) body.innerHTML = viecMobileFilterBodyHtml();
+}
+function viecMobileSetTab(id){ setViecTab(id); viecMobileFilterRefresh(); }
+function viecMobileSetProvince(name){ setViecProvince(name); viecMobileFilterRefresh(); }
+function viecMobileSetCat(id){ setViecCat(id); viecMobileFilterRefresh(); }
+function openViecMobileFilter(){
+  openModal(`
+  <div class="modal-head"><b>Bộ lọc</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+  <div class="modal-body" id="viec-mobile-filter-body">${viecMobileFilterBodyHtml()}</div>
+  <div class="modal-foot"><button type="button" class="btn btn-blue" style="flex:1" onclick="closeModal()">Xem kết quả</button></div>`);
+}
 // ===== Sidebar Bảng nhà: thống kê cộng đồng / hoạt động nổi bật / đăng nhập
 // — cả 3 khối đều dùng dữ liệu THẬT đã có sẵn trong DATA (không gọi thêm API,
 // không có số demo cứng). "Kết nối thành công" = việc đã đủ người (status
@@ -4384,13 +4474,16 @@ V.trongnha = (params)=>{
           </div>
         </div>
         <button type="button" class="btn btn-blue" onclick="const i=qs('#viec-search-input'); if(i) i.blur();">${ic('search',16)} Tìm kiếm</button>
+        <button type="button" class="mf-trigger" onclick="openViecMobileFilter()" aria-haspopup="dialog" aria-label="Mở bộ lọc loại tin và khu vực">
+          ${ic('filter',17)}<span>Bộ lọc</span>
+        </button>
         <div id="viec-suggest" class="search-suggest"></div>
       </div>
     </div>
   </div>
 
-  ${viecCatRow()}
-  ${tabRow}
+  <div class="cat-row-outer">${viecCatRow()}</div>
+  <div class="home-type-tabs">${tabRow}</div>
 
   <div class="home-layout">
     <div><div id="viec-results">${viecResultsHtml()}</div></div>
