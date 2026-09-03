@@ -984,7 +984,7 @@ tr:last-child td{border-bottom:none}
 @media(max-width:1024px){.cd-hero{min-height:320px}}
 @media(max-width:768px){.cd-hero{min-height:0;margin-top:-18px}.cd-hero-in{padding:26px 16px 18px}}
 .cd-title{font-size:clamp(32px,5.5vw,58px);font-weight:700;color:var(--cd-green-d);line-height:1.1;text-align:center}
-.cd-sub{font-size:16px;line-height:1.6;color:#344D41;text-align:center;margin:11px auto 0;max-width:640px}
+.cd-sub{font-size:16px;line-height:1.6;color:#344D41;text-align:center;margin:11px auto 0;max-width:640px;text-wrap:pretty}
 .cd-searchrow{display:flex;gap:12px;margin-top:24px}
 @media(max-width:768px){.cd-searchrow{flex-direction:column}}
 .cd-search{position:relative;flex:1 1 74%;display:flex;align-items:center}
@@ -3459,7 +3459,7 @@ PUB.khampha = (params)=>{
     <div class="cd-hero">
       <div class="wrap cd-hero-in">
         <h1 class="cd-title">Cộng đồng Thành viên</h1>
-        <p class="cd-sub">Tập hợp cá nhân, hộ kinh doanh và doanh nghiệp cung cấp dịch vụ minh bạch, uy tín.<br>Kết nối đúng người – đúng dịch vụ – đúng nhu cầu.</p>
+        <p class="cd-sub">Anh chị em Bính Dần 1986 khắp mọi miền — kết nối việc làm, giúp nhau, không qua người lạ.</p>
         <div class="cd-searchrow">
           <div class="cd-search">${ic('search',18)}<input id="khampha-kw" value="${esc(st.q||'')}" placeholder="Tìm theo tên, dịch vụ, nơi kinh doanh..." oninput="khamphaFilterChange()"></div>
           <div class="cd-province" id="cd-province">

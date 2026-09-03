@@ -314,16 +314,27 @@ async function seedSignals(trx, stat) {
   }
 }
 
+// Task 7 (migration 041) mở thêm profession/people_needed/start_note/
+// start_at/requirements/warnings/contact_owner/contact_policy/close_at trên
+// job_needs, nhưng cột seed vẫn dừng ở bảy cột gốc của migration 015 — data/
+// life.js#JOB_NEEDS giờ điền đủ các trường mới đó, nên cột ghi/cập nhật ở đây
+// phải theo kịp, không thì chúng lặng lẽ rơi mất (upsert() chỉ ghi cột có mặt
+// trong JN_COLS, EXCLUDED.<cột> không tồn tại thì không lỗi — chỉ đơn giản
+// không có gì được ghi).
 const JN_COLS = [
   'id', 'community_id', 'poster_id', 'title', 'description', 'terms',
-  'area_id', 'job_type', 'status',
+  'area_id', 'job_type', 'status', 'profession', 'people_needed',
+  'start_note', 'start_at', 'requirements', 'warnings', 'contact_owner',
+  'contact_policy', 'close_at',
 ];
 
 async function seedJobsAndAid(trx, stat) {
   for (const j of JOB_NEEDS) {
     await actAs(trx, j.poster_id);
     stat.job_needs += await upsert(trx, 'job_needs', JN_COLS, [j], {
-      update: ['title', 'description', 'terms', 'area_id', 'job_type', 'status'],
+      update: ['title', 'description', 'terms', 'area_id', 'job_type', 'status',
+        'profession', 'people_needed', 'start_note', 'start_at', 'requirements',
+        'warnings', 'contact_owner', 'contact_policy', 'close_at'],
     });
   }
 

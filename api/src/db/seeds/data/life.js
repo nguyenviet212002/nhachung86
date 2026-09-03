@@ -7,6 +7,12 @@ import { monthsAgo } from './tree.js';
 // Phần đời sống của cộng đồng — đặc tả mục 12.3: 7 tín hiệu, 5 nhu cầu việc,
 // 5 yêu cầu giúp nhau, 4 hoạt động (2 có tổng kết), 12 bút toán quỹ (2 cái ≥ 1
 // triệu có đủ chữ ký), 2 khoản vay.
+//
+// LỆCH có chủ đích khỏi mức tối thiểu đó: JOB_NEEDS có 14 tin, không phải 5 —
+// để màn "Việc & hợp tác" có đủ dữ liệu demo cho người xem duyệt (đủ 11 nhóm
+// nghề có ảnh minh hoạ CAT_PHOTO, đủ cả 5 job_type, đủ ba trạng thái open/
+// filled/closed, và có tin trùng nhóm nghề để khối "Việc tương tự" không rỗng)
+// — không vi phạm gì, đặc tả chỉ nói TỐI THIỂU 5, không nói ĐÚNG 5.
 // ---------------------------------------------------------------------------
 
 const m = (c) => byCode[c].id;
@@ -56,23 +62,177 @@ function futureDays(n) {
   return d.toISOString();
 }
 
-/** 5 nhu cầu việc làm. */
+/**
+ * 14 nhu cầu việc làm, nội dung đầy đủ — dùng hết các trường Task 7 đã mở ở
+ * migration 041 (profession/people_needed/start_note|start_at/requirements/
+ * warnings/contact_owner/contact_policy/close_at), không dừng ở
+ * title/description/terms như bản 5-tin cũ.
+ *
+ * `profession` của MỌI tin khớp CHÍNH XÁC một khoá trong CAT_PHOTO
+ * (web/index.html) — 'Xây dựng'/'Vận tải'/'Kế toán'/'Y tế'/'Nông sản'/
+ * 'Giáo dục'/'Cơ khí'/'Dọn dẹp'/'Điện nước'/'Sửa xe'/'Ẩm thực' — để MỖI tin tự
+ * có ảnh minh hoạ thật ở thẻ danh sách lẫn màn chi tiết (viec-detail's
+ * fallbackCover/homeCardHtml's `it.cover || catPhotoUrl(it.tag)`), dù chưa
+ * seed ảnh chụp thật nào qua job_need_images.
+ *
+ * CỐ Ý KHÔNG seed job_need_images/files ở đây: bảng `files.attached_type` chỉ
+ * là danh sách trắng 'member_avatar'/'member_cover' (migration 030), và
+ * ATTACH_READERS trong modules/files/service.js cũng chỉ khai quyền đọc cho
+ * đúng hai loại đó — job_need_images tồn tại (migration 041) nhưng "ai đọc
+ * được ảnh việc" CHƯA được mở, đúng như "giai đoạn 1" hai chỗ đó ghi rõ. Chèn
+ * thẳng một hàng `files` với attached_type khác hai giá trị trên sẽ vỡ CHECK;
+ * còn để NULL thì theo đúng luật hiện tại chỉ chính chủ đọc được — ảnh coi
+ * như không ai xem thấy. Mở khoá đó là một quyết định bảo mật cần sửa ở CẢ
+ * hai chỗ cùng lúc (không phải việc của một lượt seed dữ liệu mẫu), nên demo
+ * "có ảnh" ở đây dựa hẳn vào ảnh minh hoạ nhóm nghề phía trình duyệt.
+ *
+ * Giữ NGUYÊN cách đánh id theo CHỈ SỐ (`job_need:0`..`job_need:13`, như bản cũ
+ * — không đổi sang khoá chữ) để upsert() ghi ĐÈ đúng 5 hàng đã seed từ trước
+ * thay vì bỏ mồ côi chúng bên cạnh 14 hàng mới.
+ */
 export const JOB_NEEDS = [
-  ['Cần thợ điện nước cho nhà mới xây', 'thoi_vu', 'open'],
-  ['Tuyển hai người phụ xưởng may', 'dai_han', 'open'],
-  ['Tìm người nhận cỗ cưới 20 mâm', 'thoi_vu', 'filled'],
-  ['Cần kế toán làm sổ theo quý', 'hop_tac', 'open'],
-  ['Nhận cháu học nghề cơ khí', 'hoc_nghe', 'closed'],
-].map(([title, jobType, status], i) => ({
+  {
+    title: 'Cần thợ điện nước sửa đường ống rò rỉ gấp',
+    poster: 'M10', jobType: 'thoi_vu', status: 'open', profession: 'Điện nước',
+    description: 'Đường ống nước sau nhà bị rò rỉ hai hôm nay, nước thấm cả xuống nền bếp. Cần thợ có kinh nghiệm tới xem và sửa trong ngày, có thể phải thay một đoạn ống cũ đã mục.',
+    terms: '300.000–500.000đ tuỳ mức độ hỏng, thoả thuận cụ thể sau khi thợ tới xem thực tế.',
+    peopleNeeded: 1, startNote: 'Càng sớm càng tốt, tốt nhất trong hôm nay hoặc sáng mai.',
+    requirements: 'Có đồ nghề sửa ống nước riêng, ưu tiên thợ đã quen việc sửa ống âm tường.',
+    warnings: 'Nhà trong ngõ nhỏ, ô tô không vào được — thợ đi xe máy giúp.',
+    contactOwner: 'Anh Cường (chủ nhà)', contactPolicy: 'anyone', closeDays: 5,
+  },
+  {
+    title: 'Hợp tác lắp đặt hệ thống điện nước cho khu nhà trọ mới',
+    poster: 'M18', jobType: 'hop_tac', status: 'filled', profession: 'Điện nước',
+    description: 'Khu nhà trọ 12 phòng đang xây xong phần thô, cần đội thi công điện nước trọn gói: đi dây, lắp công tơ riêng từng phòng, đường ống cấp thoát nước.',
+    terms: 'Trọn gói theo báo giá đội thi công, tạm ứng 40% trước khi bắt đầu.',
+    peopleNeeded: 3, contactOwner: null, contactPolicy: 'approval',
+  },
+  {
+    title: 'Cần thợ sơn lại toàn bộ nhà 2 tầng',
+    poster: 'M11', jobType: 'thoi_vu', status: 'open', profession: 'Xây dựng',
+    description: 'Sơn lại toàn bộ nhà 2 tầng, cả trong lẫn ngoài, tường cũ đã bong tróc nhiều chỗ cần cạo và bả lại trước khi sơn. Dự kiến làm khoảng 3-4 ngày.',
+    terms: '400.000đ/ngày công, chủ nhà lo sơn và vật tư.',
+    peopleNeeded: 2, startNote: 'Bắt đầu được ngay khi chốt người, không cần chờ.',
+    requirements: 'Có kinh nghiệm sơn nhà dân dụng, biết pha màu theo mẫu.',
+    contactOwner: 'Chị Hạnh', contactPolicy: 'anyone', closeDays: 10,
+  },
+  {
+    title: 'Tuyển thợ xây dài hạn cho công trình nhà ở dân dụng',
+    poster: 'M12', jobType: 'dai_han', status: 'open', profession: 'Xây dựng',
+    description: 'Đội xây dựng đang nhận thêm thợ chính và thợ phụ làm dài hạn, công trình chủ yếu là nhà ở dân dụng trong và ngoài xã. Việc đều quanh năm, không lo thất nghiệp giữa mùa.',
+    terms: 'Thợ chính 350.000đ/ngày, thợ phụ 250.000đ/ngày, trả lương theo tuần.',
+    peopleNeeded: 4,
+    requirements: 'Thợ chính cần biết đọc bản vẽ cơ bản; thợ phụ không yêu cầu kinh nghiệm, có sức khoẻ là nhận.',
+    contactOwner: 'Anh Sơn (đội trưởng)', contactPolicy: 'anyone', closeDays: 30,
+  },
+  {
+    title: 'Cần xe tải nhỏ chở đồ chuyển nhà trong ngày',
+    poster: 'M13', jobType: 'thoi_vu', status: 'open', profession: 'Vận tải',
+    description: 'Chuyển nhà từ xã bên sang, đồ đạc gồm giường tủ, bàn ghế và khoảng 20 thùng carton, quãng đường chừng 8km. Cần xe tải nhỏ và 1-2 người phụ bốc vác.',
+    terms: '600.000đ trọn gói cả chuyến, đã tính công bốc vác hai đầu.',
+    peopleNeeded: 1, startAtDays: 4,
+    requirements: 'Xe tải thùng kín hoặc bạt, tránh làm ướt đồ nếu trời mưa.',
+    contactOwner: 'Anh Nam', contactPolicy: 'anyone', closeDays: 6,
+  },
+  {
+    title: 'Tuyển thợ hàn cơ khí làm việc lâu dài tại xưởng',
+    poster: 'M14', jobType: 'dai_han', status: 'open', profession: 'Cơ khí',
+    description: 'Xưởng cơ khí chuyên làm cổng sắt, lan can, mái tôn cần tuyển thợ hàn có tay nghề, làm việc ổn định lâu dài, có chỗ ở lại cho thợ ở xa nếu cần.',
+    terms: 'Lương khởi điểm 9-12 triệu/tháng tuỳ tay nghề, thử việc 1 tháng.',
+    peopleNeeded: 2,
+    requirements: 'Biết hàn điện, hàn hơi cơ bản; ưu tiên người đã có kinh nghiệm làm cổng sắt, lan can.',
+    warnings: 'Môi trường xưởng nhiều bụi và tiếng ồn, cần chịu được cường độ làm việc.',
+    contactOwner: 'Anh Kiên (chủ xưởng)', contactPolicy: 'approval', closeDays: 20,
+  },
+  {
+    title: 'Hỏi kinh nghiệm sửa cổng sắt bị kẹt bánh xe',
+    poster: 'M19', jobType: 'hoi_tim', status: 'open', profession: 'Cơ khí',
+    description: 'Cổng sắt kéo tay nhà mình bị kẹt bánh xe dưới ray, kéo rất nặng tay mấy hôm nay. Không biết là do lệch ray hay hỏng bánh, có ai từng gặp và biết cách xử lý không, chỉ giúp mình với.',
+    terms: null, peopleNeeded: null,
+    requirements: 'Chỉ cần chia sẻ kinh nghiệm hoặc gợi ý chỗ sửa uy tín, không nhất thiết phải tới tận nơi.',
+    contactOwner: null, contactPolicy: 'anyone', closeDays: 14,
+  },
+  {
+    title: 'Cần thợ sửa xe máy tại nhà, xe không nổ được máy',
+    poster: 'M15', jobType: 'thoi_vu', status: 'open', profession: 'Sửa xe',
+    description: 'Xe máy để lâu không đi, giờ đề mãi không nổ máy, nghi do bugi hoặc bình ắc quy yếu. Nhà không tiện dắt xe ra tiệm, cần thợ tới xem tại nhà giúp.',
+    terms: 'Công + phụ tùng thay (nếu có) theo giá thị trường, trả tiền mặt ngay sau khi xong.',
+    peopleNeeded: 1, startNote: 'Tiện lúc nào ghé qua cũng được trong tuần này.',
+    contactOwner: 'Chị Yến', contactPolicy: 'anyone', closeDays: 7,
+  },
+  {
+    title: 'Cần kế toán làm sổ sách theo quý cho cửa hàng tạp hoá',
+    poster: 'M16', jobType: 'hop_tac', status: 'open', profession: 'Kế toán',
+    description: 'Cửa hàng tạp hoá quy mô nhỏ, cần người làm sổ sách, kê khai thuế theo quý, không yêu cầu ngồi tại chỗ — có thể làm từ xa, gửi hoá đơn chứng từ qua Zalo.',
+    terms: '1.500.000đ/quý, thanh toán sau khi nộp báo cáo xong.',
+    peopleNeeded: 1,
+    requirements: 'Có kinh nghiệm kế toán hộ kinh doanh, nắm được quy định kê khai thuế hiện hành.',
+    contactOwner: null, contactPolicy: 'approval', closeDays: 15,
+  },
+  {
+    title: 'Cần người chăm sóc bà cụ ban đêm, có kinh nghiệm điều dưỡng',
+    poster: 'M17', jobType: 'thoi_vu', status: 'open', profession: 'Y tế',
+    description: 'Bà cụ 82 tuổi mới xuất viện sau phẫu thuật, ban ngày con cháu thay nhau chăm được nhưng ban đêm cần người có kinh nghiệm túc trực, theo dõi tình trạng và hỗ trợ đi lại.',
+    terms: '250.000đ/đêm, làm liên tục khoảng 2 tuần, có thể kéo dài thêm tuỳ tình hình.',
+    peopleNeeded: 1, startNote: 'Cần bắt đầu ngay trong vài ngày tới.',
+    requirements: 'Ưu tiên người từng làm điều dưỡng hoặc chăm người bệnh, biết đo huyết áp cơ bản.',
+    warnings: 'Công việc thức đêm, cần người thật sự sắp xếp được thời gian, tránh nhận rồi bỏ giữa chừng.',
+    contactOwner: 'Chị Lan (con gái)', contactPolicy: 'approval', closeDays: 4,
+  },
+  {
+    title: 'Cần người thu hoạch rau vụ đông, làm trong 3 ngày',
+    poster: 'M20', jobType: 'thoi_vu', status: 'closed', profession: 'Nông sản',
+    description: 'Ruộng rau vụ đông đã tới lúc thu hoạch, cần người phụ cắt, bó và đóng sọt chuyển ra xe kịp phiên chợ sớm. Việc đã tìm đủ người, cảm ơn mọi người đã quan tâm.',
+    terms: '200.000đ/ngày, bao bữa trưa.',
+    peopleNeeded: 3,
+    contactOwner: null, contactPolicy: 'anyone',
+  },
+  {
+    title: 'Nhận dạy nghề may cho người mới bắt đầu, học việc có lương',
+    poster: 'M21', jobType: 'hoc_nghe', status: 'open', profession: 'Giáo dục',
+    description: 'Xưởng may nhỏ nhận dạy nghề cho người chưa biết may, học từ cơ bản: cắt, ráp, vắt sổ. Vừa học vừa làm, có phụ cấp ngay từ tháng đầu, thạo việc thì lên lương theo sản phẩm.',
+    terms: 'Phụ cấp học việc 2.000.000đ/tháng đầu, sau đó tính theo sản phẩm hoàn thành.',
+    peopleNeeded: 2, startNote: 'Nhận học viên mới đầu mỗi tháng.',
+    requirements: 'Không cần biết trước, chỉ cần chăm chỉ và kiên trì học trong ít nhất 2 tháng đầu.',
+    contactOwner: 'Cô Nga (chủ xưởng)', contactPolicy: 'anyone', closeDays: 25,
+  },
+  {
+    title: 'Cần người dọn dẹp nhà cửa tổng vệ sinh cuối năm',
+    poster: 'M22', jobType: 'thoi_vu', status: 'open', profession: 'Dọn dẹp',
+    description: 'Nhà 3 tầng cần tổng vệ sinh trước Tết: lau cửa kính, dọn ban công, quét mạng nhện, lau chùi bếp và nhà tắm. Ước chừng làm trong một ngày là xong.',
+    terms: '350.000đ trọn ngày, chủ nhà chuẩn bị sẵn dụng cụ vệ sinh cơ bản.',
+    peopleNeeded: 2, startAtDays: 12,
+    contactOwner: 'Anh Toàn', contactPolicy: 'anyone', closeDays: 15,
+  },
+  {
+    title: 'Hợp tác mở quầy bán phở buổi sáng, góp vốn ăn chia',
+    poster: 'M23', jobType: 'hop_tac', status: 'open', profession: 'Ẩm thực',
+    description: 'Đã có mặt bằng đầu ngõ chợ, đang tìm người biết nấu phở ngon cùng hợp tác mở quầy bán buổi sáng, góp vốn ban đầu và chia lợi nhuận theo thoả thuận.',
+    terms: 'Góp vốn ban đầu khoảng 15 triệu/người, chia lợi nhuận theo tỷ lệ góp vốn.',
+    peopleNeeded: 1,
+    requirements: 'Biết nấu phở ngon, có thể nấu thử trước khi hai bên quyết định hợp tác chính thức.',
+    contactOwner: 'Anh Trung', contactPolicy: 'approval', closeDays: 20,
+  },
+].map((j, i) => ({
   id: id('job_need:' + i),
   community_id: COMMUNITY_ID,
-  poster_id: m('M' + String(10 + i).padStart(2, '0')),
-  title,
-  description: 'Mô tả công việc mẫu.',
-  terms: 'Thoả thuận theo ngày công.',
-  area_id: areaAt(i + 2),
-  job_type: jobType,
-  status,
+  poster_id: m(j.poster),
+  title: j.title,
+  description: j.description,
+  terms: j.terms ?? null,
+  area_id: areaAt(i + 6),
+  job_type: j.jobType,
+  status: j.status,
+  profession: j.profession,
+  people_needed: j.peopleNeeded ?? null,
+  start_note: j.startNote ?? null,
+  start_at: j.startAtDays ? futureDays(j.startAtDays) : null,
+  requirements: j.requirements ?? null,
+  warnings: j.warnings ?? null,
+  contact_owner: j.contactOwner ?? null,
+  contact_policy: j.contactPolicy ?? 'approval',
+  close_at: j.closeDays ? futureDays(j.closeDays) : null,
 }));
 
 /** 5 yêu cầu giúp nhau, hai cái có suất để thử `fn_aid_slot_capacity`. */

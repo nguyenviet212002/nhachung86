@@ -155,7 +155,7 @@ describe('T22/t29 — dữ liệu mẫu', () => {
     const expected = {
       capabilities: 148,
       signals: 7,
-      job_needs: 5,
+      job_needs: 14,
       aid_requests: 5,
       activities: 4,
       activity_summaries: 2,
