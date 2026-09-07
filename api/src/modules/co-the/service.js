@@ -3,6 +3,8 @@ import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 import * as rules from '../games/rules.js';
 import * as engineClient from '../games/engineClient.js';
+import { publishToGame } from '../../core/realtime.js';
+import { selectAiMove } from '../games/aiSelect.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy thế cờ này.', { status: 404 });
 export const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
@@ -16,6 +18,15 @@ const ENGINE_VERSION = 'pikafish@6127307';
 const ANALYZE_MOVETIME_MS = 3000;
 const TIM_CACH_PHA_MOVETIME_MS = 5000;
 const TIM_CACH_PHA_MULTIPV = 5;
+
+// Đối thủ trong Cờ Thế LUÔN là máy — mức "yếu/vừa/mạnh" tái dùng ĐÚNG cơ
+// chế aiSelect (BAN_CHUAN_CO_TUONG.md mục 4) nhưng ĐẢO NGƯỢC mục đích:
+// "yếu" cần máy CÓ THỂ đi kém hơn nước tốt nhất để dễ cho người giải, nên
+// map sang ngưỡng LỎNG NHẤT của aiSelect ('xuat-sac' — top-3, chênh<=120);
+// "mạnh" map sang ngưỡng CHẶT NHẤT ('sieu' — luôn nước tốt nhất).
+const OPPONENT_LEVEL_TO_AI_SELECT = { yeu: 'xuat-sac', vua: 'thong-minh', manh: 'sieu' };
+const OPPONENT_MOVETIME_MS = 8000;
+const OPPONENT_MULTIPV = 3;
 
 // Dùng chung cho mọi task sau (session/phân tích) — load 1 thế, chặn cross-
 // tenant bằng community_id. Export để Task 3/4/5/6/7 import thẳng, không
@@ -130,4 +141,148 @@ export async function findRefutationPaths({ actor, id }) {
     .sort((a, b) => a.mate - b.mate)
     .map((l) => ({ first_move: l.move, so_nuoc: l.mate, duong_di: l.pv }));
   return { co_duong_thang: duong.length > 0, duong };
+}
+
+export async function loadSession(trx, communityId, id) {
+  const { rows: [row] } = await trx.raw(`SELECT * FROM co_the_sessions WHERE id = ? AND community_id = ?`, [id, communityId]);
+  if (!row) throw NOT_FOUND();
+  return row;
+}
+
+export async function createSession({ actor, positionId, mode, opponentLevel, luyenTheCap }) {
+  const position = await withActor(actor.id, (trx) => loadPosition(trx, actor.communityId, positionId));
+  if (mode === 'giai' && !opponentLevel) throw new AppError('VALIDATION_FAILED', 'Cần chọn trình độ bên chống.', { status: 422 });
+  if (mode === 'luyen-the' && !luyenTheCap) throw new AppError('VALIDATION_FAILED', 'Cần chọn cấp Luyện Thế.', { status: 422 });
+  return withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `INSERT INTO co_the_sessions (community_id, position_id, solver_member_id, solver_side, mode,
+              opponent_level, luyen_the_cap, board, turn)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) RETURNING *`,
+      [actor.communityId, positionId, actor.id, position.side_to_move, mode,
+       opponentLevel, luyenTheCap, JSON.stringify(position.board), position.side_to_move]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'co_the.session_started', targetType: 'co_the_session', targetId: row.id, detail: { mode } });
+    return row;
+  });
+}
+
+// Áp 1 nước + tính lại chiếu bí/hết nước đi/lặp thế/60 nước — TÁI DÙNG y
+// hệt logic games/service.js move() (không viết luật lần hai), chỉ đổi
+// bảng nguồn (co_the_moves thay game_moves). `board`/`turn`/`id`/
+// `community_id` đọc từ `state` truyền vào (không phải luôn là session gốc
+// — lần gọi thứ 2 trong move() dưới đây truyền STATE ĐÃ CẬP NHẬT sau nước
+// của người giải, không phải session ban đầu).
+async function applyOneMove(trx, state, side, from, to) {
+  const piece = state.board[from.r]?.[from.c];
+  if (!piece || piece.side !== side) throw new AppError('VALIDATION_FAILED', 'Ô xuất phát không có quân của bên này.', { status: 422 });
+  const legal = rules.legalMoves(state.board, from.r, from.c);
+  if (!legal.some((m) => m.r === to.r && m.c === to.c)) throw new AppError('VALIDATION_FAILED', 'Nước đi không hợp lệ.', { status: 422 });
+  const applied = rules.applyMove(state.board, from, to);
+  const { rows: pastMoves } = await trx.raw(
+    `SELECT side, is_check AS "isCheck", captured_type IS NOT NULL AS captured, board_hash AS "boardHash"
+       FROM co_the_moves WHERE session_id = ? ORDER BY seq ASC`, [state.id]);
+  const newTurnIfContinuing = rules.opp(side);
+  let gameOver = applied.gameOver, winner = applied.winner, reason = applied.reason;
+  const newHash = rules.hashBoard(applied.board, gameOver ? state.turn : newTurnIfContinuing);
+  const moveHistory = [...pastMoves, { side, isCheck: applied.checkOpp, captured: !!applied.captured, boardHash: newHash }];
+  if (!gameOver) {
+    const rep = rules.detectRepetition(moveHistory);
+    if (rep) { gameOver = true; reason = rep.reason; winner = rep.loser ? rules.opp(rep.loser) : null; }
+    else if (rules.detectNoCaptureDraw(moveHistory)) { gameOver = true; reason = 'hoa-60-nuoc'; winner = null; }
+  }
+  const newTurn = gameOver ? state.turn : newTurnIfContinuing;
+  const { rows: [seqRow] } = await trx.raw(`SELECT COALESCE(MAX(seq), 0) + 1 AS seq FROM co_the_moves WHERE session_id = ?`, [state.id]);
+  await trx.raw(
+    `INSERT INTO co_the_moves (community_id, session_id, seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, board_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [state.community_id, state.id, seqRow.seq, side, from.r, from.c, to.r, to.c,
+     applied.captured?.type ?? null, applied.checkOpp, newHash]);
+  return { board: applied.board, turn: newTurn, gameOver, winner, reason };
+}
+
+// Người giải đi 1 nước. Nếu ván chưa xong VÀ mode='giai', máy (Đối thủ) đáp
+// lễ NGAY TRONG CÙNG request — khác hẳn `maybeAutoMove` của games (không
+// fire-and-forget): Cờ Thế không có đồng hồ/đối thủ người thật cần thông
+// báo riêng, và movetime của Đối thủ (8s) là phần chờ NGƯỜI GIẢI đang chủ
+// động đợi, không phải chặn oan một request của người khác.
+export async function move({ actor, id, from, to }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const session = await loadSession(trx, actor.communityId, id);
+    if (session.status !== 'dang-choi') throw INVALID_STATE('Ván này không còn đang chơi.');
+    if (session.mode !== 'giai') throw INVALID_STATE('Ván luyện thế không đi từng nước tay — dùng /luyen-the/chay.');
+    if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+    if (session.turn !== session.solver_side) throw FORBIDDEN('Chưa tới lượt bạn.');
+
+    let step = await applyOneMove(trx, session, session.solver_side, from, to);
+    let cur = { ...session, board: step.board, turn: step.turn };
+
+    if (!step.gameOver) {
+      const fen = rules.boardToFen(cur.board, cur.turn);
+      const { lines } = await engineClient.bestMove({ fen, movetime: OPPONENT_MOVETIME_MS, multipv: OPPONENT_MULTIPV });
+      if (lines?.length) {
+        const chosenUci = selectAiMove(lines, OPPONENT_LEVEL_TO_AI_SELECT[session.opponent_level]);
+        if (chosenUci) {
+          const oppSide = rules.opp(session.solver_side);
+          const { from: oFrom, to: oTo } = rules.uciMoveToCells(chosenUci);
+          step = await applyOneMove(trx, cur, oppSide, oFrom, oTo);
+          cur = { ...cur, board: step.board, turn: step.turn };
+        }
+      }
+    }
+
+    const finished = step.gameOver;
+    const outcome = !finished ? null : !step.winner ? 'hoa' : step.winner === session.solver_side ? 'thang' : 'thua';
+    const { rows: [row] } = await trx.raw(
+      `UPDATE co_the_sessions SET board = ?::jsonb, turn = ?, status = ?, result = ?, end_reason = ?, ended_at = ?
+        WHERE id = ? AND status = 'dang-choi' RETURNING *`,
+      [JSON.stringify(cur.board), cur.turn, finished ? 'ket-thuc' : 'dang-choi', outcome, finished ? step.reason : null,
+       finished ? new Date() : null, id]
+    );
+    if (!row) throw INVALID_STATE('Ván này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'co_the.move', targetType: 'co_the_session', targetId: id,
+      detail: { from_r: from.r, from_c: from.c, to_r: to.r, to_c: to.c } });
+    return row;
+  });
+  publishToGame(id, 'move', { board: result.board, turn: result.turn, status: result.status });
+  if (result.status === 'ket-thuc') publishToGame(id, 'session_end', { result: result.result, reason: result.end_reason });
+  return result;
+}
+
+export async function hint({ actor, id }) {
+  const session = await withActor(actor.id, (trx) => loadSession(trx, actor.communityId, id));
+  if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+  if (session.status !== 'dang-choi') throw INVALID_STATE('Ván này không còn đang chơi.');
+  const fen = rules.boardToFen(session.board, session.turn);
+  const { bestmove } = await engineClient.bestMove({ fen, movetime: ANALYZE_MOVETIME_MS, multipv: 1 });
+  return { move: bestmove, ...rules.uciMoveToCells(bestmove) };
+}
+
+export async function giveUp({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const session = await loadSession(trx, actor.communityId, id);
+    if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+    if (session.status !== 'dang-choi') throw INVALID_STATE('Ván này không còn đang chơi.');
+    const { rows: [row] } = await trx.raw(
+      `UPDATE co_the_sessions SET status = 'ket-thuc', result = 'thua', end_reason = 'bo-cuoc', ended_at = now()
+        WHERE id = ? AND status = 'dang-choi' RETURNING *`, [id]);
+    if (!row) throw INVALID_STATE('Ván này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'co_the.give_up', targetType: 'co_the_session', targetId: id, detail: {} });
+    return row;
+  });
+  publishToGame(id, 'session_end', { result: 'thua', reason: 'bo-cuoc' });
+  return result;
+}
+
+export async function getSession({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const session = await loadSession(trx, actor.communityId, id);
+    if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+    const { rows: moves } = await trx.raw(
+      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, created_at
+         FROM co_the_moves WHERE session_id = ? ORDER BY seq ASC`, [id]);
+    return { ...session, moves };
+  });
 }

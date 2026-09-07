@@ -28,3 +28,25 @@ router.post('/positions/:id/phan-tich', requireAuth, validate(schema.idParamSche
 router.post('/positions/:id/tim-cach-pha', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.findRefutationPaths({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+
+router.post('/sessions', requireAuth, validate(schema.createSessionSchema), async (req, res, next) => {
+  try {
+    res.status(201).json(await service.createSession({
+      actor: req.actor, positionId: req.body.position_id, mode: req.body.mode,
+      opponentLevel: req.body.opponent_level, luyenTheCap: req.body.luyen_the_cap,
+    }));
+  } catch (e) { next(e); }
+});
+router.get('/sessions/:id', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.getSession({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/sessions/:id/moves', requireAuth, validate(schema.idParamSchema, 'params'), validate(schema.moveSchema), async (req, res, next) => {
+  try { res.json(await service.move({ actor: req.actor, id: req.params.id, from: req.body.from, to: req.body.to })); }
+  catch (e) { next(e); }
+});
+router.post('/sessions/:id/mach-1-nuoc', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.hint({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/sessions/:id/roi', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.giveUp({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
