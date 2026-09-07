@@ -2076,7 +2076,7 @@ const TABBAR_ADMIN = [
    nên khách xem "Con người" chỉ thấy trang rỗng — vô lý hơn là bắt đăng nhập
    luôn như "Việc & hợp tác"/"Ký ức" đã làm. Ba mục này giờ nhất quán: khách
    bấm vào đều được đưa rõ ràng sang màn đăng nhập/đăng ký (xem render()). */
-const PUBLIC_SCREENS = new Set(['congchung','hosocongkhai','gianhap','dangnhap']);
+const PUBLIC_SCREENS = new Set(['congchung','hosocongkhai','gianhap','dangnhap','cotuong-phong']);
 /* Nhớ đích khách định xem trước khi bị chặn — vào thẳng đó sau khi đăng nhập
    xong thay vì luôn về "Bảng nhà". Đăng ký KHÔNG dùng biến này vì đăng ký
    không tự đăng nhập (tạo đơn chờ duyệt, xem dangKySubmit). */
@@ -2195,7 +2195,7 @@ function wrapPage(variant, active, bodyHtml, isLanding){
 /* Màn đánh cờ tướng thật (không phải sảnh/danh sách) hiện toàn màn hình,
    thay hẳn cho wrapPage — không header/drawer/footer/tabbar. closeTarget
    là màn quay lại khi bấm nút X (không đánh nữa/đổi ý). */
-const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van']);
+const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van','cotuong-phong']);
 const XQ_FULLSCREEN_CLOSE = { cotuong:'congchung', 'cotuong-may':'cotuong-online', 'cotuong-the':'cotuong-online', 'cotuong-van':'cotuong-online' };
 /* Có mở bảng menu nổi (.xq-fs-panel) hay không — PHẢI lưu ở biến state
    thật, không chỉ đổi class DOM: mọi thao tác trong panel (đổi cấp độ, thế
@@ -3903,6 +3903,53 @@ PUB.dangnhap = ()=>{
     <div class="auth-foot">Chưa có tài khoản? <a data-go="gianhap">Xin gia nhập</a></div>
   </div></div>`;
 };
+
+let GUEST_NAME_INPUT = '';
+PUB['cotuong-phong'] = (params)=>{
+  const token = params[0];
+  if(!token) return `<div class="empty" style="margin-top:15vh"><h3>Link mời không hợp lệ</h3></div>`;
+  if(GUEST_INVITE_TOKEN!==token){
+    // Lần đầu vào token này (hoặc vừa đổi token): nạp lại từ đầu.
+    GUEST_INVITE_TOKEN = token; GUEST_TOKEN = null;
+    const saved = loadGuestSession(token);
+    if(saved){
+      GUEST_TOKEN = saved.guestToken;
+      GAME_STATE_ID = null;
+      loadGame(saved.gameId);
+    }
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải…</p>`;
+  }
+  if(!GUEST_TOKEN) return guestJoinFormHtml(token);
+  if(GAME_STATE_ID===null || GAME_STATE===null){
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
+  }
+  if(GAME_STATE.error){
+    // Token cũ không còn hợp lệ (chủ phòng đã đóng phòng, hoặc chính khách
+    // đã tự rời ở tab khác trước đó) — xoá bản lưu, quay lại form nhập tên
+    // thay vì kẹt lại một thông báo lỗi (mục 5/11 spec thiết kế).
+    clearGuestSession(token); GUEST_TOKEN=null;
+    return guestJoinFormHtml(token);
+  }
+  return guestGameHtml(GAME_STATE);
+};
+function guestJoinFormHtml(token){
+  return `<div class="xq-fs-card">
+    <h1>Vào phòng cờ tướng</h1>
+    <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Nhập tên để đối thủ biết bạn là ai — không cần tài khoản.</p>
+    <input class="input" id="guest-name" placeholder="Tên của bạn" value="${esc(GUEST_NAME_INPUT)}" oninput="GUEST_NAME_INPUT=this.value" style="margin-bottom:10px">
+    <button class="btn btn-blue" style="width:100%" onclick="guestJoinRoom('${token}')">${ic('users',15)} Vào phòng</button>
+  </div>`;
+}
+function guestJoinRoom(token){
+  const name = (GUEST_NAME_INPUT||'').trim();
+  if(!name){ toast('Nhập tên trước đã.','x'); return; }
+  guestFetch('POST', '/games/rooms/'+encodeURIComponent(token)+'/join', {guest_name:name}, null).then(r=>{
+    GUEST_TOKEN = r.guest_token;
+    saveGuestSession(token, {gameId:r.id, guestToken:r.guest_token, guestName:name});
+    loadGame(r.id);
+  }).catch(e=>toast(e.message||'Không vào được phòng, thử lại.','x'));
+}
+
 async function dangNhapSubmit(){
   const identifier=getVal('ln-id'), password=getVal('ln-pw');
   const box=qs('#ln-err'), txt=qs('#ln-err-txt');
