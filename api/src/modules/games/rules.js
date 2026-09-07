@@ -222,3 +222,15 @@ function squareToCell(sq) {
 export function uciMoveToCells(uciMove) {
   return { from: squareToCell(uciMove.slice(0, 2)), to: squareToCell(uciMove.slice(2, 4)) };
 }
+
+// Kiểm hợp lệ một thế cờ trước khi cho chốt/vào trận (dùng cho module
+// co-the — BAN_CHUAN_CO_THE.md §5: fail-closed, thiếu quân thì chặn).
+// Trả mảng lỗi tiếng Việt CÓ DẤU đầy đủ (rỗng = hợp lệ) — trả HẾT lỗi tìm
+// được cùng lúc, không dừng ở lỗi đầu, để người soạn sửa một lần.
+export function validatePosition(board) {
+  const errors = [];
+  if (!findGeneral(board, 'r')) errors.push('Thiếu Tướng bên Đỏ.');
+  if (!findGeneral(board, 'b')) errors.push('Thiếu Tướng bên Đen.');
+  if (flyingGeneral(board)) errors.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  return errors;
+}
