@@ -90,3 +90,51 @@ describe('T40 hashBoard', () => {
     expect(rules.hashBoard(b1, 'r')).not.toBe(rules.hashBoard(b2, 'r'));
   });
 });
+
+describe('T40 detectRepetition / detectNoCaptureDraw', () => {
+  const m = (side, isCheck, boardHash, captured = false) => ({ side, isCheck, captured, boardHash });
+
+  it('boardHash mới nhất mới xuất hiện 2 lần thì chưa tính là lặp', () => {
+    const h = [m('r', false, 'A'), m('b', false, 'B'), m('r', false, 'A')];
+    expect(rules.detectRepetition(h)).toBe(null);
+  });
+
+  it('lặp lần 3, không bên nào chiếu liên tục trong chu kỳ → hoà', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', false, 'B1'),
+      m('r', false, 'C1'),
+      m('b', false, 'start'),
+      m('r', false, 'C1'),
+      m('b', false, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'hoa-3-lan', loser: null });
+  });
+
+  it('lặp lần 3, đúng 1 bên chiếu ở mọi nước của mình trong chu kỳ → bên đó thua (trường chiếu)', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', false, 'B1'),
+      m('r', true, 'C1'),
+      m('b', false, 'start'),
+      m('r', true, 'C1'),
+      m('b', false, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'truong-chieu', loser: 'r' });
+  });
+
+  it('60 nước không ăn quân (120 bán nước) thì hoà', () => {
+    const h = Array.from({ length: 120 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i));
+    expect(rules.detectNoCaptureDraw(h)).toBe(true);
+  });
+
+  it('chưa đủ 120 bán nước thì chưa hoà', () => {
+    const h = Array.from({ length: 119 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i));
+    expect(rules.detectNoCaptureDraw(h)).toBe(false);
+  });
+
+  it('có 1 nước ăn quân trong 120 nước gần nhất thì đếm lại từ đó, chưa hoà', () => {
+    const h = Array.from({ length: 130 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i, i === 20));
+    expect(rules.detectNoCaptureDraw(h)).toBe(false);
+  });
+});

@@ -139,3 +139,45 @@ export function hashBoard(board, turn) {
   }
   return out + '#' + turn;
 }
+
+// Ba luật Kernel còn thiếu (mục 3 spec Kernel/Engine). Cả hai hàm THUẦN — nhận
+// lịch sử nước đã áp (đã gồm nước vừa xong ở cuối mảng), không tự đọc CSDL.
+
+// Đếm boardHash mới nhất đã xuất hiện bao nhiêu lần. Lần thứ 3 → xét chu kỳ
+// lặp (dải nước giữa 2 lần xuất hiện gần nhất) để phân biệt hoà thường và
+// trường chiếu: một bên chiếu ở MỌI nước của chính bên đó suốt chu kỳ thì bên
+// đó thua, không phải hoà. Cả hai bên cùng chiếu liên tục (hiếm, spec gốc
+// không nói rõ) — xử hoà làm mặc định an toàn.
+export function detectRepetition(moveHistory) {
+  const n = moveHistory.length;
+  if (n === 0) return null;
+  const latestHash = moveHistory[n - 1].boardHash;
+  const occurrenceIdx = [];
+  for (let i = 0; i < n; i++) if (moveHistory[i].boardHash === latestHash) occurrenceIdx.push(i);
+  if (occurrenceIdx.length < 3) return null;
+
+  const cycleStart = occurrenceIdx[occurrenceIdx.length - 2] + 1;
+  const cycleEnd = occurrenceIdx[occurrenceIdx.length - 1];
+  const cycleMoves = moveHistory.slice(cycleStart, cycleEnd + 1);
+
+  const checksEveryOwnMove = (side) => {
+    const own = cycleMoves.filter((mv) => mv.side === side);
+    return own.length > 0 && own.every((mv) => mv.isCheck);
+  };
+  const redPerpetual = checksEveryOwnMove('r');
+  const blackPerpetual = checksEveryOwnMove('b');
+  if (redPerpetual && !blackPerpetual) return { reason: 'truong-chieu', loser: 'r' };
+  if (blackPerpetual && !redPerpetual) return { reason: 'truong-chieu', loser: 'b' };
+  return { reason: 'hoa-3-lan', loser: null };
+}
+
+// GIOI_HAN_60 = 120 bán nước không ăn quân (đúng số đo trong spec Kernel/Engine).
+export const GIOI_HAN_60 = 120;
+export function detectNoCaptureDraw(moveHistory) {
+  let streak = 0;
+  for (let i = moveHistory.length - 1; i >= 0; i--) {
+    if (moveHistory[i].captured) break;
+    streak++;
+  }
+  return streak >= GIOI_HAN_60;
+}
