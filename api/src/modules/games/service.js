@@ -255,7 +255,10 @@ export async function get({ actor, id }) {
 // route SSE (GET /:id/stream), nơi phải xác nhận TRƯỚC khi mở kết nối chứ
 // không phải sau (đã gửi header rồi thì không next(e) được nữa).
 export async function assertVisible({ actor, id }) {
-  return withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
+  return withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    return { side: resolveSide(actor, game) };
+  });
 }
 
 export async function move({ actor, id, from, to }) {
@@ -454,6 +457,70 @@ export async function ready({ actor, id }) {
   return { ready: true, active: result.becameActive };
 }
 
+export async function offerDraw({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET draw_offered_by = ? WHERE id = ? AND status = 'active' AND draw_offered_by IS NULL RETURNING id`,
+      [mySide, id]
+    );
+    if (!row) throw INVALID_STATE('Đã có lời cầu hoà đang chờ.');
+    const opponentSide = rules.opp(mySide);
+    const opponentId = opponentSide === 'r' ? game.red_member_id : game.black_member_id;
+    let notification = null;
+    if (opponentId && !isWatchingGame(id, opponentId)) {
+      const { rows: [n] } = await trx.raw(
+        `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'game_turn', 'Đối thủ cầu hoà', 'Đối thủ vừa đề nghị hoà ván cờ.', 'game', ?) RETURNING *`,
+        [actor.communityId, opponentId, actor.id, id]
+      );
+      notification = n;
+    }
+    return { mySide, opponentId, notification };
+  });
+  publishToGame(id, 'draw_offered', { by: result.mySide });
+  if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
+  return { offered: true };
+}
+
+export async function acceptDraw({ actor, id }) {
+  await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (!game.draw_offered_by || game.draw_offered_by === mySide) {
+      throw INVALID_STATE('Không có lời cầu hoà nào để nhận.');
+    }
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'hoa-thoa-thuan', finished_at = now()
+        WHERE id = ? AND status = 'active' AND draw_offered_by = ? RETURNING id`,
+      [id, game.draw_offered_by]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.draw_accepted', targetType: 'game', targetId: id, detail: {} });
+  });
+  publishToGame(id, 'game_end', { winner: null, reason: 'hoa-thoa-thuan' });
+  return { id, status: 'finished' };
+}
+
+export async function declineDraw({ actor, id }) {
+  await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (!game.draw_offered_by || game.draw_offered_by === mySide) {
+      throw INVALID_STATE('Không có lời cầu hoà nào để từ chối.');
+    }
+    await trx.raw(`UPDATE games SET draw_offered_by = NULL WHERE id = ? AND status = 'active'`, [id]);
+  });
+  publishToGame(id, 'draw_declined', {});
+  return { declined: true };
+}
+
 export async function claimTimeout({ actor, id }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
@@ -477,5 +544,56 @@ export async function claimTimeout({ actor, id }) {
     return { winnerSide };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'het-gio' });
+  return { id, status: 'finished' };
+}
+
+export async function markDisconnected({ communityId, gameId, side }) {
+  await withActor(null, async (trx) => {
+    await trx.raw(
+      `UPDATE games SET disconnected_side = ?, disconnected_at = now()
+        WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side IS NULL`,
+      [side, gameId, communityId]
+    );
+  });
+  publishToGame(gameId, 'disconnected', { side });
+}
+
+export async function clearDisconnected({ communityId, gameId, side }) {
+  const wasCleared = await withActor(null, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL,
+              turn_started_at = CASE WHEN turn = ? THEN now() ELSE turn_started_at END
+        WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side = ?
+        RETURNING id`,
+      [side, gameId, communityId, side]
+    );
+    return !!row;
+  });
+  if (wasCleared) publishToGame(gameId, 'reconnected', { side });
+}
+
+export async function claimDisconnectTimeout({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    if (!game.disconnected_side) throw INVALID_STATE('Không có ai đang mất kết nối.');
+    const elapsedMs = Date.now() - new Date(game.disconnected_at).getTime();
+    if (elapsedMs < 60_000) throw INVALID_STATE('Chưa đủ 1 phút mất kết nối.');
+    const loserSide = game.disconnected_side;
+    const winnerSide = rules.opp(loserSide);
+    const winnerId = winnerSide === 'r' ? game.red_member_id : game.black_member_id;
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'mat-ket-noi', winner_member_id = ?, finished_at = now()
+        WHERE id = ? AND status = 'active' AND disconnected_side = ? RETURNING id`,
+      [winnerId, id, loserSide]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.disconnect_timeout', targetType: 'game', targetId: id, detail: { side: loserSide } });
+    return { winnerSide };
+  });
+  publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
   return { id, status: 'finished' };
 }

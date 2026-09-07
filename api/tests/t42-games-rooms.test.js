@@ -4,6 +4,7 @@ import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
+import * as service from '../src/modules/games/service.js';
 
 let db, app, cid, alice, aliceToken, bob, bobToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
@@ -196,5 +197,97 @@ describe('T42 đồng hồ — hết giờ', () => {
     const detail = await supertest(app).get(`/api/v1/games/${id}`).set(auth(guestToken)).expect(200);
     expect(detail.body.end_reason).toBe('het-gio');
     expect(detail.body.winner_member_id).toBe(null);
+  });
+});
+
+describe('T42 cầu hoà', () => {
+  async function activeGame() {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Cầu Hoà' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    return { id: created.body.id, guestToken: joined.body.guest_token };
+  }
+
+  it('cầu hoà rồi bên kia từ chối thì ván chạy tiếp', async () => {
+    const { id, guestToken } = await activeGame();
+    await supertest(app).post(`/api/v1/games/${id}/draw/offer`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${id}/draw/decline`).set(auth(guestToken)).expect(200);
+    const detail = await supertest(app).get(`/api/v1/games/${id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('active');
+    expect(detail.body.draw_offered_by).toBe(null);
+  });
+
+  it('cầu hoà rồi bên kia đồng ý thì ván kết thúc hoà', async () => {
+    const { id, guestToken } = await activeGame();
+    await supertest(app).post(`/api/v1/games/${id}/draw/offer`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${id}/draw/accept`).set(auth(guestToken)).expect(200);
+    const detail = await supertest(app).get(`/api/v1/games/${id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('finished');
+    expect(detail.body.end_reason).toBe('hoa-thoa-thuan');
+  });
+
+  it('tự cầu hoà với chính mình (accept lời cầu hoà của mình) thì bị từ chối', async () => {
+    const { id } = await activeGame();
+    await supertest(app).post(`/api/v1/games/${id}/draw/offer`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${id}/draw/accept`).set(auth(aliceToken)).expect(409);
+  });
+});
+
+describe('T42 mất kết nối', () => {
+  // Kiểm markDisconnected/clearDisconnected trực tiếp (gọi hàm service, không
+  // qua HTTP) — đóng/mở lại một kết nối SSE thật qua supertest không ổn định
+  // (supertest/superagent không nghĩ cho luồng sống lâu như SSE), nên phần
+  // LOGIC kiểm ở đây, còn phần "route /stream có gọi đúng 2 hàm này lúc
+  // req.on('close') và lúc subscribe" xác nhận bằng đọc lại mã ở Step 9 (chỉ
+  // 4 dòng nối, không thêm nhánh rẽ nào để có thể sai).
+  it('markDisconnected set đúng bên + không ghi đè lần gọi thứ hai; clearDisconnected xoá cờ và dời turn_started_at', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách SSE' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    const gameId = created.body.id;
+
+    await service.markDisconnected({ communityId: cid, gameId, side: 'r' });
+    let detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.disconnected_side).toBe('r');
+    const firstDisconnectedAt = detail.body.disconnected_at;
+
+    await service.markDisconnected({ communityId: cid, gameId, side: 'b' }); // đã có người mất kết nối rồi — không ghi đè
+    detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.disconnected_side).toBe('r');
+    expect(detail.body.disconnected_at).toBe(firstDisconnectedAt);
+
+    await service.clearDisconnected({ communityId: cid, gameId, side: 'r' });
+    detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.disconnected_side).toBe(null);
+  });
+
+  it('quá 1 phút mất kết nối thì /disconnect-timeout xử thua đúng bên', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Timeout' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    await db.raw(
+      `UPDATE games SET disconnected_side = 'r', disconnected_at = now() - interval '61 seconds' WHERE id = ?`,
+      [created.body.id]
+    );
+    await supertest(app).post(`/api/v1/games/${created.body.id}/disconnect-timeout`).set(auth(joined.body.guest_token)).expect(200);
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.status).toBe('finished');
+    expect(detail.body.end_reason).toBe('mat-ket-noi');
+  });
+
+  it('chưa đủ 1 phút thì /disconnect-timeout bị từ chối', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Sớm' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    await db.raw(`UPDATE games SET disconnected_side = 'r', disconnected_at = now() WHERE id = ?`, [created.body.id]);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/disconnect-timeout`).set(auth(joined.body.guest_token)).expect(409);
   });
 });
