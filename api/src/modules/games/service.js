@@ -394,11 +394,46 @@ export async function resign({ actor, id }) {
   return { id, status: 'finished' };
 }
 
+// Vòng soát xét cuối cùng của cả nhánh (Important): trước bản vá này, nhánh
+// "chưa vào trận" (status !== 'active') luôn XOÁ CẢ VÁN bất kể người rời là
+// chủ phòng (mySide='r') hay khách (mySide='b') — một khách vào phòng (dù
+// chưa hề bấm sẵn sàng) gọi /leave là xoá sạch phòng của CHỦ PHÒNG, link mời
+// mất theo, lặp lại được vô hạn lần chừng nào link còn lưu hành: một cách bắt
+// nạt chủ phòng thật sự. Trái nguyên tắc "chủ phòng tuyệt đối" (mục 4.3 spec)
+// mà evictStaleGuestIfNeeded() ở trên đã áp dụng — khách bị dọn (kể cả do LỖI
+// của chính khách, trễ 30 giây) cũng chỉ mất đúng CHỖ CỦA KHÁCH, không đụng
+// tới phòng của chủ; một khách TỰ NGUYỆN rời càng không có lý do bị xử nhẹ tay
+// hơn (tức phòng bị xoá) so với một khách bị đuổi vì lỗi của chính mình.
+//
+// Sửa: khách rời phòng (mySide='b') khi phòng còn 'pending' chỉ dọn đúng các
+// cột slot của khách — cùng bộ cột evictStaleGuestIfNeeded() đã dọn
+// (black_member_id, black_guest_name, black_guest_token, second_joined_at),
+// cộng thêm black_ready_at (evictStaleGuestIfNeeded() không cần dọn cột này vì
+// hàm đó chỉ chạy TRƯỚC khi ai bấm sẵn sàng — xem điều kiện !game.black_ready_at
+// ngay đầu hàm; ở đây khách có thể đã bấm sẵn sàng rồi mới đổi ý rời) — KHÔNG
+// xoá ván. red_ready_at của chủ phòng không đụng tới nên không mất — đúng tinh
+// thần "người đã bấm ở lại" đã ghi ở evictStaleGuestIfNeeded(). Chủ phòng rời
+// (mySide='r') giữ nguyên hành vi cũ: xoá cả ván, vì phòng của chính họ không
+// còn gì đáng giữ lại khi chưa vào trận.
 export async function leaveRoom({ actor, id }) {
   const game = await withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
   const mySide = resolveSide(actor, game);
   if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
   if (game.status === 'active') return resign({ actor, id });
+  if (mySide === 'b') {
+    await withActor(actor.id, async (trx) => {
+      const { rows: [row] } = await trx.raw(
+        `UPDATE games SET black_member_id = NULL, black_guest_name = NULL, black_guest_token = NULL,
+                second_joined_at = NULL, black_ready_at = NULL
+          WHERE id = ? AND status = 'pending' RETURNING id`,
+        [id]
+      );
+      if (!row) throw INVALID_STATE('Ván cờ này không còn ở bước chuẩn bị.');
+      await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+        action: 'chess_game.guest_left', targetType: 'game', targetId: id, detail: {} });
+    });
+    return { id, status: 'left' };
+  }
   await withActor(actor.id, async (trx) => {
     await trx.raw(`DELETE FROM game_moves WHERE game_id = ?`, [id]);
     const { rows: [deleted] } = await trx.raw(
@@ -565,10 +600,25 @@ export async function claimTimeout({ actor, id }) {
     if (!timedOutSide) throw INVALID_STATE('Chưa bên nào thật sự hết giờ.');
     const winnerSide = rules.opp(timedOutSide);
     const winnerId = winnerSide === 'r' ? game.red_member_id : game.black_member_id;
+    // Vòng soát xét cuối cùng của cả nhánh (Important): thiếu CAS trên phần
+    // trạng thái vừa ĐỌC và dùng để QUYẾT ĐỊNH claim này — khác mọi hàm ghi
+    // trạng thái khác trong file (move() khoá thêm AND turn = ?, acceptDraw()
+    // khoá thêm AND draw_offered_by = ?, claimDisconnectTimeout() khoá thêm
+    // AND disconnected_side = ?). timedOutSide/winnerSide ở trên được suy ra
+    // từ turn + turn_started_at đọc lúc đầu hàm; nếu bên "hết giờ" vừa đi được
+    // một nước hợp lệ (move() không hề biết tới claimTimeout đang diễn ra,
+    // đổi cả turn lẫn turn_started_at) NGAY TRƯỚC KHI UPDATE này chạy, bản
+    // thiếu khoá vẫn khớp WHERE (status vẫn 'active') và kết thúc ván trên dữ
+    // liệu đã cũ — xử thua oan một người vừa thật sự đi nước kịp giờ. Khoá
+    // thêm AND turn = ? (giá trị đã đọc, KHÔNG PHẢI turn_started_at — cột đó
+    // là timestamptz độ chính xác micro-giây, driver `pg` đọc về JS Date chỉ
+    // còn mili-giây nên so bằng nhau không bao giờ khớp, đúng bẫy đã xác nhận
+    // ở Task 8/evictStaleGuestIfNeeded() phía trên) chặn đúng khe hở này: turn
+    // đổi thì WHERE không khớp dòng nào nữa, claim thất bại thay vì thắng oan.
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET status = 'finished', end_reason = 'het-gio', winner_member_id = ?, finished_at = now()
-        WHERE id = ? AND status = 'active' RETURNING id`,
-      [winnerId, id]
+        WHERE id = ? AND status = 'active' AND turn = ? RETURNING id`,
+      [winnerId, id, game.turn]
     );
     if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,

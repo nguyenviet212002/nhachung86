@@ -3,7 +3,7 @@ import { requireAuth } from '../../middleware/auth.js';
 import { requireAuthOrGuestToken } from '../../middleware/gameAuth.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
-import { subscribeGame } from '../../core/realtime.js';
+import { subscribeGame, isSideWatchingGame } from '../../core/realtime.js';
 import * as schema from './schema.js';
 import * as service from './service.js';
 
@@ -54,14 +54,21 @@ router.get('/:id/stream', validate(schema.idParamSchema, 'params'), requireAuthO
   res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
   res.flushHeaders?.();
   res.write(`event: ready\ndata: ${JSON.stringify({ game_id: req.params.id })}\n\n`);
-  const unsubscribe = subscribeGame(req.params.id, req.actor.id, res);
   const { side } = visible;
   const { communityId } = req.actor;
+  const unsubscribe = subscribeGame(req.params.id, req.actor.id, side, res);
   if (side) service.clearDisconnected({ communityId, gameId: req.params.id, side }).catch(() => {});
   const keepalive = setInterval(() => { try { res.write(': keepalive\n\n'); } catch {} }, 25_000);
   req.on('close', () => {
     clearInterval(keepalive); unsubscribe();
-    if (side) service.markDisconnected({ communityId, gameId: req.params.id, side }).catch(() => {});
+    // unsubscribe() vừa chạy ở trên đã xoá kết nối CỦA CHÍNH request này khỏi
+    // gameClients — isSideWatchingGame() dưới đây vì vậy phản ánh đúng "còn
+    // kết nối NÀO KHÁC của bên này đang mở hay không" (vd. tab khác, hoặc kết
+    // nối mới do EventSource tự retry), không tính luôn kết nối vừa đóng.
+    // Chỉ đánh dấu mất kết nối khi thật sự không còn kết nối nào khác.
+    if (side && !isSideWatchingGame(req.params.id, side)) {
+      service.markDisconnected({ communityId, gameId: req.params.id, side }).catch(() => {});
+    }
   });
 });
 router.post('/:id/moves', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, validate(schema.moveSchema), async (req, res, next) => {

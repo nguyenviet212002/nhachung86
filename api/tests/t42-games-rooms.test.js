@@ -5,6 +5,7 @@ import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
 import * as service from '../src/modules/games/service.js';
+import { subscribeGame, isSideWatchingGame } from '../src/core/realtime.js';
 
 let db, app, cid, alice, aliceToken, bob, bobToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
@@ -197,6 +198,51 @@ describe('T42 đồng hồ — hết giờ', () => {
     const detail = await supertest(app).get(`/api/v1/games/${id}`).set(auth(guestToken)).expect(200);
     expect(detail.body.end_reason).toBe('het-gio');
     expect(detail.body.winner_member_id).toBe(null);
+  });
+
+  // Vòng soát xét cuối cùng (Important): UPDATE quyết định của claimTimeout()
+  // trước bản vá này chỉ khoá WHERE status='active', thiếu khoá thêm phần
+  // trạng thái (turn) mà nó vừa đọc để QUYẾT ĐỊNH bên nào hết giờ — khác mọi
+  // hàm ghi trạng thái khác trong service.js (move(), acceptDraw(),
+  // claimDisconnectTimeout() đều khoá thêm đúng phần trạng thái riêng của
+  // từng hàm). Nếu bên bị coi là hết giờ vừa đi được một nước hợp lệ (đổi
+  // turn) NGAY TRƯỚC KHI UPDATE của claimTimeout chạy, bản thiếu khoá vẫn
+  // khớp WHERE (status vẫn 'active') và kết thúc ván trên dữ liệu đã cũ.
+  //
+  // claimTimeout() đọc rồi ghi trong CÙNG một lời gọi, sát nhau, không có chỗ
+  // nào để một test đơn luồng chen một thay đổi thật vào giữa hai bước đó (và
+  // dùng Promise.all hai request thật để đua timing thì thứ tự thắng-thua của
+  // hai giao dịch song song không kiểm soát được — chạy test không ổn định).
+  // Vì vậy test này tái hiện đúng CHUỖI BA BƯỚC mà claimTimeout() thực hiện,
+  // tách rời để kiểm soát được thứ tự: (1) đọc turn hiện tại — y hệt bước đầu
+  // của loadGame() trong claimTimeout(); (2) mô phỏng "đối thủ vừa đi nước xen
+  // giữa" bằng cách đổi hẳn turn qua db.raw (turn đổi thật, đã commit); (3)
+  // chạy ĐÚNG câu UPDATE mà claimTimeout() dùng, với turn=? lấy từ giá trị đã
+  // đọc ở bước (1) — tức bước "claim" dùng dữ liệu đã cũ. Guard AND turn=?
+  // phải chặn đúng, y hệt guard thật trong service.js.
+  it('turn đổi xen giữa lúc đọc và lúc UPDATE claim chạy thì UPDATE không khớp — không kết thúc ván trên dữ liệu cũ', async () => {
+    const { id } = await activeGame(aliceToken, alice); // turn='r' ngay sau ready()
+    await db.raw(`UPDATE games SET turn_started_at = now() - interval '11 minutes' WHERE id = ?`, [id]);
+
+    // Bước 1: đọc turn hiện tại — y hệt `game.turn` mà claimTimeout() đã đọc.
+    const { rows: [{ turn: turnAtRead }] } = await db.raw(`SELECT turn FROM games WHERE id = ?`, [id]);
+    expect(turnAtRead).toBe('r');
+
+    // Bước 2: "đối thủ vừa đi nước" xen giữa lúc claimTimeout() đọc xong và
+    // lúc UPDATE của nó chạy — turn đổi sang 'b', đã commit thật vào CSDL.
+    await db.raw(`UPDATE games SET turn = 'b' WHERE id = ?`, [id]);
+
+    // Bước 3: "cái claim" — đúng câu UPDATE trong claimTimeout(), dùng turn=?
+    // lấy từ giá trị đã đọc ở bước 1 (đã cũ, không còn khớp CSDL thật nữa).
+    const { rows: [row] } = await db.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'het-gio', finished_at = now()
+        WHERE id = ? AND status = 'active' AND turn = ? RETURNING id`,
+      [id, turnAtRead]
+    );
+    expect(row).toBeUndefined(); // guard chặn đúng — turn đã đổi, 'r' không còn khớp
+
+    const { rows: [after] } = await db.raw(`SELECT status FROM games WHERE id = ?`, [id]);
+    expect(after.status).toBe('active'); // ván không bị kết thúc oan trên dữ liệu cũ
   });
 });
 
@@ -400,6 +446,55 @@ describe('T42 mất kết nối', () => {
     expect(detail.body.status).toBe('active'); // không bị xử thua/kết thúc oan
     expect(detail.body.disconnected_side).toBe(null); // tự dọn cờ cũ
   });
+
+  // Vòng soát xét cuối cùng (Critical): trước bản vá này, gameClients (core/
+  // realtime.js) chỉ giữ memberId cạnh mỗi kết nối, không hề có khái niệm
+  // "bên" — route /:id/stream gọi markDisconnected() ngay khi BẤT KỲ MỘT kết
+  // nối nào của ván đóng lại, không kiểm còn kết nối nào khác của cùng bên
+  // đang mở hay không. Người chơi mở ván ở hai tab, đóng một tab (tab kia vẫn
+  // sống) bị đánh dấu mất kết nối oan — đối thủ báo /disconnect-timeout thắng
+  // thật dù người kia vẫn đang chơi bình thường ở tab còn lại.
+  //
+  // SSE thật không kiểm ổn định qua supertest (xem ghi chú đầu describe này),
+  // nên test dưới đây kiểm trực tiếp bằng subscribeGame()/isSideWatchingGame()
+  // — hai hàm nguyên thuỷ mà route /:id/stream dùng — và mô phỏng ĐÚNG thứ tự
+  // routes.js chạy trong req.on('close'): unsubscribe() (xoá kết nối của
+  // CHÍNH request đó) LUÔN chạy trước khi kiểm isSideWatchingGame(), nên phép
+  // kiểm dưới đây cũng đóng kết nối trước rồi mới hỏi "còn kết nối nào khác
+  // không" — đúng thứ tự thật, không phải một cách kiểm khác đi.
+  it('còn một kết nối khác (vd. tab thứ hai) của cùng bên thì không bị đánh dấu mất kết nối oan; hết sạch kết nối thì vẫn phát hiện đúng', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Hai Tab' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    const gameId = created.body.id;
+
+    // Alice (Đỏ) mở ván ở hai "tab" — hai kết nối SSE riêng biệt, cùng bên 'r'.
+    const resTab1 = { write: () => {} };
+    const resTab2 = { write: () => {} };
+    const unsubTab1 = subscribeGame(gameId, alice, 'r', resTab1);
+    const unsubTab2 = subscribeGame(gameId, alice, 'r', resTab2);
+
+    // Đóng tab 1. Gate y hệt routes.js: chỉ gọi markDisconnected khi KHÔNG còn
+    // kết nối nào khác của bên này.
+    unsubTab1();
+    expect(isSideWatchingGame(gameId, 'r')).toBe(true); // tab 2 vẫn còn sống
+    if (!isSideWatchingGame(gameId, 'r')) {
+      await service.markDisconnected({ communityId: cid, gameId, side: 'r' });
+    }
+    let detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.disconnected_side).toBe(null); // KHÔNG bị đánh dấu oan — tab 2 vẫn mở
+
+    // Đóng nốt tab 2 — giờ không còn kết nối nào của Đỏ nữa.
+    unsubTab2();
+    expect(isSideWatchingGame(gameId, 'r')).toBe(false);
+    if (!isSideWatchingGame(gameId, 'r')) {
+      await service.markDisconnected({ communityId: cid, gameId, side: 'r' });
+    }
+    detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.disconnected_side).toBe('r'); // hết kết nối thật thì vẫn phát hiện đúng
+  });
 });
 
 describe('T42 rời phòng', () => {
@@ -425,5 +520,49 @@ describe('T42 rời phòng', () => {
   it('người ngoài (không phải người chơi trong ván) không rời được', async () => {
     const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
     await supertest(app).post(`/api/v1/games/${created.body.id}/leave`).set(auth(bobToken)).expect(403);
+  });
+
+  // Vòng soát xét cuối cùng (Important): trước bản vá này, nhánh "chưa vào
+  // trận" xoá CẢ VÁN bất kể người rời là chủ phòng hay khách — một khách vào
+  // phòng (dù chưa hề bấm sẵn sàng) gọi /leave xoá sạch phòng của CHỦ PHÒNG,
+  // link mời mất theo, lặp lại được vô hạn lần chừng nào link còn lưu hành.
+  // Trái nguyên tắc "chủ phòng tuyệt đối" mà evictStaleGuestIfNeeded() (đuổi
+  // khách trễ giờ) đã áp dụng: chỉ dọn CHỖ CỦA KHÁCH, không đụng phòng của chủ.
+  it('chưa vào trận: khách rời phòng chỉ dọn chỗ của khách, phòng + link mời của chủ vẫn còn, trạng thái sẵn sàng của chủ không mất', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Rời Sớm' }).expect(201);
+    // Chủ bấm sẵn sàng SAU khi khách vào (ready() đòi phải có đối thủ trong
+    // phòng mới cho bấm — xem game.black_name ở ready()), rồi khách đổi ý rời
+    // mà KHÔNG hề bấm sẵn sàng — để kiểm red_ready_at của chủ sống sót qua
+    // việc khách vào-rồi-rời, không phải chỉ còn giá trị null từ đầu.
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    const { rows: [beforeLeave] } = await db.raw(`SELECT red_ready_at FROM games WHERE id = ?`, [created.body.id]);
+    expect(beforeLeave.red_ready_at).not.toBe(null);
+
+    await supertest(app).post(`/api/v1/games/${created.body.id}/leave`).set(auth(joined.body.guest_token)).expect(200);
+
+    // Phòng vẫn còn, chủ vẫn xem được, vẫn đang chờ khách — không bị xoá.
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('pending');
+    expect(detail.body.black_member_id).toBe(null);
+    expect(detail.body.black_name).toBe(null);
+
+    // Trạng thái "đã sẵn sàng" của chủ không bị xoá theo — không phải bấm lại.
+    const { rows: [afterLeave] } = await db.raw(`SELECT red_ready_at FROM games WHERE id = ?`, [created.body.id]);
+    expect(afterLeave.red_ready_at.getTime()).toBe(beforeLeave.red_ready_at.getTime());
+
+    // Token khách cũ không dùng được nữa (đã bị dọn khỏi phòng).
+    await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(joined.body.guest_token)).expect(401);
+
+    // Link mời vẫn còn hiệu lực — khách mới vào được; và vì chủ đã sẵn sàng từ
+    // trước (giữ nguyên), khách mới chỉ cần bấm sẵn sàng một lần là ván bắt
+    // đầu ngay — chứng minh red_ready_at không chỉ còn giá trị trong cột mà
+    // còn hoạt động đúng ý nghĩa nghiệp vụ của nó.
+    const joined2 = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Mới' }).expect(201);
+    const readyRes = await supertest(app).post(`/api/v1/games/${created.body.id}/ready`)
+      .set(auth(joined2.body.guest_token)).expect(200);
+    expect(readyRes.body.active).toBe(true);
   });
 });
