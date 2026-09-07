@@ -529,6 +529,19 @@ tr:last-child td{border-bottom:none}
 .cothe-movan-item.bad{color:#c0392b}
 .cothe-luyen-cap{display:flex;flex-direction:column;padding:8px 0;border-bottom:1px solid var(--line2);font-size:13px}
 .cothe-luyen-cap span{font-size:12px;color:var(--muted);margin-top:2px}
+/* Màn "home" (chọn kho/hồ sơ) không có bàn cờ — khác soạn/đấu, nên KHÔNG thể
+   nằm trần trên nền xanh đậm của .xq-fs (chữ tối mất hút). Đóng khung như
+   .xq-fs-card nhưng nằm THEO DÒNG (không position:fixed) để cuộn tự nhiên
+   theo danh sách Kho thế dài ngắn tuỳ ý. */
+.cothe-home-card{max-width:600px;margin:0 auto;background:#fff;border-radius:18px;
+  box-shadow:0 16px 40px rgba(0,0,0,.28);padding:22px}
+/* Tab lọc danh mục: nút NHỎ ôm theo chữ, không dùng .xq-ctrl-row (nút đó tự
+   giãn flex:1 cho các hàng 2-3 nút ngang hàng — 6 tab category theo kiểu đó
+   sẽ phồng to bất hợp lý). */
+.cothe-tabs{display:flex;flex-wrap:wrap;gap:7px}
+.cothe-tab{flex:none;padding:7px 14px;border-radius:999px;border:1.5px solid var(--line);
+  background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.cothe-tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -7234,8 +7247,27 @@ function cotheCellClickSoan(r,c){
   cotheRender();
 }
 function cotheSetSide(side){ COTHE.sideToMove=side; cotheRender(); }
+// Soát trước ở client những gì server chắc chắn sẽ từ chối (rules.validatePosition
+// phía api) — tránh bấm "Chốt thế" ra lỗi 422 lặp đi lặp lại vì thiếu Tướng hoặc
+// hai Tướng đối mặt, người dùng không biết sửa gì.
+function cotheSoanErrors(board){
+  const errs=[];
+  const find=(side)=>{ for(let r=0;r<10;r++) for(let c=0;c<9;c++){ const p=board[r][c]; if(p&&p.side===side&&p.type==='general') return {r,c}; } return null; };
+  const gr=find('r'), gb=find('b');
+  if(!gr) errs.push('Thiếu Tướng bên Đỏ.');
+  if(!gb) errs.push('Thiếu Tướng bên Đen.');
+  if(gr&&gb&&gr.c===gb.c){
+    let blocked=false;
+    for(let r=Math.min(gr.r,gb.r)+1;r<Math.max(gr.r,gb.r);r++) if(board[r][gr.c]) blocked=true;
+    if(!blocked) errs.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  }
+  return errs;
+}
 function cotheChotThe(){
-  if(COTHE.busy) return; COTHE.busy=true; COTHE.errors=[]; cotheRender();
+  if(COTHE.busy) return;
+  const preErrs = cotheSoanErrors(COTHE.board);
+  if(preErrs.length){ COTHE.errors=preErrs; cotheRender(); return; }
+  COTHE.busy=true; COTHE.errors=[]; cotheRender();
   api.post('/co-the/positions', {board:COTHE.board, side_to_move:COTHE.sideToMove}).then(p=>{
     COTHE.busy=false; COTHE.position=p; COTHE.stage='position'; cotheRender();
   }).catch(e=>{ COTHE.busy=false; COTHE.errors=[cotheErrMsg(e)]; cotheRender(); });
@@ -7384,13 +7416,14 @@ function cothePalette(){
     }).join('');
     return `<div class="cothe-pal-row"><span class="lbl">${label}</span>${btns}</div>`;
   }).join('');
-  return `<div class="cothe-palette">${rows}<button type="button" class="btn btn-out btn-sm" style="margin-top:6px" onclick="cothePickErase()">${ic('x',13)} Xoá quân (bấm ô)</button></div>`;
+  const eraseOn = COTHE.pick==='erase';
+  return `<div class="cothe-palette">${rows}<button type="button" class="btn ${eraseOn?'btn-blue':'btn-out'} btn-sm" style="margin-top:6px" onclick="cothePickErase()">${ic('x',13)} Xoá quân${eraseOn?' (đang chọn — bấm ô)':' (bấm ô)'}</button></div>`;
 }
 const COTHE_PIECE_TYPES = ['general','advisor','elephant','horse','chariot','cannon','soldier'];
 function cotheHomeHtml(){
   const kho = COTHE.khoList;
   const tabs = [[null,'Tất cả'], ...COTHE_CATEGORY].map(([val,label])=>
-    `<button class="btn ${COTHE.khoFilter===val?'btn-blue':'btn-out'} btn-sm" onclick="cotheLoadKho(${val?`'${val}'`:'null'})">${label}</button>`
+    `<button type="button" class="cothe-tab ${COTHE.khoFilter===val?'on':''}" onclick="cotheLoadKho(${val?`'${val}'`:'null'})">${label}</button>`
   ).join('');
   const khoHtml = COTHE.khoLoading ? `<p style="text-align:center;color:var(--muted);padding:20px">Đang tải…</p>`
     : !kho || !kho.length ? `<div class="empty" style="margin-top:10px"><h3>Kho thế chưa có thế nào ở mục này</h3></div>`
@@ -7404,20 +7437,26 @@ function cotheHomeHtml(){
         <span>${esc(s.label||'Thế tự soạn')}</span>
         <span class="cothe-hoso-kq ${s.result||''}">${s.status==='ket-thuc' ? (s.result?COTHE_VERDICT_LABEL[s.result]:(COTHE_END_REASON_LABEL[s.end_reason]||'Xong')) : 'Đang chơi'}</span>
       </div>`).join('');
-  return `<div class="page-head"><div><h1>Cờ thế</h1><p>Bày thế tự do hoặc chọn từ Kho thế — máy phân tích thắng/hoà/thua thật, không đoán.</p></div></div>
-  <div class="xq-ctrl-row" style="margin-bottom:16px">
-    <button class="btn btn-amber" onclick="cotheStartSoan()">${ic('wand',15)} Bày thế mới</button>
-  </div>
-  <h3 style="margin-bottom:8px">Kho thế chung</h3>
-  <div class="xq-ctrl-row" style="flex-wrap:wrap;margin-bottom:10px">${tabs}</div>
-  <div class="cothe-kho-list">${khoHtml}</div>
-  ${COTHE.mySessions&&COTHE.mySessions.length ? `<h3 style="margin:18px 0 8px">Hồ sơ gần đây</h3><div class="cothe-hoso-list">${hoSo}</div>` : ''}
-  `;
+  return `<div class="cothe-home-card">
+    <h1 style="margin-bottom:2px">Cờ thế</h1>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:16px">Bày thế tự do hoặc chọn từ Kho thế — máy phân tích thắng/hoà/thua thật, không đoán.</p>
+    <button type="button" class="btn btn-amber btn-block" onclick="cotheStartSoan()">${ic('wand',15)} Bày thế mới</button>
+    <h3 style="margin:20px 0 8px">Kho thế chung</h3>
+    <div class="cothe-tabs" style="margin-bottom:12px">${tabs}</div>
+    <div class="cothe-kho-list">${khoHtml}</div>
+    ${COTHE.mySessions&&COTHE.mySessions.length ? `<h3 style="margin:20px 0 8px">Hồ sơ gần đây</h3><div class="cothe-hoso-list">${hoSo}</div>` : ''}
+  </div>`;
+}
+const COTHE_PIECE_LABEL_VI = {general:'Tướng',advisor:'Sĩ',elephant:'Tượng',horse:'Mã',chariot:'Xe',cannon:'Pháo',soldier:'Tốt'};
+function cotheSoanStatus(){
+  if(!COTHE.pick) return 'Bày quân — bấm 1 quân bên dưới rồi bấm vào bàn cờ';
+  if(COTHE.pick==='erase') return 'Đang cầm: cục tẩy — bấm vào ô trên bàn để xoá quân';
+  return `Đang cầm: ${COTHE_PIECE_LABEL_VI[COTHE.pick.type]} ${COTHE.pick.side==='r'?'Đỏ':'Đen'} — bấm vào ô trên bàn để đặt`;
 }
 function cotheSoanHtml(){
   const errs = COTHE.errors.length ? `<div class="notice wait" style="margin-bottom:10px">${ic('flag',16)}<span>${esc(COTHE.errors.join(' '))}</span></div>` : '';
   return `
-  <div class="xq-status-bar">Bày quân — bấm 1 quân bên dưới rồi bấm vào bàn cờ</div>
+  <div class="xq-status-bar">${cotheSoanStatus()}</div>
   ${chessBoardHtml(COTHE.board, {onCellClick:'cotheCellClickSoan'})}
   <div class="xq-fs-panel show">
     <h1>Bày thế</h1>
@@ -7428,8 +7467,8 @@ function cotheSoanHtml(){
       <button class="btn ${COTHE.sideToMove==='r'?'btn-blue':'btn-out'} btn-sm" onclick="cotheSetSide('r')">Đỏ</button>
       <button class="btn ${COTHE.sideToMove==='b'?'btn-blue':'btn-out'} btn-sm" onclick="cotheSetSide('b')">Đen</button>
     </div>
-    <button class="btn btn-blue btn-full" style="margin-top:12px" ${COTHE.busy?'disabled':''} onclick="cotheChotThe()">${ic('check',15)} Chốt thế</button>
-    <button class="btn btn-out btn-full" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
+    <button class="btn btn-blue btn-block" style="margin-top:12px" ${COTHE.busy?'disabled':''} onclick="cotheChotThe()">${ic('check',15)} Chốt thế</button>
+    <button class="btn btn-out btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
   </div>`;
 }
 function cothePositionHtml(){
@@ -7440,7 +7479,7 @@ function cothePositionHtml(){
       <select class="input" onchange="COTHE.saveCategory=this.value" style="margin-bottom:8px">
         ${COTHE_CATEGORY.map(([v,l])=>`<option value="${v}" ${COTHE.saveCategory===v?'selected':''}>${l}</option>`).join('')}
       </select>
-      <button class="btn btn-blue btn-full" onclick="cotheLuuKho()">${ic('check',15)} Lưu vào Kho thế</button>
+      <button class="btn btn-blue btn-block" onclick="cotheLuuKho()">${ic('check',15)} Lưu vào Kho thế</button>
     </div>` : '';
   const refutation = COTHE.refutation ? (
     !COTHE.refutation.co_duong_thang ? `<p style="font-size:13px;color:var(--muted);margin-top:8px">Không tìm thấy đường chiếu bí rõ trong thời gian tìm.</p>`
@@ -7490,7 +7529,7 @@ function cothePositionHtml(){
         <button class="btn btn-out btn-sm" ${COTHE.busy?'disabled':''} onclick="cotheTaoTran('luyen-the','cao')">Cao cấp</button>
       </div>
     </div>
-    <button class="btn btn-out btn-full" style="margin-top:12px" onclick="cotheVeHome()">← Quay lại</button>
+    <button class="btn btn-out btn-block" style="margin-top:12px" onclick="cotheVeHome()">← Quay lại</button>
   </div>`;
 }
 function cotheOpponentLabel(s){
@@ -7504,8 +7543,8 @@ function cothePlayingHtml(){
       <h1>Luyện Thế · ${cotheOpponentLabel(s)}</h1>
       <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Máy tự đấu máy nhiều ván nền, tìm đường nào DỄ ĐI nhất cho người — không phải đáp án lý thuyết.</p>
       ${COTHE_POLL_TIMER ? `<p style="text-align:center;padding:20px 0">${ic('clock',18)}<br>Đang chạy…</p>`
-        : `<button class="btn btn-blue btn-full" ${COTHE.busy?'disabled':''} onclick="cotheChayLuyenThe()">${ic('bolt',15)} Bắt đầu luyện</button>`}
-      <button class="btn btn-out btn-full" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
+        : `<button class="btn btn-blue btn-block" ${COTHE.busy?'disabled':''} onclick="cotheChayLuyenThe()">${ic('bolt',15)} Bắt đầu luyện</button>`}
+      <button class="btn btn-out btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
     </div>`;
   }
   const flip = s.solver_side==='b';
@@ -7533,7 +7572,7 @@ function cotheFinishedHtml(){
       <h1>Luyện Thế xong</h1>
       <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">${r?r.tong_so_van:0} ván tự đấu · tỉ lệ đo mức máy chống kém đến đâu, KHÔNG PHẢI đáp án lý thuyết tuyệt đối (xem ⚖ Phân tích để biết đáp án đúng/sai).</p>
       ${r?cap('Hạ cấp — ngắn nhất, dễ nhớ',r.ha)+cap('Trung cấp — cân bằng',r.trung)+cap('Cao cấp — chắc nhất',r.cao):''}
-      <button class="btn btn-blue btn-full" style="margin-top:14px" onclick="cotheVeHome()">Về Kho thế</button>
+      <button class="btn btn-blue btn-block" style="margin-top:14px" onclick="cotheVeHome()">Về Kho thế</button>
     </div>`;
   }
   const won = s.result==='thang';
@@ -7574,7 +7613,7 @@ function cotheFinishedHtml(){
       ${COTHE.invite ? invite : `<button class="btn btn-out btn-sm" onclick="cotheMoiXem()">${ic('users',13)} Mời xem lại</button>`}
     </div>
 
-    <button class="btn btn-blue btn-full" style="margin-top:12px" onclick="cotheVeHome()">Về Kho thế</button>
+    <button class="btn btn-blue btn-block" style="margin-top:12px" onclick="cotheVeHome()">Về Kho thế</button>
   </div>`;
 }
 V['cotuong-the'] = ()=>{
