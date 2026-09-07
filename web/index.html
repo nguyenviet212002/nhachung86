@@ -3974,6 +3974,13 @@ function guestGameHtml(st){
       <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Rời phòng</button></div>
     </div>`;
   }
+  // Phòng đang 'pending' có board = NULL trong CSDL (cột `board jsonb` không
+  // có DEFAULT, createRoom không hề ghi cột này). Khi ready() bắn game_start
+  // — payload KHÔNG kèm board — handler đặt status='active' rồi render() NGAY
+  // (đồng bộ), trong khi refreshGameState() mới chỉ vừa gửi GET đi. Trong
+  // đúng khe hở đó xqRoomPhase đã trả 'dang-dau' nên nhánh phòng ở trên
+  // không chặn nữa, và vòng lặp dưới sẽ đọc st.board[r][c] trên null.
+  if(!st.board) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   const pts=[];
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
     const p = st.board[r][c];
@@ -6642,6 +6649,10 @@ V['cotuong-van'] = (params)=>{
       <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Đóng phòng</button></div>
     </div>`;
   }
+  // Xem chú thích cùng chỗ này trong guestGameHtml: khe hở giữa game_start
+  // (đặt status='active' + render() đồng bộ) và refreshGameState() (GET bất
+  // đồng bộ) — board của phòng vẫn còn null ở đúng lúc đó.
+  if(!st.board) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   const pts=[];
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
     const p = st.board[r][c];
