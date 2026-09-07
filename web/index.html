@@ -6329,6 +6329,7 @@ function stopGameStream(){
   GAMES_LIST=null;
   stopGameClock();
   stopRoomPoll();
+  if(XQ_ANALYSIS_RETRY_TIMER){ clearTimeout(XQ_ANALYSIS_RETRY_TIMER); XQ_ANALYSIS_RETRY_TIMER=null; }
   // Rời hẳn một màn ván cờ thì buông luôn định danh khách: giữ lại
   // GUEST_TOKEN sau khi đã rời sẽ khiến các hàm rẽ nhánh `GUEST_TOKEN ? …`
   // gọi mạng bằng phiên khách cho một ván khác hoàn toàn không liên quan.
@@ -6529,11 +6530,14 @@ function xqAiToggleHtml(st, mySide){
 // captured_type đã có sẵn trên mỗi nước — quân bị bắt LUÔN thuộc bên NGƯỢC
 // với bên vừa đi nước đó (m.side đi, m.captured_type là quân của đối phương).
 // Không cần dữ liệu mới, không gọi mạng.
-// Mổ ván (mục 2.5 spec) — chỉ gọi khi ván đã 'finished' (khớp guard phía
-// backend: getAnalysis 409 nếu chưa xong). Cache theo gameId để không gọi lại
-// mỗi lần render() (render() của CHÍNH ván này có thể chạy nhiều lần/giây lúc
-// đang có SSE).
-let XQ_ANALYSIS_CACHE = {}; // { [gameId]: 'loading' | {..response..} | 'error' }
+// Mổ ván (mục 2.5 spec) — chỉ gọi khi ván đã 'finished'. Backend KHÔNG 409
+// cho ván xong nhưng chưa mổ xong — trả 200 với analyzed_at:null (mổ ván là
+// fire-and-forget phía server, có thể mất vài chục giây) — xem nhánh
+// analyzed_at:null bên dưới, đó là lý do có state 'pending'/timer thử lại.
+// Cache theo gameId để không gọi lại mỗi lần render() (render() của CHÍNH
+// ván này có thể chạy nhiều lần/giây lúc đang có SSE).
+let XQ_ANALYSIS_CACHE = {}; // { [gameId]: 'loading' | 'pending' | {..response..} | 'error' }
+let XQ_ANALYSIS_RETRY_TIMER = null;
 function xqFetchAnalysis(gameId){
   if(XQ_ANALYSIS_CACHE[gameId]) return; // đang tải hoặc đã có rồi
   XQ_ANALYSIS_CACHE[gameId] = 'loading';
@@ -6545,7 +6549,11 @@ function xqFetchAnalysis(gameId){
       // 'loading'/'error' để render() gọi lại xqAnalysisPanelHtml trong lúc
       // chờ không kích thêm một lần fetch chồng lên timer đang chạy.
       XQ_ANALYSIS_CACHE[gameId] = 'pending';
-      setTimeout(()=>{ XQ_ANALYSIS_CACHE[gameId]=null; xqFetchAnalysis(gameId); }, 3000);
+      XQ_ANALYSIS_RETRY_TIMER = setTimeout(()=>{
+        XQ_ANALYSIS_RETRY_TIMER = null;
+        if(GAME_STATE_ID!==gameId) return; // đã rời màn ván này — không fetch/render nữa
+        XQ_ANALYSIS_CACHE[gameId]=null; xqFetchAnalysis(gameId);
+      }, 3000);
       render();
       return;
     }
@@ -6582,7 +6590,7 @@ function xqAnalysisPanelHtml(gameId, mySide){
   }
   const worst = cached.moves.reduce((w,m)=> (m.win_loss!=null && (!w||m.win_loss>w.win_loss)) ? m : w, null);
   return `
-    <div style="margin-bottom:10px"><span style="font-size:11.5px;color:var(--muted)">Thế cờ</span><div style="font-size:13.5px;font-weight:700">${esc(theCoTxt)}</div></div>
+    <div style="margin-bottom:10px"><div style="font-size:13.5px;font-weight:700">${esc(theCoTxt)}</div></div>
     <div style="font-size:12.5px;color:var(--ink2);margin-bottom:4px">Đỏ mất trung bình ${cached.red_avg_loss!=null?(cached.red_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
     <div style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Đen mất trung bình ${cached.black_avg_loss!=null?(cached.black_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
     ${worst?`<div style="font-size:12px;color:var(--muted)">Nước hỏng nhất: nước ${worst.seq} (${worst.side==='r'?'Đỏ':'Đen'})</div>`:''}
@@ -6625,9 +6633,9 @@ function xqCapturedHtml(moves){
   const row = (label,list)=> list.length ? `<div style="margin-bottom:6px"><span style="font-size:11.5px;color:var(--muted)">${label}</span><div style="font-size:16px;letter-spacing:2px">${list.map(esc).join('')}</div></div>` : '';
   return row('Đỏ đã bắt', byRed) + row('Đen đã bắt', byBlack);
 }
-// Nhật ký nước đi — chuyển nguyên si khối "Biên bản ván cờ" đã có sẵn ở cuối
-// V['cotuong-van'] (một task sau này xoá bản cũ ở chỗ đó, không còn 2 bản
-// trùng nhau — không phải việc của task này).
+// Nhật ký nước đi — nội dung từng nước giống khối "Biên bản ván cờ" cũ ở
+// V['cotuong-van'] (đã xoá bản trùng ở đó), nhưng cỡ chữ/khoảng cách/khung
+// cuộn được chỉnh riêng cho cột trái hẹp — không phải bản sao y hệt pixel.
 function xqMoveLogHtml(moves){
   if(!moves.length) return `<p style="font-size:12.5px;color:var(--muted)">Chưa có nước nào.</p>`;
   return `<div style="max-height:220px;overflow-y:auto">${moves.map(m=>`<div style="font-size:12.5px;padding:3px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`;
