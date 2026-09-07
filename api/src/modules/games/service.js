@@ -13,6 +13,13 @@ const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ 
 const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
 const INVALID_STATE = (msg) => new AppError('INVALID_STATE', msg, { status: 409 });
 
+// GAME_SELECT cố tình KHÔNG bao gồm analyzed_at / red_avg_loss / black_avg_loss dù 3
+// cột này tồn tại trên bảng games — vì đầu ra của GAME_SELECT chảy qua get() (backing
+// GET /games/:id, trả về cho khách qua denylist object spread chỉ bỏ 2 cột nhạy cảm),
+// nên mọi cột trong GAME_SELECT tự động visible cho khách. Mục đặc tả yêu cầu 3 cột
+// mổ ván này phải giữ kín với khách — getAnalysis() và getMemberProfile() (phía dưới)
+// thay vào đó chạy riêng SELECT lấy 3 cột này, không dùng GAME_SELECT/loadGame().
+// KHÔNG thêm 3 cột này vào GAME_SELECT.
 const GAME_SELECT = `
   SELECT g.id, g.community_id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
          g.created_at, g.started_at, g.finished_at,
