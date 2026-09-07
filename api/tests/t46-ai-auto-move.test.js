@@ -56,6 +56,11 @@ describe('T46 máy đi hộ — tự động đi khi tới lượt bên đã b�
     // tiếp (challenge() Alice-Bob khác) vỡ ngay ở bước tạo với 409 DUPLICATE —
     // không liên quan gì tới đúng/sai của setAiLevel/maybeAutoMove đang kiểm.
     await supertest(app).post(`/api/v1/games/${challenge.body.id}/resign`).set(auth(bobToken)).expect(200);
+    // resign() giờ tự kích hoạt analyzeGame() nền (fire-and-forget, task 3) —
+    // đợi nó chạy xong trước khi sang test kế, nếu không lệnh gọi engine
+    // movetime=400 của nó có thể rơi đúng vào cửa sổ đo "không tự đi nữa" của
+    // test dưới và làm sai đếm mock, y hệt cách t62-analyze-game.test.js đợi.
+    await wait(200);
   });
 
   it('tắt máy (level=null) thì không tự đi nữa', async () => {

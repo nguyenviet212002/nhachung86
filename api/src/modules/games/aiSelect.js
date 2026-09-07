@@ -12,7 +12,7 @@ const LEVELS = {
 // bí (mate dương) càng TỐT hơn bất kỳ score_cp nào; càng ít nước tới bị chiếu
 // bí (mate âm) càng TỆ hơn bất kỳ score_cp nào. 100_000 đủ lớn để không đụng
 // score_cp thật (Pikafish score_cp hiếm khi vượt vài nghìn).
-function effectiveScore(line) {
+export function effectiveScore(line) {
   if (line.mate == null) return line.score_cp;
   return line.mate > 0 ? 100_000 - line.mate : -100_000 - line.mate;
 }

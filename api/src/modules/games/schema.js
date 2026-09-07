@@ -4,6 +4,7 @@ const uuid = z.string().uuid();
 const cell = z.object({ r: z.number().int().min(0).max(9), c: z.number().int().min(0).max(8) });
 
 export const idParamSchema = z.object({ id: uuid });
+export const memberIdParamSchema = z.object({ memberId: uuid });
 export const challengeSchema = z.object({ opponent_member_id: uuid });
 export const listQuerySchema = z.object({
   status: z.string().optional(),

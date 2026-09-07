@@ -6,12 +6,20 @@ import { publishToMember, publishToGame, isWatchingGame } from '../../core/realt
 import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
 import * as engineClient from './engineClient.js';
-import { selectAiMove } from './aiSelect.js';
+import { selectAiMove, effectiveScore } from './aiSelect.js';
+import { computeMoveLosses } from './analysis.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
 const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
 const INVALID_STATE = (msg) => new AppError('INVALID_STATE', msg, { status: 409 });
 
+// GAME_SELECT cố tình KHÔNG bao gồm analyzed_at / red_avg_loss / black_avg_loss dù 3
+// cột này tồn tại trên bảng games — vì đầu ra của GAME_SELECT chảy qua get() (backing
+// GET /games/:id, trả về cho khách qua denylist object spread chỉ bỏ 2 cột nhạy cảm),
+// nên mọi cột trong GAME_SELECT tự động visible cho khách. Mục đặc tả yêu cầu 3 cột
+// mổ ván này phải giữ kín với khách — getAnalysis() và getMemberProfile() (phía dưới)
+// thay vào đó chạy riêng SELECT lấy 3 cột này, không dùng GAME_SELECT/loadGame().
+// KHÔNG thêm 3 cột này vào GAME_SELECT.
 const GAME_SELECT = `
   SELECT g.id, g.community_id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
          g.created_at, g.started_at, g.finished_at,
@@ -351,6 +359,7 @@ export async function move({ actor, id, from, to }) {
   publishToGame(id, 'move', { board: result.board, turn: result.turn, last_move: { from, to },
     captured: result.captured ? result.captured.type : null });
   if (result.gameOver) publishToGame(id, 'game_end', { winner: result.winner, reason: result.reason });
+  if (result.gameOver) analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
   if (!result.gameOver) maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
   return { board: result.board, turn: result.turn, status: result.gameOver ? 'finished' : 'active' };
@@ -394,6 +403,7 @@ export async function resign({ actor, id }) {
     return { winnerId, winnerSide: rules.opp(mySide), notification };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   if (result.notification) publishToMember(result.winnerId, 'notification', result.notification);
   return { id, status: 'finished' };
 }
@@ -578,6 +588,7 @@ export async function acceptDraw({ actor, id }) {
       action: 'chess_game.draw_accepted', targetType: 'game', targetId: id, detail: {} });
   });
   publishToGame(id, 'game_end', { winner: null, reason: 'hoa-thoa-thuan' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
 }
 
@@ -633,6 +644,7 @@ export async function claimTimeout({ actor, id }) {
     return { winnerSide };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'het-gio' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
 }
 
@@ -785,7 +797,55 @@ export async function claimDisconnectTimeout({ actor, id }) {
   });
   if (result.stale) throw INVALID_STATE('Bên bị coi là mất kết nối đã có nước đi mới — không còn mất kết nối thật.');
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
+}
+
+// Mổ ván (mục 2.5 spec) — CHỈ hai người chơi thật của chính ván này, không
+// bao giờ khách, không bao giờ người ngoài dù đã đăng nhập (route đã chặn
+// guest bằng requireAuth thay vì requireAuthOrGuestToken; hàm này CÒN chặn
+// thêm người-thứ-ba-đã-đăng-nhập bằng resolveSide — hai lớp, không chỉ một).
+export async function getAnalysis({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Chỉ hai người chơi trong ván này mới xem được mổ ván.');
+    if (game.status !== 'finished') throw INVALID_STATE('Ván cờ này chưa kết thúc.');
+    // GAME_SELECT (loadGame) không có analyzed_at/red_avg_loss/black_avg_loss —
+    // đọc riêng từ bảng games thay vì tin game.* có sẵn các cột này.
+    const { rows: [summary] } = await trx.raw(
+      `SELECT analyzed_at, red_avg_loss, black_avg_loss FROM games WHERE id = ?`,
+      [id]
+    );
+    const { rows: moves } = await trx.raw(
+      `SELECT seq, side, eval_before_cp, eval_before_mate, win_loss FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
+      [id]
+    );
+    return { analyzed_at: summary.analyzed_at, moves, red_avg_loss: summary.red_avg_loss, black_avg_loss: summary.black_avg_loss };
+  });
+}
+
+// Hồ sơ đối thủ (mục 2.5 spec) — thống kê TOÀN BỘ ván đã mổ của memberId trên
+// nền tảng, KHÔNG PHẢI riêng đối đầu giữa hai người (RULING trong spec §2.5:
+// đọc tự nhiên như một hồ sơ chung). Chỉ đếm ván đã analyzed_at IS NOT NULL —
+// một ván vừa kết thúc mà chưa mổ xong không được tính là "đã chơi" ở đây.
+export async function getMemberProfile({ actor, memberId }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `SELECT
+         count(*) AS games_count,
+         count(*) FILTER (WHERE winner_member_id = ?) AS wins,
+         avg(CASE WHEN red_member_id = ? THEN red_avg_loss ELSE black_avg_loss END) AS avg_loss
+       FROM games
+       WHERE community_id = ? AND (red_member_id = ? OR black_member_id = ?) AND analyzed_at IS NOT NULL`,
+      [memberId, memberId, actor.communityId, memberId, memberId]
+    );
+    return {
+      games_count: Number(row.games_count),
+      wins: Number(row.wins),
+      avg_loss: row.avg_loss === null ? null : Number(row.avg_loss),
+    };
+  });
 }
 
 export async function setAiLevel({ actor, id, level }) {
@@ -837,4 +897,57 @@ export async function maybeAutoMove({ communityId, gameId }) {
     : { id: game.black_member_id ?? null, communityId, guestToken: game.black_member_id ? null : game.black_guest_token };
 
   await move({ actor, id: gameId, from, to });
+}
+
+// Mổ ván ACPL sau khi kết thúc (mục 2.3 spec Máy đi hộ/Mổ ván). Fire-and-
+// forget — KHÔNG được throw ra ngoài, KHÔNG được chặn response của bất kỳ
+// hàm nào gọi nó (resign/acceptDraw/claimTimeout/claimDisconnectTimeout/
+// move()) — mọi lỗi tự bắt, tự log, analyzed_at ở lại NULL, không có gì vỡ.
+// movetime=400 multipv=1: đây là phân tích NỀN không ai chờ trực tiếp, khác
+// hẳn movetime=8000 của máy đi hộ SỐNG (mục 4 spec) — đủ nhanh để một ván 60
+// nước phân tích xong trong khoảng nửa phút, đủ sâu để không random nhiễu quá
+// mức. Đừng gộp chung hằng số với máy đi hộ.
+const ANALYSIS_MOVETIME_MS = 400;
+export async function analyzeGame({ communityId, gameId }) {
+  try {
+    const { rows: moves } = await withActor(null, (trx) => trx.raw(
+      `SELECT seq, side, from_r, from_c, to_r, to_c FROM game_moves WHERE game_id = ? AND community_id = ? ORDER BY seq ASC`,
+      [gameId, communityId]
+    ));
+    if (!moves.length) {
+      await withActor(null, (trx) => trx.raw(
+        `UPDATE games SET analyzed_at = now() WHERE id = ? AND community_id = ?`, [gameId, communityId]
+      ));
+      return;
+    }
+    let board = rules.initBoard();
+    let turn = 'r';
+    const evals = [];
+    for (const m of moves) {
+      const fen = rules.boardToFen(board, turn);
+      const line = await engineClient.bestMove({ fen, movetime: ANALYSIS_MOVETIME_MS, multipv: 1 });
+      evals.push({ score_cp: line.score_cp, mate: line.mate, effScore: effectiveScore(line) });
+      const applied = rules.applyMove(board, { r: m.from_r, c: m.from_c }, { r: m.to_r, c: m.to_c });
+      board = applied.board;
+      turn = rules.opp(turn);
+    }
+    const losses = computeMoveLosses(evals);
+    await withActor(null, async (trx) => {
+      for (let i = 0; i < moves.length; i++) {
+        await trx.raw(
+          `UPDATE game_moves SET eval_before_cp = ?, eval_before_mate = ?, win_loss = ? WHERE game_id = ? AND seq = ? AND community_id = ?`,
+          [evals[i].score_cp, evals[i].mate, losses[i], gameId, moves[i].seq, communityId]
+        );
+      }
+      const redLosses = losses.filter((_, i) => moves[i].side === 'r');
+      const blackLosses = losses.filter((_, i) => moves[i].side === 'b');
+      const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      await trx.raw(
+        `UPDATE games SET red_avg_loss = ?, black_avg_loss = ?, analyzed_at = now() WHERE id = ? AND community_id = ?`,
+        [avg(redLosses), avg(blackLosses), gameId, communityId]
+      );
+    });
+  } catch (e) {
+    console.error('analyzeGame lỗi:', e);
+  }
 }
