@@ -406,6 +406,12 @@ tr:last-child td{border-bottom:none}
 .xq-clock-row{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
 .xq-clock{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.08)}
 .xq-clock.low{color:#ff9d92;background:rgba(255,90,60,.16)}
+.xq-3col{display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:16px;align-items:start}
+.xq-3col-left{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;order:1}
+.xq-3col-center{order:2}
+.xq-3col-right{order:3}
+@media(max-width:1024px){.xq-3col{grid-template-columns:200px minmax(0,1fr) 280px}}
+@media(max-width:768px){.xq-3col{grid-template-columns:1fr}.xq-3col-left{order:3}.xq-3col-center{order:1}.xq-3col-right{order:2}}
 /* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
    (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
    nhẹ nhàng, không phải nền game portal rực rỡ. */
@@ -6336,6 +6342,7 @@ function stopGameStream(){
   GAMES_LIST=null;
   stopGameClock();
   stopRoomPoll();
+  if(XQ_ANALYSIS_RETRY_TIMER){ clearTimeout(XQ_ANALYSIS_RETRY_TIMER); XQ_ANALYSIS_RETRY_TIMER=null; }
   // Rời hẳn một màn ván cờ thì buông luôn định danh khách: giữ lại
   // GUEST_TOKEN sau khi đã rời sẽ khiến các hàm rẽ nhánh `GUEST_TOKEN ? …`
   // gọi mạng bằng phiên khách cho một ván khác hoàn toàn không liên quan.
@@ -6532,6 +6539,121 @@ function xqAiToggleHtml(st, mySide){
     </div>`:''}
   </div>`;
 }
+// Quân đã bắt (BAN_CHUAN_CO_TUONG.md mục "Cột trái"): suy trực tiếp từ
+// captured_type đã có sẵn trên mỗi nước — quân bị bắt LUÔN thuộc bên NGƯỢC
+// với bên vừa đi nước đó (m.side đi, m.captured_type là quân của đối phương).
+// Không cần dữ liệu mới, không gọi mạng.
+// Mổ ván (mục 2.5 spec) — chỉ gọi khi ván đã 'finished'. Backend KHÔNG 409
+// cho ván xong nhưng chưa mổ xong — trả 200 với analyzed_at:null (mổ ván là
+// fire-and-forget phía server, có thể mất vài chục giây) — xem nhánh
+// analyzed_at:null bên dưới, đó là lý do có state 'pending'/timer thử lại.
+// Cache theo gameId để không gọi lại mỗi lần render() (render() của CHÍNH
+// ván này có thể chạy nhiều lần/giây lúc đang có SSE).
+let XQ_ANALYSIS_CACHE = {}; // { [gameId]: 'loading' | 'pending' | {..response..} | 'error' }
+let XQ_ANALYSIS_RETRY_TIMER = null;
+function xqFetchAnalysis(gameId){
+  if(XQ_ANALYSIS_CACHE[gameId]) return; // đang tải hoặc đã có rồi
+  XQ_ANALYSIS_CACHE[gameId] = 'loading';
+  api.get('/games/'+gameId+'/analysis').then(res=>{
+    if(!res.analyzed_at){
+      // Ván vừa xong, mổ ván (fire-and-forget phía server) chưa chạy kịp —
+      // KHÔNG cache như một kết quả cuối, thử lại sau 3 giây (cùng nhịp
+      // startRoomPoll đã dùng ở chỗ khác trong file này). 'pending' khác
+      // 'loading'/'error' để render() gọi lại xqAnalysisPanelHtml trong lúc
+      // chờ không kích thêm một lần fetch chồng lên timer đang chạy.
+      XQ_ANALYSIS_CACHE[gameId] = 'pending';
+      XQ_ANALYSIS_RETRY_TIMER = setTimeout(()=>{
+        XQ_ANALYSIS_RETRY_TIMER = null;
+        if(GAME_STATE_ID!==gameId) return; // đã rời màn ván này — không fetch/render nữa
+        XQ_ANALYSIS_CACHE[gameId]=null; xqFetchAnalysis(gameId);
+      }, 3000);
+      render();
+      return;
+    }
+    XQ_ANALYSIS_CACHE[gameId] = res;
+    render();
+  }).catch(()=>{
+    XQ_ANALYSIS_CACHE[gameId] = 'error';
+    render();
+  });
+}
+// Thang quy đổi HIỂN THỊ THÔ "hơn X quân": mỗi ~100 điểm centipawn xấp xỉ 1
+// quân — CHỈ để đưa ra một con số dễ hiểu, không phải số đo tuyệt đối (đúng
+// tinh thần "ƯỚC LƯỢNG" mục V.3 bản chuẩn). Nếu ván có nước chiếu bí
+// (eval_before_mate khác null) thì nói thẳng "chiếu bí sau N nước" thay vì
+// quy đổi quân — quy đổi một thế chiếu bí thành "hơn X quân" làm sai lệch ý
+// nghĩa hoàn toàn.
+function xqAnalysisPanelHtml(gameId, mySide){
+  if(!mySide) return '';
+  const cached = XQ_ANALYSIS_CACHE[gameId];
+  if(!cached){ xqFetchAnalysis(gameId); return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`; }
+  if(cached==='loading' || cached==='pending') return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
+  if(cached==='error') return `<p style="font-size:12.5px;color:var(--muted)">Chưa mổ ván được, thử tải lại trang.</p>`;
+  if(!cached.analyzed_at) return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
+  const lastMove = cached.moves.length ? cached.moves[cached.moves.length-1] : null;
+  let theCoTxt = 'Cân bằng';
+  if(lastMove){
+    if(lastMove.eval_before_mate!=null){
+      theCoTxt = lastMove.eval_before_mate>0 ? `${lastMove.side==='r'?'Đỏ':'Đen'} chiếu bí sau ${lastMove.eval_before_mate} nước` : `${lastMove.side==='r'?'Đen':'Đỏ'} chiếu bí sau ${-lastMove.eval_before_mate} nước`;
+    } else if(lastMove.eval_before_cp!=null){
+      const pawns = Math.abs(lastMove.eval_before_cp/100).toFixed(1);
+      const favoredSide = (lastMove.eval_before_cp>=0) === (lastMove.side==='r') ? 'Đỏ' : 'Đen';
+      theCoTxt = Math.abs(lastMove.eval_before_cp)<30 ? 'Cân bằng' : `${favoredSide} hơn ~${pawns} quân`;
+    }
+  }
+  const worst = cached.moves.reduce((w,m)=> (m.win_loss!=null && (!w||m.win_loss>w.win_loss)) ? m : w, null);
+  return `
+    <div style="margin-bottom:10px"><div style="font-size:13.5px;font-weight:700">${esc(theCoTxt)}</div></div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:4px">Đỏ mất trung bình ${cached.red_avg_loss!=null?(cached.red_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Đen mất trung bình ${cached.black_avg_loss!=null?(cached.black_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
+    ${worst?`<div style="font-size:12px;color:var(--muted)">Nước hỏng nhất: nước ${worst.seq} (${worst.side==='r'?'Đỏ':'Đen'})</div>`:''}
+  `;
+}
+// Hồ sơ đối thủ (mục 2.5 spec) — hiện LUÔN, không chờ ván xong (khác Mổ ván ở
+// trên). Cache theo memberId, không theo gameId — hai ván khác nhau cùng một
+// đối thủ dùng chung một lần gọi.
+let XQ_PROFILE_CACHE = {}; // { [memberId]: 'loading' | {..response..} | 'error' }
+function xqFetchProfile(memberId){
+  if(XQ_PROFILE_CACHE[memberId]) return;
+  XQ_PROFILE_CACHE[memberId] = 'loading';
+  api.get('/games/members/'+memberId+'/profile').then(res=>{
+    XQ_PROFILE_CACHE[memberId] = res;
+    render();
+  }).catch(()=>{
+    XQ_PROFILE_CACHE[memberId] = 'error';
+    render();
+  });
+}
+function xqOpponentProfileHtml(opponentId, opponentName){
+  const cached = XQ_PROFILE_CACHE[opponentId];
+  if(!cached){ xqFetchProfile(opponentId); return `<p style="font-size:12.5px;color:var(--muted)">Đang tải…</p>`; }
+  if(cached==='loading') return `<p style="font-size:12.5px;color:var(--muted)">Đang tải…</p>`;
+  if(cached==='error') return `<p style="font-size:12.5px;color:var(--muted)">Không tải được hồ sơ.</p>`;
+  return `
+    <p style="font-size:13px;font-weight:700;margin-bottom:4px">${esc(opponentName)}</p>
+    <p style="font-size:12px;color:var(--ink2)">${cached.games_count} ván · ${cached.wins} thắng${cached.avg_loss!=null?' · mất trung bình '+(cached.avg_loss*100).toFixed(1)+'%/nước':''}</p>
+  `;
+}
+
+function xqCapturedHtml(moves){
+  const byRed = [], byBlack = []; // byRed = quân Đỏ đã bắt được (tức quân Đen)
+  for(const m of moves){
+    if(!m.captured_type) continue;
+    const capturedSide = m.side==='r' ? 'b' : 'r';
+    (m.side==='r' ? byRed : byBlack).push(CHESS_CHAR[capturedSide][m.captured_type]);
+  }
+  if(!byRed.length && !byBlack.length) return `<p style="font-size:12.5px;color:var(--muted)">Chưa bắt quân nào.</p>`;
+  const row = (label,list)=> list.length ? `<div style="margin-bottom:6px"><span style="font-size:11.5px;color:var(--muted)">${label}</span><div style="font-size:16px;letter-spacing:2px">${list.map(esc).join('')}</div></div>` : '';
+  return row('Đỏ đã bắt', byRed) + row('Đen đã bắt', byBlack);
+}
+// Nhật ký nước đi — nội dung từng nước giống khối "Biên bản ván cờ" cũ ở
+// V['cotuong-van'] (đã xoá bản trùng ở đó), nhưng cỡ chữ/khoảng cách/khung
+// cuộn được chỉnh riêng cho cột trái hẹp — không phải bản sao y hệt pixel.
+function xqMoveLogHtml(moves){
+  if(!moves.length) return `<p style="font-size:12.5px;color:var(--muted)">Chưa có nước nào.</p>`;
+  return `<div style="max-height:220px;overflow-y:auto">${moves.map(m=>`<div style="font-size:12.5px;padding:3px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`;
+}
+
 function resolveMySide(g){
   if(!g) return null;
   if(DATA.me){
@@ -6786,37 +6908,66 @@ V['cotuong-van'] = (params)=>{
   const announce = st.status==='finished'
     ? xqAnnounceHtml(statusTxt, resultSide===null ? '' : ((!mySide || resultSide===mySide) ? 'win' : 'lose'))
     : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
+  const opponentId = mySide ? (mySide==='r'?st.black_member_id:st.red_member_id) : null;
+  const opponentName = mySide ? (mySide==='r'?st.black_name:st.red_name) : null;
+  const rightColHtml = `
+    <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+      <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+      ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
+      ${st.status==='active'?`<div class="xq-clock-row">
+        <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
+        <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+      </div>`:''}
+      ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+        <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
+        <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+      </div>`:''}
+      <div class="xq-ctrl-row">
+        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
+        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
+        <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+      </div>
+      ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
+      ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
+      ${!mySide?`<h3 style="margin-top:14px">Biên bản ván cờ</h3>${xqMoveLogHtml(st.moves)}`:''}
+    </div>`;
+  if(!mySide){
+    return `
+    <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
+    ${announce}
+    <div class="xq-wrap">
+      <div class="xq-board">
+        ${chessGridSvg()}
+        <div class="xq-river">楚 河　　漢 界</div>
+        ${pts.join('')}
+      </div>
+    </div>
+    ${rightColHtml}`;
+  }
   return `
   <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
   ${announce}
-  <div class="xq-wrap">
-    <div class="xq-board">
-      ${chessGridSvg()}
-      <div class="xq-river">楚 河　　漢 界</div>
-      ${pts.join('')}
+  <div class="xq-3col">
+    <div class="xq-3col-left">
+      ${st.status==='finished'?`<h3 style="margin-top:0;font-size:13px">Thế cờ</h3>${xqAnalysisPanelHtml(st.id, mySide)}<hr style="margin:10px 0;border-color:var(--line)">`:''}
+      <h3 style="margin-top:0;font-size:13px">Quân đã bắt</h3>
+      ${xqCapturedHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
+      ${xqMoveLogHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Hồ sơ đối thủ</h3>
+      ${opponentId?xqOpponentProfileHtml(opponentId, opponentName):`<p style="font-size:12.5px;color:var(--muted)">Khách — chưa có hồ sơ.</p>`}
     </div>
-  </div>
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
-    <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
-    ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
-    ${st.status==='active'?`<div class="xq-clock-row">
-      <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
-      <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
-    </div>`:''}
-    ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
-      <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
-      <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
-    </div>`:''}
-    <div class="xq-ctrl-row">
-      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
-      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
-      <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+    <div class="xq-3col-center">
+      <div class="xq-wrap">
+        <div class="xq-board">
+          ${chessGridSvg()}
+          <div class="xq-river">楚 河　　漢 界</div>
+          ${pts.join('')}
+        </div>
+      </div>
     </div>
-    ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
-    ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
-    <h3 style="margin-top:14px">Biên bản ván cờ</h3>
-    ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
+    <div class="xq-3col-right">${rightColHtml}</div>
   </div>`;
 };
 
