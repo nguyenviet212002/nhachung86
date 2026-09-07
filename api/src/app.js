@@ -14,6 +14,7 @@ import { notificationRouter, messageRouter } from './modules/notifications/route
 import { router as capabilitiesRouter } from './modules/capabilities/routes.js';
 import { router as jobsRouter } from './modules/jobs/routes.js';
 import { router as gamesRouter } from './modules/games/routes.js';
+import { router as coTheRouter } from './modules/co-the/routes.js';
 import { router as projectsRouter } from './modules/projects/routes.js';
 import { router as aidRouter } from './modules/aid/routes.js';
 import { router as complaintsRouter } from './modules/complaints/routes.js';
@@ -106,6 +107,7 @@ export function buildApp() {
   app.use('/api/v1/capabilities', capabilitiesRouter);
   app.use('/api/v1/jobs', jobsRouter);
   app.use('/api/v1/games', gamesRouter);
+  app.use('/api/v1/co-the', coTheRouter);
   app.use('/api/v1/projects', projectsRouter);
   app.use('/api/v1/aid', aidRouter);
   app.use('/api/v1/complaints', complaintsRouter);
