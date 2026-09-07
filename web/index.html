@@ -6119,15 +6119,18 @@ function stopGameStream(){
   GAME_STATE=null; GAME_STATE_ID=null; GAME_SELECTED=null; GAME_LEGAL=[];
   GAME_STREAM_RETRIES=0;
   GAMES_LIST=null;
+  stopGameClock();
+  stopRoomPoll();
 }
 function connectGameStream(id){
   if(GAME_EVENTSOURCE) GAME_EVENTSOURCE.close();
-  const token = api.accessToken(); if(!token) return;
+  const token = DATA.me ? api.accessToken() : GUEST_TOKEN; if(!token) return;
   GAME_EVENTSOURCE = new EventSource(api.baseUrl()+'/games/'+id+'/stream?access_token='+encodeURIComponent(token));
   GAME_EVENTSOURCE.addEventListener('ready', ()=>{ GAME_STREAM_RETRIES=0; });
   GAME_EVENTSOURCE.addEventListener('game_start', e=>{
     const d = JSON.parse(e.data);
     if(GAME_STATE){ GAME_STATE.board=d.board; GAME_STATE.turn=d.turn; GAME_STATE.status='active'; }
+    maybeStartGameClock('active');
     render();
   });
   GAME_EVENTSOURCE.addEventListener('move', e=>{
@@ -6143,6 +6146,7 @@ function connectGameStream(id){
       GAME_STATE.status='finished'; GAME_STATE.end_reason=d.reason;
       GAME_STATE.winner_member_id = d.winner ? (d.winner==='r'?GAME_STATE.red_member_id:GAME_STATE.black_member_id) : null;
     }
+    stopGameClock();
     chessSound('end');
     render();
   });
@@ -6165,9 +6169,14 @@ function connectGameStream(id){
 }
 function loadGame(id){
   GAME_STATE = null; GAME_STATE_ID = id; GAME_SELECTED=null; GAME_LEGAL=[];
-  api.get('/games/'+id).then(g=>{
-    if(GAME_STATE_ID!==id) return; // đã điều hướng đi chỗ khác trong lúc chờ
-    GAME_STATE=g; connectGameStream(id); render();
+  const req = DATA.me ? api.get('/games/'+id) : guestFetch('GET', '/games/'+id);
+  req.then(g=>{
+    if(GAME_STATE_ID!==id) return;
+    GAME_STATE=g; connectGameStream(id);
+    maybeStartGameClock(g.status);
+    const phase = xqRoomPhase(g);
+    if(phase==='cho-doi-thu'||phase==='du-nguoi'||phase==='cho-ben-kia') startRoomPoll(id); else stopRoomPoll();
+    render();
   }).catch(e=>{
     if(GAME_STATE_ID!==id) return;
     GAME_STATE={error:e.message||'Không tải được ván cờ.'}; render();
@@ -6175,7 +6184,7 @@ function loadGame(id){
 }
 function gameCellClick(r,c){
   if(!GAME_STATE || GAME_STATE.error || GAME_STATE.status!=='active') return;
-  const mySide = GAME_STATE.red_member_id===DATA.me.id ? 'r' : GAME_STATE.black_member_id===DATA.me.id ? 'b' : null;
+  const mySide = resolveMySide(GAME_STATE);
   if(!mySide || mySide!==GAME_STATE.turn) return; // xem hoặc chưa tới lượt: bàn chỉ đọc
   const p = GAME_STATE.board[r][c];
   if(GAME_SELECTED){
@@ -6184,10 +6193,11 @@ function gameCellClick(r,c){
       const from=GAME_SELECTED, to={r,c};
       const gid = GAME_STATE.id;
       GAME_SELECTED=null; GAME_LEGAL=[];
-      api.post('/games/'+gid+'/moves', {from,to}).then(g=>{
+      const req = DATA.me ? api.post('/games/'+gid+'/moves', {from,to}) : guestFetch('POST', '/games/'+gid+'/moves', {from,to});
+      req.then(g=>{
         if(GAME_STATE_ID===gid && GAME_STATE){ GAME_STATE.board=g.board; GAME_STATE.turn=g.turn; GAME_STATE.status=g.status; render(); }
       }).catch(e=>{
-        toast(e.message||'Nước đi không hợp lệ.','x'); loadGame(GAME_STATE.id);
+        toast(e.message||'Nước đi không hợp lệ.','x'); loadGame(gid);
       });
       render();
       return;
@@ -6199,7 +6209,8 @@ function gameCellClick(r,c){
 }
 function resignGame(id){
   if(!confirm('Xin thua ván này?')) return;
-  api.post('/games/'+id+'/resign').catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+  const req = DATA.me ? api.post('/games/'+id+'/resign') : guestFetch('POST', '/games/'+id+'/resign');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
 
 /* ---------- Phòng cờ (Gen 2): trạng thái, đồng hồ, phiên khách ----------
