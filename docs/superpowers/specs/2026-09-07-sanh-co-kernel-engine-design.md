@@ -168,7 +168,7 @@ Kiểm thử: nối vào `api/tests/t40-chess-rules.test.js` (Vitest, hàm thu�
 
 ## 9 · Còn chưa định
 
-- **Kích thước VPS** (core/RAM) — quyết định `ENGINE_POOL_SIZE` và có cần giảm `Threads` Pikafish xuống dưới 8 khi nhiều ván cùng lúc hay không.
-- **Nguồn binary Pikafish + tệp NNUE** — build từ mã nguồn trong image `engine`, hay tải sẵn lúc build. Pikafish là GPLv3 (dẫn xuất Stockfish) — tự host nội bộ không vướng gì, chỉ cần biết trước để viết Dockerfile.
+- **Kích thước VPS** (core/RAM) — chưa biết, nên `ENGINE_POOL_SIZE` khởi đầu để mặc định nhỏ (1-2) và `Threads` Pikafish để mặc định thấp (2-4) cho máy dev — chỉnh lại khi có số thật từ VPS. Không chặn việc dựng.
+- ~~**Nguồn binary Pikafish + tệp NNUE**~~ — **đã chốt 2026-09-07:** build từ mã nguồn trong Dockerfile nhiều tầng (multi-stage), không tải binary dựng sẵn. Lý do: build đúng cờ CPU của máy build ra thì chắc chạy được trên chính máy đó — tải sẵn phải đoán đúng biến thể (AVX2/BMI2/generic) khớp CPU máy chạy, rủi ro "illegal instruction" khi chưa biết cấu hình VPS thật.
 - **"Cả hai bên cùng trường chiếu"** trong 1 chu kỳ lặp (mục 3.1) — hiếm, spec gốc không nói rõ, tạm xử hoà, có thể cần xem lại nếu gặp thật.
 - **Ánh xạ ký tự FEN chính xác** (mục 6) — cơ học, để lúc lập kế hoạch.
