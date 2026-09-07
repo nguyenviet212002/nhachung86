@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { idempotent } from '../../middleware/idempotency.js';
 import * as schema from './schema.js';
 import * as memberService from './service.js';
@@ -34,6 +34,14 @@ router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next
         limit: req.query.limit,
       })
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/', requireRole('approver'), idempotent(), validate(schema.createMemberSchema), async (req, res, next) => {
+  try {
+    res.status(201).json(await memberService.create({ actor: req.actor, input: req.body }));
   } catch (err) {
     next(err);
   }
@@ -72,6 +80,14 @@ router.post('/:id/contact-requests', idempotent(), validate(schema.idParamSchema
 router.get('/:id', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try {
     res.json(await memberService.get({ actor: req.actor, id: req.params.id }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', requireRole('approver'), validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try {
+    res.json(await memberService.remove({ actor: req.actor, id: req.params.id }));
   } catch (err) {
     next(err);
   }

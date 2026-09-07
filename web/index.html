@@ -2042,6 +2042,7 @@ const NAV_MEMBER = [
 const NAV_ADMIN = [
   {id:'admin-tongquan', label:'Tổng quan', icon:'grid'},
   {id:'admin-duyet', label:'Duyệt & xác minh', icon:'shield'},
+  {id:'admin-thanhvien', label:'Thành viên', icon:'users'},
   {id:'admin-dieuphoi', label:'Điều phối', icon:'handshake'},
   {id:'admin-quy', label:'Quỹ hội', icon:'fund', badge:()=>(DATA.loanRequests||[]).filter(l=>l.status==='requested').length},
   {id:'admin-hoatdong', label:'Hoạt động & ký ức', icon:'archive'},
@@ -3266,6 +3267,62 @@ async function suaHoSoSubmit(){
     closeModal(); toast('Đã lưu hồ sơ','check'); render();
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='Lưu';}
+    if(box&&txt){ txt.textContent=e.message||'Có lỗi, thử lại.'; box.style.display='flex'; }
+  }
+}
+
+/* Thêm thành viên thật: POST /members. Admin (approver) nhập liệu người đã
+   là thành viên ngoài đời nhưng chưa có tài khoản — bỏ qua luồng mời/bảo
+   lãnh/nộp đơn. Cùng bố cục renderSuaHoSoForm ở trên, bớt ảnh đại diện (chưa
+   có member_id để gắn quyền sở hữu file) và thêm "Ngày gia nhập". */
+WIZ.themThanhVien = ()=>{
+  SUGGEST_VALUES['ttvkhuvuc'] = '';
+  openModal(`<div class="modal-head"><b>Thêm thành viên</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="label">Họ tên <span class="req" style="color:var(--red)">*</span></label><input class="input" id="tv-name" placeholder="Nguyễn Văn A"></div>
+      <div class="g2">
+        <div class="field"><label class="label">Nghề nghiệp</label><input class="input" id="tv-job"></div>
+        ${suggestFieldArea('Khu vực','ttvkhuvuc')}
+      </div>
+      <div class="field"><label class="label">Giới thiệu ngắn</label><textarea class="input" id="tv-bio" style="height:70px;padding-top:10px"></textarea></div>
+      <div class="field"><label class="label">Tình trạng nhận việc</label><div style="display:flex;gap:8px;flex-wrap:wrap">${WORK_STATUS_OPTS.map(([v,l])=>`<button type="button" class="fchip ${v==='available'?'on':''}" data-wsval="${v}" onclick="qsa('[data-wsval]').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${l}</button>`).join('')}</div></div>
+      <div class="field"><label class="label">Ngày gia nhập</label><input class="input" id="tv-joined" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="g2">
+        <div class="field"><label class="label">Điện thoại</label><input class="input" id="tv-phone" placeholder="0912345678"></div>
+        <div class="field"><label class="label">Zalo</label><input class="input" id="tv-zalo"></div>
+      </div>
+      <div class="g2">
+        <div class="field"><label class="label">Messenger</label><input class="input" id="tv-messenger"></div>
+        <div class="field"><label class="label">Email (không bắt buộc)</label><input class="input" id="tv-email" type="email"></div>
+      </div>
+      <div class="field"><label class="label">Địa chỉ cụ thể (không bắt buộc)</label><input class="input" id="tv-address" placeholder="Số nhà, đường, thôn/xóm…"></div>
+      <div id="tv-err" class="notice wait" style="display:none">${ic('flag',16)}<span id="tv-err-txt"></span></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-out" style="flex:1" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-blue" id="tv-submit" style="flex:2" onclick="themThanhVienSubmit()">Thêm</button></div>`, {wide:true});
+};
+async function themThanhVienSubmit(){
+  const box=qs('#tv-err'), txt=qs('#tv-err-txt');
+  if(box) box.style.display='none';
+  const fullName = getVal('tv-name');
+  if(fullName.length<2){
+    if(box){ txt.textContent='Nhập họ tên ít nhất 2 ký tự.'; box.style.display='flex'; }
+    return;
+  }
+  const btn=qs('#tv-submit'); if(btn){btn.disabled=true;btn.textContent='Đang thêm…';}
+  try{
+    const work_status = document.querySelector('[data-wsval].on')?.dataset.wsval || 'available';
+    const payload = { full_name:fullName, job:getVal('tv-job')||null, bio:getVal('tv-bio')||null,
+      area_id:areaIdByName(getSuggestValue('ttvkhuvuc')), work_status, joined_at:getVal('tv-joined')||null,
+      email:getVal('tv-email')||null, phone:getVal('tv-phone')||null, zalo:getVal('tv-zalo')||null,
+      messenger:getVal('tv-messenger')||null, address:getVal('tv-address')||null };
+    const created = await api.post('/members', payload, api.newIdemKey());
+    const areaName = created.area_id ? (DATA.areasFlat.find(a=>a.id===created.area_id)||{}).name : '';
+    DATA.members.unshift({ id:created.id, name:created.full_name, ward:areaName||'', field:created.job||'',
+      status:created.work_status, role:'member', avatar:null });
+    closeModal(); toast('Đã thêm thành viên','check'); render();
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Thêm';}
     if(box&&txt){ txt.textContent=e.message||'Có lỗi, thử lại.'; box.style.display='flex'; }
   }
 }
@@ -5215,6 +5272,30 @@ ADM.duyet = ()=> `
   <div class="section"><div class="card-head"><h3>${ic('shield',15)} Xác minh hồ sơ (${DATA.verifications.filter(v=>v.status==='pending').length} đang chờ)</h3></div>
   ${admSearchBox('duyetVerifications','Tìm theo tên người, mục xin xác minh…')}
   <table><thead><tr><th>Người</th><th>Mục xin xác minh</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody id="adm-duyetVerifications">${ADM_RENDERERS.duyetVerifications()}</tbody></table></div>`;
+ADM_RENDERERS.thanhvien = ()=>{
+  const q = (ADM_Q.thanhvien||'').trim().toLowerCase();
+  const list = DATA.members.filter(m=>matchKw(q, m.name, m.field));
+  return list.length?list.map(m=>`<tr><td class="t-strong">${esc(m.name)}</td>
+      <td class="t-time">${[m.field,m.ward].filter(Boolean).map(esc).join(' · ')||'—'}</td>
+      <td style="text-align:right"><button class="btn btn-out btn-sm" style="color:var(--red)" onclick="adminXoaThanhVien(${esc(JSON.stringify(m.id))}, ${esc(JSON.stringify(m.name))})">${ic('x',12)} Xoá</button></td></tr>`).join(''):`<tr><td colspan="3" class="t-muted">${q?'Không tìm thấy thành viên nào khớp.':'Chưa có thành viên nào.'}</td></tr>`;
+};
+ADM.thanhvien = ()=> `
+  <div class="page-head"><div><h1>Thành viên</h1><p>Hiển thị ${DATA.members.length} thành viên (tối đa 100 người tải đầu tiên).</p></div>
+    <button class="btn btn-blue" data-open="themThanhVien">${ic('plus',15)} Thêm thành viên</button></div>
+  <div class="section">
+    ${admSearchBox('thanhvien','Tìm theo tên, nghề nghiệp…')}
+    <table><thead><tr><th>Họ tên</th><th>Nghề / khu vực</th><th style="text-align:right">Thao tác</th></tr></thead>
+    <tbody id="adm-thanhvien">${ADM_RENDERERS.thanhvien()}</tbody>
+  </table></div>`;
+async function adminXoaThanhVien(id, name){
+  if(!confirm(`Xoá tư cách thành viên của ${name}? Không hoàn tác được qua giao diện.`)) return;
+  try{
+    await api.del('/members/'+id);
+    DATA.members = DATA.members.filter(m=>m.id!==id);
+    toast('Đã xoá thành viên','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 const VERIFICATION_KIND_LABEL = {identity:'Danh tính', address:'Địa chỉ', skill:'Kỹ năng / nghề nghiệp', business:'Hộ kinh doanh'};
 const VERIFICATION_STATUS_LABEL = {pending:'Chờ duyệt', verified:'Đã xác minh', rejected:'Đã từ chối'};
 async function decideVerification(id, status){
