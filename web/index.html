@@ -6735,6 +6735,7 @@ V['cotuong-van'] = (params)=>{
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+    ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
     ${st.status==='active'?`<div class="xq-clock-row">
       <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
       <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
