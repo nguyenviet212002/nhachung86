@@ -6240,6 +6240,7 @@ function resignGame(id){
    2026-09-07-cotuong-phong-khach-ui-design.md. ══════════════════════ */
 function xqRoomPhase(g){
   if(!g || g.error) return null;
+  if(g.black_member_id) return null; // ván có bên Đen là thành viên thật (thách đấu/ghép nhanh Gen 1) — không phải máy trạng thái phòng; phòng Gen 2 chỉ có black_guest_name/black_guest_token, không bao giờ black_member_id
   if(g.status==='active') return 'dang-dau';
   if(g.status!=='pending') return null; // finished hoặc trạng thái khác: không phải máy trạng thái phòng
   if(!g.second_joined_at) return 'cho-doi-thu';
@@ -6364,7 +6365,7 @@ V['cotuong-van'] = (params)=>{
   const st = GAME_STATE;
   const mySide = resolveMySide(st);
   const isMyTurn = mySide && mySide===st.turn && st.status==='active';
-  if(st.status==='pending'){
+  if(st.status==='pending' && st.black_member_id){
     const isInvitee = DATA.me && st.black_member_id===DATA.me.id;
     return `<div class="xq-fs-card">
       <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
