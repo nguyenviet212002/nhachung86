@@ -7,7 +7,7 @@ import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
 import * as engineClient from './engineClient.js';
 import { selectAiMove, effectiveScore } from './aiSelect.js';
-import { winRate, computeMoveLosses } from './analysis.js';
+import { computeMoveLosses } from './analysis.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
 const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
@@ -857,10 +857,13 @@ const ANALYSIS_MOVETIME_MS = 400;
 export async function analyzeGame({ communityId, gameId }) {
   try {
     const { rows: moves } = await withActor(null, (trx) => trx.raw(
-      `SELECT seq, side, from_r, from_c, to_r, to_c FROM game_moves WHERE game_id = ? ORDER BY seq ASC`, [gameId]
+      `SELECT seq, side, from_r, from_c, to_r, to_c FROM game_moves WHERE game_id = ? AND community_id = ? ORDER BY seq ASC`,
+      [gameId, communityId]
     ));
     if (!moves.length) {
-      await withActor(null, (trx) => trx.raw(`UPDATE games SET analyzed_at = now() WHERE id = ?`, [gameId]));
+      await withActor(null, (trx) => trx.raw(
+        `UPDATE games SET analyzed_at = now() WHERE id = ? AND community_id = ?`, [gameId, communityId]
+      ));
       return;
     }
     let board = rules.initBoard();
@@ -878,16 +881,16 @@ export async function analyzeGame({ communityId, gameId }) {
     await withActor(null, async (trx) => {
       for (let i = 0; i < moves.length; i++) {
         await trx.raw(
-          `UPDATE game_moves SET eval_before_cp = ?, eval_before_mate = ?, win_loss = ? WHERE game_id = ? AND seq = ?`,
-          [evals[i].score_cp, evals[i].mate, losses[i], gameId, moves[i].seq]
+          `UPDATE game_moves SET eval_before_cp = ?, eval_before_mate = ?, win_loss = ? WHERE game_id = ? AND seq = ? AND community_id = ?`,
+          [evals[i].score_cp, evals[i].mate, losses[i], gameId, moves[i].seq, communityId]
         );
       }
       const redLosses = losses.filter((_, i) => moves[i].side === 'r');
       const blackLosses = losses.filter((_, i) => moves[i].side === 'b');
       const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
       await trx.raw(
-        `UPDATE games SET red_avg_loss = ?, black_avg_loss = ?, analyzed_at = now() WHERE id = ?`,
-        [avg(redLosses), avg(blackLosses), gameId]
+        `UPDATE games SET red_avg_loss = ?, black_avg_loss = ?, analyzed_at = now() WHERE id = ? AND community_id = ?`,
+        [avg(redLosses), avg(blackLosses), gameId, communityId]
       );
     });
   } catch (e) {

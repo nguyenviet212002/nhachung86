@@ -1,10 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { subscribeGame, publishToGame, isWatchingGame } from '../src/core/realtime.js';
 import jwt from 'jsonwebtoken';
 import supertest from 'supertest';
 import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
+
+// resign() (được kiểm ở dưới) giờ tự kích hoạt analyzeGame() nền (task 3) —
+// mock engine để không bao giờ gọi Pikafish thật, kể cả khi ENGINE_URL trỏ
+// đúng dịch vụ thật (vd. chạy trong docker-compose). Không cần cấu hình
+// mockResolvedValue: file này không kiểm gì về engine, chỉ cần mock tồn tại
+// để chặn network thật — analyzeGame() tự bắt lỗi nếu mock trả undefined.
+vi.mock('../src/modules/games/engineClient.js', () => ({ bestMove: vi.fn() }));
 
 let db, app, cid, alice, bob, carol, aliceToken, bobToken, carolToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
