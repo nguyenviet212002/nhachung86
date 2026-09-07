@@ -18,11 +18,11 @@
 - `audit.detail` **không bao giờ chứa văn bản tự do của người dùng** (tên khách tự gõ, v.v.) — chỉ định danh/enum/số đếm, đúng luật đã canh trong `core/audit.js` (`assertSafeDetail`).
 - Theo đúng convention hiện có của `api/games`: mọi UPDATE làm thay đổi trạng thái đều có `WHERE` điều kiện + `RETURNING` + kiểm `if (!row) throw INVALID_STATE(...)` để chống ghi đè race.
 - File test nối vào bộ có sẵn: luật thuần ở `api/tests/t40-chess-rules.test.js`, route/service ở file mới `api/tests/t42-games-rooms.test.js` (theo đúng khuôn `t41-games-api.test.js`: `resetDb()`, tạo `communities`/`members` bằng `trx.raw`, ký JWT bằng `jwt.sign({sub,cid,typ:'access'}, config.JWT_SECRET,...)`, gọi qua `supertest(app)`).
-- **BẮT BUỘC: rebuild image `api` trước MỌI lần chạy `docker compose exec api ...` trong plan này.** Container `nhachung-api-1` đang chạy sẵn (đã xác nhận với người dùng: máy dev cá nhân, dữ liệu giả — an toàn để migrate/test trực tiếp vào đây, đúng quy trình `README.md`) không có bind-mount mã nguồn — `COPY . .` trong `api/Dockerfile` chỉ chạy lúc build image, nên container đang chạy KHÔNG thấy code vừa sửa trong worktree cho tới khi được build lại. Ngay trước bước "Run" đầu tiên có `docker compose exec api` trong MỖI task (kể cả `npm run migrate`), chạy trước:
-  ```bash
-  docker compose up -d --build api
-  ```
-  Image đã layer sẵn (`api/Dockerfile`: cài `npm ci` ở stage riêng, tách khỏi `COPY . .`) nên rebuild sau khi chỉ đổi mã nguồn thường nhanh. Bỏ qua bước này khiến `migrate`/`vitest` chạy nhầm vào code CŨ — kết quả PASS hay FAIL đều không đáng tin.
+- **BẮT BUỘC: mọi lệnh "Run" trong plan này chạy `npm test`/`npx vitest` chạy Ở NGOÀI container, từ thư mục `api/` trên máy — KHÔNG dùng `docker compose exec api npx vitest ...`.** Đã xác minh: image `api` build bằng `npm ci --omit=dev` (`api/Dockerfile`) nên KHÔNG có `vitest`/`supertest` bên trong — `docker compose exec api npm test` báo `vitest: not found`, dù `README.md` mô tả khác. Cách đúng, đã xác minh chạy được:
+  1. Đưa CSDL test cách ly lên (dùng 1 lần cho cả phiên làm việc, không cần lặp lại mỗi task): `docker compose -f docker-compose.test.yml up -d db` — đây là stack ĐỘC LẬP (`name: nhachung-test`, cổng 55432, dữ liệu tmpfs), không phải override của `docker-compose.yml` chính — đừng gộp `-f` với file kia.
+  2. `cd api && npm install` (một lần) — **kiểm tra biến `NODE_ENV` trong shell trước khi cài: nếu đang là `production`, `npm install` sẽ ÂM THẦM bỏ qua devDependencies (thiếu hẳn `vitest`/`supertest` mà không báo lỗi rõ ràng) — chạy `unset NODE_ENV` trước nếu cần.**
+  3. Từ `api/`: `npm test` (toàn bộ) hoặc `npx vitest run <tên-file> -t "<mô tả>"` (đúng như các lệnh "Run" ghi trong plan) — `vitest.config.js` tự nạp `api/.env.test` (qua `tests/setup-env.js`) nên không cần tự set biến môi trường; mỗi file test tự `resetDb()` (xoá sạch schema + chạy lại toàn bộ migration, bao gồm `057_games_rooms_clock.js`) nên **không cần lệnh `npm run migrate` riêng để kiểm tra migration mới** — chạy `t41-games-api`/`t42-games-rooms` là đã tự áp migration mới nhất.
+  4. Không đụng tới `docker compose exec api` (stack `nhachung` chính) cho việc kiểm thử của plan này — đó là máy dev cá nhân người dùng, đã xác nhận an toàn để dùng nhưng không cần thiết cho plan này khi đã có CSDL test cách ly.
 
 ---
 
@@ -64,7 +64,7 @@ describe('T40 hashBoard', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules -t hashBoard`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules -t hashBoard`
 Expected: FAIL — `rules.hashBoard is not a function`
 
 - [ ] **Step 3: Cài đặt**
@@ -90,7 +90,7 @@ export function hashBoard(board, turn) {
 
 - [ ] **Step 4: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules -t hashBoard`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules -t hashBoard`
 Expected: PASS (3/3)
 
 - [ ] **Step 5: Commit**
@@ -168,7 +168,7 @@ describe('T40 detectRepetition / detectNoCaptureDraw', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules -t "detectRepetition|detectNoCaptureDraw"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules -t "detectRepetition|detectNoCaptureDraw"`
 Expected: FAIL — `rules.detectRepetition is not a function`
 
 - [ ] **Step 3: Cài đặt**
@@ -221,7 +221,7 @@ export function detectNoCaptureDraw(moveHistory) {
 
 - [ ] **Step 4: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules`
 Expected: toàn bộ file PASS (kể cả các test cũ đã có từ trước)
 
 - [ ] **Step 5: Commit**
@@ -326,15 +326,23 @@ export async function down(knex) {
 }
 ```
 
-- [ ] **Step 2: Chạy migration**
+- [ ] **Step 2: Chạy migration vào CSDL test cách ly**
 
-Run: `docker compose exec api npm run migrate`
+`knexfile.js` đọc thẳng `process.env.MIGRATION_DATABASE_URL` (không tự nạp `.env.test` như test — đó là việc riêng của `tests/setup-env.js`), nên truyền biến này trực tiếp trên dòng lệnh, chạy từ `api/`:
+
+Run: `MIGRATION_DATABASE_URL=postgres://nhachung_owner:test@localhost:55432/nhachung_test npx knex migrate:latest`
 Expected: log hiện `057_games_rooms_clock.js` đã chạy, không lỗi.
 
 - [ ] **Step 3: Kiểm rollback rồi chạy lại (xác nhận `down()` đúng)**
 
-Run: `docker compose exec api npx knex migrate:rollback --step 1 && docker compose exec api npm run migrate`
-Expected: cả hai lệnh chạy sạch, không lỗi. (Môi trường test/dev hiện chưa có phòng-khách nào nên `down()` không vướng dòng SET NOT NULL.)
+Run (từ `api/`, cùng biến môi trường như Step 2):
+
+```bash
+MIGRATION_DATABASE_URL=postgres://nhachung_owner:test@localhost:55432/nhachung_test npx knex migrate:rollback --step 1
+MIGRATION_DATABASE_URL=postgres://nhachung_owner:test@localhost:55432/nhachung_test npx knex migrate:latest
+```
+
+Expected: cả hai lệnh chạy sạch, không lỗi. (CSDL test hiện chưa có phòng-khách nào nên `down()` không vướng dòng SET NOT NULL.)
 
 - [ ] **Step 4: Commit**
 
@@ -424,7 +432,7 @@ describe('T42 tạo phòng — requireAuthOrGuestToken qua GET /:id', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms`
 Expected: FAIL — `POST /api/v1/games/rooms` trả 404 (route chưa tồn tại)
 
 - [ ] **Step 3: Tách `authenticateMemberToken` khỏi `requireAuth` trong `api/src/middleware/auth.js`**
@@ -526,7 +534,7 @@ export async function requireAuthOrGuestToken(req, _res, next) {
 
 - [ ] **Step 5: Chạy test hiện có để xác nhận KHÔNG hỏng gì (chưa mong đợi t42 pass — route /rooms chưa tồn tại)**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api`
 Expected: toàn bộ PASS — xác nhận refactor `auth.js` không đổi hành vi `requireAuth`/route thành viên hiện có.
 
 - [ ] **Step 6: Commit**
@@ -723,7 +731,7 @@ const mySide = resolveSide(actor, game);
 
 - [ ] **Step 3: Chạy toàn bộ test cờ tướng hiện có — xác nhận không hỏng gì**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api`
 Expected: toàn bộ PASS — hành vi cho thành viên (đường cũ) giữ nguyên 100%.
 
 - [ ] **Step 4: Commit**
@@ -782,7 +790,7 @@ describe('T42 move() — đồng hồ trừ thời gian đã dùng', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "đồng hồ trừ"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "đồng hồ trừ"`
 Expected: FAIL — `detail.body.red_time_ms` là `undefined` (chưa trả về, `get()` chưa lộ trực tiếp field này ra ngoài `publicGame`) hoặc bằng đúng 600000 (chưa trừ)
 
 - [ ] **Step 3: Thay toàn bộ hàm `move()` trong `api/src/modules/games/service.js`**
@@ -884,7 +892,7 @@ export async function move({ actor, id, from, to }) {
 
 - [ ] **Step 4: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
 Expected: toàn bộ PASS, kể cả `t41-games-api.test.js` cũ (đường thành viên-vs-thành viên không đổi hành vi bên ngoài).
 
 - [ ] **Step 5: Commit**
@@ -950,7 +958,7 @@ describe('T42 tạo phòng / vào phòng', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "tạo phòng"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "tạo phòng"`
 Expected: FAIL — `POST /api/v1/games/rooms` trả 404 (route chưa tồn tại)
 
 - [ ] **Step 3: Thêm `joinRoomSchema` vào `api/src/modules/games/schema.js`**
@@ -1033,7 +1041,7 @@ router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, r
 
 - [ ] **Step 6: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms`
 Expected: toàn bộ PASS.
 
 - [ ] **Step 7: Commit**
@@ -1108,7 +1116,7 @@ describe('T42 sẵn sàng — 4 trạng thái + hết 30 giây', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "sẵn sàng"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "sẵn sàng"`
 Expected: FAIL — `POST /:id/ready` trả 404
 
 - [ ] **Step 3: Sửa `loadGame`, thêm `evictStaleGuestIfNeeded` + `ready` trong `api/src/modules/games/service.js`**
@@ -1190,7 +1198,7 @@ router.post('/:id/ready', validate(schema.idParamSchema, 'params'), requireAuthO
 
 - [ ] **Step 5: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
 Expected: toàn bộ PASS.
 
 - [ ] **Step 6: Commit**
@@ -1257,7 +1265,7 @@ describe('T42 đồng hồ — hết giờ', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "đồng hồ|hết giờ"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "đồng hồ|hết giờ"`
 Expected: FAIL — `red_time_remaining_ms` là `undefined`, `POST /:id/timeout` trả 404
 
 - [ ] **Step 3: Thêm `computeRemainingMs`, sửa `get`, thêm `claimTimeout` trong `api/src/modules/games/service.js`**
@@ -1336,7 +1344,7 @@ router.post('/:id/timeout', validate(schema.idParamSchema, 'params'), requireAut
 
 - [ ] **Step 5: Chạy test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
 Expected: toàn bộ PASS.
 
 - [ ] **Step 6: Commit**
@@ -1400,7 +1408,7 @@ describe('T42 cầu hoà', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "cầu hoà"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "cầu hoà"`
 Expected: FAIL — 3 route `/draw/*` trả 404
 
 - [ ] **Step 3: Thêm 3 hàm cầu hoà vào `api/src/modules/games/service.js`**
@@ -1487,7 +1495,7 @@ router.post('/:id/draw/decline', validate(schema.idParamSchema, 'params'), requi
 
 - [ ] **Step 5: Chạy test cầu hoà, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "cầu hoà"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "cầu hoà"`
 Expected: PASS (3/3)
 
 - [ ] **Step 6: Viết test mất kết nối**
@@ -1561,7 +1569,7 @@ describe('T42 mất kết nối', () => {
 
 - [ ] **Step 7: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "mất kết nối"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "mất kết nối"`
 Expected: FAIL — `disconnected_side` vẫn `null` sau khi đóng kết nối (chưa gắn hook), `/disconnect-timeout` trả 404
 
 - [ ] **Step 8: Thêm `markDisconnected`/`clearDisconnected`, sửa `assertVisible`, thêm `claimDisconnectTimeout` trong `api/src/modules/games/service.js`**
@@ -1661,7 +1669,7 @@ router.post('/:id/disconnect-timeout', validate(schema.idParamSchema, 'params'),
 
 - [ ] **Step 10: Chạy toàn bộ test, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
 Expected: toàn bộ PASS.
 
 - [ ] **Step 11: Commit**
@@ -1716,7 +1724,7 @@ describe('T42 rời phòng', () => {
 
 - [ ] **Step 2: Chạy test, xác nhận thất bại**
 
-Run: `docker compose exec api npx vitest run t42-games-rooms -t "rời phòng"`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t42-games-rooms -t "rời phòng"`
 Expected: FAIL — `POST /:id/leave` trả 404
 
 - [ ] **Step 3: Thêm `leaveRoom` vào `api/src/modules/games/service.js`**
@@ -1750,12 +1758,12 @@ router.post('/:id/leave', validate(schema.idParamSchema, 'params'), requireAuthO
 
 - [ ] **Step 5: Chạy toàn bộ test cờ tướng, xác nhận đạt**
 
-Run: `docker compose exec api npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
+Run (từ `api/`, CSDL test đã lên — xem Global Constraints): `npx vitest run t40-chess-rules t41-games-api t42-games-rooms`
 Expected: toàn bộ PASS.
 
 - [ ] **Step 6: Chạy toàn bộ bộ test của `api` một lần cuối — xác nhận không hỏng module nào khác**
 
-Run: `docker compose exec api npm test`
+Run (từ `api/`): `npm test`
 Expected: toàn bộ PASS (mọi file `t*.test.js` trong repo, không riêng cờ tướng).
 
 - [ ] **Step 7: Commit**
