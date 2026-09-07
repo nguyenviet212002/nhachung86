@@ -114,3 +114,49 @@ describe('T42 tạo phòng / vào phòng', () => {
       .send({ guest_name: 'Người 2' }).expect(409);
   });
 });
+
+describe('T42 sẵn sàng — 4 trạng thái + hết 30 giây', () => {
+  it('cả hai bấm sẵn sàng thì ván chuyển active, bàn cờ khởi tạo, Đỏ đi trước', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Sẵn Sàng' }).expect(201);
+
+    const r1 = await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    expect(r1.body.active).toBe(false);
+    const r2 = await supertest(app).post(`/api/v1/games/${created.body.id}/ready`)
+      .set(auth(joined.body.guest_token)).expect(200);
+    expect(r2.body.active).toBe(true);
+
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('active');
+    expect(detail.body.turn).toBe('r');
+    expect(detail.body.board[9][4]).toEqual({ side: 'r', type: 'general' });
+  });
+
+  it('bấm sẵn sàng lần 2 thì bị từ chối (409)', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(409);
+  });
+
+  it('khách quá 30 giây không bấm sẵn sàng thì bị dọn khỏi phòng, chủ phòng ở lại — lần đọc kế tiếp tự phát hiện', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Chậm' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+
+    // dựng thẳng lúc vào phòng lùi về quá khứ — mô phỏng "đã quá 30 giây" mà
+    // không phải Sleep thật trong test (chậm, không cần thiết).
+    await db.raw(`UPDATE games SET second_joined_at = now() - interval '31 seconds' WHERE id = ?`, [created.body.id]);
+
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('pending');
+    expect(detail.body.black_member_id).toBe(null);
+    expect(detail.body.black_name).toBe(null);
+
+    // token khách cũ không dùng được nữa (đã bị dọn)
+    await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(joined.body.guest_token)).expect(401);
+  });
+});

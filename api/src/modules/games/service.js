@@ -37,7 +37,39 @@ function resolveSide(actor, game) {
 async function loadGame(trx, communityId, id) {
   const { rows: [row] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ? AND g.community_id = ?`, [id, communityId]);
   if (!row) throw NOT_FOUND();
-  return row;
+  return evictStaleGuestIfNeeded(trx, row);
+}
+
+// Luật 30 giây (mục 4.3 spec): khách không bấm sẵn sàng kịp thì bị đưa ra khỏi
+// phòng — kiểm KIỂU LAZY ngay trong lần đọc/ghi tiếp theo, không cần job nền
+// riêng. Chủ phòng không bị đuổi ("chủ phòng tuyệt đối") nên red_ready_at giữ
+// nguyên — người đã bấm đúng phần mình không phải bấm lại khi khách sau đó bị
+// dọn (mục IV.3 SANH_CO_GIAO_VIEC_DAY_DU.md: "người đã bấm ở lại"). GAME_SELECT
+// có alias riêng cho từng cột (vd. black_name khác tên cột thật black_guest_name)
+// nên không dùng RETURNING trực tiếp sau UPDATE được — đọc lại bằng chính
+// GAME_SELECT thay vì cố khớp danh sách cột bằng tay.
+//
+// date_trunc('milliseconds', ...) ở vế so khớp: cột second_joined_at là
+// timestamptz (độ chính xác micro-giây trong Postgres), nhưng driver `pg`
+// phân giải nó thành Date của JavaScript khi đọc vào `game.second_joined_at`
+// — Date chỉ có độ chính xác mili-giây nên phần micro-giây bị cắt mất. So
+// thẳng `second_joined_at = ?` bằng giá trị JS Date đã cắt đó với giá trị
+// gốc còn nguyên micro-giây trong CSDL sẽ KHÔNG BAO GIỜ khớp (xác nhận bằng
+// test T42: UPDATE khớp 0 dòng, hàm âm thầm trả lại `game` cũ, khách không
+// hề bị dọn dù đã quá 30 giây). Cắt cả hai vế về cùng độ chính xác mili-giây
+// trước khi so thì khớp đúng — cùng bẫy đã ghi ở core/audit.js (`log` phần
+// bình luận "Lệch có chủ đích khỏi brief").
+async function evictStaleGuestIfNeeded(trx, game) {
+  if (game.status !== 'pending' || !game.second_joined_at || game.black_ready_at) return game;
+  const elapsedMs = Date.now() - new Date(game.second_joined_at).getTime();
+  if (elapsedMs <= 30_000) return game;
+  await trx.raw(
+    `UPDATE games SET black_member_id = NULL, black_guest_name = NULL, black_guest_token = NULL, second_joined_at = NULL
+      WHERE id = ? AND status = 'pending' AND date_trunc('milliseconds', second_joined_at) = ?`,
+    [game.id, game.second_joined_at]
+  );
+  const { rows: [fresh] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ?`, [game.id]);
+  return fresh ?? game;
 }
 
 export async function challenge({ actor, opponentMemberId }) {
@@ -372,4 +404,39 @@ export async function joinRoom({ rawToken, guestName }) {
     return { gameId: game.id, guestToken };
   });
   return { id: result.gameId, guest_token: result.guestToken };
+}
+
+export async function ready({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'pending') throw INVALID_STATE('Ván này không còn ở bước chuẩn bị.');
+    // game.black_guest_name (cột thô) không có trong GAME_SELECT — chỉ có alias
+    // black_name (COALESCE(b.full_name, g.black_guest_name)) — nên đọc field đó
+    // thay vì cột thô để phát hiện đúng "đã có khách/thành viên vào làm Đen".
+    if (!game.black_member_id && !game.black_name) throw INVALID_STATE('Chưa có đối thủ vào phòng.');
+    const col = mySide === 'r' ? 'red_ready_at' : 'black_ready_at';
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET ?? = now() WHERE id = ? AND status = 'pending' AND ?? IS NULL
+        RETURNING red_ready_at, black_ready_at`,
+      [col, id, col]
+    );
+    if (!row) throw INVALID_STATE('Bạn đã bấm sẵn sàng rồi.');
+    let becameActive = false;
+    if (row.red_ready_at && row.black_ready_at) {
+      const board = rules.initBoard();
+      await trx.raw(
+        `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now(), turn_started_at = now()
+          WHERE id = ? AND status = 'pending'`,
+        [JSON.stringify(board), id]
+      );
+      becameActive = true;
+    }
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.ready', targetType: 'game', targetId: id, detail: { side: mySide } });
+    return { becameActive };
+  });
+  if (result.becameActive) publishToGame(id, 'game_start', { turn: 'r' });
+  return { ready: true, active: result.becameActive };
 }

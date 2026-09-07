@@ -72,3 +72,7 @@ router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, r
   try { res.status(201).json(await service.joinRoom({ rawToken: req.params.token, guestName: req.body.guest_name })); }
   catch (e) { next(e); }
 });
+
+router.post('/:id/ready', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.ready({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
