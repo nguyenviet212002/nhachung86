@@ -3969,9 +3969,15 @@ function guestGameHtml(st){
   if(phase && phase!=='dang-dau'){
     let body;
     if(phase==='du-nguoi' || phase==='cho-ben-kia'){
+      // Đếm 30 giây — cùng logic/lý do như V['cotuong-van'] (xem chú thích ở
+      // đó): thuần hiển thị, làm mới theo nhịp poll 3 giây có sẵn của
+      // startRoomPoll, không tự gọi API. Chỉ hiện ở nhánh 'du-nguoi' (chưa ai
+      // bấm sẵn sàng) — 'cho-ben-kia' (đã có người bấm) không còn nằm trong
+      // cửa sổ 30 giây theo đúng luật, nên không tính lại đồng hồ ở đó.
+      const remainMs = phase==='du-nguoi' ? Math.max(0, 30000 - (Date.now() - new Date(st.second_joined_at).getTime())) : null;
       body = st.black_ready_at
         ? `<h1>Đang chờ ${esc(st.red_name)} sẵn sàng…</h1>`
-        : `<h1>Phòng đã đủ người</h1><div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+        : `<h1>Phòng đã đủ người</h1>${remainMs!==null?`<p style="font-size:13px;color:var(--muted);margin:4px 0 10px">Còn <b>${xqFormatClock(remainMs)}</b> để cả hai bấm Sẵn sàng.</p>`:''}<div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
     } else {
       body = `<h1>Đang chờ chủ phòng…</h1>`; // 'cho-doi-thu': không xảy ra ở màn khách (khách chỉ vào được sau second_joined_at), giữ để không vỡ nếu dữ liệu bất thường
     }
@@ -4020,6 +4026,7 @@ function guestGameHtml(st){
     </div>
   </div>
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    ${st.red_ai_level?`<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">nhaccon6789 đang chơi</p>`:''}
     ${st.status==='active'?`<div class="xq-clock-row">
       <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
       <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} Bạn: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
