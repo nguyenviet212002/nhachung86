@@ -2042,6 +2042,7 @@ const NAV_MEMBER = [
 const NAV_ADMIN = [
   {id:'admin-tongquan', label:'Tổng quan', icon:'grid'},
   {id:'admin-duyet', label:'Duyệt & xác minh', icon:'shield'},
+  {id:'admin-thanhvien', label:'Thành viên', icon:'users'},
   {id:'admin-dieuphoi', label:'Điều phối', icon:'handshake'},
   {id:'admin-quy', label:'Quỹ hội', icon:'fund', badge:()=>(DATA.loanRequests||[]).filter(l=>l.status==='requested').length},
   {id:'admin-hoatdong', label:'Hoạt động & ký ức', icon:'archive'},
@@ -5215,6 +5216,23 @@ ADM.duyet = ()=> `
   <div class="section"><div class="card-head"><h3>${ic('shield',15)} Xác minh hồ sơ (${DATA.verifications.filter(v=>v.status==='pending').length} đang chờ)</h3></div>
   ${admSearchBox('duyetVerifications','Tìm theo tên người, mục xin xác minh…')}
   <table><thead><tr><th>Người</th><th>Mục xin xác minh</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th></tr></thead><tbody id="adm-duyetVerifications">${ADM_RENDERERS.duyetVerifications()}</tbody></table></div>`;
+ADM.thanhvien = ()=> `
+  <div class="page-head"><div><h1>Thành viên</h1><p>${DATA.members.length} thành viên đang hoạt động.</p></div>
+    <button class="btn btn-blue" data-open="themThanhVien">${ic('plus',15)} Thêm thành viên</button></div>
+  <div class="section"><table><thead><tr><th>Họ tên</th><th>Nghề / khu vực</th><th style="text-align:right">Thao tác</th></tr></thead>
+    <tbody>${DATA.members.length?DATA.members.map(m=>`<tr><td class="t-strong">${esc(m.name)}</td>
+      <td class="t-time">${[m.field,m.ward].filter(Boolean).map(esc).join(' · ')||'—'}</td>
+      <td style="text-align:right"><button class="btn btn-out btn-sm" style="color:var(--red)" onclick="adminXoaThanhVien('${m.id}','${esc(m.name).replace(/'/g,"\\'")}')">${ic('x',12)} Xoá</button></td></tr>`).join(''):'<tr><td colspan="3" class="t-muted">Chưa có thành viên nào.</td></tr>'}</tbody>
+  </table></div>`;
+async function adminXoaThanhVien(id, name){
+  if(!confirm(`Xoá tư cách thành viên của ${name}? Không hoàn tác được qua giao diện.`)) return;
+  try{
+    await api.del('/members/'+id);
+    DATA.members = DATA.members.filter(m=>m.id!==id);
+    toast('Đã xoá thành viên','check');
+    render();
+  }catch(e){ toast(e.message||'Có lỗi, thử lại.','flag'); }
+}
 const VERIFICATION_KIND_LABEL = {identity:'Danh tính', address:'Địa chỉ', skill:'Kỹ năng / nghề nghiệp', business:'Hộ kinh doanh'};
 const VERIFICATION_STATUS_LABEL = {pending:'Chờ duyệt', verified:'Đã xác minh', rejected:'Đã từ chối'};
 async function decideVerification(id, status){
