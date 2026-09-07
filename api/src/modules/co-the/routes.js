@@ -22,3 +22,9 @@ router.get('/positions', requireAuth, validate(schema.listPositionsQuerySchema, 
 router.get('/positions/:id', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.getPosition({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+router.post('/positions/:id/phan-tich', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.analyzePosition({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/positions/:id/tim-cach-pha', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.findRefutationPaths({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
