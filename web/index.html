@@ -3969,9 +3969,15 @@ function guestGameHtml(st){
   if(phase && phase!=='dang-dau'){
     let body;
     if(phase==='du-nguoi' || phase==='cho-ben-kia'){
+      // Đếm 30 giây — cùng logic/lý do như V['cotuong-van'] (xem chú thích ở
+      // đó): thuần hiển thị, làm mới theo nhịp poll 3 giây có sẵn của
+      // startRoomPoll, không tự gọi API. Chỉ hiện ở nhánh 'du-nguoi' (chưa ai
+      // bấm sẵn sàng) — 'cho-ben-kia' (đã có người bấm) không còn nằm trong
+      // cửa sổ 30 giây theo đúng luật, nên không tính lại đồng hồ ở đó.
+      const remainMs = phase==='du-nguoi' ? Math.max(0, 30000 - (Date.now() - new Date(st.second_joined_at).getTime())) : null;
       body = st.black_ready_at
         ? `<h1>Đang chờ ${esc(st.red_name)} sẵn sàng…</h1>`
-        : `<h1>Phòng đã đủ người</h1><div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+        : `<h1>Phòng đã đủ người</h1>${remainMs!==null?`<p style="font-size:13px;color:var(--muted);margin:4px 0 10px">Còn <b>${xqFormatClock(remainMs)}</b> để cả hai bấm Sẵn sàng.</p>`:''}<div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
     } else {
       body = `<h1>Đang chờ chủ phòng…</h1>`; // 'cho-doi-thu': không xảy ra ở màn khách (khách chỉ vào được sau second_joined_at), giữ để không vỡ nếu dữ liệu bất thường
     }
@@ -4020,6 +4026,7 @@ function guestGameHtml(st){
     </div>
   </div>
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    ${st.red_ai_level?`<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">nhaccon6789 đang chơi</p>`:''}
     ${st.status==='active'?`<div class="xq-clock-row">
       <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
       <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} Bạn: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
@@ -6373,6 +6380,7 @@ function refreshGameState(id){
     GAME_STATE.board=g.board; GAME_STATE.turn=g.turn;
     GAME_STATE.red_time_ms=g.red_time_ms; GAME_STATE.black_time_ms=g.black_time_ms; GAME_STATE.turn_started_at=g.turn_started_at;
     GAME_STATE.draw_offered_by=g.draw_offered_by; GAME_STATE.disconnected_side=g.disconnected_side; GAME_STATE.disconnected_at=g.disconnected_at;
+    GAME_STATE.red_ai_level=g.red_ai_level; GAME_STATE.black_ai_level=g.black_ai_level;
     render();
   }).catch(()=>{});
 }
@@ -6457,6 +6465,26 @@ function xqGameResultSide(st){
   if(!st.winner_member_id) return 'b'; // thắng mà không có member id ⇒ chắc chắn là khách (luôn Đen)
   return st.winner_member_id===st.red_member_id ? 'r' : 'b';
 }
+// Bản tóm tắt/mở của nút trượt máy đi hộ (BAN_CHUAN_CO_TUONG.md mục 3.3).
+// myLevel/oppLevel đọc theo mySide — 'r' đọc red_ai_level làm "của ta",
+// black_ai_level làm "của đối thủ", và ngược lại khi mySide==='b'.
+const XQ_AI_LEVEL_LABEL = {sieu:'Siêu thông minh', 'thong-minh':'Thông minh', 'xuat-sac':'Xuất sắc'};
+function xqAiToggleHtml(st, mySide){
+  const myLevel = mySide==='r' ? st.red_ai_level : st.black_ai_level;
+  const summary = myLevel ? XQ_AI_LEVEL_LABEL[myLevel] : 'tắt · ta tự đi';
+  const rows = ['xuat-sac','thong-minh','sieu'].map(lv=>`
+    <button type="button" class="btn ${myLevel===lv?'btn-blue':'btn-out'}" style="width:100%;text-align:left;margin-bottom:6px" onclick="gameSetAiLevel('${st.id}','${lv}')">${myLevel===lv?ic('check',14)+' ':''}${XQ_AI_LEVEL_LABEL[lv]}</button>`).join('');
+  return `<div class="xq-ctrl-row" style="margin-top:8px;flex-direction:column;align-items:stretch">
+    <button type="button" class="btn btn-out" style="width:100%;justify-content:space-between;display:flex" onclick="aiLevelMenuToggle()">
+      <span>Máy đi hộ ta ${myLevel?'':'<span style="color:var(--muted)">(tắt · ta tự đi)</span>'}${myLevel?': '+esc(summary):''}</span>
+      <span style="display:inline-flex;transform:rotate(${AI_LEVEL_MENU_OPEN?'-90':'90'}deg)">${ic('chev',14)}</span>
+    </button>
+    ${AI_LEVEL_MENU_OPEN?`<div style="margin-top:8px">
+      ${rows}
+      <button type="button" class="btn ${myLevel===null?'btn-blue':'btn-out'}" style="width:100%;text-align:left" onclick="gameSetAiLevel('${st.id}',null)">${myLevel===null?ic('check',14)+' ':''}Tắt · ta tự đi</button>
+    </div>`:''}
+  </div>`;
+}
 function resolveMySide(g){
   if(!g) return null;
   if(DATA.me){
@@ -6464,6 +6492,21 @@ function resolveMySide(g){
     if(g.black_member_id===DATA.me.id) return 'b';
   }
   return GUEST_TOKEN ? 'b' : null;
+}
+
+// Nút trượt "Máy đi hộ ta" (BAN_CHUAN_CO_TUONG.md mục 3.3): thu một dòng,
+// bấm mở ra 3 cấp, chọn cấp nào gọi API luôn rồi tự thu — không có bước
+// xác nhận riêng. Chỉ điều khiển bên CỦA CHÍNH NGƯỜI XEM (mySide), không
+// có lựa chọn bật máy hộ đối thủ.
+let AI_LEVEL_MENU_OPEN = false;
+function aiLevelMenuToggle(){ AI_LEVEL_MENU_OPEN = !AI_LEVEL_MENU_OPEN; render(); }
+function gameSetAiLevel(id, level){
+  AI_LEVEL_MENU_OPEN = false;
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/ai-level', {level}) : api.post('/games/'+id+'/ai-level', {level});
+  req.then(()=>{
+    if(GAME_STATE_ID!==id || !GAME_STATE) return;
+    refreshGameState(id);
+  }).catch(e=>{ toast(e.message||'Không đổi được máy đi hộ, thử lại.','x'); render(); });
 }
 
 let GUEST_TOKEN = null, GUEST_INVITE_TOKEN = null;
@@ -6641,7 +6684,17 @@ V['cotuong-van'] = (params)=>{
           <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
       }
     } else if(phase==='du-nguoi'){
+      // Đếm 30 giây thuần hiển thị, KHÔNG tự gọi API gì (BAN_CHUAN_CO_TUONG.md
+      // mục 2.2: "Đếm từ lúc nào: từ khi người thứ hai vào phòng"). Trạng thái
+      // này đã có startRoomPoll() gọi lại render() mỗi 3 giây (hàm
+      // startRoomPoll trong file này) nên đồng hồ này tự làm mới theo đúng
+      // nhịp đó, không cần thêm setInterval riêng. Server tự đuổi khách quá
+      // giờ (luật lazy-eviction có sẵn) — lần poll kế tiếp phản ánh đúng
+      // trạng thái mới, đồng hồ ở đây không bao giờ tự ý điều hướng hay gọi
+      // API khi chạm 0.
+      const remainMs = Math.max(0, 30000 - (Date.now() - new Date(st.second_joined_at).getTime()));
       body = `<h1>${esc(st.black_name)} đã vào phòng</h1>
+        <p style="font-size:13px;color:var(--muted);margin:4px 0 10px">Còn <b>${xqFormatClock(remainMs)}</b> để cả hai bấm Sẵn sàng.</p>
         <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
     } else { // cho-ben-kia
       const iAmReady = isHost ? st.red_ready_at : st.black_ready_at;
@@ -6699,6 +6752,7 @@ V['cotuong-van'] = (params)=>{
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+    ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
     ${st.status==='active'?`<div class="xq-clock-row">
       <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
       <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
@@ -6713,6 +6767,7 @@ V['cotuong-van'] = (params)=>{
       <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
     </div>
     ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
+    ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
     <h3 style="margin-top:14px">Biên bản ván cờ</h3>
     ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
   </div>`;
