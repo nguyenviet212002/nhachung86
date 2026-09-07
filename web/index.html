@@ -403,6 +403,9 @@ tr:last-child td{border-bottom:none}
    dung, xem CSS .btn). */
 .xq-ctrl-row{display:flex;flex-wrap:wrap;gap:8px}
 .xq-ctrl-row>.btn{flex:1 1 120px}
+.xq-clock-row{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
+.xq-clock{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.08)}
+.xq-clock.low{color:#ff9d92;background:rgba(255,90,60,.16)}
 /* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
    (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
    nhẹ nhàng, không phải nền game portal rực rỡ. */
@@ -2073,7 +2076,7 @@ const TABBAR_ADMIN = [
    nên khách xem "Con người" chỉ thấy trang rỗng — vô lý hơn là bắt đăng nhập
    luôn như "Việc & hợp tác"/"Ký ức" đã làm. Ba mục này giờ nhất quán: khách
    bấm vào đều được đưa rõ ràng sang màn đăng nhập/đăng ký (xem render()). */
-const PUBLIC_SCREENS = new Set(['congchung','hosocongkhai','gianhap','dangnhap']);
+const PUBLIC_SCREENS = new Set(['congchung','hosocongkhai','gianhap','dangnhap','cotuong-phong']);
 /* Nhớ đích khách định xem trước khi bị chặn — vào thẳng đó sau khi đăng nhập
    xong thay vì luôn về "Bảng nhà". Đăng ký KHÔNG dùng biến này vì đăng ký
    không tự đăng nhập (tạo đơn chờ duyệt, xem dangKySubmit). */
@@ -2126,6 +2129,13 @@ let PREV_SCREEN = null;
 function render(){
   const {screen,params}=parseHash();
   if(PREV_SCREEN==='cotuong-van' && screen!=='cotuong-van') stopGameStream();
+  // Màn khách (#cotuong-phong) cũng chạy SSE + đồng hồ 1 giây + poll phòng y
+  // hệt màn chủ phòng — thiếu dòng dọn dẹp này thì khách rời đi là bỏ lại 3
+  // bộ đếm chạy tiếp trên mọi màn sau đó, kể cả trang công khai #congchung.
+  // GUEST_INVITE_TOKEN cũng phải xoá: PUB['cotuong-phong'] chỉ nạp lại phiên
+  // khi GUEST_INVITE_TOKEN!==token, giữ nguyên token cũ thì lần sau quay lại
+  // ĐÚNG link đó sẽ bỏ qua nhánh khôi phục và kẹt ở "Đang tải ván cờ…".
+  if(PREV_SCREEN==='cotuong-phong' && screen!=='cotuong-phong'){ stopGameStream(); GUEST_INVITE_TOKEN=null; }
   if(PREV_SCREEN==='viec-detail' && screen!=='viec-detail') stopJobStream();
   if((PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong-the') && screen!=='cotuong-may' && screen!=='cotuong-the'){
     xqStopWorker();
@@ -2192,7 +2202,7 @@ function wrapPage(variant, active, bodyHtml, isLanding){
 /* Màn đánh cờ tướng thật (không phải sảnh/danh sách) hiện toàn màn hình,
    thay hẳn cho wrapPage — không header/drawer/footer/tabbar. closeTarget
    là màn quay lại khi bấm nút X (không đánh nữa/đổi ý). */
-const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van']);
+const XQ_FULLSCREEN_SCREENS = new Set(['cotuong','cotuong-may','cotuong-the','cotuong-van','cotuong-phong']);
 const XQ_FULLSCREEN_CLOSE = { cotuong:'congchung', 'cotuong-may':'cotuong-online', 'cotuong-the':'cotuong-online', 'cotuong-van':'cotuong-online' };
 /* Có mở bảng menu nổi (.xq-fs-panel) hay không — PHẢI lưu ở biến state
    thật, không chỉ đổi class DOM: mọi thao tác trong panel (đổi cấp độ, thế
@@ -3905,6 +3915,131 @@ PUB.dangnhap = ()=>{
     <div class="auth-foot">Chưa có tài khoản? <a data-go="gianhap">Xin gia nhập</a></div>
   </div></div>`;
 };
+
+let GUEST_NAME_INPUT = '';
+PUB['cotuong-phong'] = (params)=>{
+  const token = params[0];
+  if(!token) return `<div class="empty" style="margin-top:15vh"><h3>Link mời không hợp lệ</h3></div>`;
+  if(GUEST_INVITE_TOKEN!==token){
+    // Lần đầu vào token này (hoặc vừa đổi token): nạp lại từ đầu.
+    GUEST_INVITE_TOKEN = token; GUEST_TOKEN = null;
+    const saved = loadGuestSession(token);
+    if(saved){
+      GUEST_TOKEN = saved.guestToken;
+      GAME_STATE_ID = null;
+      loadGame(saved.gameId);
+      return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải…</p>`;
+    }
+    // Không có phiên đã lưu — không có gì để chờ, rơi thẳng xuống form nhập tên bên dưới trong cùng lượt render này.
+  }
+  if(!GUEST_TOKEN) return guestJoinFormHtml();
+  if(GAME_STATE_ID===null || GAME_STATE===null){
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
+  }
+  if(GAME_STATE.error){
+    // Token cũ không còn hợp lệ (chủ phòng đã đóng phòng, hoặc chính khách
+    // đã tự rời ở tab khác trước đó) — xoá bản lưu, quay lại form nhập tên
+    // thay vì kẹt lại một thông báo lỗi (mục 5/11 spec thiết kế).
+    clearGuestSession(token); GUEST_TOKEN=null;
+    return guestJoinFormHtml();
+  }
+  return guestGameHtml(GAME_STATE);
+};
+function guestJoinFormHtml(){
+  return `<div class="xq-fs-card">
+    <h1>Vào phòng cờ tướng</h1>
+    <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Nhập tên để đối thủ biết bạn là ai — không cần tài khoản.</p>
+    <input class="input" id="guest-name" placeholder="Tên của bạn" value="${esc(GUEST_NAME_INPUT)}" oninput="GUEST_NAME_INPUT=this.value" style="margin-bottom:10px">
+    <button class="btn btn-blue" style="width:100%" onclick="guestJoinRoom()">${ic('users',15)} Vào phòng</button>
+  </div>`;
+}
+function guestJoinRoom(){
+  const token = GUEST_INVITE_TOKEN;
+  const name = (GUEST_NAME_INPUT||'').trim();
+  if(!name){ toast('Nhập tên trước đã.','x'); return; }
+  guestFetch('POST', '/games/rooms/'+encodeURIComponent(token)+'/join', {guest_name:name}, null).then(r=>{
+    GUEST_TOKEN = r.guest_token;
+    saveGuestSession(token, {gameId:r.id, guestToken:r.guest_token, guestName:name});
+    loadGame(r.id);
+  }).catch(e=>toast(e.message||'Không vào được phòng, thử lại.','x'));
+}
+function guestGameHtml(st){
+  const isMyTurn = st.status==='active' && st.turn==='b';
+  const phase = xqRoomPhase(st);
+  if(phase && phase!=='dang-dau'){
+    let body;
+    if(phase==='du-nguoi' || phase==='cho-ben-kia'){
+      body = st.black_ready_at
+        ? `<h1>Đang chờ ${esc(st.red_name)} sẵn sàng…</h1>`
+        : `<h1>Phòng đã đủ người</h1><div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+    } else {
+      body = `<h1>Đang chờ chủ phòng…</h1>`; // 'cho-doi-thu': không xảy ra ở màn khách (khách chỉ vào được sau second_joined_at), giữ để không vỡ nếu dữ liệu bất thường
+    }
+    return `<div class="xq-fs-card">${body}
+      <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Rời phòng</button></div>
+    </div>`;
+  }
+  // Phòng đang 'pending' có board = NULL trong CSDL (cột `board jsonb` không
+  // có DEFAULT, createRoom không hề ghi cột này). Khi ready() bắn game_start
+  // — payload KHÔNG kèm board — handler đặt status='active' rồi render() NGAY
+  // (đồng bộ), trong khi refreshGameState() mới chỉ vừa gửi GET đi. Trong
+  // đúng khe hở đó xqRoomPhase đã trả 'dang-dau' nên nhánh phòng ở trên
+  // không chặn nữa, và vòng lặp dưới sẽ đọc st.board[r][c] trên null.
+  if(!st.board) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
+  const pts=[];
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p = st.board[r][c];
+    const isSel = GAME_SELECTED && GAME_SELECTED.r===r && GAME_SELECTED.c===c;
+    const isDest = GAME_LEGAL.some(m=>m.r===r&&m.c===c);
+    const isLast = st.last_move && ((st.last_move.from.r===r&&st.last_move.from.c===c)||(st.last_move.to.r===r&&st.last_move.to.c===c));
+    const dr=9-r, dc=8-c; // khách luôn nhìn quân Đen của mình ở dưới — không có nút "Đổi bên"
+    const leftFrac=dc/8, topFrac=dr/9;
+    let inner='';
+    if(p) inner = `<div class="xq-pc ${p.side==='r'?'red':'black'} ${isSel?'sel':''}">${CHESS_CHAR[p.side][p.type]}</div>`;
+    else if(isDest) inner = `<div class="xq-dot"></div>`;
+    pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})" onclick="gameCellClick(${r},${c})" ${isMyTurn?'':'disabled'}>${inner}</button>`);
+  }
+  const resultSide = st.status==='finished' ? xqGameResultSide(st) : undefined;
+  const statusTxt = st.status==='finished'
+    ? (resultSide===null ? 'Hoà' : (resultSide==='b'?'Bạn thắng':'Đối thủ thắng')+(st.end_reason==='resign'?' — đối thủ xin thua':''))
+    : (isMyTurn?'Tới lượt bạn':'Đang chờ đối thủ');
+  const drawFromOpp = st.status==='active' && st.draw_offered_by && st.draw_offered_by!=='b';
+  const disconnectedOpp = st.status==='active' && st.disconnected_side==='r';
+  const inCheck = st.status==='active' && xqInCheck(st.board, st.turn);
+  const announce = st.status==='finished'
+    ? xqAnnounceHtml(statusTxt, resultSide===null?'':(resultSide==='b'?'win':'lose'))
+    : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
+  return `
+  <div class="xq-status-bar ${st.status==='finished'?'win':''}">${statusTxt}</div>
+  ${announce}
+  <div class="xq-wrap">
+    <div class="xq-board">
+      ${chessGridSvg()}
+      <div class="xq-river">楚 河　　漢 界</div>
+      ${pts.join('')}
+    </div>
+  </div>
+  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+    ${st.status==='active'?`<div class="xq-clock-row">
+      <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
+      <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} Bạn: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+    </div>`:''}
+    ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+      <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(st.red_name)} xin hoà</p>
+      <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+    </div>`:''}
+    ${st.status==='active'?`<div class="xq-ctrl-row">
+      <button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>
+      <button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>
+    </div>`:''}
+    ${st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px">
+      <button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button>
+    </div>`:''}
+    <h3 style="margin-top:14px">Biên bản ván cờ</h3>
+    ${st.moves && st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
+  </div>`;
+}
+
 async function dangNhapSubmit(){
   const identifier=getVal('ln-id'), password=getVal('ln-pw');
   const box=qs('#ln-err'), txt=qs('#ln-err-txt');
@@ -5961,6 +6096,7 @@ function xqAnnounceHtml(text, tone, fade){
    GAMES_LIST vẫn cần tải để tính 2 badge số liệu thật trên thẻ "Đấu cờ".
    ══════════════════════════════════════════════════════════════ */
 let GAMES_LIST = null, GAMES_LIST_LOADING = false;
+let ROOM_INVITE_TOKEN = null;
 function loadGamesList(){
   if(GAMES_LIST_LOADING) return;
   GAMES_LIST_LOADING = true;
@@ -5969,6 +6105,28 @@ function loadGamesList(){
     api.get('/games?mine=true&status=pending,active&limit=20'),
   ]).then(([open,mine])=>{ GAMES_LIST={open:open.data||[], mine:mine.data||[]}; GAMES_LIST_LOADING=false; render(); })
     .catch(()=>{ GAMES_LIST={open:[],mine:[]}; GAMES_LIST_LOADING=false; render(); });
+}
+function roomCreate(){
+  api.post('/games/rooms').then(g=>{
+    ROOM_INVITE_TOKEN = g.invite_token;
+    GAMES_LIST = null;
+    go('cotuong-van:'+g.id);
+  }).catch(e=>toast(e.message||'Không tạo được phòng, thử lại.','x'));
+}
+// Dùng chung cho cả chủ phòng (V['cotuong-van'], Task 4) VÀ khách
+// (PUB['cotuong-phong']/guestGameHtml, Task 7) — rẽ nhánh theo GUEST_TOKEN
+// đã đủ đúng cho cả hai, không cần bản riêng cho khách.
+// GUEST_TOKEN ĐI TRƯỚC DATA.me (không phải ngược lại): một thành viên đang
+// đăng nhập vẫn mở được link mời của người khác trong cùng tab, lúc đó cả
+// hai định danh cùng tồn tại — đang giữ phiên khách thì mọi lời gọi mạng
+// phải đi bằng phiên khách, nếu không server sẽ coi họ là người ngoài ván.
+function roomReady(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/ready') : api.post('/games/'+id+'/ready');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function roomClose(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/leave') : api.post('/games/'+id+'/leave');
+  req.then(()=>go(GUEST_TOKEN?'congchung':'cotuong-online')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
 V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
@@ -5981,6 +6139,7 @@ V['cotuong-online'] = ()=>{
   return `
   <div class="xq-hub-topbar">
     <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
+    <button class="btn btn-blue" onclick="roomCreate()">${ic('users',15)} Tạo phòng</button>
   </div>
   <div class="xq-hub-hero">
     <img class="deco" src="assets/cotuong/06-cap-quan-co-do-xanh.png" alt="">
@@ -6121,15 +6280,25 @@ function stopGameStream(){
   GAME_STATE=null; GAME_STATE_ID=null; GAME_SELECTED=null; GAME_LEGAL=[];
   GAME_STREAM_RETRIES=0;
   GAMES_LIST=null;
+  stopGameClock();
+  stopRoomPoll();
+  // Rời hẳn một màn ván cờ thì buông luôn định danh khách: giữ lại
+  // GUEST_TOKEN sau khi đã rời sẽ khiến các hàm rẽ nhánh `GUEST_TOKEN ? …`
+  // gọi mạng bằng phiên khách cho một ván khác hoàn toàn không liên quan.
+  // Phiên khách vẫn nằm trong localStorage (saveGuestSession) nên quay lại
+  // đúng link mời là khôi phục được — không mất gì.
+  GUEST_TOKEN=null; GUEST_INVITE_TOKEN=null;
 }
 function connectGameStream(id){
   if(GAME_EVENTSOURCE) GAME_EVENTSOURCE.close();
-  const token = api.accessToken(); if(!token) return;
+  const token = GUEST_TOKEN || api.accessToken(); if(!token) return;
   GAME_EVENTSOURCE = new EventSource(api.baseUrl()+'/games/'+id+'/stream?access_token='+encodeURIComponent(token));
   GAME_EVENTSOURCE.addEventListener('ready', ()=>{ GAME_STREAM_RETRIES=0; });
   GAME_EVENTSOURCE.addEventListener('game_start', e=>{
     const d = JSON.parse(e.data);
-    if(GAME_STATE){ GAME_STATE.board=d.board; GAME_STATE.turn=d.turn; GAME_STATE.status='active'; }
+    if(GAME_STATE){ if(d.board) GAME_STATE.board=d.board; GAME_STATE.turn=d.turn; GAME_STATE.status='active'; }
+    maybeStartGameClock('active');
+    refreshGameState(id); // game_start của phòng (ready()) không kèm board/đồng hồ — nạp lại đầy đủ; vô hại khi đã có board (Gen-1)
     render();
   });
   GAME_EVENTSOURCE.addEventListener('move', e=>{
@@ -6137,6 +6306,32 @@ function connectGameStream(id){
     if(GAME_STATE){ GAME_STATE.board=d.board; GAME_STATE.turn=d.turn; GAME_STATE.last_move=d.last_move; }
     GAME_SELECTED=null; GAME_LEGAL=[];
     chessSound(d.captured?'capture':'place');
+    refreshGameState(id); // move không kèm thời gian còn lại/cầu hoà/mất kết nối — nạp lại để đồng hồ và các băng trạng thái không bị đứng yên
+    render();
+  });
+  // 4 sự kiện dưới đây server VẪN LUÔN bắn (publishToGame trong
+  // api/src/modules/games/service.js) nhưng trước đây không có ai nghe — nên
+  // băng "xin hoà"/"đối thủ mất mạng" chỉ đúng ở lần GET đầu rồi đứng im.
+  GAME_EVENTSOURCE.addEventListener('draw_offered', e=>{
+    const d = JSON.parse(e.data);
+    if(GAME_STATE) GAME_STATE.draw_offered_by = d.by;
+    render();
+  });
+  GAME_EVENTSOURCE.addEventListener('draw_declined', ()=>{
+    if(GAME_STATE) GAME_STATE.draw_offered_by = null;
+    render();
+  });
+  // Payload không kèm mốc thời gian nên client tự đóng dấu lúc nhận. Chỉ
+  // dùng để hiện đếm 60 giây; SERVER tự kiểm tra lại disconnected_at THẬT khi
+  // /disconnect-timeout được gọi, nên vài trăm ms lệch mạng không thể tạo ra
+  // một cái thắng sai.
+  GAME_EVENTSOURCE.addEventListener('disconnected', e=>{
+    const d = JSON.parse(e.data);
+    if(GAME_STATE){ GAME_STATE.disconnected_side = d.side; GAME_STATE.disconnected_at = new Date().toISOString(); }
+    render();
+  });
+  GAME_EVENTSOURCE.addEventListener('reconnected', ()=>{
+    if(GAME_STATE){ GAME_STATE.disconnected_side = null; GAME_STATE.disconnected_at = null; }
     render();
   });
   GAME_EVENTSOURCE.addEventListener('game_end', e=>{
@@ -6145,6 +6340,7 @@ function connectGameStream(id){
       GAME_STATE.status='finished'; GAME_STATE.end_reason=d.reason;
       GAME_STATE.winner_member_id = d.winner ? (d.winner==='r'?GAME_STATE.red_member_id:GAME_STATE.black_member_id) : null;
     }
+    stopGameClock();
     chessSound('end');
     render();
   });
@@ -6165,11 +6361,31 @@ function connectGameStream(id){
     }, 1500);
   };
 }
+// Nạp lại từ GET /games/:id và GHÉP vào GAME_STATE hiện có (không thay hẳn
+// như loadGame — tránh xoá GAME_SELECTED/GAME_LEGAL giữa lúc đang thao tác).
+// Dùng khi một sự kiện SSE báo "có gì đó đổi" nhưng bản thân payload sự kiện
+// không mang đủ trường (move không kèm đồng hồ/cầu hoà/mất kết nối;
+// game_start của phòng không kèm board).
+function refreshGameState(id){
+  const req = GUEST_TOKEN ? guestFetch('GET', '/games/'+id) : api.get('/games/'+id);
+  req.then(g=>{
+    if(GAME_STATE_ID!==id || !GAME_STATE) return;
+    GAME_STATE.board=g.board; GAME_STATE.turn=g.turn;
+    GAME_STATE.red_time_ms=g.red_time_ms; GAME_STATE.black_time_ms=g.black_time_ms; GAME_STATE.turn_started_at=g.turn_started_at;
+    GAME_STATE.draw_offered_by=g.draw_offered_by; GAME_STATE.disconnected_side=g.disconnected_side; GAME_STATE.disconnected_at=g.disconnected_at;
+    render();
+  }).catch(()=>{});
+}
 function loadGame(id){
   GAME_STATE = null; GAME_STATE_ID = id; GAME_SELECTED=null; GAME_LEGAL=[];
-  api.get('/games/'+id).then(g=>{
-    if(GAME_STATE_ID!==id) return; // đã điều hướng đi chỗ khác trong lúc chờ
-    GAME_STATE=g; connectGameStream(id); render();
+  const req = GUEST_TOKEN ? guestFetch('GET', '/games/'+id) : api.get('/games/'+id);
+  req.then(g=>{
+    if(GAME_STATE_ID!==id) return;
+    GAME_STATE=g; connectGameStream(id);
+    maybeStartGameClock(g.status);
+    const phase = xqRoomPhase(g);
+    if(phase==='cho-doi-thu'||phase==='du-nguoi'||phase==='cho-ben-kia') startRoomPoll(id); else stopRoomPoll();
+    render();
   }).catch(e=>{
     if(GAME_STATE_ID!==id) return;
     GAME_STATE={error:e.message||'Không tải được ván cờ.'}; render();
@@ -6177,7 +6393,7 @@ function loadGame(id){
 }
 function gameCellClick(r,c){
   if(!GAME_STATE || GAME_STATE.error || GAME_STATE.status!=='active') return;
-  const mySide = GAME_STATE.red_member_id===DATA.me.id ? 'r' : GAME_STATE.black_member_id===DATA.me.id ? 'b' : null;
+  const mySide = resolveMySide(GAME_STATE);
   if(!mySide || mySide!==GAME_STATE.turn) return; // xem hoặc chưa tới lượt: bàn chỉ đọc
   const p = GAME_STATE.board[r][c];
   if(GAME_SELECTED){
@@ -6186,10 +6402,11 @@ function gameCellClick(r,c){
       const from=GAME_SELECTED, to={r,c};
       const gid = GAME_STATE.id;
       GAME_SELECTED=null; GAME_LEGAL=[];
-      api.post('/games/'+gid+'/moves', {from,to}).then(g=>{
+      const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+gid+'/moves', {from,to}) : api.post('/games/'+gid+'/moves', {from,to});
+      req.then(g=>{
         if(GAME_STATE_ID===gid && GAME_STATE){ GAME_STATE.board=g.board; GAME_STATE.turn=g.turn; GAME_STATE.status=g.status; render(); }
       }).catch(e=>{
-        toast(e.message||'Nước đi không hợp lệ.','x'); loadGame(GAME_STATE.id);
+        toast(e.message||'Nước đi không hợp lệ.','x'); loadGame(gid);
       });
       render();
       return;
@@ -6201,7 +6418,178 @@ function gameCellClick(r,c){
 }
 function resignGame(id){
   if(!confirm('Xin thua ván này?')) return;
-  api.post('/games/'+id+'/resign').catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/resign') : api.post('/games/'+id+'/resign');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+
+/* ---------- Phòng cờ (Gen 2): trạng thái, đồng hồ, phiên khách ----------
+   Dùng chung cho cả V['cotuong-van'] (chủ phòng) và PUB['cotuong-phong']
+   (khách). Không có cột trạng thái phòng riêng trong CSDL — suy ra từ
+   status/second_joined_at/red_ready_at/black_ready_at, xem mục 6 spec
+   2026-09-07-cotuong-phong-khach-ui-design.md. ══════════════════════ */
+function xqRoomPhase(g){
+  if(!g || g.error) return null;
+  if(g.black_member_id) return null; // ván có bên Đen là thành viên thật (thách đấu/ghép nhanh Gen 1) — không phải máy trạng thái phòng; phòng Gen 2 chỉ có black_guest_name/black_guest_token, không bao giờ black_member_id
+  if(g.status==='active') return 'dang-dau';
+  if(g.status!=='pending') return null; // finished hoặc trạng thái khác: không phải máy trạng thái phòng
+  if(!g.second_joined_at) return 'cho-doi-thu';
+  if(!g.red_ready_at && !g.black_ready_at) return 'du-nguoi';
+  return 'cho-ben-kia';
+}
+function xqFormatClock(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+// Mô phỏng lại ĐÚNG công thức computeRemainingMs() phía server
+// (api/src/modules/games/service.js) chỉ để hiện đếm mượt giữa hai lần đồng
+// bộ — server vẫn là nguồn sự thật duy nhất cho việc kết thúc ván vì hết giờ.
+function xqDisplayClock(st, side){
+  const raw = side==='r' ? st.red_time_ms : st.black_time_ms;
+  if(st.status!=='active' || !st.turn_started_at || st.disconnected_side || st.turn!==side) return raw;
+  const elapsed = Date.now() - new Date(st.turn_started_at).getTime();
+  return Math.max(0, raw - elapsed);
+}
+// winner_member_id là NULL cả khi hoà LẪN khi khách (không có member id)
+// thắng — hai trường hợp phải tách bằng end_reason. Chỉ gọi khi
+// st.status==='finished'.
+function xqGameResultSide(st){
+  if(st.end_reason==='hoa-thoa-thuan') return null;
+  if(!st.winner_member_id) return 'b'; // thắng mà không có member id ⇒ chắc chắn là khách (luôn Đen)
+  return st.winner_member_id===st.red_member_id ? 'r' : 'b';
+}
+function resolveMySide(g){
+  if(!g) return null;
+  if(DATA.me){
+    if(g.red_member_id===DATA.me.id) return 'r';
+    if(g.black_member_id===DATA.me.id) return 'b';
+  }
+  return GUEST_TOKEN ? 'b' : null;
+}
+
+let GUEST_TOKEN = null, GUEST_INVITE_TOKEN = null;
+function guestSessionKey(inviteToken){ return 'xq_guest_'+inviteToken; }
+function saveGuestSession(inviteToken, data){
+  try{ localStorage.setItem(guestSessionKey(inviteToken), JSON.stringify(data)); }catch(e){}
+}
+function loadGuestSession(inviteToken){
+  try{ const raw = localStorage.getItem(guestSessionKey(inviteToken)); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function clearGuestSession(inviteToken){
+  try{ localStorage.removeItem(guestSessionKey(inviteToken)); }catch(e){}
+}
+
+// Client cho khách — KHÔNG qua window.api: token khách không có refresh,
+// không gắn phiên đăng nhập (xem mục 9 spec thiết kế). Cùng khuôn lỗi với
+// api.js (server trả {error:{code,message,fields}}) và dùng lại đúng
+// api.messageFor() để hai đường không lệch câu chữ hiển thị.
+function guestFetch(method, path, body, tokenOverride){
+  const token = tokenOverride!==undefined ? tokenOverride : GUEST_TOKEN;
+  const headers = {};
+  if(token) headers['authorization'] = 'Bearer '+token;
+  if(body!==undefined) headers['content-type'] = 'application/json';
+  return fetch(api.baseUrl()+path, {method, headers, body: body===undefined?undefined:JSON.stringify(body)})
+    .catch(()=>{ throw new Error(api.messageFor('NETWORK')); })
+    .then(res=>{
+      if(res.status===204) return null;
+      return res.json().catch(()=>null).then(data=>{
+        if(res.ok) return data;
+        const code = (data && data.error && data.error.code) || 'INTERNAL';
+        const err = new Error(api.messageFor(code));
+        err.code = code; err.status = res.status;
+        throw err;
+      });
+    });
+}
+
+// Đếm giây cục bộ khi ván đang active — chỉ để UI mượt, KHÔNG tự kết thúc
+// ván: server mới là bên quyết định, client chỉ ĐÒI qua /timeout (hết giờ)
+// hoặc /disconnect-timeout (đối thủ mất kết nối quá 60 giây, mục 6 spec).
+// Hai nhánh loại trừ nhau bằng if/else: khi đối thủ đang mất kết nối thì
+// đồng hồ bên đó ĐỨNG (xqDisplayClock trả raw), đòi /timeout lúc đó là sai —
+// mất kết nối có luật riêng 60 giây của nó.
+// gameClaimTimeout()/gameClaimDisconnectTimeout() khai báo bằng `function`
+// nên thứ tự trong file không quan trọng (hoisting).
+let GAME_CLOCK_TIMER = null;
+function stopGameClock(){ if(GAME_CLOCK_TIMER){ clearInterval(GAME_CLOCK_TIMER); GAME_CLOCK_TIMER=null; } }
+function gameClockTick(){
+  if(GAME_STATE && GAME_STATE.status==='active'){
+    if(GAME_STATE.disconnected_side){
+      const elapsed = Date.now() - new Date(GAME_STATE.disconnected_at).getTime();
+      if(elapsed>=60000) gameClaimDisconnectTimeout(GAME_STATE.id);
+    } else if(GAME_STATE.turn_started_at && xqDisplayClock(GAME_STATE, GAME_STATE.turn)<=0){
+      gameClaimTimeout(GAME_STATE.id);
+    }
+  }
+  render();
+}
+function maybeStartGameClock(status){
+  stopGameClock();
+  if(status==='active') GAME_CLOCK_TIMER = setInterval(gameClockTick, 1000);
+}
+
+// Polling trong lúc phòng còn 'pending' — ready()/joinRoom() không bắn sự
+// kiện SSE cho "khách vừa vào"/"một bên vừa bấm sẵn sàng lần đầu" (rà
+// publishToGame() trong api/src/modules/games/service.js xác nhận điều
+// này; ghi trong backlog theo dõi của nhánh Kernel, không sửa ở đây). Dừng
+// tự động ngay khi phase không còn là trạng thái phòng nữa.
+let ROOM_POLL_TIMER = null;
+function stopRoomPoll(){ if(ROOM_POLL_TIMER){ clearInterval(ROOM_POLL_TIMER); ROOM_POLL_TIMER=null; } }
+function startRoomPoll(id){
+  stopRoomPoll();
+  ROOM_POLL_TIMER = setInterval(()=>{
+    if(GAME_STATE_ID!==id){ stopRoomPoll(); return; }
+    const req = GUEST_TOKEN ? guestFetch('GET', '/games/'+id) : api.get('/games/'+id);
+    req.then(g=>{
+      if(GAME_STATE_ID!==id) return;
+      GAME_STATE=g;
+      const phase = xqRoomPhase(g);
+      if(phase!=='cho-doi-thu' && phase!=='du-nguoi' && phase!=='cho-ben-kia') stopRoomPoll();
+      render();
+    }).catch(e=>{
+      // Nuốt lỗi ở đây là nuốt luôn đúng hai tín hiệu khách đang chờ CẦN
+      // thấy: bị đá khỏi phòng theo luật 30 giây (403) và chủ phòng đã đóng
+      // phòng (404). Đẩy sang cùng khuôn lỗi mà loadGame dùng — cả
+      // V['cotuong-van'] lẫn PUB['cotuong-phong'] đều đã có nhánh
+      // GAME_STATE.error xử lý đúng (bản khách còn tự xoá phiên đã lưu và
+      // quay về form nhập tên).
+      if(GAME_STATE_ID!==id) return;
+      stopRoomPoll();
+      GAME_STATE={error:e.message||'Không tải được ván cờ.'};
+      render();
+    });
+  }, 3000);
+}
+
+function gameOfferDraw(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/draw/offer') : api.post('/games/'+id+'/draw/offer');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameAcceptDraw(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/draw/accept') : api.post('/games/'+id+'/draw/accept');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameDeclineDraw(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/draw/decline') : api.post('/games/'+id+'/draw/decline');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameClaimTimeout(id){
+  // 409 nếu ai đó đã đi nước tiếp hoặc đã có người claim trước — bình
+  // thường (đua với người khác/với chính server), im lặng bỏ qua, giống
+  // hệt gameClaimDisconnectTimeout.
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/timeout') : api.post('/games/'+id+'/timeout');
+  req.catch(()=>{});
+}
+function gameClaimDisconnectTimeout(id){
+  // Tick mỗi giây (gameClockTick, Task 2) gọi hàm này liên tục sau khi quá
+  // 60 giây — 409 (đối thủ đã nối lại) là bình thường, im lặng bỏ qua.
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/disconnect-timeout') : api.post('/games/'+id+'/disconnect-timeout');
+  req.catch(()=>{});
+}
+function gameLeaveActive(id){
+  if(!confirm('Rời phòng? Ván đang chạy — rời bây giờ tính là THUA.')) return;
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/leave') : api.post('/games/'+id+'/leave');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
 
 V['cotuong-van'] = (params)=>{
@@ -6212,9 +6600,9 @@ V['cotuong-van'] = (params)=>{
   if(!GAME_STATE) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   if(GAME_STATE.error) return `<div class="empty" style="margin-top:15vh"><h3>${esc(GAME_STATE.error)}</h3></div>`;
   const st = GAME_STATE;
-  const mySide = DATA.me && st.red_member_id===DATA.me.id ? 'r' : (DATA.me && st.black_member_id===DATA.me.id ? 'b' : null);
+  const mySide = resolveMySide(st);
   const isMyTurn = mySide && mySide===st.turn && st.status==='active';
-  if(st.status==='pending'){
+  if(st.status==='pending' && st.black_member_id){
     const isInvitee = DATA.me && st.black_member_id===DATA.me.id;
     return `<div class="xq-fs-card">
       <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
@@ -6234,6 +6622,42 @@ V['cotuong-van'] = (params)=>{
       <p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại danh sách</a></p>
     </div>`;
   }
+  const phase = xqRoomPhase(st);
+  if(phase && phase!=='dang-dau'){
+    const isHost = mySide==='r';
+    let body;
+    if(phase==='cho-doi-thu'){
+      // ROOM_INVITE_TOKEN chỉ sống trong 1 vòng đời trang (server không trả
+      // lại invite_token ở GET /games/:id) — chủ phòng tải lại trang là mất.
+      // Trước đây vẫn dựng link với token rỗng: chép được, gửi đi được, mà
+      // người nhận bấm vào thì hỏng. Nói thẳng ra thay vì đưa link chết.
+      if(!ROOM_INVITE_TOKEN){
+        body = `<h1>Phòng đang chờ đối thủ</h1>
+          <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Link mời đã mất sau khi tải lại trang. Đóng phòng này và tạo phòng mới để có link mời dùng được.</p>`;
+      } else {
+        const link = location.origin+location.pathname+'#cotuong-phong:'+ROOM_INVITE_TOKEN;
+        body = `<h1>Phòng đang chờ đối thủ</h1>
+          <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Gửi link này cho đối thủ để họ vào phòng — không cần tài khoản.</p>
+          <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
+      }
+    } else if(phase==='du-nguoi'){
+      body = `<h1>${esc(st.black_name)} đã vào phòng</h1>
+        <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+    } else { // cho-ben-kia
+      const iAmReady = isHost ? st.red_ready_at : st.black_ready_at;
+      body = iAmReady
+        ? `<h1>Đang chờ ${esc(st.black_name)} sẵn sàng…</h1>`
+        : `<h1>${esc(st.black_name)} đã sẵn sàng</h1>
+          <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+    }
+    return `<div class="xq-fs-card">${body}
+      <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Đóng phòng</button></div>
+    </div>`;
+  }
+  // Xem chú thích cùng chỗ này trong guestGameHtml: khe hở giữa game_start
+  // (đặt status='active' + render() đồng bộ) và refreshGameState() (GET bất
+  // đồng bộ) — board của phòng vẫn còn null ở đúng lúc đó.
+  if(!st.board) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   const pts=[];
   for(let r=0;r<10;r++) for(let c=0;c<9;c++){
     const p = st.board[r][c];
@@ -6248,15 +6672,20 @@ V['cotuong-van'] = (params)=>{
     pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})" onclick="gameCellClick(${r},${c})" ${isMyTurn?'':'disabled'}>${inner}</button>`);
   }
   const turnTxt = st.turn==='r' ? 'Đỏ đi' : 'Đen đi';
-  const winnerSide = st.winner_member_id===st.red_member_id ? 'Đỏ' : 'Đen';
+  // winner_member_id là NULL cả khi hoà LẪN khi khách thắng (không có
+  // member id) — xqGameResultSide() (Task 2) tách hai trường hợp bằng
+  // end_reason, KHÔNG được coi NULL là "Đen thắng" như trước.
+  const resultSide = st.status==='finished' ? xqGameResultSide(st) : undefined;
   const statusTxt = st.status==='finished'
-    ? `${winnerSide} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`
+    ? (resultSide===null ? 'Hoà' : `${resultSide==='r'?'Đỏ':'Đen'} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`)
     : (mySide ? (isMyTurn?'Tới lượt bạn':'Đang chờ đối thủ') : turnTxt);
   const statusCls = st.status==='finished' ? 'win' : '';
+  const drawFromOpp = st.status==='active' && mySide && st.draw_offered_by && st.draw_offered_by!==mySide;
+  const disconnectedOpp = st.status==='active' && mySide && st.disconnected_side && st.disconnected_side!==mySide;
   const inCheck = st.status==='active' && xqInCheck(st.board, st.turn);
   const announce = st.status==='finished'
-    ? xqAnnounceHtml(statusTxt, (!mySide || st.winner_member_id===DATA.me.id) ? 'win' : 'lose')
-    : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : '');
+    ? xqAnnounceHtml(statusTxt, resultSide===null ? '' : ((!mySide || resultSide===mySide) ? 'win' : 'lose'))
+    : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
   return `
   <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
   ${announce}
@@ -6270,10 +6699,20 @@ V['cotuong-van'] = (params)=>{
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+    ${st.status==='active'?`<div class="xq-clock-row">
+      <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
+      <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+    </div>`:''}
+    ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+      <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
+      <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+    </div>`:''}
     <div class="xq-ctrl-row">
+      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
       ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
       <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
     </div>
+    ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
     <h3 style="margin-top:14px">Biên bản ván cờ</h3>
     ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
   </div>`;
