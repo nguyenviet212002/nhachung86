@@ -5,7 +5,7 @@ import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
 
-let db, app, cid, alice, aliceToken;
+let db, app, cid, alice, aliceToken, bob, bobToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
 beforeAll(async () => {
@@ -21,6 +21,13 @@ beforeAll(async () => {
   );
   alice = row.id;
   aliceToken = jwt.sign({ sub: alice, cid, typ: 'access' }, config.JWT_SECRET, { expiresIn: '15m' });
+
+  const { rows: [bobRow] } = await db.raw(
+    `INSERT INTO members (community_id, full_name, status) VALUES (?, 'Bob T42', 'member') RETURNING id`,
+    [cid]
+  );
+  bob = bobRow.id;
+  bobToken = jwt.sign({ sub: bob, cid, typ: 'access' }, config.JWT_SECRET, { expiresIn: '15m' });
 });
 
 afterAll(async () => { await db.destroy(); });
@@ -53,5 +60,22 @@ describe('T42 tạo phòng — requireAuthOrGuestToken qua GET /:id', () => {
       .send({ guest_name: 'Khách A' }).expect(201);
     await supertest(app).get(`/api/v1/games/${roomB.body.id}`)
       .set(auth(joinedA.body.guest_token)).expect(401);
+  });
+});
+
+describe('T42 move() — đồng hồ trừ thời gian đã dùng', () => {
+  it('sau 1 nước đi, red_time_ms giảm đúng khoảng thời gian đã trôi qua', async () => {
+    const challenge = await supertest(app).post('/api/v1/games/challenges').set(auth(aliceToken))
+      .send({ opponent_member_id: bob }).expect(201);
+    await supertest(app).post(`/api/v1/games/challenges/${challenge.body.id}/accept`).set(auth(bobToken)).expect(200);
+
+    await new Promise((r) => setTimeout(r, 50));
+    await supertest(app).post(`/api/v1/games/${challenge.body.id}/moves`).set(auth(aliceToken))
+      .send({ from: { r: 6, c: 0 }, to: { r: 5, c: 0 } }).expect(200);
+
+    const detail = await supertest(app).get(`/api/v1/games/${challenge.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.red_time_ms).toBeLessThan(600000);
+    expect(detail.body.red_time_ms).toBeGreaterThan(600000 - 5000); // trừ đúng ~50ms, không trừ nhầm hàng giây
+    expect(detail.body.black_time_ms).toBe(600000); // Đen chưa đi, chưa trừ
   });
 });

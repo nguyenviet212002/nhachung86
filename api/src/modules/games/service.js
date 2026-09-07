@@ -79,7 +79,7 @@ export async function acceptChallenge({ actor, id }) {
     if (game.black_member_id !== actor.id) throw FORBIDDEN('Chỉ người được mời mới nhận lời được.');
     const board = rules.initBoard();
     const { rows: [row] } = await trx.raw(
-      `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now()
+      `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now(), turn_started_at = now()
         WHERE id = ? AND status = 'pending' RETURNING *`,
       [JSON.stringify(board), id]
     );
@@ -143,8 +143,8 @@ export async function quickMatch({ actor }) {
       if (!opponent) return null; // người đang chờ đã rời Hội ngay trong lúc chờ — hàng đợi coi như trống
       const board = rules.initBoard();
       const { rows: [row] } = await trx.raw(
-        `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, board, started_at)
-         VALUES (?, ?, ?, 'active', 'r', ?::jsonb, now()) RETURNING id`,
+        `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, board, started_at, turn_started_at)
+         VALUES (?, ?, ?, 'active', 'r', ?::jsonb, now(), now()) RETURNING id`,
         [actor.communityId, waitingActorId, actor.id, JSON.stringify(board)]
       );
       await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
@@ -227,21 +227,52 @@ export async function move({ actor, id, from, to }) {
       throw new AppError('VALIDATION_FAILED', 'Nước đi không hợp lệ.', { status: 422 });
     }
     const applied = rules.applyMove(game.board, from, to);
-    const newTurn = applied.gameOver ? game.turn : rules.opp(mySide);
-    const winnerId = applied.gameOver ? (applied.winner === 'r' ? game.red_member_id : game.black_member_id) : null;
+    let gameOver = applied.gameOver, winner = applied.winner, reason = applied.reason;
+
+    const { rows: pastMoves } = await trx.raw(
+      `SELECT side, is_check AS "isCheck", captured_type IS NOT NULL AS captured, board_hash AS "boardHash"
+         FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
+      [id]
+    );
+    const newTurnIfContinuing = rules.opp(mySide);
+    const newHash = rules.hashBoard(applied.board, gameOver ? game.turn : newTurnIfContinuing);
+    const moveHistory = [...pastMoves, { side: mySide, isCheck: applied.checkOpp, captured: !!applied.captured, boardHash: newHash }];
+
+    if (!gameOver) {
+      const rep = rules.detectRepetition(moveHistory);
+      if (rep) {
+        gameOver = true; reason = rep.reason;
+        winner = rep.loser ? rules.opp(rep.loser) : null;
+      } else if (rules.detectNoCaptureDraw(moveHistory)) {
+        gameOver = true; reason = 'hoa-60-nuoc'; winner = null;
+      }
+    }
+
+    const newTurn = gameOver ? game.turn : newTurnIfContinuing;
+    const winnerId = !gameOver ? null : winner === 'r' ? game.red_member_id : winner === 'b' ? game.black_member_id : null;
+
+    const elapsedMs = game.turn_started_at ? Math.max(0, Date.now() - new Date(game.turn_started_at).getTime()) : 0;
+    const preMoveTimeMs = mySide === 'r' ? game.red_time_ms : game.black_time_ms;
+    const postMoveTimeMs = Math.max(0, preMoveTimeMs - elapsedMs);
+    const movedTimeCol = mySide === 'r' ? 'red_time_ms' : 'black_time_ms';
+
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET board = ?::jsonb, turn = ?, status = ?, winner_member_id = ?, end_reason = ?,
-              finished_at = CASE WHEN ? THEN now() ELSE finished_at END
+              finished_at = CASE WHEN ? THEN now() ELSE finished_at END,
+              ?? = ?, turn_started_at = CASE WHEN ? THEN NULL ELSE now() END
         WHERE id = ? AND status = 'active' AND turn = ? RETURNING *`,
-      [JSON.stringify(applied.board), newTurn, applied.gameOver ? 'finished' : 'active',
-       winnerId, applied.gameOver ? applied.reason : null, applied.gameOver, id, mySide]
+      [JSON.stringify(applied.board), newTurn, gameOver ? 'finished' : 'active',
+       winnerId, gameOver ? reason : null, gameOver,
+       movedTimeCol, postMoveTimeMs, gameOver,
+       id, mySide]
     );
     if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     const { rows: [seqRow] } = await trx.raw(`SELECT COALESCE(MAX(seq), 0) + 1 AS seq FROM game_moves WHERE game_id = ?`, [id]);
     await trx.raw(
-      `INSERT INTO game_moves (community_id, game_id, seq, side, from_r, from_c, to_r, to_c, captured_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [actor.communityId, id, seqRow.seq, mySide, from.r, from.c, to.r, to.c, applied.captured?.type ?? null]
+      `INSERT INTO game_moves (community_id, game_id, seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, board_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [actor.communityId, id, seqRow.seq, mySide, from.r, from.c, to.r, to.c,
+       applied.captured?.type ?? null, applied.checkOpp, newHash]
     );
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'chess_game.move', targetType: 'game', targetId: id,
@@ -249,10 +280,10 @@ export async function move({ actor, id, from, to }) {
 
     const opponentId = mySide === 'r' ? game.black_member_id : game.red_member_id;
     let notification = null;
-    if (!isWatchingGame(id, opponentId)) {
-      const title = applied.gameOver ? 'Ván cờ đã kết thúc' : 'Đến lượt bạn đi';
-      const body = applied.gameOver
-        ? (applied.winner === mySide ? 'Bạn đã thắng.' : 'Đối thủ đã thắng.')
+    if (opponentId && !isWatchingGame(id, opponentId)) {
+      const title = gameOver ? 'Ván cờ đã kết thúc' : 'Đến lượt bạn đi';
+      const body = gameOver
+        ? (winner === mySide ? 'Bạn đã thắng.' : winner ? 'Đối thủ đã thắng.' : 'Ván cờ kết thúc hoà.')
         : 'Đối thủ vừa đi một nước, tới lượt bạn.';
       const { rows: [n] } = await trx.raw(
         `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
@@ -261,8 +292,7 @@ export async function move({ actor, id, from, to }) {
       );
       notification = n;
     }
-    return { board: applied.board, turn: newTurn, gameOver: applied.gameOver, winner: applied.winner,
-      reason: applied.reason, captured: applied.captured, opponentId, notification };
+    return { board: applied.board, turn: newTurn, gameOver, winner, reason, captured: applied.captured, opponentId, notification };
   });
 
   publishToGame(id, 'move', { board: result.board, turn: result.turn, last_move: { from, to },
