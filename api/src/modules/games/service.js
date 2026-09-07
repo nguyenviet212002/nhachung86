@@ -558,14 +558,44 @@ export async function markDisconnected({ communityId, gameId, side }) {
   publishToGame(gameId, 'disconnected', { side });
 }
 
+// Lệch có chủ đích khỏi brief (phát hiện + xác nhận bằng dữ liệu thật ở Task
+// 10, xem "§3.2" trong task-10-report.md): CASE gốc của brief
+// (`turn_started_at = CASE WHEN turn = ? THEN now() ELSE turn_started_at END`)
+// chỉ dời turn_started_at khi bên VỪA KẾT NỐI LẠI cũng đang là bên cầm lượt.
+// Khi bên KHÔNG mất kết nối đang cầm lượt suốt thời gian đối thủ mất kết nối
+// (không đi nước nào nên turn không đổi), CASE đó không bao giờ khớp —
+// turn_started_at đứng nguyên từ trước khi mất kết nối, và computeRemainingMs()
+// / move() (elapsed = now() - turn_started_at, không hề biết tới
+// disconnected_side) sẽ tính oan TOÀN BỘ thời gian mất kết nối vào đồng hồ
+// của bên đang kết nối ngay khi cờ disconnected_side vừa được xoá — nhẹ thì
+// lệch hiển thị, nặng thì bên vừa mất kết nối kết nối lại xong báo /timeout
+// thắng luôn, dù bên kia chưa hề đi nước nào và màn hình vẫn đứng yên tới tận
+// khoảnh khắc đó (tái hiện được bằng service thật, xem báo cáo).
+//
+// Sửa: DỜI turn_started_at tới TRƯỚC đúng bằng khoảng thời gian mất kết nối
+// (`turn_started_at + (now() - disconnected_at)`), không điều kiện theo bên
+// nào đang cầm lượt. elapsed = now() - turn_started_at ở mọi lần đọc sau này
+// sẽ tự động trừ đúng khoảng mất kết nối ra khỏi kết quả — dù sau đó là bên
+// nào cầm lượt. Không dùng cách "luôn đặt lại = now()" (đơn giản hơn nhưng
+// tha oan): khi bên vừa kết nối lại CŨNG đang cầm lượt, cách đó xoá luôn cả
+// thời gian họ đã nghĩ THẬT trước khi mất kết nối, không chỉ khoảng mất kết
+// nối — công thức dời ở đây giữ đúng phần đã nghĩ thật đó, chỉ trừ đúng phần
+// mất kết nối. An toàn với NULL: disconnected_side và disconnected_at luôn
+// được set/xoá cùng nhau (markDisconnected/clearDisconnected), nên WHERE
+// disconnected_side = ? khớp thì disconnected_at chắc chắn không NULL; mọi
+// hàng status='active' luôn có turn_started_at không NULL (mọi chỗ đặt
+// status='active' — acceptChallenge, quickMatch, ready(), move() khi ván chưa
+// xong — đều set turn_started_at cùng lúc; chỗ duy nhất đặt nó về NULL trong
+// move() cũng đặt status='finished' cùng lúc nên WHERE status='active' loại
+// hàng đó ra trước).
 export async function clearDisconnected({ communityId, gameId, side }) {
   const wasCleared = await withActor(null, async (trx) => {
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL,
-              turn_started_at = CASE WHEN turn = ? THEN now() ELSE turn_started_at END
+              turn_started_at = turn_started_at + (now() - disconnected_at)
         WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side = ?
         RETURNING id`,
-      [side, gameId, communityId, side]
+      [gameId, communityId, side]
     );
     return !!row;
   });

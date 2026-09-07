@@ -290,4 +290,40 @@ describe('T42 mất kết nối', () => {
     await db.raw(`UPDATE games SET disconnected_side = 'r', disconnected_at = now() WHERE id = ?`, [created.body.id]);
     await supertest(app).post(`/api/v1/games/${created.body.id}/disconnect-timeout`).set(auth(joined.body.guest_token)).expect(409);
   });
+
+  // Task 10 §3.2: khi bên KHÔNG mất kết nối đang cầm lượt suốt lúc đối thủ mất
+  // kết nối (không đi nước nào nên turn không đổi), việc kết nối lại phải chỉ
+  // trừ đúng khoảng thời gian mất kết nối khỏi đồng hồ của bên đang cầm lượt —
+  // không trừ oan toàn bộ (kể cả phần họ đã thật sự nghĩ trước khi đối thủ mất
+  // kết nối), và không tha luôn phần đã nghĩ thật đó. Tái hiện đúng kịch bản đã
+  // báo cáo: turn_started_at lùi 6 phút (Đỏ đã nghĩ thật 2 phút trước khi Đen
+  // mất kết nối), disconnected_at lùi 4 phút (mất kết nối kéo dài 4 phút) —
+  // sau khi kết nối lại, đồng hồ Đỏ phải còn ~480000ms (600000 - 120000),
+  // không phải ~240000ms (lỗi cũ: trừ oan cả 6 phút) và không phải ~600000ms
+  // (tha quá tay: xoá sạch cả 2 phút nghĩ thật).
+  it('kết nối lại chỉ trừ đúng khoảng mất kết nối khỏi đồng hồ bên đang cầm lượt, không trừ oan và không tha hết', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Lệch Giờ' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    const gameId = created.body.id;
+
+    await service.markDisconnected({ communityId: cid, gameId, side: 'b' });
+    await db.raw(
+      `UPDATE games SET turn_started_at = now() - interval '6 minutes', disconnected_at = now() - interval '4 minutes' WHERE id = ?`,
+      [gameId]
+    );
+    await service.clearDisconnected({ communityId: cid, gameId, side: 'b' });
+
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.red_time_remaining_ms).toBeGreaterThan(480000 - 15000);
+    expect(detail.body.red_time_remaining_ms).toBeLessThan(480000 + 15000);
+
+    // Còn cách xa lúc hết giờ thật — /timeout phải vẫn bị từ chối. Đây chính là
+    // phép kiểm khoá lại lỗ hổng "ăn chực đồng hồ": trước khi sửa, bên vừa mất
+    // kết nối kết nối lại xong có thể báo /timeout thắng ngay dù Đỏ chưa hề đi
+    // nước nào.
+    await supertest(app).post(`/api/v1/games/${gameId}/timeout`).set(auth(joined.body.guest_token)).expect(409);
+  });
 });
