@@ -818,6 +818,29 @@ export async function getAnalysis({ actor, id }) {
   });
 }
 
+// Hồ sơ đối thủ (mục 2.5 spec) — thống kê TOÀN BỘ ván đã mổ của memberId trên
+// nền tảng, KHÔNG PHẢI riêng đối đầu giữa hai người (RULING trong spec §2.5:
+// đọc tự nhiên như một hồ sơ chung). Chỉ đếm ván đã analyzed_at IS NOT NULL —
+// một ván vừa kết thúc mà chưa mổ xong không được tính là "đã chơi" ở đây.
+export async function getMemberProfile({ actor, memberId }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `SELECT
+         count(*) AS games_count,
+         count(*) FILTER (WHERE winner_member_id = ?) AS wins,
+         avg(CASE WHEN red_member_id = ? THEN red_avg_loss ELSE black_avg_loss END) AS avg_loss
+       FROM games
+       WHERE community_id = ? AND (red_member_id = ? OR black_member_id = ?) AND analyzed_at IS NOT NULL`,
+      [memberId, memberId, actor.communityId, memberId, memberId]
+    );
+    return {
+      games_count: Number(row.games_count),
+      wins: Number(row.wins),
+      avg_loss: row.avg_loss === null ? null : Number(row.avg_loss),
+    };
+  });
+}
+
 export async function setAiLevel({ actor, id, level }) {
   await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
