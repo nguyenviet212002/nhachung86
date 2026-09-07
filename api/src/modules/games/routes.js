@@ -76,3 +76,6 @@ router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, r
 router.post('/:id/ready', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.ready({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+router.post('/:id/timeout', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.claimTimeout({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});

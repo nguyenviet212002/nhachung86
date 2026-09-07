@@ -160,3 +160,41 @@ describe('T42 sẵn sàng — 4 trạng thái + hết 30 giây', () => {
     await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(joined.body.guest_token)).expect(401);
   });
 });
+
+describe('T42 đồng hồ — hết giờ', () => {
+  async function activeGame(hostToken, hostId) {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(hostToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Đồng Hồ' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(hostToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    return { id: created.body.id, guestToken: joined.body.guest_token };
+  }
+
+  it('GET /:id trả thời gian còn lại giảm dần khi đang tới lượt, đứng yên khi không phải lượt', async () => {
+    const { id } = await activeGame(aliceToken, alice);
+    const d1 = await supertest(app).get(`/api/v1/games/${id}`).set(auth(aliceToken)).expect(200);
+    expect(d1.body.red_time_remaining_ms).toBeLessThanOrEqual(600000);
+    expect(d1.body.black_time_remaining_ms).toBe(600000); // chưa tới lượt Đen, đứng yên
+  });
+
+  it('gọi /timeout khi chưa thật sự hết giờ thì bị từ chối', async () => {
+    const { id } = await activeGame(aliceToken, alice);
+    await supertest(app).post(`/api/v1/games/${id}/timeout`).set(auth(aliceToken)).expect(409);
+  });
+
+  it('hết giờ thật (server tự tính lại, không tin client) thì bên kia thắng', async () => {
+    // activeGame() để bàn cờ ở lượt Đỏ (turn='r') ngay sau ready(); lùi
+    // turn_started_at khiến ĐỎ (chủ phòng, alice) hết giờ, nên bên thắng là
+    // Đen — nhưng Đen ở đây là khách, không có member id để ghi vào
+    // winner_member_id (đúng thiết kế mục 5: thắng vẫn xác định bằng bên 'r'/'b',
+    // winner_member_id chỉ có giá trị khi bên thắng là một thành viên thật).
+    const { id, guestToken } = await activeGame(aliceToken, alice);
+    await db.raw(`UPDATE games SET turn_started_at = now() - interval '11 minutes' WHERE id = ?`, [id]);
+    const res = await supertest(app).post(`/api/v1/games/${id}/timeout`).set(auth(guestToken)).expect(200);
+    expect(res.body.status).toBe('finished');
+    const detail = await supertest(app).get(`/api/v1/games/${id}`).set(auth(guestToken)).expect(200);
+    expect(detail.body.end_reason).toBe('het-gio');
+    expect(detail.body.winner_member_id).toBe(null);
+  });
+});

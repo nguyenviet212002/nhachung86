@@ -34,6 +34,18 @@ function resolveSide(actor, game) {
   return null;
 }
 
+// Không đếm ngược ở server — tính lại thời gian còn lại MỖI LẦN đọc, từ
+// turn_started_at. Đứng yên khi ván chưa active, khi đang tạm dừng vì mất kết
+// nối (Task 10), hoặc khi chưa ai đi nước nào (turn_started_at null).
+function computeRemainingMs(game) {
+  const remaining = { red: game.red_time_ms, black: game.black_time_ms };
+  if (game.status !== 'active' || !game.turn_started_at || game.disconnected_side) return remaining;
+  const elapsed = Date.now() - new Date(game.turn_started_at).getTime();
+  const key = game.turn === 'r' ? 'red' : 'black';
+  remaining[key] = Math.max(0, remaining[key] - elapsed);
+  return remaining;
+}
+
 async function loadGame(trx, communityId, id) {
   const { rows: [row] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ? AND g.community_id = ?`, [id, communityId]);
   if (!row) throw NOT_FOUND();
@@ -233,8 +245,9 @@ export async function get({ actor, id }) {
          FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
       [id]
     );
+    const remaining = computeRemainingMs(game);
     const { black_guest_token, invite_token_hash, ...publicGame } = game;
-    return { ...publicGame, moves };
+    return { ...publicGame, moves, red_time_remaining_ms: remaining.red, black_time_remaining_ms: remaining.black };
   });
 }
 
@@ -439,4 +452,30 @@ export async function ready({ actor, id }) {
   });
   if (result.becameActive) publishToGame(id, 'game_start', { turn: 'r' });
   return { ready: true, active: result.becameActive };
+}
+
+export async function claimTimeout({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    if (game.disconnected_side) throw INVALID_STATE('Đồng hồ đang tạm dừng do mất kết nối.');
+    const remaining = computeRemainingMs(game);
+    const timedOutSide = remaining.red <= 0 ? 'r' : remaining.black <= 0 ? 'b' : null;
+    if (!timedOutSide) throw INVALID_STATE('Chưa bên nào thật sự hết giờ.');
+    const winnerSide = rules.opp(timedOutSide);
+    const winnerId = winnerSide === 'r' ? game.red_member_id : game.black_member_id;
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'het-gio', winner_member_id = ?, finished_at = now()
+        WHERE id = ? AND status = 'active' RETURNING id`,
+      [winnerId, id]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.timeout', targetType: 'game', targetId: id, detail: { side: timedOutSide } });
+    return { winnerSide };
+  });
+  publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'het-gio' });
+  return { id, status: 'finished' };
 }
