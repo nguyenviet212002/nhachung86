@@ -631,6 +631,36 @@ export async function clearDisconnected({ communityId, gameId, side }) {
   if (wasCleared) publishToGame(gameId, 'reconnected', { side });
 }
 
+// Lệch có chủ đích khỏi brief, vòng 3 (xem "§10" trong task-10-report.md):
+// disconnected_side/disconnected_at chỉ do markDisconnected/clearDisconnected
+// đụng tới — move() (không sửa ở Task 10) không hề biết tới hai cột này, nên
+// nếu chính bên bị đánh dấu mất kết nối vẫn còn một kênh khác gọi API bình
+// thường được (SSE rớt nhưng request/response HTTP vẫn sống — hoàn toàn có
+// thật trên mạng chập chờn), họ đi nước hoàn toàn hợp lệ mà cờ disconnected_side
+// vẫn đứng nguyên, cũ dần. Không kiểm điều này thì sau 60 giây kể từ mốc cũ đó,
+// đối thủ báo /disconnect-timeout THẮNG THẬT dù bên kia vẫn đang chơi bình
+// thường suốt — xử thua oan, tái hiện được bằng service thật (xem báo cáo).
+//
+// Sửa: trước khi tin disconnected_side, kiểm xem CHÍNH bên đó có nước đi nào
+// mới hơn disconnected_at không (lọc side = disconnected_side — một nước của
+// bên ĐANG kết nối không nói lên gì về việc đối thủ họ có thật sự còn mất kết
+// nối hay không, nên không được tính). Có thì cờ đã cũ — tự dọn (best-effort,
+// không cần RETURNING/kiểm, cùng kiểu markDisconnected) rồi từ chối, không xử
+// thua. created_at > ? là so KHÔNG BẰNG NHAU nên không dính bẫy lệch độ chính
+// xác mili-giây/micro-giây của Task 8 (bẫy đó chỉ vỡ phép so BẰNG NHAU).
+//
+// Lệch tiếp, có chủ đích, khỏi chính mã sửa vòng 3 (phát hiện lúc tự kiểm —
+// xem "§10.3" trong task-10-report.md): bản đầu ném INVALID_STATE NGAY SAU
+// UPDATE tự dọn ở trên, CÙNG một trx với withActor(). withActor() = 1 lời gọi
+// knex.transaction() DUY NHẤT bọc quanh toàn bộ callback — callback ném lỗi
+// thì knex tự ROLLBACK CẢ giao dịch, xoá luôn UPDATE tự dọn vừa chạy (đúng bẫy
+// đã ghi ở core/audit.js phần logDenied: "ngoại lệ huỷ cả giao dịch"). Kết quả
+// đo được: /disconnect-timeout vẫn trả 409 đúng (exception vẫn thoát ra ngoài
+// bình thường) NHƯNG disconnected_side đọc lại vẫn còn 'r' — cờ cũ không hề
+// được dọn, y hệt trước khi sửa. Sửa: KHÔNG throw trong trx nữa — trả về cờ
+// hiệu {stale:true} để withActor() tự COMMIT giao dịch (đã có UPDATE tự dọn),
+// rồi throw NGOÀI withActor(), sau khi giao dịch đã chốt xong — không còn gì
+// để rollback nữa.
 export async function claimDisconnectTimeout({ actor, id }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
@@ -638,6 +668,17 @@ export async function claimDisconnectTimeout({ actor, id }) {
     if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
     if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     if (!game.disconnected_side) throw INVALID_STATE('Không có ai đang mất kết nối.');
+    const { rows: [movedSince] } = await trx.raw(
+      `SELECT 1 FROM game_moves WHERE game_id = ? AND side = ? AND created_at > ? LIMIT 1`,
+      [id, game.disconnected_side, game.disconnected_at]
+    );
+    if (movedSince) {
+      await trx.raw(
+        `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL WHERE id = ? AND status = 'active' AND disconnected_side = ?`,
+        [id, game.disconnected_side]
+      );
+      return { stale: true };
+    }
     const elapsedMs = Date.now() - new Date(game.disconnected_at).getTime();
     if (elapsedMs < 60_000) throw INVALID_STATE('Chưa đủ 1 phút mất kết nối.');
     const loserSide = game.disconnected_side;
@@ -653,6 +694,7 @@ export async function claimDisconnectTimeout({ actor, id }) {
       action: 'chess_game.disconnect_timeout', targetType: 'game', targetId: id, detail: { side: loserSide } });
     return { winnerSide };
   });
+  if (result.stale) throw INVALID_STATE('Bên bị coi là mất kết nối đã có nước đi mới — không còn mất kết nối thật.');
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
   return { id, status: 'finished' };
 }

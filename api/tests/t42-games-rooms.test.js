@@ -368,4 +368,36 @@ describe('T42 mất kết nối', () => {
     // sát 600000.
     expect(detail.body.black_time_remaining_ms).toBeGreaterThan(600000 - 15000);
   });
+
+  // Task 10 §10 (vòng sửa thứ ba, từ phát hiện leo thang của reviewer trên
+  // §9.4): chính bên bị đánh dấu mất kết nối vẫn còn đi nước được (SSE rớt
+  // nhưng request/response HTTP vẫn sống) — disconnected_side/disconnected_at
+  // không hề đổi (move() không đụng tới), nên nếu không kiểm, /disconnect-timeout
+  // của đối thủ sẽ xử THẮNG THẬT sau 60 giây kể từ mốc cũ, dù bên kia vẫn chơi
+  // bình thường suốt — thắng oan, không cần đợi họ kết nối lại.
+  it('bên bị đánh dấu mất kết nối nhưng vẫn đi nước bình thường thì /disconnect-timeout của đối thủ bị từ chối, không xử thắng oan', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Vẫn Chơi' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    const gameId = created.body.id;
+
+    // Đỏ (đang cầm lượt, turn='r') bị đánh dấu mất kết nối từ hơn 60 giây trước.
+    await service.markDisconnected({ communityId: cid, gameId, side: 'r' });
+    await db.raw(`UPDATE games SET disconnected_at = now() - interval '61 seconds' WHERE id = ?`, [gameId]);
+
+    // Nhưng Đỏ vẫn đi nước bình thường qua HTTP (kênh khác vẫn sống dù SSE đã
+    // rớt) — move() thành công vì không hề kiểm disconnected_side.
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(aliceToken))
+      .send({ from: { r: 6, c: 0 }, to: { r: 5, c: 0 } }).expect(200);
+
+    // Đối thủ (khách, Đen) báo /disconnect-timeout — phải bị từ chối, KHÔNG
+    // được xử thắng, vì cờ mất kết nối đã cũ (Đỏ vừa chứng minh còn sống).
+    await supertest(app).post(`/api/v1/games/${gameId}/disconnect-timeout`).set(auth(joined.body.guest_token)).expect(409);
+
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.status).toBe('active'); // không bị xử thua/kết thúc oan
+    expect(detail.body.disconnected_side).toBe(null); // tự dọn cờ cũ
+  });
 });
