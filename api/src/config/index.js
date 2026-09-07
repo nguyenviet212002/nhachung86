@@ -23,6 +23,10 @@ const schema = z.object({
   S3_REGION: z.string().default('us-east-1'),
   STORAGE_DIR: z.string().default('.storage'),
   CORS_ORIGIN: z.string().default('http://localhost'),
+  // Dịch vụ engine (Pikafish qua UCI, mục 6 spec Kernel/Engine). Mặc định
+  // đúng tên service trong docker-compose.yml — máy dev/production chạy qua
+  // compose không cần đặt lại biến này.
+  ENGINE_URL: z.string().url().default('http://engine:8898'),
   LOG_LEVEL: z.string().default('info'),
 });
 
