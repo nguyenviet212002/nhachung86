@@ -6577,6 +6577,31 @@ function xqAnalysisPanelHtml(gameId, mySide){
     ${worst?`<div style="font-size:12px;color:var(--muted)">Nước hỏng nhất: nước ${worst.seq} (${worst.side==='r'?'Đỏ':'Đen'})</div>`:''}
   `;
 }
+// Hồ sơ đối thủ (mục 2.5 spec) — hiện LUÔN, không chờ ván xong (khác Mổ ván ở
+// trên). Cache theo memberId, không theo gameId — hai ván khác nhau cùng một
+// đối thủ dùng chung một lần gọi.
+let XQ_PROFILE_CACHE = {}; // { [memberId]: 'loading' | {..response..} | 'error' }
+function xqFetchProfile(memberId){
+  if(XQ_PROFILE_CACHE[memberId]) return;
+  XQ_PROFILE_CACHE[memberId] = 'loading';
+  api.get('/games/members/'+memberId+'/profile').then(res=>{
+    XQ_PROFILE_CACHE[memberId] = res;
+    render();
+  }).catch(()=>{
+    XQ_PROFILE_CACHE[memberId] = 'error';
+    render();
+  });
+}
+function xqOpponentProfileHtml(opponentId, opponentName){
+  const cached = XQ_PROFILE_CACHE[opponentId];
+  if(!cached){ xqFetchProfile(opponentId); return `<p style="font-size:12.5px;color:var(--muted)">Đang tải…</p>`; }
+  if(cached==='loading') return `<p style="font-size:12.5px;color:var(--muted)">Đang tải…</p>`;
+  if(cached==='error') return `<p style="font-size:12.5px;color:var(--muted)">Không tải được hồ sơ.</p>`;
+  return `
+    <p style="font-size:13px;font-weight:700;margin-bottom:4px">${esc(opponentName)}</p>
+    <p style="font-size:12px;color:var(--ink2)">${cached.games_count} ván · ${cached.wins} thắng${cached.avg_loss!=null?' · mất trung bình '+(cached.avg_loss*100).toFixed(1)+'%/nước':''}</p>
+  `;
+}
 
 function xqCapturedHtml(moves){
   const byRed = [], byBlack = []; // byRed = quân Đỏ đã bắt được (tức quân Đen)
