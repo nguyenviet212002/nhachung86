@@ -6,7 +6,8 @@ import { publishToMember, publishToGame, isWatchingGame } from '../../core/realt
 import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
 import * as engineClient from './engineClient.js';
-import { selectAiMove } from './aiSelect.js';
+import { selectAiMove, effectiveScore } from './aiSelect.js';
+import { winRate, computeMoveLosses } from './analysis.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
 const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
@@ -351,6 +352,7 @@ export async function move({ actor, id, from, to }) {
   publishToGame(id, 'move', { board: result.board, turn: result.turn, last_move: { from, to },
     captured: result.captured ? result.captured.type : null });
   if (result.gameOver) publishToGame(id, 'game_end', { winner: result.winner, reason: result.reason });
+  if (result.gameOver) analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
   if (!result.gameOver) maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
   return { board: result.board, turn: result.turn, status: result.gameOver ? 'finished' : 'active' };
@@ -394,6 +396,7 @@ export async function resign({ actor, id }) {
     return { winnerId, winnerSide: rules.opp(mySide), notification };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   if (result.notification) publishToMember(result.winnerId, 'notification', result.notification);
   return { id, status: 'finished' };
 }
@@ -578,6 +581,7 @@ export async function acceptDraw({ actor, id }) {
       action: 'chess_game.draw_accepted', targetType: 'game', targetId: id, detail: {} });
   });
   publishToGame(id, 'game_end', { winner: null, reason: 'hoa-thoa-thuan' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
 }
 
@@ -633,6 +637,7 @@ export async function claimTimeout({ actor, id }) {
     return { winnerSide };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'het-gio' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
 }
 
@@ -785,6 +790,7 @@ export async function claimDisconnectTimeout({ actor, id }) {
   });
   if (result.stale) throw INVALID_STATE('Bên bị coi là mất kết nối đã có nước đi mới — không còn mất kết nối thật.');
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
+  analyzeGame({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('analyzeGame lỗi:', e));
   return { id, status: 'finished' };
 }
 
@@ -837,4 +843,54 @@ export async function maybeAutoMove({ communityId, gameId }) {
     : { id: game.black_member_id ?? null, communityId, guestToken: game.black_member_id ? null : game.black_guest_token };
 
   await move({ actor, id: gameId, from, to });
+}
+
+// Mổ ván ACPL sau khi kết thúc (mục 2.3 spec Máy đi hộ/Mổ ván). Fire-and-
+// forget — KHÔNG được throw ra ngoài, KHÔNG được chặn response của bất kỳ
+// hàm nào gọi nó (resign/acceptDraw/claimTimeout/claimDisconnectTimeout/
+// move()) — mọi lỗi tự bắt, tự log, analyzed_at ở lại NULL, không có gì vỡ.
+// movetime=400 multipv=1: đây là phân tích NỀN không ai chờ trực tiếp, khác
+// hẳn movetime=8000 của máy đi hộ SỐNG (mục 4 spec) — đủ nhanh để một ván 60
+// nước phân tích xong trong khoảng nửa phút, đủ sâu để không random nhiễu quá
+// mức. Đừng gộp chung hằng số với máy đi hộ.
+const ANALYSIS_MOVETIME_MS = 400;
+export async function analyzeGame({ communityId, gameId }) {
+  try {
+    const { rows: moves } = await withActor(null, (trx) => trx.raw(
+      `SELECT seq, side, from_r, from_c, to_r, to_c FROM game_moves WHERE game_id = ? ORDER BY seq ASC`, [gameId]
+    ));
+    if (!moves.length) {
+      await withActor(null, (trx) => trx.raw(`UPDATE games SET analyzed_at = now() WHERE id = ?`, [gameId]));
+      return;
+    }
+    let board = rules.initBoard();
+    let turn = 'r';
+    const evals = [];
+    for (const m of moves) {
+      const fen = rules.boardToFen(board, turn);
+      const line = await engineClient.bestMove({ fen, movetime: ANALYSIS_MOVETIME_MS, multipv: 1 });
+      evals.push({ score_cp: line.score_cp, mate: line.mate, effScore: effectiveScore(line) });
+      const applied = rules.applyMove(board, { r: m.from_r, c: m.from_c }, { r: m.to_r, c: m.to_c });
+      board = applied.board;
+      turn = rules.opp(turn);
+    }
+    const losses = computeMoveLosses(evals);
+    await withActor(null, async (trx) => {
+      for (let i = 0; i < moves.length; i++) {
+        await trx.raw(
+          `UPDATE game_moves SET eval_before_cp = ?, eval_before_mate = ?, win_loss = ? WHERE game_id = ? AND seq = ?`,
+          [evals[i].score_cp, evals[i].mate, losses[i], gameId, moves[i].seq]
+        );
+      }
+      const redLosses = losses.filter((_, i) => moves[i].side === 'r');
+      const blackLosses = losses.filter((_, i) => moves[i].side === 'b');
+      const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      await trx.raw(
+        `UPDATE games SET red_avg_loss = ?, black_avg_loss = ?, analyzed_at = now() WHERE id = ?`,
+        [avg(redLosses), avg(blackLosses), gameId]
+      );
+    });
+  } catch (e) {
+    console.error('analyzeGame lỗi:', e);
+  }
 }
