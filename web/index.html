@@ -6373,6 +6373,7 @@ function refreshGameState(id){
     GAME_STATE.board=g.board; GAME_STATE.turn=g.turn;
     GAME_STATE.red_time_ms=g.red_time_ms; GAME_STATE.black_time_ms=g.black_time_ms; GAME_STATE.turn_started_at=g.turn_started_at;
     GAME_STATE.draw_offered_by=g.draw_offered_by; GAME_STATE.disconnected_side=g.disconnected_side; GAME_STATE.disconnected_at=g.disconnected_at;
+    GAME_STATE.red_ai_level=g.red_ai_level; GAME_STATE.black_ai_level=g.black_ai_level;
     render();
   }).catch(()=>{});
 }
@@ -6457,6 +6458,26 @@ function xqGameResultSide(st){
   if(!st.winner_member_id) return 'b'; // thắng mà không có member id ⇒ chắc chắn là khách (luôn Đen)
   return st.winner_member_id===st.red_member_id ? 'r' : 'b';
 }
+// Bản tóm tắt/mở của nút trượt máy đi hộ (BAN_CHUAN_CO_TUONG.md mục 3.3).
+// myLevel/oppLevel đọc theo mySide — 'r' đọc red_ai_level làm "của ta",
+// black_ai_level làm "của đối thủ", và ngược lại khi mySide==='b'.
+const XQ_AI_LEVEL_LABEL = {sieu:'Siêu thông minh', 'thong-minh':'Thông minh', 'xuat-sac':'Xuất sắc'};
+function xqAiToggleHtml(st, mySide){
+  const myLevel = mySide==='r' ? st.red_ai_level : st.black_ai_level;
+  const summary = myLevel ? XQ_AI_LEVEL_LABEL[myLevel] : 'tắt · ta tự đi';
+  const rows = ['xuat-sac','thong-minh','sieu'].map(lv=>`
+    <button type="button" class="btn ${myLevel===lv?'btn-blue':'btn-out'}" style="width:100%;text-align:left;margin-bottom:6px" onclick="gameSetAiLevel('${st.id}','${lv}')">${myLevel===lv?ic('check',14)+' ':''}${XQ_AI_LEVEL_LABEL[lv]}</button>`).join('');
+  return `<div class="xq-ctrl-row" style="margin-top:8px;flex-direction:column;align-items:stretch">
+    <button type="button" class="btn btn-out" style="width:100%;justify-content:space-between;display:flex" onclick="aiLevelMenuToggle()">
+      <span>Máy đi hộ ta ${myLevel?'':'<span style="color:var(--muted)">(tắt · ta tự đi)</span>'}${myLevel?': '+esc(summary):''}</span>
+      <span style="display:inline-flex;transform:rotate(${AI_LEVEL_MENU_OPEN?'-90':'90'}deg)">${ic('chev',14)}</span>
+    </button>
+    ${AI_LEVEL_MENU_OPEN?`<div style="margin-top:8px">
+      ${rows}
+      <button type="button" class="btn ${myLevel===null?'btn-blue':'btn-out'}" style="width:100%;text-align:left" onclick="gameSetAiLevel('${st.id}',null)">${myLevel===null?ic('check',14)+' ':''}Tắt · ta tự đi</button>
+    </div>`:''}
+  </div>`;
+}
 function resolveMySide(g){
   if(!g) return null;
   if(DATA.me){
@@ -6464,6 +6485,22 @@ function resolveMySide(g){
     if(g.black_member_id===DATA.me.id) return 'b';
   }
   return GUEST_TOKEN ? 'b' : null;
+}
+
+// Nút trượt "Máy đi hộ ta" (BAN_CHUAN_CO_TUONG.md mục 3.3): thu một dòng,
+// bấm mở ra 3 cấp, chọn cấp nào gọi API luôn rồi tự thu — không có bước
+// xác nhận riêng. Chỉ điều khiển bên CỦA CHÍNH NGƯỜI XEM (mySide), không
+// có lựa chọn bật máy hộ đối thủ.
+let AI_LEVEL_MENU_OPEN = false;
+function aiLevelMenuToggle(){ AI_LEVEL_MENU_OPEN = !AI_LEVEL_MENU_OPEN; render(); }
+function gameSetAiLevel(id, level){
+  AI_LEVEL_MENU_OPEN = false;
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/ai-level', {level}) : api.post('/games/'+id+'/ai-level', {level});
+  req.then(g=>{
+    if(GAME_STATE_ID!==id || !GAME_STATE) return;
+    GAME_STATE.red_ai_level=g.red_ai_level; GAME_STATE.black_ai_level=g.black_ai_level;
+    render();
+  }).catch(e=>{ toast(e.message||'Không đổi được máy đi hộ, thử lại.','x'); render(); });
 }
 
 let GUEST_TOKEN = null, GUEST_INVITE_TOKEN = null;
@@ -6713,6 +6750,7 @@ V['cotuong-van'] = (params)=>{
       <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
     </div>
     ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
+    ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
     <h3 style="margin-top:14px">Biên bản ván cờ</h3>
     ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
   </div>`;
