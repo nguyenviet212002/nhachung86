@@ -12,3 +12,5 @@ export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 export const moveSchema = z.object({ from: cell, to: cell });
+
+export const joinRoomSchema = z.object({ guest_name: z.string().trim().min(1).max(40) });

@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { withActor } from '../../core/tx.js';
 import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 import { publishToMember, publishToGame, isWatchingGame } from '../../core/realtime.js';
+import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
@@ -327,4 +329,47 @@ export async function resign({ actor, id }) {
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
   publishToMember(result.winnerId, 'notification', result.notification);
   return { id, status: 'finished' };
+}
+
+export async function createRoom({ actor }) {
+  const rawToken = newInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const id = await withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, invite_token_hash)
+       VALUES (?, ?, NULL, 'pending', 'r', ?) RETURNING id`,
+      [actor.communityId, actor.id, tokenHash]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.room_opened', targetType: 'game', targetId: row.id, detail: {} });
+    return row.id;
+  });
+  return { id, invite_token: rawToken };
+}
+
+export async function joinRoom({ rawToken, guestName }) {
+  const tokenHash = hashInviteToken(rawToken);
+  const result = await withActor(null, async (trx) => {
+    const { rows: [game] } = await trx.raw(
+      `SELECT id, community_id, status, black_member_id, black_guest_name
+         FROM games WHERE invite_token_hash = ?`,
+      [tokenHash]
+    );
+    if (!game) throw NOT_FOUND();
+    if (game.status !== 'pending' || game.black_member_id || game.black_guest_name) {
+      throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
+    }
+    const guestToken = randomUUID();
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET black_guest_name = ?, black_guest_token = ?, second_joined_at = now()
+        WHERE id = ? AND status = 'pending' AND black_member_id IS NULL AND black_guest_name IS NULL
+        RETURNING id`,
+      [guestName, guestToken, game.id]
+    );
+    if (!row) throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
+    await auditLog(trx, { communityId: game.community_id, actorId: null,
+      action: 'chess_game.guest_joined', targetType: 'game', targetId: game.id, detail: {} });
+    return { gameId: game.id, guestToken };
+  });
+  return { id: result.gameId, guest_token: result.guestToken };
 }

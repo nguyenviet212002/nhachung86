@@ -64,3 +64,11 @@ router.post('/:id/moves', validate(schema.idParamSchema, 'params'), requireAuthO
 router.post('/:id/resign', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.resign({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+
+router.post('/rooms', requireAuth, async (req, res, next) => {
+  try { res.status(201).json(await service.createRoom({ actor: req.actor })); } catch (e) { next(e); }
+});
+router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, res, next) => {
+  try { res.status(201).json(await service.joinRoom({ rawToken: req.params.token, guestName: req.body.guest_name })); }
+  catch (e) { next(e); }
+});

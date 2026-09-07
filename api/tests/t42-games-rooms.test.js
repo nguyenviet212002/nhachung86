@@ -79,3 +79,38 @@ describe('T42 move() — đồng hồ trừ thời gian đã dùng', () => {
     expect(detail.body.black_time_ms).toBe(600000); // Đen chưa đi, chưa trừ
   });
 });
+
+describe('T42 tạo phòng / vào phòng', () => {
+  it('tạo phòng: chủ phòng cầm Đỏ, chưa có khách, trả về invite_token thô', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    expect(created.body.id).toBeTruthy();
+    expect(created.body.invite_token).toMatch(/^[A-Za-z0-9_-]{20,}$/); // base64url, entropy cao — không phải "G-xxxx"
+
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.status).toBe('pending');
+    expect(detail.body.red_member_id).toBe(alice);
+    expect(detail.body.black_member_id).toBe(null);
+    expect(detail.body.black_guest_token).toBeUndefined(); // bí mật của khách, không lộ ra response
+  });
+
+  it('vào phòng bằng token sai thì 404, đúng token thì set tên khách + phát guest_token', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    await supertest(app).post(`/api/v1/games/rooms/token-sai/join`).send({ guest_name: 'Ai đó' }).expect(404);
+
+    const joined = await supertest(app)
+      .post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Vui Vẻ' }).expect(201);
+    expect(joined.body.guest_token).toBeTruthy();
+
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(200);
+    expect(detail.body.black_name).toBe('Khách Vui Vẻ');
+  });
+
+  it('phòng đã có khách thì người thứ hai vào bằng cùng link bị từ chối', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Người 1' }).expect(201);
+    await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Người 2' }).expect(409);
+  });
+});
