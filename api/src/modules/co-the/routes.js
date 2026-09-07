@@ -50,3 +50,9 @@ router.post('/sessions/:id/mach-1-nuoc', requireAuth, validate(schema.idParamSch
 router.post('/sessions/:id/roi', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.giveUp({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+router.get('/sessions/:id/mo-van', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.getMoVan({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.get('/sessions', requireAuth, validate(schema.listQuerySchema, 'query'), async (req, res, next) => {
+  try { res.json(await service.listMySessions({ actor: req.actor, ...req.query })); } catch (e) { next(e); }
+});

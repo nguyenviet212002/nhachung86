@@ -246,7 +246,10 @@ export async function move({ actor, id, from, to }) {
     return row;
   });
   publishToGame(id, 'move', { board: result.board, turn: result.turn, status: result.status });
-  if (result.status === 'ket-thuc') publishToGame(id, 'session_end', { result: result.result, reason: result.end_reason });
+  if (result.status === 'ket-thuc') {
+    publishToGame(id, 'session_end', { result: result.result, reason: result.end_reason });
+    scoreSessionMoves({ communityId: actor.communityId, sessionId: id }).catch((e) => console.error('scoreSessionMoves lỗi:', e));
+  }
   return result;
 }
 
@@ -273,6 +276,7 @@ export async function giveUp({ actor, id }) {
     return row;
   });
   publishToGame(id, 'session_end', { result: 'thua', reason: 'bo-cuoc' });
+  scoreSessionMoves({ communityId: actor.communityId, sessionId: id }).catch((e) => console.error('scoreSessionMoves lỗi:', e));
   return result;
 }
 
@@ -284,5 +288,104 @@ export async function getSession({ actor, id }) {
       `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, created_at
          FROM co_the_moves WHERE session_id = ? ORDER BY seq ASC`, [id]);
     return { ...session, moves };
+  });
+}
+
+// Chấm điểm từng nước NGƯỜI GIẢI đã đi, chạy NỀN sau khi ván kết thúc —
+// TÁI DÙNG đúng khuôn `maybeAutoMove` của games/service.js: gọi bằng
+// `.catch(...)` ở nơi gọi, không await. Nhiều lần gọi engine (một lần mỗi
+// nước TRỪ nước đầu) nên KHÔNG được chặn response của move() cuối cùng —
+// làm nền là bắt buộc, không phải lựa chọn phong cách.
+//
+// `co_the_moves` của MỖI nước NGƯỜI GIẢI đi lưu điểm của thế cờ NGAY TRƯỚC
+// nước đó (không phải sau) — luôn ở góc nhìn người giải, nên so trực tiếp
+// với `position.verdict_score_cp` (cùng góc nhìn) không cần đổi dấu ở đâu
+// cả. Nước đầu tiên của người giải TRÙNG với chính thế gốc — không gọi
+// engine lại, chỉ copy `position.verdict_score_cp`/`verdict_mate`.
+async function scoreSessionMoves({ communityId, sessionId }) {
+  const { position, fullMoves } = await withActor(null, async (trx) => {
+    const session = await loadSession(trx, communityId, sessionId);
+    const position = await loadPosition(trx, communityId, session.position_id);
+    const { rows: fullMoves } = await trx.raw(
+      `SELECT id, seq, side, from_r, from_c, to_r, to_c FROM co_the_moves WHERE session_id = ? ORDER BY seq ASC`,
+      [sessionId]
+    );
+    return { position, fullMoves };
+  });
+  if (position.verdict_certainty !== 'chung-minh') return; // chỉ chấm được thế đã CHỨNG MINH
+
+  let board = position.board;
+  let solverMoveIndex = 0;
+  for (const mv of fullMoves) {
+    if (mv.side === position.side_to_move) {
+      solverMoveIndex++;
+      let score_cp, mate;
+      if (solverMoveIndex === 1) {
+        score_cp = position.verdict_score_cp;
+        mate = position.verdict_mate;
+      } else {
+        const fen = rules.boardToFen(board, position.side_to_move);
+        try {
+          const r = await engineClient.bestMove({ fen, movetime: ANALYZE_MOVETIME_MS, multipv: 1 });
+          score_cp = r.score_cp; mate = r.mate;
+        } catch (e) {
+          console.error('mổ ván lỗi tại nước', mv.seq, e);
+          score_cp = null; mate = null;
+        }
+      }
+      await withActor(null, (trx) => trx.raw(`UPDATE co_the_moves SET score_cp = ?, mate = ? WHERE id = ?`, [score_cp, mate, mv.id]));
+    }
+    board = rules.applyMove(board, { r: mv.from_r, c: mv.from_c }, { r: mv.to_r, c: mv.to_c }).board;
+  }
+}
+
+export async function getMoVan({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const session = await loadSession(trx, actor.communityId, id);
+    if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+    if (session.status !== 'ket-thuc') throw INVALID_STATE('Ván chưa kết thúc.');
+    const position = await loadPosition(trx, actor.communityId, session.position_id);
+    if (position.verdict_certainty !== 'chung-minh') {
+      return { available: false, reason: 'Thế này chưa có kết quả CHỨNG MINH nên không chấm giữ/mất thắng được.' };
+    }
+    const { rows: solverMoves } = await trx.raw(
+      `SELECT seq, from_r, from_c, to_r, to_c, score_cp, mate FROM co_the_moves
+        WHERE session_id = ? AND side = ? ORDER BY seq ASC`, [id, position.side_to_move]
+    );
+    if (solverMoves.length && solverMoves.some((m) => m.score_cp == null && m.mate == null)) {
+      return { available: false, reason: 'Đang chấm điểm từng nước, thử lại sau ít phút.' };
+    }
+    const tenVerdict = { thang: 'thắng', hoa: 'hoà', thua: 'thua' };
+    const danhGia = solverMoves.map((m) => {
+      const { verdict } = readVerdict({ score_cp: m.score_cp, mate: m.mate });
+      const giuThe = verdict === position.verdict;
+      return {
+        seq: m.seq, from: { r: m.from_r, c: m.from_c }, to: { r: m.to_r, c: m.to_c },
+        score_cp: m.score_cp, mate: m.mate, giu_the: giuThe,
+        dien_giai: giuThe
+          ? `Vẫn giữ thế ${tenVerdict[position.verdict]}.`
+          : `Đánh mất thế ${tenVerdict[position.verdict]} đã chứng minh — thế đổi sang ${tenVerdict[verdict]}.`,
+      };
+    });
+    return { available: true, moves: danhGia };
+  });
+}
+
+export async function listMySessions({ actor, page, limit }) {
+  return withActor(actor.id, async (trx) => {
+    const offset = (page - 1) * limit;
+    const { rows } = await trx.raw(
+      `SELECT s.id, s.position_id, s.mode, s.status, s.result, s.end_reason, s.created_at, s.ended_at,
+              p.label, p.category
+         FROM co_the_sessions s JOIN co_the_positions p ON p.id = s.position_id
+        WHERE s.community_id = ? AND s.solver_member_id = ?
+        ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
+      [actor.communityId, actor.id, limit, offset]
+    );
+    const { rows: [{ total }] } = await trx.raw(
+      `SELECT count(*)::int AS total FROM co_the_sessions WHERE community_id = ? AND solver_member_id = ?`,
+      [actor.communityId, actor.id]
+    );
+    return { data: rows, meta: { page, limit, total } };
   });
 }

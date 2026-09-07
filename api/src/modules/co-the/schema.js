@@ -29,3 +29,8 @@ export const createSessionSchema = z.object({
 });
 const cell = z.object({ r: z.number().int().min(0).max(9), c: z.number().int().min(0).max(8) });
 export const moveSchema = z.object({ from: cell, to: cell });
+
+export const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});

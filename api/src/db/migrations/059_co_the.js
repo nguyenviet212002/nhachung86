@@ -43,7 +43,7 @@ export async function up(knex) {
       turn text NOT NULL CHECK (turn IN ('r','b')),
       result text CHECK (result IS NULL OR result IN ('thang','hoa','thua')),
       end_reason text CHECK (end_reason IS NULL OR end_reason IN
-        ('giai-dung','mat-the-thang','chieu-bi','het-nuoc-di','hoa-3-lan','hoa-60-nuoc','truong-chieu','bo-cuoc','luyen-the-xong')),
+        ('giai-dung','mat-the-thang','chieu-bi','bat-tuong','het-nuoc-di','hoa-3-lan','hoa-60-nuoc','truong-chieu','bo-cuoc','luyen-the-xong')),
       invite_token text UNIQUE,
       guest_token uuid,
       created_at timestamptz NOT NULL DEFAULT now(),
