@@ -406,6 +406,12 @@ tr:last-child td{border-bottom:none}
 .xq-clock-row{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
 .xq-clock{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.08)}
 .xq-clock.low{color:#ff9d92;background:rgba(255,90,60,.16)}
+.xq-3col{display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:16px;align-items:start}
+.xq-3col-left{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;order:1}
+.xq-3col-center{order:2}
+.xq-3col-right{order:3}
+@media(max-width:1024px){.xq-3col{grid-template-columns:200px minmax(0,1fr) 280px}}
+@media(max-width:768px){.xq-3col{grid-template-columns:1fr}.xq-3col-left{order:3}.xq-3col-center{order:1}.xq-3col-right{order:2}}
 /* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
    (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
    nhẹ nhàng, không phải nền game portal rực rỡ. */
