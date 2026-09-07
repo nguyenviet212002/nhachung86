@@ -794,6 +794,30 @@ export async function claimDisconnectTimeout({ actor, id }) {
   return { id, status: 'finished' };
 }
 
+// Mổ ván (mục 2.5 spec) — CHỈ hai người chơi thật của chính ván này, không
+// bao giờ khách, không bao giờ người ngoài dù đã đăng nhập (route đã chặn
+// guest bằng requireAuth thay vì requireAuthOrGuestToken; hàm này CÒN chặn
+// thêm người-thứ-ba-đã-đăng-nhập bằng resolveSide — hai lớp, không chỉ một).
+export async function getAnalysis({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Chỉ hai người chơi trong ván này mới xem được mổ ván.');
+    if (game.status !== 'finished') throw INVALID_STATE('Ván cờ này chưa kết thúc.');
+    // GAME_SELECT (loadGame) không có analyzed_at/red_avg_loss/black_avg_loss —
+    // đọc riêng từ bảng games thay vì tin game.* có sẵn các cột này.
+    const { rows: [summary] } = await trx.raw(
+      `SELECT analyzed_at, red_avg_loss, black_avg_loss FROM games WHERE id = ?`,
+      [id]
+    );
+    const { rows: moves } = await trx.raw(
+      `SELECT seq, side, eval_before_cp, eval_before_mate, win_loss FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
+      [id]
+    );
+    return { analyzed_at: summary.analyzed_at, moves, red_avg_loss: summary.red_avg_loss, black_avg_loss: summary.black_avg_loss };
+  });
+}
+
 export async function setAiLevel({ actor, id, level }) {
   await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);

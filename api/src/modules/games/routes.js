@@ -112,3 +112,6 @@ router.post('/:id/ai-level', validate(schema.idParamSchema, 'params'), requireAu
   try { res.json(await service.setAiLevel({ actor: req.actor, id: req.params.id, level: req.body.level })); }
   catch (e) { next(e); }
 });
+router.get('/:id/analysis', validate(schema.idParamSchema, 'params'), requireAuth, async (req, res, next) => {
+  try { res.json(await service.getAnalysis({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
