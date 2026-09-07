@@ -149,3 +149,33 @@ describe('T40 detectRepetition / detectNoCaptureDraw', () => {
     expect(rules.detectNoCaptureDraw(h)).toBe(false);
   });
 });
+
+describe('T40 boardToFen — chuyển bàn cờ nội bộ sang FEN cho engine', () => {
+  it('thế khai cuộc ra đúng FEN chuẩn, lượt Đỏ = "w"', () => {
+    const b = rules.initBoard();
+    expect(rules.boardToFen(b, 'r')).toBe(
+      'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1'
+    );
+  });
+
+  it('lượt Đen ra "b"', () => {
+    const b = rules.initBoard();
+    expect(rules.boardToFen(b, 'b').split(' ')[1]).toBe('b');
+  });
+
+  it('bàn trống chỉ còn hai tướng lẻ loi, đúng ô trống đếm dồn', () => {
+    const b = emptyBoard();
+    b[9][4] = { side: 'r', type: 'general' };
+    b[0][4] = { side: 'b', type: 'general' };
+    expect(rules.boardToFen(b, 'r')).toBe('4k4/9/9/9/9/9/9/9/9/4K4 w - - 0 1');
+  });
+});
+
+describe('T40 uciMoveToCells — đổi toạ độ UCI (kiểu "h2e2") sang {from,to}', () => {
+  it('khớp đúng chiều: cột "a".."i" = c 0..8, hàng "0".."9" = r 9..0 (ngược)', () => {
+    // e0 = tướng Đỏ lúc khởi cuộc (board[9][4]); e1 = một ô lùi về phía Đen một hàng
+    expect(rules.uciMoveToCells('e0e1')).toEqual({ from: { r: 9, c: 4 }, to: { r: 8, c: 4 } });
+    // a9 = góc trái-trên (xe Đen, board[0][0]); a8 = tiến xuống một hàng
+    expect(rules.uciMoveToCells('a9a8')).toEqual({ from: { r: 0, c: 0 }, to: { r: 1, c: 0 } });
+  });
+});

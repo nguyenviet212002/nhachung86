@@ -181,3 +181,44 @@ export function detectNoCaptureDraw(moveHistory) {
   }
   return streak >= GIOI_HAN_60;
 }
+
+// Đổi bàn cờ nội bộ + lượt đi sang FEN cho dịch vụ engine (Pikafish qua UCI,
+// mục 6 spec Kernel/Engine). Quy ước ĐÃ XÁC NHẬN trực tiếp từ mã nguồn
+// Pikafish (uci.cpp UCIEngine::square, position.cpp Position::set): chữ quân
+// hoa=Đỏ/thường=Đen theo bảng " RACPNBK racpnbk"; FEN liệt kê hàng TRÊN CÙNG
+// (Đen, board[0]) trước, hàng DƯỚI CÙNG (Đỏ, board[9]) sau; lượt 'w'=Đỏ,
+// 'b'=Đen. KHÔNG suy diễn quy ước này từ cờ vua hay từ FEN cờ tướng "phổ biến"
+// khác — Pikafish tự định nghĩa quy ước riêng, đọc mã của chính nó, đừng đoán.
+const PIECE_TO_FEN = {
+  general: 'k', advisor: 'a', elephant: 'b', horse: 'n',
+  chariot: 'r', cannon: 'c', soldier: 'p',
+};
+export function boardToFen(board, turn) {
+  const rows = [];
+  for (let r = 0; r < 10; r++) {
+    let row = '', empty = 0;
+    for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      if (!p) { empty++; continue; }
+      if (empty) { row += empty; empty = 0; }
+      const ch = PIECE_TO_FEN[p.type];
+      row += p.side === 'r' ? ch.toUpperCase() : ch;
+    }
+    if (empty) row += empty;
+    rows.push(row);
+  }
+  return `${rows.join('/')} ${turn === 'r' ? 'w' : 'b'} - - 0 1`;
+}
+
+// Ngược lại: một nước UCI dạng "h2e2" (ô đi + ô đến, mỗi ô = chữ cột 'a'-'i'
+// + MỘT chữ số hàng '0'-'9', KHÔNG phải 2 chữ số) sang {from:{r,c},to:{r,c}}.
+// square(s) = 'a'+file, '0'+rank; rank chạy 9 (hàng trên, Đen) xuống 0 (hàng
+// dưới, Đỏ) — nghịch đảo trực tiếp của boardToFen ở trên: r = 9 - rank.
+function squareToCell(sq) {
+  const c = sq.charCodeAt(0) - 97; // 'a' -> 0
+  const r = 9 - Number(sq[1]);
+  return { r, c };
+}
+export function uciMoveToCells(uciMove) {
+  return { from: squareToCell(uciMove.slice(0, 2)), to: squareToCell(uciMove.slice(2, 4)) };
+}
