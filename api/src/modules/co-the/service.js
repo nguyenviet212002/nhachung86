@@ -436,12 +436,13 @@ async function runLuyenTheBackground({ communityId, session }) {
     .sort((a, b) => (b.ti_le_thanh_cong / b.so_nuoc_trung_binh) - (a.ti_le_thanh_cong / a.so_nuoc_trung_binh))[0]
     ?? cao ?? ha;
 
+  const luyenTheResult = { ha, trung, cao, tong_so_van: results.length };
   await withActor(null, (trx) => trx.raw(
-    `UPDATE co_the_sessions SET status = 'ket-thuc', end_reason = 'luyen-the-xong', ended_at = now()
+    `UPDATE co_the_sessions SET status = 'ket-thuc', end_reason = 'luyen-the-xong', ended_at = now(), luyen_the_result = ?::jsonb
       WHERE id = ? AND status = 'dang-choi'`,
-    [session.id]
+    [JSON.stringify(luyenTheResult), session.id]
   ));
-  publishToGame(session.id, 'luyen_the_done', { ha, trung, cao, tong_so_van: results.length });
+  publishToGame(session.id, 'luyen_the_done', luyenTheResult);
 }
 
 export async function listMySessions({ actor, page, limit }) {

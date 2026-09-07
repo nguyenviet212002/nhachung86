@@ -53,6 +53,11 @@ describe('T52 Cờ Thế — Luyện Thế', () => {
     const detail = await supertest(app).get(`/api/v1/co-the/sessions/${session.body.id}`).set(auth(aliceToken)).expect(200);
     expect(detail.body.status).toBe('ket-thuc');
     expect(detail.body.end_reason).toBe('luyen-the-xong');
+    // Kết quả Hạ/Trung/Cao phải LƯU LẠI (không chỉ phát qua SSE) — nếu không
+    // ai đang mở kết nối lúc job nền xong thì SSE-only sẽ mất dữ liệu vĩnh viễn.
+    expect(detail.body.luyen_the_result.tong_so_van).toBe(8);
+    expect(detail.body.luyen_the_result.ha.first_move).toBe('e8e9');
+    expect(detail.body.luyen_the_result.cao.first_move).toBe('e8e9');
   });
 
   it('không phải chế độ luyen-the thì không chạy được (409)', async () => {
