@@ -9,13 +9,28 @@ const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có qu
 const INVALID_STATE = (msg) => new AppError('INVALID_STATE', msg, { status: 409 });
 
 const GAME_SELECT = `
-  SELECT g.id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
+  SELECT g.id, g.community_id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
          g.created_at, g.started_at, g.finished_at,
          g.red_member_id, r.full_name AS red_name, r.avatar_url AS red_avatar_url,
-         g.black_member_id, b.full_name AS black_name, b.avatar_url AS black_avatar_url
+         g.black_member_id, COALESCE(b.full_name, g.black_guest_name) AS black_name, b.avatar_url AS black_avatar_url,
+         g.black_guest_token, g.invite_token_hash,
+         g.red_time_ms, g.black_time_ms, g.turn_started_at,
+         g.second_joined_at, g.red_ready_at, g.black_ready_at,
+         g.draw_offered_by, g.disconnected_side, g.disconnected_at,
+         g.red_ai_level, g.black_ai_level
     FROM games g
     JOIN members r ON r.id = g.red_member_id AND r.community_id = g.community_id
-    JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id`;
+    LEFT JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id`;
+
+// khách/thành viên đang là bên nào trong VÁN NÀY — 'null === null' không được
+// coi là trùng khớp (một khách chưa xác thực và một phòng chưa có khách đều
+// có giá trị null, so trực tiếp actor.id===game.black_member_id sẽ SAI ở đây).
+function resolveSide(actor, game) {
+  if (actor.id && actor.id === game.red_member_id) return 'r';
+  if (actor.id && actor.id === game.black_member_id) return 'b';
+  if (actor.guestToken && game.black_guest_token && actor.guestToken === game.black_guest_token) return 'b';
+  return null;
+}
 
 async function loadGame(trx, communityId, id) {
   const { rows: [row] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ? AND g.community_id = ?`, [id, communityId]);
@@ -180,11 +195,12 @@ export async function get({ actor, id }) {
   return withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     const { rows: moves } = await trx.raw(
-      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, created_at
+      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, created_at
          FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
       [id]
     );
-    return { ...game, moves };
+    const { black_guest_token, invite_token_hash, ...publicGame } = game;
+    return { ...publicGame, moves };
   });
 }
 
@@ -199,7 +215,7 @@ export async function move({ actor, id, from, to }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
-    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    const mySide = resolveSide(actor, game);
     if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
     if (mySide !== game.turn) throw FORBIDDEN('Chưa tới lượt bạn.');
     const piece = game.board[from.r]?.[from.c];
@@ -260,7 +276,7 @@ export async function resign({ actor, id }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
-    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    const mySide = resolveSide(actor, game);
     if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
     const winnerId = mySide === 'r' ? game.black_member_id : game.red_member_id;
     const { rows: [row] } = await trx.raw(
