@@ -18,6 +18,11 @@
 - `audit.detail` **không bao giờ chứa văn bản tự do của người dùng** (tên khách tự gõ, v.v.) — chỉ định danh/enum/số đếm, đúng luật đã canh trong `core/audit.js` (`assertSafeDetail`).
 - Theo đúng convention hiện có của `api/games`: mọi UPDATE làm thay đổi trạng thái đều có `WHERE` điều kiện + `RETURNING` + kiểm `if (!row) throw INVALID_STATE(...)` để chống ghi đè race.
 - File test nối vào bộ có sẵn: luật thuần ở `api/tests/t40-chess-rules.test.js`, route/service ở file mới `api/tests/t42-games-rooms.test.js` (theo đúng khuôn `t41-games-api.test.js`: `resetDb()`, tạo `communities`/`members` bằng `trx.raw`, ký JWT bằng `jwt.sign({sub,cid,typ:'access'}, config.JWT_SECRET,...)`, gọi qua `supertest(app)`).
+- **BẮT BUỘC: rebuild image `api` trước MỌI lần chạy `docker compose exec api ...` trong plan này.** Container `nhachung-api-1` đang chạy sẵn (đã xác nhận với người dùng: máy dev cá nhân, dữ liệu giả — an toàn để migrate/test trực tiếp vào đây, đúng quy trình `README.md`) không có bind-mount mã nguồn — `COPY . .` trong `api/Dockerfile` chỉ chạy lúc build image, nên container đang chạy KHÔNG thấy code vừa sửa trong worktree cho tới khi được build lại. Ngay trước bước "Run" đầu tiên có `docker compose exec api` trong MỖI task (kể cả `npm run migrate`), chạy trước:
+  ```bash
+  docker compose up -d --build api
+  ```
+  Image đã layer sẵn (`api/Dockerfile`: cài `npm ci` ở stage riêng, tách khỏi `COPY . .`) nên rebuild sau khi chỉ đổi mã nguồn thường nhanh. Bỏ qua bước này khiến `migrate`/`vitest` chạy nhầm vào code CŨ — kết quả PASS hay FAIL đều không đáng tin.
 
 ---
 
