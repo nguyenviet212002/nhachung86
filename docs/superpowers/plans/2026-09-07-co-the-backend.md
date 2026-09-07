@@ -130,7 +130,7 @@ export async function up(knex) {
       turn text NOT NULL CHECK (turn IN ('r','b')),
       result text CHECK (result IS NULL OR result IN ('thang','hoa','thua')),
       end_reason text CHECK (end_reason IS NULL OR end_reason IN
-        ('giai-dung','mat-the-thang','chieu-bi','het-nuoc-di','hoa-3-lan','hoa-60-nuoc','truong-chieu','bo-cuoc','luyen-the-xong')),
+        ('chieu-bi','het-nuoc-di','hoa-3-lan','hoa-60-nuoc','truong-chieu','bo-cuoc','luyen-the-xong')),
       invite_token text UNIQUE,
       guest_token uuid,
       created_at timestamptz NOT NULL DEFAULT now(),
@@ -1163,12 +1163,15 @@ thêm:
   }
 ```
 
-`giveUp()` (Task 4) KHÔNG cần gọi `scoreSessionMoves` — bỏ cuộc thì
-`verdict` gốc vẫn còn nguyên vẹn tới lúc bỏ cuộc, không có nước nào của
-người giải cần chấm thêm ngoài những nước đã đi (nếu có) — vẫn nên chấm,
-nên thêm CÙNG một dòng gọi `scoreSessionMoves` vào cuối `giveUp()` (trước
-dòng `return result;`), lý do: người giải có thể đã đi vài nước rồi mới bỏ
-cuộc, Mổ ván vẫn cần chấm các nước đó.
+`giveUp()` (Task 4) CŨNG cần gọi `scoreSessionMoves` — người giải có thể đã
+đi vài nước rồi mới bỏ cuộc, Mổ ván vẫn cần chấm những nước đó. Thêm CÙNG
+một dòng gọi (không bọc trong `if` — `giveUp()` chỉ tới được điểm này khi
+ván đã thật sự kết thúc) vào cuối `giveUp()`, ngay trước dòng
+`return result;`:
+
+```js
+  scoreSessionMoves({ communityId: actor.communityId, sessionId: id }).catch((e) => console.error('scoreSessionMoves lỗi:', e));
+```
 
 - [ ] **Step 3: Routes**
 
