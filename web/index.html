@@ -6355,6 +6355,30 @@ function startRoomPoll(id){
   }, 3000);
 }
 
+function gameOfferDraw(id){
+  const req = DATA.me ? api.post('/games/'+id+'/draw/offer') : guestFetch('POST', '/games/'+id+'/draw/offer');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameAcceptDraw(id){
+  const req = DATA.me ? api.post('/games/'+id+'/draw/accept') : guestFetch('POST', '/games/'+id+'/draw/accept');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameDeclineDraw(id){
+  const req = DATA.me ? api.post('/games/'+id+'/draw/decline') : guestFetch('POST', '/games/'+id+'/draw/decline');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function gameClaimDisconnectTimeout(id){
+  // Tick mỗi giây (gameClockTick, Task 2) gọi hàm này liên tục sau khi quá
+  // 60 giây — 409 (đối thủ đã nối lại) là bình thường, im lặng bỏ qua.
+  const req = DATA.me ? api.post('/games/'+id+'/disconnect-timeout') : guestFetch('POST', '/games/'+id+'/disconnect-timeout');
+  req.catch(()=>{});
+}
+function gameLeaveActive(id){
+  if(!confirm('Rời phòng? Ván đang chạy — rời bây giờ tính là THUA.')) return;
+  const req = DATA.me ? api.post('/games/'+id+'/leave') : guestFetch('POST', '/games/'+id+'/leave');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+
 V['cotuong-van'] = (params)=>{
   const id = params[0];
   if(!id) return `<div class="empty" style="margin-top:15vh"><h3>Không tìm thấy ván cờ</h3></div>`;
@@ -6422,15 +6446,20 @@ V['cotuong-van'] = (params)=>{
     pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})" onclick="gameCellClick(${r},${c})" ${isMyTurn?'':'disabled'}>${inner}</button>`);
   }
   const turnTxt = st.turn==='r' ? 'Đỏ đi' : 'Đen đi';
-  const winnerSide = st.winner_member_id===st.red_member_id ? 'Đỏ' : 'Đen';
+  // winner_member_id là NULL cả khi hoà LẪN khi khách thắng (không có
+  // member id) — xqGameResultSide() (Task 2) tách hai trường hợp bằng
+  // end_reason, KHÔNG được coi NULL là "Đen thắng" như trước.
+  const resultSide = st.status==='finished' ? xqGameResultSide(st) : undefined;
   const statusTxt = st.status==='finished'
-    ? `${winnerSide} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`
+    ? (resultSide===null ? 'Hoà' : `${resultSide==='r'?'Đỏ':'Đen'} thắng${st.end_reason==='resign'?' — đối thủ xin thua':''}`)
     : (mySide ? (isMyTurn?'Tới lượt bạn':'Đang chờ đối thủ') : turnTxt);
   const statusCls = st.status==='finished' ? 'win' : '';
+  const drawFromOpp = st.status==='active' && mySide && st.draw_offered_by && st.draw_offered_by!==mySide;
+  const disconnectedOpp = st.status==='active' && mySide && st.disconnected_side && st.disconnected_side!==mySide;
   const inCheck = st.status==='active' && xqInCheck(st.board, st.turn);
   const announce = st.status==='finished'
-    ? xqAnnounceHtml(statusTxt, (!mySide || st.winner_member_id===DATA.me.id) ? 'win' : 'lose')
-    : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : '');
+    ? xqAnnounceHtml(statusTxt, resultSide===null ? '' : ((!mySide || resultSide===mySide) ? 'win' : 'lose'))
+    : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
   return `
   <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
   ${announce}
@@ -6444,10 +6473,20 @@ V['cotuong-van'] = (params)=>{
   <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
     <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+    ${st.status==='active'?`<div class="xq-clock-row">
+      <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
+      <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+    </div>`:''}
+    ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+      <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
+      <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+    </div>`:''}
     <div class="xq-ctrl-row">
+      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
       ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
       <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
     </div>
+    ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
     <h3 style="margin-top:14px">Biên bản ván cờ</h3>
     ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
   </div>`;
