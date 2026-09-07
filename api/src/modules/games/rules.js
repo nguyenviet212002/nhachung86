@@ -124,3 +124,18 @@ export function applyMove(board, from, to) {
   else if (!oppHasMoves) { gameOver = true; winner = mover.side; reason = checkOpp ? 'chieu-bi' : 'het-nuoc-di'; }
   return { board: nb, captured, checkOpp, gameOver, winner, reason };
 }
+
+const PIECE_CODE = { general: 'ge', advisor: 'ad', elephant: 'el', horse: 'ho', chariot: 'ch', cannon: 'ca', soldier: 'so' };
+// Khoá chuẩn hoá 1 thế cờ + lượt đi, dùng đếm số lần lặp thế (mục 3 spec
+// Kernel/Engine). KHÔNG phải băm mật mã — chuỗi so bằng trực tiếp được, tránh
+// hẳn rủi ro đụng độ băm thay vì phải chọn thuật toán "đủ tốt".
+export function hashBoard(board, turn) {
+  let out = '';
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      out += p ? p.side + PIECE_CODE[p.type] : '...';
+    }
+  }
+  return out + '#' + turn;
+}

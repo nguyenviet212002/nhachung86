@@ -69,3 +69,24 @@ describe('T40 chess rules engine', () => {
     expect(JSON.stringify(b)).toBe(before);
   });
 });
+
+describe('T40 hashBoard', () => {
+  it('cùng thế cờ + cùng lượt cho cùng 1 khoá', () => {
+    const b1 = rules.initBoard();
+    const b2 = rules.initBoard();
+    expect(rules.hashBoard(b1, 'r')).toBe(rules.hashBoard(b2, 'r'));
+  });
+
+  it('khác lượt đi thì khoá khác nhau dù cùng thế cờ', () => {
+    const b = rules.initBoard();
+    expect(rules.hashBoard(b, 'r')).not.toBe(rules.hashBoard(b, 'b'));
+  });
+
+  it('đổi vị trí 1 quân thì khoá đổi theo', () => {
+    const b1 = rules.initBoard();
+    const b2 = rules.clone(b1);
+    b2[6][0] = null;
+    b2[5][0] = { side: 'r', type: 'soldier' };
+    expect(rules.hashBoard(b1, 'r')).not.toBe(rules.hashBoard(b2, 'r'));
+  });
+});
