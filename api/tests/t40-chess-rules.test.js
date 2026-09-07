@@ -123,6 +123,17 @@ describe('T40 detectRepetition / detectNoCaptureDraw', () => {
     expect(rules.detectRepetition(h)).toEqual({ reason: 'truong-chieu', loser: 'r' });
   });
 
+  it('lặp lần 3, cả 2 bên đều chiếu liên tục trong chu kỳ → vẫn hoà (mặc định an toàn)', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', true, 'B1'),
+      m('r', true, 'start'),
+      m('b', true, 'B1'),
+      m('r', true, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'hoa-3-lan', loser: null });
+  });
+
   it('60 nước không ăn quân (120 bán nước) thì hoà', () => {
     const h = Array.from({ length: 120 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i));
     expect(rules.detectNoCaptureDraw(h)).toBe(true);
