@@ -588,11 +588,40 @@ export async function markDisconnected({ communityId, gameId, side }) {
 // xong — đều set turn_started_at cùng lúc; chỗ duy nhất đặt nó về NULL trong
 // move() cũng đặt status='finished' cùng lúc nên WHERE status='active' loại
 // hàng đó ra trước).
+//
+// Lệch có chủ đích khỏi brief, vòng 2 (xem "§9" trong task-10-report.md):
+// công thức dời ở trên tự ngầm định turn_started_at <= disconnected_at (lượt
+// hiện tại bắt đầu TRƯỚC khi đối thủ mất kết nối) — đúng khi không ai đi
+// thêm nước nào trong lúc mất kết nối, nhưng move() (không sửa ở Task 10,
+// không hề biết tới disconnected_side) vẫn cho bên ĐANG KẾT NỐI đi nước bình
+// thường trong lúc đối thủ mất kết nối, và mỗi nước dời turn_started_at tới
+// now() của chính lúc đi — có thể MUỘN HƠN disconnected_at. Khi đó công thức
+// dời ở trên vọt QUÁ hiện tại (turn_started_at mới nằm ở tương lai), khiến
+// elapsed = now() - turn_started_at ÂM ở computeRemainingMs()/move() lần đọc
+// kế tiếp — Math.max(0, remaining - elapsed_âm) LÀM PHỒNG remaining VƯỢT QUÁ
+// cả ngân sách ban đầu (tái hiện thật: black_time_remaining_ms = 659987, vượt
+// 600000). Không outcome-flipping như lỗ hổng vòng 1 (remaining phồng lên thì
+// CÀNG XA ngưỡng claimTimeout's remaining<=0, không thể tạo thắng giả) nhưng
+// vẫn là một giá trị hiển thị/tính toán sai sự thật, đạt được bằng một hành
+// vi hoàn toàn bình thường (bên đang kết nối đi một nước trong lúc đối thủ
+// mất kết nối), không cần cố tình canh giờ.
+//
+// Sửa: kẹp giá trị dời lại không bao giờ vượt quá now() bằng LEAST(). Trường
+// hợp không có nước đi xen giữa (turn_started_at <= disconnected_at, đúng như
+// công thức dời ở trên đã ngầm định) thì giá trị dời vốn đã <= now() nên
+// LEAST không đổi gì — y hệt hành vi đã xác nhận ở vòng 1. Trường hợp có nước
+// đi xen giữa (turn_started_at > disconnected_at) thì LEAST kẹp về đúng
+// now() — cho bên vừa nhận lượt (luôn CHÍNH LÀ bên vừa kết nối lại: nước đi
+// duy nhất có thể xen vào là của bên ĐANG kết nối, và nước đó luôn trao lượt
+// sang đúng bên đang mất kết nối) một khởi đầu mới tinh từ lúc kết nối lại —
+// hợp lý vì họ không thể nào đã "nghĩ" cho một lượt vừa được trao trong lúc
+// còn đang mất kết nối, và không mở lỗ hổng mới vì chỉ có lợi cho đúng bên
+// vừa kết nối lại, không phải bên gây ra nước đi khiến lượt bị vọt.
 export async function clearDisconnected({ communityId, gameId, side }) {
   const wasCleared = await withActor(null, async (trx) => {
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL,
-              turn_started_at = turn_started_at + (now() - disconnected_at)
+              turn_started_at = LEAST(now(), turn_started_at + (now() - disconnected_at))
         WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side = ?
         RETURNING id`,
       [gameId, communityId, side]

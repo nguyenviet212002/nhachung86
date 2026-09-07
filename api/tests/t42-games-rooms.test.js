@@ -326,4 +326,46 @@ describe('T42 mất kết nối', () => {
     // nước nào.
     await supertest(app).post(`/api/v1/games/${gameId}/timeout`).set(auth(joined.body.guest_token)).expect(409);
   });
+
+  // Task 10 §9 (vòng sửa thứ hai): công thức dời turn_started_at ở phép kiểm
+  // trên ngầm định turn_started_at <= disconnected_at — đúng khi không ai đi
+  // thêm nước nào trong lúc mất kết nối. Nhưng move() (không sửa ở Task 10,
+  // không biết tới disconnected_side) vẫn cho bên ĐANG kết nối đi nước bình
+  // thường trong lúc đối thủ mất kết nối, và mỗi nước dời turn_started_at tới
+  // NGAY LÚC ĐI — có thể muộn hơn disconnected_at. Khi đó công thức dời (chưa
+  // kẹp) vọt QUÁ hiện tại, làm phồng thời gian còn lại của bên vừa nhận lượt
+  // (luôn là bên vừa kết nối lại) vượt cả ngân sách ban đầu 600000ms.
+  it('bên đang kết nối đi một nước trong lúc đối thủ mất kết nối thì lúc đối thủ kết nối lại, đồng hồ họ không bị phồng vượt ngân sách', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Đi Xen' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+    const gameId = created.body.id;
+
+    // Đen mất kết nối, đã được 2 phút.
+    await service.markDisconnected({ communityId: cid, gameId, side: 'b' });
+    await db.raw(`UPDATE games SET disconnected_at = now() - interval '2 minutes' WHERE id = ?`, [gameId]);
+
+    // Đỏ (đang kết nối, turn='r') vẫn đi một nước bình thường — move() thành
+    // công vì không hề kiểm disconnected_side, và dời turn_started_at tới
+    // ĐÚNG BÂY GIỜ (muộn hơn disconnected_at ở trên 2 phút — chính là điều
+    // kiện "vọt quá hiện tại" của công thức dời). Turn chuyển sang 'b'.
+    await supertest(app).post(`/api/v1/games/${gameId}/moves`).set(auth(aliceToken))
+      .send({ from: { r: 6, c: 0 }, to: { r: 5, c: 0 } }).expect(200);
+
+    // Đen kết nối lại — disconnected_side vẫn còn 'b' (move() không đụng tới),
+    // và turn giờ đã là 'b' (đúng bên vừa kết nối lại).
+    await service.clearDisconnected({ communityId: cid, gameId, side: 'b' });
+
+    const detail = await supertest(app).get(`/api/v1/games/${gameId}`).set(auth(joined.body.guest_token)).expect(200);
+    // Bất biến cứng: không bao giờ được vượt ngân sách ban đầu — công thức dời
+    // chưa kẹp bằng LEAST sẽ vọt quá hiện tại và làm giá trị này VƯỢT 600000
+    // (tái hiện thật của reviewer: 659987).
+    expect(detail.body.black_time_remaining_ms).toBeLessThanOrEqual(600000);
+    // Hợp lý: Đen vừa kết nối lại, chưa kịp nghĩ gì cho lượt vừa nhận (lượt
+    // được trao trong lúc họ còn mất kết nối) — phải là một khởi đầu mới, gần
+    // sát 600000.
+    expect(detail.body.black_time_remaining_ms).toBeGreaterThan(600000 - 15000);
+  });
 });
