@@ -2177,7 +2177,11 @@ function render(){
   }
   // Đổi hẳn sang màn khác (không phải re-render lại CHÍNH màn cờ đang mở) thì
   // đóng bảng menu nổi — tránh menu của thế cờ cũ "dính" sang màn kế tiếp.
-  if(screen!==PREV_SCREEN) XQ_FS_MENU_OPEN = false;
+  // Riêng vào thẳng màn ván cờ trực tuyến (chủ phòng/khách) thì MỞ SẴN — đang
+  // đấu mà mỗi nước lại phải bấm ☰ mở lại đồng hồ/nút hành động là phiền,
+  // trong khi bấm quân trên bàn cờ (nằm ngoài .xq-fs-panel) trước đây vô tình
+  // bị coi là "bấm ra ngoài" và tự đóng panel (xem sửa ở bindGlobal()).
+  if(screen!==PREV_SCREEN) XQ_FS_MENU_OPEN = (screen==='cotuong-van' || screen==='cotuong-phong');
   PREV_SCREEN = screen;
   const root=document.getElementById('root');
   const variant = variantOf(screen);
@@ -2417,7 +2421,13 @@ function bindGlobal(){
   const nb=qs('#bellBtn'); if(nb)nb.addEventListener('click',e=>{e.stopPropagation();qs('#notifPanel').classList.toggle('show');});
   const fmb=qs('#xqFsMenuBtn'); if(fmb)fmb.addEventListener('click',e=>{e.stopPropagation();XQ_FS_MENU_OPEN=!XQ_FS_MENU_OPEN;const p=qs('.xq-fs-panel');if(p)p.classList.toggle('show',XQ_FS_MENU_OPEN);});
   const fp=qs('.xq-fs-panel'); if(fp)fp.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');const fp2=qs('.xq-fs-panel');if(fp2)fp2.classList.remove('show');XQ_FS_MENU_OPEN=false;},{once:true});
+  // KHÔNG còn tự đóng .xq-fs-panel khi bấm ra ngoài — bấm 1 quân trên bàn cờ
+  // để đi nước cũng tính là "bấm ra ngoài" panel, khiến panel tự đóng ngay
+  // sau mỗi nước đi (người chơi phải bấm lại ☰ liên tục suốt ván, đúng lỗi
+  // đã báo). Chỉ nút ☰ (xqFsMenuBtn, xử lý riêng ở trên) mới đóng/mở panel
+  // này nữa — #umenu/#notifPanel vẫn tự đóng khi bấm ra ngoài như cũ, hai cái
+  // đó là popup nhỏ dùng xong đóng ngay, khác panel bên cạnh dùng suốt ván.
+  document.addEventListener('click',()=>{const m=qs('#umenu');if(m)m.classList.remove('show');const np=qs('#notifPanel');if(np)np.classList.remove('show');},{once:true});
   const lb=qs('#logoutBtn'); if(lb)lb.addEventListener('click',doLogout);
   const lbd=qs('#logoutBtnDrawer'); if(lbd)lbd.addEventListener('click',doLogout);
 }
