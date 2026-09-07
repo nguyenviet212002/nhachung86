@@ -5222,7 +5222,7 @@ ADM.thanhvien = ()=> `
   <div class="section"><table><thead><tr><th>Họ tên</th><th>Nghề / khu vực</th><th style="text-align:right">Thao tác</th></tr></thead>
     <tbody>${DATA.members.length?DATA.members.map(m=>`<tr><td class="t-strong">${esc(m.name)}</td>
       <td class="t-time">${[m.field,m.ward].filter(Boolean).map(esc).join(' · ')||'—'}</td>
-      <td style="text-align:right"><button class="btn btn-out btn-sm" style="color:var(--red)" onclick="adminXoaThanhVien('${m.id}','${esc(m.name).replace(/'/g,"\\'")}')">${ic('x',12)} Xoá</button></td></tr>`).join(''):'<tr><td colspan="3" class="t-muted">Chưa có thành viên nào.</td></tr>'}</tbody>
+      <td style="text-align:right"><button class="btn btn-out btn-sm" style="color:var(--red)" onclick="adminXoaThanhVien(${esc(JSON.stringify(m.id))}, ${esc(JSON.stringify(m.name))})">${ic('x',12)} Xoá</button></td></tr>`).join(''):'<tr><td colspan="3" class="t-muted">Chưa có thành viên nào.</td></tr>'}</tbody>
   </table></div>`;
 async function adminXoaThanhVien(id, name){
   if(!confirm(`Xoá tư cách thành viên của ${name}? Không hoàn tác được qua giao diện.`)) return;
