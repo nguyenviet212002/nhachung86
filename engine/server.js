@@ -22,6 +22,10 @@ app.post('/bestmove', async (req, res) => {
   if (typeof fen !== 'string' || !fen) return res.status(422).json({ error: 'thiếu fen' });
   const mt = Number.isFinite(movetime) ? movetime : 8000;
   const mpv = Number.isFinite(multipv) ? multipv : 1;
+  // Giá trị không dương gửi thẳng xuống UCI ("go movetime 0"/"setoption ... value -1")
+  // là hành vi không xác định phía Pikafish — chặn sớm trước khi tới subprocess.
+  if (mt <= 0) return res.status(422).json({ error: 'movetime phải > 0' });
+  if (mpv <= 0) return res.status(422).json({ error: 'multipv phải > 0' });
   try {
     res.json(await pool.bestMove({ fen, movetime: mt, multipv: mpv }));
   } catch (e) {
