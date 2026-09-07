@@ -5,6 +5,8 @@ import { log as auditLog } from '../../core/audit.js';
 import { publishToMember, publishToGame, isWatchingGame } from '../../core/realtime.js';
 import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
+import * as engineClient from './engineClient.js';
+import { selectAiMove } from './aiSelect.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
 const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có quyền làm việc này.', { status: 403 });
@@ -141,6 +143,7 @@ export async function acceptChallenge({ actor, id }) {
   });
   publishToGame(id, 'game_start', { board: result.board, turn: 'r' });
   publishToMember(result.redMemberId, 'notification', result.notification);
+  maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
   return { id, status: 'active' };
 }
 
@@ -349,6 +352,7 @@ export async function move({ actor, id, from, to }) {
     captured: result.captured ? result.captured.type : null });
   if (result.gameOver) publishToGame(id, 'game_end', { winner: result.winner, reason: result.reason });
   if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
+  if (!result.gameOver) maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
   return { board: result.board, turn: result.turn, status: result.gameOver ? 'finished' : 'active' };
 }
 
@@ -520,7 +524,10 @@ export async function ready({ actor, id }) {
       action: 'chess_game.ready', targetType: 'game', targetId: id, detail: { side: mySide } });
     return { becameActive };
   });
-  if (result.becameActive) publishToGame(id, 'game_start', { turn: 'r' });
+  if (result.becameActive) {
+    publishToGame(id, 'game_start', { turn: 'r' });
+    maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
+  }
   return { ready: true, active: result.becameActive };
 }
 
@@ -779,4 +786,55 @@ export async function claimDisconnectTimeout({ actor, id }) {
   if (result.stale) throw INVALID_STATE('Bên bị coi là mất kết nối đã có nước đi mới — không còn mất kết nối thật.');
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
   return { id, status: 'finished' };
+}
+
+export async function setAiLevel({ actor, id, level }) {
+  await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status === 'finished') throw INVALID_STATE('Ván cờ này đã kết thúc.');
+    const col = mySide === 'r' ? 'red_ai_level' : 'black_ai_level';
+    await trx.raw(`UPDATE games SET ?? = ? WHERE id = ?`, [col, level, id]);
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.ai_level_set', targetType: 'game', targetId: id, detail: { side: mySide, level } });
+  });
+  // Vừa bật máy đúng lúc đang là lượt của chính bên đó (vd. giữa ván, tự bật
+  // máy đi hộ thay mình) — không có nước đi nào sắp xảy ra để làm điểm kích
+  // hoạt, nên phải tự kích hoạt ở đây. Không await — xem Global Constraints.
+  maybeAutoMove({ communityId: actor.communityId, gameId: id }).catch((e) => console.error('maybeAutoMove lỗi:', e));
+  return { ok: true, level };
+}
+
+// Tự động đi hộ khi tới lượt bên đang bật "máy đi hộ" (mục 6 spec Kernel/
+// Engine). Gọi ở CUỐI move()/ready()/acceptChallenge() — bất cứ chỗ nào có
+// thể trao lượt cho một bên đã bật máy — và bên trong chính setAiLevel() cho
+// trường hợp bật đúng lúc đã là lượt mình. An toàn gọi thừa: nếu game không
+// 'active' hoặc bên đang cầm lượt chưa bật máy thì no-op ngay, không gọi engine.
+//
+// KHÔNG await ở nơi gọi (movetime mặc định 8000ms — xem Global Constraints).
+// Áp nước qua ĐÚNG service.move() đang có, không viết lại luồng áp nước —
+// nghĩa là mọi kiểm tra/luật/thông báo/SSE của move() cũng chạy y hệt một
+// nước người thật đi, kể cả việc move() tự gọi lại maybeAutoMove() ở cuối cho
+// LƯỢT KẾ TIẾP — đây là cách hai bên cùng bật máy tự đấu với nhau (không cấm,
+// xem Global Constraints/ghi chú thiết kế).
+export async function maybeAutoMove({ communityId, gameId }) {
+  const game = await withActor(null, (trx) => loadGame(trx, communityId, gameId));
+  if (game.status !== 'active') return;
+  const side = game.turn;
+  const level = side === 'r' ? game.red_ai_level : game.black_ai_level;
+  if (!level) return;
+
+  const fen = rules.boardToFen(game.board, game.turn);
+  const { lines } = await engineClient.bestMove({ fen, movetime: 8000, multipv: 3 });
+  if (!lines || !lines.length) return;
+  const chosenUci = selectAiMove(lines, level);
+  if (!chosenUci) return;
+  const { from, to } = rules.uciMoveToCells(chosenUci);
+
+  const actor = side === 'r'
+    ? { id: game.red_member_id, communityId, guestToken: null }
+    : { id: game.black_member_id ?? null, communityId, guestToken: game.black_member_id ? null : game.black_guest_token };
+
+  await move({ actor, id: gameId, from, to });
 }

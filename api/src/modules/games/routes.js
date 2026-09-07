@@ -108,3 +108,7 @@ router.post('/:id/draw/decline', validate(schema.idParamSchema, 'params'), requi
 router.post('/:id/disconnect-timeout', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.claimDisconnectTimeout({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
+router.post('/:id/ai-level', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, validate(schema.aiLevelSchema), async (req, res, next) => {
+  try { res.json(await service.setAiLevel({ actor: req.actor, id: req.params.id, level: req.body.level })); }
+  catch (e) { next(e); }
+});

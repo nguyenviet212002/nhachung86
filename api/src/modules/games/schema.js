@@ -14,3 +14,4 @@ export const listQuerySchema = z.object({
 export const moveSchema = z.object({ from: cell, to: cell });
 
 export const joinRoomSchema = z.object({ guest_name: z.string().trim().min(1).max(40) });
+export const aiLevelSchema = z.object({ level: z.enum(['sieu', 'thong-minh', 'xuat-sac']).nullable() });
