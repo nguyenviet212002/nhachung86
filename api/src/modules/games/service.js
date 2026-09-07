@@ -367,16 +367,48 @@ export async function resign({ actor, id }) {
     if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'chess_game.resign', targetType: 'game', targetId: id, detail: { side: mySide } });
-    const { rows: [notification] } = await trx.raw(
-      `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
-       VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
-      [actor.communityId, winnerId, actor.id, id]
-    );
+    // Lệch có chủ đích khỏi hành vi gốc của resign() (hàm có từ trước Task 10,
+    // phát hiện khi Task 11 leaveRoom() gọi resign() lần đầu cho một ván PHÒNG
+    // có đối thủ là KHÁCH): khi bên thắng là khách, winnerId là NULL (khách
+    // không có member id) — nhưng notifications.recipient_id là NOT NULL nên
+    // INSERT thẳng như bản gốc vỡ ràng buộc, trả 500 (xác nhận bằng service
+    // thật, xem task-11-report.md). resign() được viết từ lúc ván chỉ có
+    // thành viên-với-thành viên (winnerId luôn có giá trị), chưa từng được gọi
+    // cho một ván có khách qua route /resign lẫn có test nào phủ tới trước
+    // Task 11. Sửa theo đúng khuôn "chỉ tạo thông báo khi có thành viên thật để
+    // nhận" đã dùng ở move()/offerDraw() ngay trong file này — không tạo/không
+    // gửi notification khi không có ai (thành viên thật) để nhận.
+    let notification = null;
+    if (winnerId) {
+      const { rows: [n] } = await trx.raw(
+        `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
+        [actor.communityId, winnerId, actor.id, id]
+      );
+      notification = n;
+    }
     return { winnerId, winnerSide: rules.opp(mySide), notification };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
-  publishToMember(result.winnerId, 'notification', result.notification);
+  if (result.notification) publishToMember(result.winnerId, 'notification', result.notification);
   return { id, status: 'finished' };
+}
+
+export async function leaveRoom({ actor, id }) {
+  const game = await withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
+  const mySide = resolveSide(actor, game);
+  if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+  if (game.status === 'active') return resign({ actor, id });
+  await withActor(actor.id, async (trx) => {
+    await trx.raw(`DELETE FROM game_moves WHERE game_id = ?`, [id]);
+    const { rows: [deleted] } = await trx.raw(
+      `DELETE FROM games WHERE id = ? AND status = 'pending' RETURNING id`, [id]
+    );
+    if (!deleted) throw INVALID_STATE('Ván cờ này không còn ở bước chuẩn bị.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.room_closed', targetType: 'game', targetId: id, detail: {} });
+  });
+  return { id, status: 'deleted' };
 }
 
 export async function createRoom({ actor }) {

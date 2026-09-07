@@ -401,3 +401,29 @@ describe('T42 mất kết nối', () => {
     expect(detail.body.disconnected_side).toBe(null); // tự dọn cờ cũ
   });
 });
+
+describe('T42 rời phòng', () => {
+  it('chưa vào trận: chủ phòng rời thì phòng bị xoá hẳn', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/leave`).set(auth(aliceToken)).expect(200);
+    await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(aliceToken)).expect(404);
+  });
+
+  it('đang đấu: rời phòng tính như xin thua, ván vẫn còn (không bị xoá)', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const joined = await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: 'Khách Rời' }).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(aliceToken)).expect(200);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/ready`).set(auth(joined.body.guest_token)).expect(200);
+
+    await supertest(app).post(`/api/v1/games/${created.body.id}/leave`).set(auth(aliceToken)).expect(200);
+    const detail = await supertest(app).get(`/api/v1/games/${created.body.id}`).set(auth(joined.body.guest_token)).expect(200);
+    expect(detail.body.status).toBe('finished');
+    expect(detail.body.end_reason).toBe('resign');
+  });
+
+  it('người ngoài (không phải người chơi trong ván) không rời được', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    await supertest(app).post(`/api/v1/games/${created.body.id}/leave`).set(auth(bobToken)).expect(403);
+  });
+});
