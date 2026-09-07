@@ -6876,37 +6876,66 @@ V['cotuong-van'] = (params)=>{
   const announce = st.status==='finished'
     ? xqAnnounceHtml(statusTxt, resultSide===null ? '' : ((!mySide || resultSide===mySide) ? 'win' : 'lose'))
     : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
+  const opponentId = mySide ? (mySide==='r'?st.black_member_id:st.red_member_id) : null;
+  const opponentName = mySide ? (mySide==='r'?st.black_name:st.red_name) : null;
+  const rightColHtml = `
+    <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
+      <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
+      ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
+      ${st.status==='active'?`<div class="xq-clock-row">
+        <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
+        <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+      </div>`:''}
+      ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+        <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
+        <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+      </div>`:''}
+      <div class="xq-ctrl-row">
+        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
+        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
+        <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+      </div>
+      ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
+      ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
+      ${!mySide?`<h3 style="margin-top:14px">Biên bản ván cờ</h3>${xqMoveLogHtml(st.moves)}`:''}
+    </div>`;
+  if(!mySide){
+    return `
+    <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
+    ${announce}
+    <div class="xq-wrap">
+      <div class="xq-board">
+        ${chessGridSvg()}
+        <div class="xq-river">楚 河　　漢 界</div>
+        ${pts.join('')}
+      </div>
+    </div>
+    ${rightColHtml}`;
+  }
   return `
   <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
   ${announce}
-  <div class="xq-wrap">
-    <div class="xq-board">
-      ${chessGridSvg()}
-      <div class="xq-river">楚 河　　漢 界</div>
-      ${pts.join('')}
+  <div class="xq-3col">
+    <div class="xq-3col-left">
+      ${st.status==='finished'?`<h3 style="margin-top:0;font-size:13px">Thế cờ</h3>${xqAnalysisPanelHtml(st.id, mySide)}<hr style="margin:10px 0;border-color:var(--line)">`:''}
+      <h3 style="margin-top:0;font-size:13px">Quân đã bắt</h3>
+      ${xqCapturedHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
+      ${xqMoveLogHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Hồ sơ đối thủ</h3>
+      ${xqOpponentProfileHtml(opponentId, opponentName)}
     </div>
-  </div>
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
-    <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
-    ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
-    ${st.status==='active'?`<div class="xq-clock-row">
-      <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
-      <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
-    </div>`:''}
-    ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
-      <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
-      <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
-    </div>`:''}
-    <div class="xq-ctrl-row">
-      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
-      ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
-      <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+    <div class="xq-3col-center">
+      <div class="xq-wrap">
+        <div class="xq-board">
+          ${chessGridSvg()}
+          <div class="xq-river">楚 河　　漢 界</div>
+          ${pts.join('')}
+        </div>
+      </div>
     </div>
-    ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
-    ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
-    <h3 style="margin-top:14px">Biên bản ván cờ</h3>
-    ${st.moves.length?`<div>${st.moves.map(m=>`<div style="font-size:13px;padding:4px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`:'<p style="font-size:13px;color:var(--muted)">Chưa có nước nào.</p>'}
+    <div class="xq-3col-right">${rightColHtml}</div>
   </div>`;
 };
 
