@@ -5,7 +5,7 @@ import { resetDb } from './helpers/db.js';
 import { buildApp } from '../src/app.js';
 import { config } from '../src/config/index.js';
 
-let db, app, cid, approverId, memberId, approverToken, memberToken;
+let db, app, cid, approverId, memberId, contentOpsId, approverToken, memberToken, contentOpsToken;
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
 async function grantRole(memberId_, key, communityId) {
@@ -33,9 +33,17 @@ beforeAll(async () => {
   );
   memberId = member.id;
 
+  const { rows: [contentOps] } = await db.raw(
+    `INSERT INTO members (community_id, full_name, status, joined_at)
+     VALUES (?, 'Content Ops T43', 'member', now()) RETURNING id`, [cid]
+  );
+  contentOpsId = contentOps.id;
+  await grantRole(contentOpsId, 'content_ops', cid);
+
   const token = (id) => jwt.sign({ sub: id, cid, typ: 'access' }, config.JWT_SECRET, { expiresIn: '15m' });
   approverToken = token(approverId);
   memberToken = token(memberId);
+  contentOpsToken = token(contentOpsId);
 });
 
 afterAll(async () => { await db.destroy(); });
@@ -64,6 +72,15 @@ describe('T43 admin tạo thành viên (POST /members)', () => {
     const res = await supertest(app)
       .post('/api/v1/members')
       .set(auth(memberToken))
+      .send({ full_name: 'Không được tạo' })
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('member có vai content_ops (không phải approver) bị chặn 403', async () => {
+    const res = await supertest(app)
+      .post('/api/v1/members')
+      .set(auth(contentOpsToken))
       .send({ full_name: 'Không được tạo' })
       .expect(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
@@ -105,6 +122,14 @@ describe('T43 admin xoá thành viên (DELETE /members/:id)', () => {
     const res = await supertest(app)
       .delete(`/api/v1/members/${memberId}`)
       .set(auth(memberToken))
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('member có vai content_ops (không phải approver) bị chặn 403', async () => {
+    const res = await supertest(app)
+      .delete(`/api/v1/members/${memberId}`)
+      .set(auth(contentOpsToken))
       .expect(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
