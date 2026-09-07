@@ -41,6 +41,29 @@ export const updateMeSchema = z.object({
   address: z.string().trim().max(500).nullable().optional(),
 }).refine((v) => Object.keys(v).length > 0, { message: 'Cần có ít nhất một trường để cập nhật.' });
 
+// Admin (approver) tạo thẳng một hồ sơ thành viên — bỏ qua luồng mời/bảo
+// lãnh/nộp đơn, dùng cho nhập liệu người đã là thành viên thật ngoài đời
+// nhưng chưa có tài khoản. Khác updateMeSchema: full_name BẮT BUỘC (không có
+// hồ sơ cũ để giữ nguyên), và thêm joined_at cho phép ghi đúng ngày gia nhập
+// lịch sử thay vì luôn là "hôm nay".
+export const createMemberSchema = z.object({
+  full_name: z.string().trim().min(2).max(160),
+  birth_year: z.coerce.number().int().min(1900).max(new Date().getFullYear()).nullable().optional(),
+  email: z.string().trim().email().max(254).nullable().optional(),
+  job: z.string().trim().max(160).nullable().optional(),
+  area_id: z.string().uuid().nullable().optional(),
+  bio: z.string().trim().max(3000).nullable().optional(),
+  work_status: z.enum(['available', 'by_appointment', 'paused']).default('available'),
+  // Input HTML type="date" gửi "YYYY-MM-DD" (không giờ) — KHÔNG dùng
+  // z.string().datetime() (đòi ISO-8601 đủ giờ). Postgres tự cast chuỗi này
+  // sang timestamptz được, không cần đổi ở JS.
+  joined_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  phone: z.string().regex(/^0\d{9}$/).nullable().optional(),
+  zalo: z.string().trim().max(160).nullable().optional(),
+  messenger: z.string().trim().max(300).nullable().optional(),
+  address: z.string().trim().max(500).nullable().optional(),
+});
+
 export const contactRequestSchema = z.object({
   field_key: z.enum(CONTACT_FIELDS),
   message: z.string().trim().max(500).nullable().optional(),

@@ -644,6 +644,54 @@ export async function updateMe({ actor, input }) {
   });
 }
 
+// Admin (approver) tạo thẳng một hồ sơ thành viên, bỏ qua toàn bộ luồng
+// mời/bảo lãnh/nộp đơn. Dùng cho nhập liệu thành viên đã có ngoài đời nhưng
+// chưa có tài khoản (xem docs/superpowers/specs/2026-09-07-admin-quan-ly-thanh-vien-design.md).
+//
+// INSERT INTO members THẲNG (không qua join-requests) vẫn nổ trigger
+// trg_member_bootstrap như mọi INSERT khác — hộp liên hệ rỗng + 8 mức riêng
+// tư mặc định được CSDL tự tạo trong CÙNG giao dịch (migration 012, và
+// migration 056 vá cho hàng thiếu từ trước migration đó).
+//
+// KHÔNG gọi contact_publish_on_join() (khác approve() ở join-requests/
+// service.js): người được nhập liệu ở đây không tự đồng ý "công khai liên
+// hệ" trên form nào cả — giữ nguyên mức mặc định (on_consent/closed/public
+// tuỳ trường, xem fn_member_bootstrap).
+export async function create({ actor, input }) {
+  return withActor(actor.id, async (trx) => {
+    if (input.area_id) {
+      const { rows: [area] } = await trx.raw(
+        `SELECT id FROM areas WHERE id = ? AND community_id = ? AND is_active = true`,
+        [input.area_id, actor.communityId]
+      );
+      if (!area) throw new AppError('VALIDATION_FAILED', 'Khu vực không thuộc cộng đồng hiện tại.', { status: 422 });
+    }
+
+    const { rows: [m] } = await trx.raw(
+      `INSERT INTO members
+         (community_id, full_name, birth_year, email, job, area_id, bio, work_status, status, joined_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'member', coalesce(?::timestamptz, now()))
+       RETURNING id, full_name, email, job, area_id, bio, work_status, joined_at`,
+      [
+        actor.communityId, input.full_name, input.birth_year ?? null, input.email ?? null,
+        input.job ?? null, input.area_id ?? null, input.bio ?? null, input.work_status,
+        input.joined_at ?? null,
+      ]
+    );
+
+    const contactKeys = ['phone', 'zalo', 'messenger', 'address'].filter((key) => input[key]);
+    for (const key of contactKeys) {
+      await trx.raw(`SELECT contact_upsert(?, ?, ?)`, [m.id, key, input[key]]);
+    }
+
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'member.admin_created', targetType: 'member', targetId: m.id,
+      detail: { fields: ['full_name', ...contactKeys] } });
+
+    return m;
+  });
+}
+
 export async function requestContact({ actor, targetId, fieldKey, message }) {
   const result = await withActor(actor.id, async (trx) => {
     const { rows: [target] } = await trx.raw(
