@@ -85,6 +85,14 @@ router.get('/:id', validate(schema.idParamSchema, 'params'), async (req, res, ne
   }
 });
 
+router.delete('/:id', requireRole('approver'), validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try {
+    res.json(await memberService.remove({ actor: req.actor, id: req.params.id }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get(
   '/:id/contacts/:field',
   contactReadLimit,

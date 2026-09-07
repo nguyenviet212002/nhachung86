@@ -692,6 +692,33 @@ export async function create({ actor, input }) {
   });
 }
 
+// Admin (approver) chấm dứt tư cách thành viên NGAY, một bước, một người ký
+// — khác `member.terminate` ở core/twoPerson.js (đòi HAI approver khác nhau
+// ký; xem lý do không tái dùng khung đó trong spec, mục "Quyết định nền").
+// Kết quả CSDL giống hệt: status → 'left', dữ liệu giữ nguyên làm "bia mộ"
+// (đặc tả mục 10). requireAuth (middleware/auth.js:66) đã tự khoá người có
+// status khác 'member' ngay từ lượt gọi API kế tiếp — không cần thu hồi
+// token/phiên riêng ở đây.
+export async function remove({ actor, id }) {
+  if (id === actor.id) {
+    throw new AppError('VALIDATION_FAILED', 'Không tự xoá chính mình.', { status: 422 });
+  }
+  return withActor(actor.id, async (trx) => {
+    const { rows: [m] } = await trx.raw(
+      `UPDATE members SET status = 'left', updated_at = now()
+        WHERE id = ? AND community_id = ? AND status = 'member'
+        RETURNING id, full_name`,
+      [id, actor.communityId]
+    );
+    if (!m) throw NOT_FOUND();
+
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'member.admin_removed', targetType: 'member', targetId: id, detail: {} });
+
+    return m;
+  });
+}
+
 export async function requestContact({ actor, targetId, fieldKey, message }) {
   const result = await withActor(actor.id, async (trx) => {
     const { rows: [target] } = await trx.raw(
