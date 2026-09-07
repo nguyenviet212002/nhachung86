@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
+import { requireAuthOrGuestToken } from '../../middleware/gameAuth.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
-import { subscribeGame } from '../../core/realtime.js';
+import { subscribeGame, isSideWatchingGame } from '../../core/realtime.js';
 import * as schema from './schema.js';
 import * as service from './service.js';
 
@@ -17,56 +18,93 @@ function streamToken(req, _res, next) {
   }
   next();
 }
-router.use(rateLimit({ windowMs: 60_000, max: 120 }), streamToken, requireAuth);
+router.use(rateLimit({ windowMs: 60_000, max: 120 }), streamToken);
 
-// Lệch có chủ đích khỏi brief: brief gốc bọc route POST /challenges bằng
-// middleware `idempotent()` nhập từ '../../middleware/idempotency.js'. Tệp đó
-// không tồn tại ở đâu trong cây làm việc này (không migration, không job dọn
-// dẹp, không middleware) — "Interfaces" của Task 4 trong brief cũng nói rõ
-// task này KHÔNG tiêu thụ gì từ Task 2/3. Thêm cả một tầng hạ tầng idempotency
-// key mới nằm ngoài phạm vi 3 hàm service của task này, nên bỏ middleware đó
-// thay vì tự chế ra một hệ idempotency chưa ai yêu cầu — cùng cách mọi route
-// POST khác trong repo (jobs, auth, invites) đang làm.
-router.post('/challenges', validate(schema.challengeSchema), async (req, res, next) => {
+router.post('/challenges', requireAuth, validate(schema.challengeSchema), async (req, res, next) => {
   try { res.status(201).json(await service.challenge({ actor: req.actor, opponentMemberId: req.body.opponent_member_id })); }
   catch (e) { next(e); }
 });
-router.post('/challenges/:id/accept', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+router.post('/challenges/:id/accept', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.acceptChallenge({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
-router.post('/challenges/:id/decline', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+router.post('/challenges/:id/decline', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
   try { res.json(await service.declineChallenge({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
-router.post('/quick-match', async (req, res, next) => {
+router.post('/quick-match', requireAuth, async (req, res, next) => {
   try { res.json(await service.quickMatch({ actor: req.actor })); } catch (e) { next(e); }
 });
-router.delete('/quick-match', async (req, res, next) => {
+router.delete('/quick-match', requireAuth, async (req, res, next) => {
   try { res.json(await service.leaveQuickMatch({ actor: req.actor })); } catch (e) { next(e); }
 });
-router.get('/', validate(schema.listQuerySchema, 'query'), async (req, res, next) => {
+router.get('/', requireAuth, validate(schema.listQuerySchema, 'query'), async (req, res, next) => {
   try {
     res.json(await service.list({ actor: req.actor, status: req.query.status,
       mine: req.query.mine === 'true', page: req.query.page, limit: req.query.limit }));
   } catch (e) { next(e); }
 });
-router.get('/:id', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+
+router.get('/:id', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.get({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });
-router.get('/:id/stream', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+router.get('/:id/stream', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  let visible;
   try {
-    await service.assertVisible({ actor: req.actor, id: req.params.id });
+    visible = await service.assertVisible({ actor: req.actor, id: req.params.id });
   } catch (e) { return next(e); }
   res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
   res.flushHeaders?.();
   res.write(`event: ready\ndata: ${JSON.stringify({ game_id: req.params.id })}\n\n`);
-  const unsubscribe = subscribeGame(req.params.id, req.actor.id, res);
+  const { side } = visible;
+  const { communityId } = req.actor;
+  const unsubscribe = subscribeGame(req.params.id, req.actor.id, side, res);
+  if (side) service.clearDisconnected({ communityId, gameId: req.params.id, side }).catch(() => {});
   const keepalive = setInterval(() => { try { res.write(': keepalive\n\n'); } catch {} }, 25_000);
-  req.on('close', () => { clearInterval(keepalive); unsubscribe(); });
+  req.on('close', () => {
+    clearInterval(keepalive); unsubscribe();
+    // unsubscribe() vừa chạy ở trên đã xoá kết nối CỦA CHÍNH request này khỏi
+    // gameClients — isSideWatchingGame() dưới đây vì vậy phản ánh đúng "còn
+    // kết nối NÀO KHÁC của bên này đang mở hay không" (vd. tab khác, hoặc kết
+    // nối mới do EventSource tự retry), không tính luôn kết nối vừa đóng.
+    // Chỉ đánh dấu mất kết nối khi thật sự không còn kết nối nào khác.
+    if (side && !isSideWatchingGame(req.params.id, side)) {
+      service.markDisconnected({ communityId, gameId: req.params.id, side }).catch(() => {});
+    }
+  });
 });
-router.post('/:id/moves', validate(schema.idParamSchema, 'params'), validate(schema.moveSchema), async (req, res, next) => {
+router.post('/:id/moves', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, validate(schema.moveSchema), async (req, res, next) => {
   try { res.json(await service.move({ actor: req.actor, id: req.params.id, from: req.body.from, to: req.body.to })); }
   catch (e) { next(e); }
 });
-router.post('/:id/resign', validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+router.post('/:id/resign', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.resign({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/leave', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.leaveRoom({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+
+router.post('/rooms', requireAuth, async (req, res, next) => {
+  try { res.status(201).json(await service.createRoom({ actor: req.actor })); } catch (e) { next(e); }
+});
+router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, res, next) => {
+  try { res.status(201).json(await service.joinRoom({ rawToken: req.params.token, guestName: req.body.guest_name })); }
+  catch (e) { next(e); }
+});
+
+router.post('/:id/ready', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.ready({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/timeout', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.claimTimeout({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/draw/offer', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.offerDraw({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/draw/accept', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.acceptDraw({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/draw/decline', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.declineDraw({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
+router.post('/:id/disconnect-timeout', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
+  try { res.json(await service.claimDisconnectTimeout({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });

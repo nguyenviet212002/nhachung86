@@ -37,8 +37,8 @@ describe('T41 realtime — phòng theo ván cờ', () => {
     const chunksA = [], chunksB = [];
     const resA = { write: (c) => chunksA.push(c) };
     const resB = { write: (c) => chunksB.push(c) };
-    const unsubA = subscribeGame('game-1', 'member-a', resA);
-    const unsubB = subscribeGame('game-2', 'member-b', resB);
+    const unsubA = subscribeGame('game-1', 'member-a', 'r', resA);
+    const unsubB = subscribeGame('game-2', 'member-b', 'r', resB);
 
     publishToGame('game-1', 'move', { turn: 'b' });
 
@@ -52,7 +52,7 @@ describe('T41 realtime — phòng theo ván cờ', () => {
   it('isWatchingGame biết đúng ai đang mở kết nối tới phòng nào', () => {
     const res = { write: () => {} };
     expect(isWatchingGame('game-3', 'member-c')).toBe(false);
-    const unsub = subscribeGame('game-3', 'member-c', res);
+    const unsub = subscribeGame('game-3', 'member-c', 'r', res);
     expect(isWatchingGame('game-3', 'member-c')).toBe(true);
     expect(isWatchingGame('game-3', 'member-x')).toBe(false);
     unsub();

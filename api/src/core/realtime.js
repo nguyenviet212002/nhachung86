@@ -26,12 +26,26 @@ export function publishToMember(memberId, event, data) {
 // luồng sự kiện. Khác subscribeMember ở chỗ giữ luôn memberId cạnh mỗi kết
 // nối — /moves cần biết "đối thủ có đang mở kết nối phòng này không" để
 // quyết định có cần gửi thêm notification hay không (xem service.js move()).
-const gameClients = new Map(); // gameId -> Map<res, memberId>
+//
+// Lệch có chủ đích khỏi bản gốc (vòng soát xét cuối cùng của cả nhánh, phát
+// hiện Critical): giá trị map trước đây chỉ là memberId thô, không hề có khái
+// niệm "bên" ('r'/'b'). Route /:id/stream (games/routes.js) gọi
+// markDisconnected() ngay khi BẤT KỲ MỘT kết nối nào của ván này đóng lại,
+// không kiểm xem bên đó còn kết nối nào khác đang mở hay không — người chơi
+// mở ván ở hai tab trình duyệt, đóng một tab (tab kia vẫn sống) bị đánh dấu
+// mất kết nối oan, đối thủ báo /disconnect-timeout thắng thật dù người kia
+// vẫn đang chơi bình thường. Cùng lỗ hổng xảy ra khi EventSource tự động kết
+// nối lại: kết nối mới subscribe TRƯỚC khi server kịp nhận biết kết nối cũ đã
+// đóng vẫn có thể để sót cờ mất kết nối cho một người chưa từng thật sự rời.
+// Sửa: giữ luôn `side` cạnh memberId, để routes.js chỉ gọi markDisconnected()
+// sau khi xác nhận (qua isSideWatchingGame() bên dưới) không còn kết nối nào
+// khác của ĐÚNG bên đó.
+const gameClients = new Map(); // gameId -> Map<res, { memberId, side }>
 
-export function subscribeGame(gameId, memberId, res) {
+export function subscribeGame(gameId, memberId, side, res) {
   let map = gameClients.get(gameId);
   if (!map) { map = new Map(); gameClients.set(gameId, map); }
-  map.set(res, memberId);
+  map.set(res, { memberId, side });
   return () => {
     map.delete(res);
     if (!map.size) gameClients.delete(gameId);
@@ -51,7 +65,20 @@ export function publishToGame(gameId, event, data) {
 export function isWatchingGame(gameId, memberId) {
   const map = gameClients.get(gameId);
   if (!map) return false;
-  for (const id of map.values()) if (id === memberId) return true;
+  for (const v of map.values()) if (v.memberId === memberId) return true;
+  return false;
+}
+
+// Dùng ở routes.js req.on('close') để quyết định có nên coi một BÊN là mất
+// kết nối hay không — trả true nếu còn ít nhất một kết nối khác (tab khác,
+// hoặc kết nối mới do EventSource tự retry) của đúng bên này đang mở cho ván
+// đó. Khác isWatchingGame() ở trên: hàm đó khớp theo memberId (ai), hàm này
+// khớp theo side (bên nào) — một khách (memberId luôn null, xem resolveSide())
+// vẫn có "bên" dù không có memberId để so.
+export function isSideWatchingGame(gameId, side) {
+  const map = gameClients.get(gameId);
+  if (!map) return false;
+  for (const v of map.values()) if (v.side === side) return true;
   return false;
 }
 

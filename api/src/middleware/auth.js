@@ -26,22 +26,27 @@ import { knex } from '../db/knex.js';
 //     và bảng `role_permissions` (gieo ở 029) là NGUỒN của ma trận đó — đổi
 //     một hàng trong bảng là đổi quyền truy cập thật, không phải đổi một tài
 //     liệu mô tả. Xem middleware/permission.js.
-export async function requireAuth(req, _res, next) {
-  const header = req.headers.authorization ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return next(new AppError('UNAUTHENTICATED', 'Cần đăng nhập.', { status: 401 }));
-
+//
+// Tách khỏi requireAuth (Task 4, Sảnh Cờ Kernel) để requireAuthOrGuestToken
+// (middleware/gameAuth.js) dùng lại được — không sao chép câu SQL tra vai lần
+// thứ hai (một nguồn tra vai duy nhất). Hợp đồng: KHÔNG BAO GIỜ throw/reject —
+// luôn trả {actor} hoặc {error}, để mọi nơi gọi (requireAuth và
+// requireAuthOrGuestToken) đều an toàn dùng `await` trực tiếp mà không cần
+// try/catch riêng. Xem lý do ở catch cuối hàm.
+export async function authenticateMemberToken(token) {
   let payload;
   try {
     payload = jwt.verify(token, config.JWT_SECRET);
-    if (payload.typ !== 'access') throw new Error('sai loại token');
+    if (payload.typ !== 'access') {
+      return { error: new AppError('TOKEN_INVALID', 'Phiên đăng nhập không hợp lệ.', { status: 401 }) };
+    }
   } catch (err) {
     // TokenExpiredError riêng biệt: client cần biết "hết hạn, làm mới đi"
     // khác với "hỏng, phải đăng nhập lại" để không mất form đang điền dở.
     if (err?.name === 'TokenExpiredError') {
-      return next(new AppError('TOKEN_EXPIRED', 'Phiên đăng nhập đã hết hạn.', { status: 401 }));
+      return { error: new AppError('TOKEN_EXPIRED', 'Phiên đăng nhập đã hết hạn.', { status: 401 }) };
     }
-    return next(new AppError('TOKEN_INVALID', 'Phiên đăng nhập không hợp lệ.', { status: 401 }));
+    return { error: new AppError('TOKEN_INVALID', 'Phiên đăng nhập không hợp lệ.', { status: 401 }) };
   }
 
   try {
@@ -64,19 +69,37 @@ export async function requireAuth(req, _res, next) {
     // đồng ghi trong token. Cùng MỘT câu trả lời với "token hỏng": không phân
     // biệt được hai thứ là không rò ra được thứ nào.
     if (!rows.length || rows[0].status !== 'member') {
-      return next(new AppError('UNAUTHENTICATED', 'Phiên đăng nhập không còn hiệu lực.', { status: 401 }));
+      return { error: new AppError('UNAUTHENTICATED', 'Phiên đăng nhập không còn hiệu lực.', { status: 401 }) };
     }
 
-    req.actor = {
-      id: payload.sub,
-      communityId: payload.cid,
-      roles: [...new Set(rows.map((r) => r.role_key).filter(Boolean))],
-      permissions: [...new Set(rows.map((r) => r.permission_key).filter(Boolean))],
+    return {
+      actor: {
+        id: payload.sub,
+        communityId: payload.cid,
+        roles: [...new Set(rows.map((r) => r.role_key).filter(Boolean))],
+        permissions: [...new Set(rows.map((r) => r.permission_key).filter(Boolean))],
+      },
     };
-    next();
   } catch {
-    next(new AppError('UNAUTHENTICATED', 'Phiên đăng nhập không hợp lệ.', { status: 401 }));
+    // Bọc riêng bước tra CSDL — giữ đúng hành vi bản trước khi tách hàm. Hàm
+    // này chạy trong middleware gắn thẳng qua router.use() (requireAuth,
+    // requireAuthOrGuestToken), không có try/catch nào bọc ở nơi gọi; Express
+    // 4 KHÔNG tự bắt promise bị reject từ hàm async. Không bắt ở đây thì một
+    // trục trặc CSDL thoáng qua sẽ là unhandled rejection và sập cả tiến
+    // trình thay vì trả 401 — nên mọi lỗi ở bước này đều thành "phiên đăng
+    // nhập không hợp lệ", không rò chi tiết lỗi CSDL ra ngoài.
+    return { error: new AppError('UNAUTHENTICATED', 'Phiên đăng nhập không hợp lệ.', { status: 401 }) };
   }
+}
+
+export async function requireAuth(req, _res, next) {
+  const header = req.headers.authorization ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return next(new AppError('UNAUTHENTICATED', 'Cần đăng nhập.', { status: 401 }));
+  const { actor, error } = await authenticateMemberToken(token);
+  if (error) return next(error);
+  req.actor = actor;
+  next();
 }
 
 // Cổng theo VAI (roles ở req.actor do requireAuth nạp). Chỉ dùng được cho các

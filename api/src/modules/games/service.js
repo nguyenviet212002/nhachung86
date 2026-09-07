@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { withActor } from '../../core/tx.js';
 import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 import { publishToMember, publishToGame, isWatchingGame } from '../../core/realtime.js';
+import { newInviteToken, hashInviteToken } from '../invites/token.js';
 import * as rules from './rules.js';
 
 const NOT_FOUND = () => new AppError('NOT_FOUND', 'Không tìm thấy ván cờ này.', { status: 404 });
@@ -9,18 +11,77 @@ const FORBIDDEN = (msg) => new AppError('FORBIDDEN', msg ?? 'Bạn không có qu
 const INVALID_STATE = (msg) => new AppError('INVALID_STATE', msg, { status: 409 });
 
 const GAME_SELECT = `
-  SELECT g.id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
+  SELECT g.id, g.community_id, g.status, g.board, g.turn, g.winner_member_id, g.end_reason,
          g.created_at, g.started_at, g.finished_at,
          g.red_member_id, r.full_name AS red_name, r.avatar_url AS red_avatar_url,
-         g.black_member_id, b.full_name AS black_name, b.avatar_url AS black_avatar_url
+         g.black_member_id, COALESCE(b.full_name, g.black_guest_name) AS black_name, b.avatar_url AS black_avatar_url,
+         g.black_guest_token, g.invite_token_hash,
+         g.red_time_ms, g.black_time_ms, g.turn_started_at,
+         g.second_joined_at, g.red_ready_at, g.black_ready_at,
+         g.draw_offered_by, g.disconnected_side, g.disconnected_at,
+         g.red_ai_level, g.black_ai_level
     FROM games g
     JOIN members r ON r.id = g.red_member_id AND r.community_id = g.community_id
-    JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id`;
+    LEFT JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id`;
+
+// khách/thành viên đang là bên nào trong VÁN NÀY — 'null === null' không được
+// coi là trùng khớp (một khách chưa xác thực và một phòng chưa có khách đều
+// có giá trị null, so trực tiếp actor.id===game.black_member_id sẽ SAI ở đây).
+function resolveSide(actor, game) {
+  if (actor.id && actor.id === game.red_member_id) return 'r';
+  if (actor.id && actor.id === game.black_member_id) return 'b';
+  if (actor.guestToken && game.black_guest_token && actor.guestToken === game.black_guest_token) return 'b';
+  return null;
+}
+
+// Không đếm ngược ở server — tính lại thời gian còn lại MỖI LẦN đọc, từ
+// turn_started_at. Đứng yên khi ván chưa active, khi đang tạm dừng vì mất kết
+// nối (Task 10), hoặc khi chưa ai đi nước nào (turn_started_at null).
+function computeRemainingMs(game) {
+  const remaining = { red: game.red_time_ms, black: game.black_time_ms };
+  if (game.status !== 'active' || !game.turn_started_at || game.disconnected_side) return remaining;
+  const elapsed = Date.now() - new Date(game.turn_started_at).getTime();
+  const key = game.turn === 'r' ? 'red' : 'black';
+  remaining[key] = Math.max(0, remaining[key] - elapsed);
+  return remaining;
+}
 
 async function loadGame(trx, communityId, id) {
   const { rows: [row] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ? AND g.community_id = ?`, [id, communityId]);
   if (!row) throw NOT_FOUND();
-  return row;
+  return evictStaleGuestIfNeeded(trx, row);
+}
+
+// Luật 30 giây (mục 4.3 spec): khách không bấm sẵn sàng kịp thì bị đưa ra khỏi
+// phòng — kiểm KIỂU LAZY ngay trong lần đọc/ghi tiếp theo, không cần job nền
+// riêng. Chủ phòng không bị đuổi ("chủ phòng tuyệt đối") nên red_ready_at giữ
+// nguyên — người đã bấm đúng phần mình không phải bấm lại khi khách sau đó bị
+// dọn (mục IV.3 SANH_CO_GIAO_VIEC_DAY_DU.md: "người đã bấm ở lại"). GAME_SELECT
+// có alias riêng cho từng cột (vd. black_name khác tên cột thật black_guest_name)
+// nên không dùng RETURNING trực tiếp sau UPDATE được — đọc lại bằng chính
+// GAME_SELECT thay vì cố khớp danh sách cột bằng tay.
+//
+// date_trunc('milliseconds', ...) ở vế so khớp: cột second_joined_at là
+// timestamptz (độ chính xác micro-giây trong Postgres), nhưng driver `pg`
+// phân giải nó thành Date của JavaScript khi đọc vào `game.second_joined_at`
+// — Date chỉ có độ chính xác mili-giây nên phần micro-giây bị cắt mất. So
+// thẳng `second_joined_at = ?` bằng giá trị JS Date đã cắt đó với giá trị
+// gốc còn nguyên micro-giây trong CSDL sẽ KHÔNG BAO GIỜ khớp (xác nhận bằng
+// test T42: UPDATE khớp 0 dòng, hàm âm thầm trả lại `game` cũ, khách không
+// hề bị dọn dù đã quá 30 giây). Cắt cả hai vế về cùng độ chính xác mili-giây
+// trước khi so thì khớp đúng — cùng bẫy đã ghi ở core/audit.js (`log` phần
+// bình luận "Lệch có chủ đích khỏi brief").
+async function evictStaleGuestIfNeeded(trx, game) {
+  if (game.status !== 'pending' || !game.second_joined_at || game.black_ready_at) return game;
+  const elapsedMs = Date.now() - new Date(game.second_joined_at).getTime();
+  if (elapsedMs <= 30_000) return game;
+  await trx.raw(
+    `UPDATE games SET black_member_id = NULL, black_guest_name = NULL, black_guest_token = NULL, second_joined_at = NULL
+      WHERE id = ? AND status = 'pending' AND date_trunc('milliseconds', second_joined_at) = ?`,
+    [game.id, game.second_joined_at]
+  );
+  const { rows: [fresh] } = await trx.raw(`${GAME_SELECT} WHERE g.id = ?`, [game.id]);
+  return fresh ?? game;
 }
 
 export async function challenge({ actor, opponentMemberId }) {
@@ -64,7 +125,7 @@ export async function acceptChallenge({ actor, id }) {
     if (game.black_member_id !== actor.id) throw FORBIDDEN('Chỉ người được mời mới nhận lời được.');
     const board = rules.initBoard();
     const { rows: [row] } = await trx.raw(
-      `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now()
+      `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now(), turn_started_at = now()
         WHERE id = ? AND status = 'pending' RETURNING *`,
       [JSON.stringify(board), id]
     );
@@ -128,8 +189,8 @@ export async function quickMatch({ actor }) {
       if (!opponent) return null; // người đang chờ đã rời Hội ngay trong lúc chờ — hàng đợi coi như trống
       const board = rules.initBoard();
       const { rows: [row] } = await trx.raw(
-        `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, board, started_at)
-         VALUES (?, ?, ?, 'active', 'r', ?::jsonb, now()) RETURNING id`,
+        `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, board, started_at, turn_started_at)
+         VALUES (?, ?, ?, 'active', 'r', ?::jsonb, now(), now()) RETURNING id`,
         [actor.communityId, waitingActorId, actor.id, JSON.stringify(board)]
       );
       await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
@@ -180,11 +241,13 @@ export async function get({ actor, id }) {
   return withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     const { rows: moves } = await trx.raw(
-      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, created_at
+      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, created_at
          FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
       [id]
     );
-    return { ...game, moves };
+    const remaining = computeRemainingMs(game);
+    const { black_guest_token, invite_token_hash, ...publicGame } = game;
+    return { ...publicGame, moves, red_time_remaining_ms: remaining.red, black_time_remaining_ms: remaining.black };
   });
 }
 
@@ -192,14 +255,17 @@ export async function get({ actor, id }) {
 // route SSE (GET /:id/stream), nơi phải xác nhận TRƯỚC khi mở kết nối chứ
 // không phải sau (đã gửi header rồi thì không next(e) được nữa).
 export async function assertVisible({ actor, id }) {
-  return withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
+  return withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    return { side: resolveSide(actor, game) };
+  });
 }
 
 export async function move({ actor, id, from, to }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
-    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    const mySide = resolveSide(actor, game);
     if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
     if (mySide !== game.turn) throw FORBIDDEN('Chưa tới lượt bạn.');
     const piece = game.board[from.r]?.[from.c];
@@ -211,21 +277,52 @@ export async function move({ actor, id, from, to }) {
       throw new AppError('VALIDATION_FAILED', 'Nước đi không hợp lệ.', { status: 422 });
     }
     const applied = rules.applyMove(game.board, from, to);
-    const newTurn = applied.gameOver ? game.turn : rules.opp(mySide);
-    const winnerId = applied.gameOver ? (applied.winner === 'r' ? game.red_member_id : game.black_member_id) : null;
+    let gameOver = applied.gameOver, winner = applied.winner, reason = applied.reason;
+
+    const { rows: pastMoves } = await trx.raw(
+      `SELECT side, is_check AS "isCheck", captured_type IS NOT NULL AS captured, board_hash AS "boardHash"
+         FROM game_moves WHERE game_id = ? ORDER BY seq ASC`,
+      [id]
+    );
+    const newTurnIfContinuing = rules.opp(mySide);
+    const newHash = rules.hashBoard(applied.board, gameOver ? game.turn : newTurnIfContinuing);
+    const moveHistory = [...pastMoves, { side: mySide, isCheck: applied.checkOpp, captured: !!applied.captured, boardHash: newHash }];
+
+    if (!gameOver) {
+      const rep = rules.detectRepetition(moveHistory);
+      if (rep) {
+        gameOver = true; reason = rep.reason;
+        winner = rep.loser ? rules.opp(rep.loser) : null;
+      } else if (rules.detectNoCaptureDraw(moveHistory)) {
+        gameOver = true; reason = 'hoa-60-nuoc'; winner = null;
+      }
+    }
+
+    const newTurn = gameOver ? game.turn : newTurnIfContinuing;
+    const winnerId = !gameOver ? null : winner === 'r' ? game.red_member_id : winner === 'b' ? game.black_member_id : null;
+
+    const elapsedMs = game.turn_started_at ? Math.max(0, Date.now() - new Date(game.turn_started_at).getTime()) : 0;
+    const preMoveTimeMs = mySide === 'r' ? game.red_time_ms : game.black_time_ms;
+    const postMoveTimeMs = Math.max(0, preMoveTimeMs - elapsedMs);
+    const movedTimeCol = mySide === 'r' ? 'red_time_ms' : 'black_time_ms';
+
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET board = ?::jsonb, turn = ?, status = ?, winner_member_id = ?, end_reason = ?,
-              finished_at = CASE WHEN ? THEN now() ELSE finished_at END
+              finished_at = CASE WHEN ? THEN now() ELSE finished_at END,
+              ?? = ?, turn_started_at = CASE WHEN ? THEN NULL ELSE now() END
         WHERE id = ? AND status = 'active' AND turn = ? RETURNING *`,
-      [JSON.stringify(applied.board), newTurn, applied.gameOver ? 'finished' : 'active',
-       winnerId, applied.gameOver ? applied.reason : null, applied.gameOver, id, mySide]
+      [JSON.stringify(applied.board), newTurn, gameOver ? 'finished' : 'active',
+       winnerId, gameOver ? reason : null, gameOver,
+       movedTimeCol, postMoveTimeMs, gameOver,
+       id, mySide]
     );
     if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     const { rows: [seqRow] } = await trx.raw(`SELECT COALESCE(MAX(seq), 0) + 1 AS seq FROM game_moves WHERE game_id = ?`, [id]);
     await trx.raw(
-      `INSERT INTO game_moves (community_id, game_id, seq, side, from_r, from_c, to_r, to_c, captured_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [actor.communityId, id, seqRow.seq, mySide, from.r, from.c, to.r, to.c, applied.captured?.type ?? null]
+      `INSERT INTO game_moves (community_id, game_id, seq, side, from_r, from_c, to_r, to_c, captured_type, is_check, board_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [actor.communityId, id, seqRow.seq, mySide, from.r, from.c, to.r, to.c,
+       applied.captured?.type ?? null, applied.checkOpp, newHash]
     );
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'chess_game.move', targetType: 'game', targetId: id,
@@ -233,10 +330,10 @@ export async function move({ actor, id, from, to }) {
 
     const opponentId = mySide === 'r' ? game.black_member_id : game.red_member_id;
     let notification = null;
-    if (!isWatchingGame(id, opponentId)) {
-      const title = applied.gameOver ? 'Ván cờ đã kết thúc' : 'Đến lượt bạn đi';
-      const body = applied.gameOver
-        ? (applied.winner === mySide ? 'Bạn đã thắng.' : 'Đối thủ đã thắng.')
+    if (opponentId && !isWatchingGame(id, opponentId)) {
+      const title = gameOver ? 'Ván cờ đã kết thúc' : 'Đến lượt bạn đi';
+      const body = gameOver
+        ? (winner === mySide ? 'Bạn đã thắng.' : winner ? 'Đối thủ đã thắng.' : 'Ván cờ kết thúc hoà.')
         : 'Đối thủ vừa đi một nước, tới lượt bạn.';
       const { rows: [n] } = await trx.raw(
         `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
@@ -245,8 +342,7 @@ export async function move({ actor, id, from, to }) {
       );
       notification = n;
     }
-    return { board: applied.board, turn: newTurn, gameOver: applied.gameOver, winner: applied.winner,
-      reason: applied.reason, captured: applied.captured, opponentId, notification };
+    return { board: applied.board, turn: newTurn, gameOver, winner, reason, captured: applied.captured, opponentId, notification };
   });
 
   publishToGame(id, 'move', { board: result.board, turn: result.turn, last_move: { from, to },
@@ -260,7 +356,7 @@ export async function resign({ actor, id }) {
   const result = await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
     if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
-    const mySide = actor.id === game.red_member_id ? 'r' : actor.id === game.black_member_id ? 'b' : null;
+    const mySide = resolveSide(actor, game);
     if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
     const winnerId = mySide === 'r' ? game.black_member_id : game.red_member_id;
     const { rows: [row] } = await trx.raw(
@@ -271,14 +367,416 @@ export async function resign({ actor, id }) {
     if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
     await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
       action: 'chess_game.resign', targetType: 'game', targetId: id, detail: { side: mySide } });
-    const { rows: [notification] } = await trx.raw(
-      `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
-       VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
-      [actor.communityId, winnerId, actor.id, id]
-    );
+    // Lệch có chủ đích khỏi hành vi gốc của resign() (hàm có từ trước Task 10,
+    // phát hiện khi Task 11 leaveRoom() gọi resign() lần đầu cho một ván PHÒNG
+    // có đối thủ là KHÁCH): khi bên thắng là khách, winnerId là NULL (khách
+    // không có member id) — nhưng notifications.recipient_id là NOT NULL nên
+    // INSERT thẳng như bản gốc vỡ ràng buộc, trả 500 (xác nhận bằng service
+    // thật, xem task-11-report.md). resign() được viết từ lúc ván chỉ có
+    // thành viên-với-thành viên (winnerId luôn có giá trị), chưa từng được gọi
+    // cho một ván có khách qua route /resign lẫn có test nào phủ tới trước
+    // Task 11. Sửa theo đúng khuôn "chỉ tạo thông báo khi có thành viên thật để
+    // nhận" đã dùng ở move()/offerDraw() ngay trong file này — không tạo/không
+    // gửi notification khi không có ai (thành viên thật) để nhận.
+    let notification = null;
+    if (winnerId) {
+      const { rows: [n] } = await trx.raw(
+        `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'game_turn', 'Đối thủ đã xin thua', 'Bạn đã thắng ván cờ này.', 'game', ?) RETURNING *`,
+        [actor.communityId, winnerId, actor.id, id]
+      );
+      notification = n;
+    }
     return { winnerId, winnerSide: rules.opp(mySide), notification };
   });
   publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'resign' });
-  publishToMember(result.winnerId, 'notification', result.notification);
+  if (result.notification) publishToMember(result.winnerId, 'notification', result.notification);
+  return { id, status: 'finished' };
+}
+
+// Vòng soát xét cuối cùng của cả nhánh (Important): trước bản vá này, nhánh
+// "chưa vào trận" (status !== 'active') luôn XOÁ CẢ VÁN bất kể người rời là
+// chủ phòng (mySide='r') hay khách (mySide='b') — một khách vào phòng (dù
+// chưa hề bấm sẵn sàng) gọi /leave là xoá sạch phòng của CHỦ PHÒNG, link mời
+// mất theo, lặp lại được vô hạn lần chừng nào link còn lưu hành: một cách bắt
+// nạt chủ phòng thật sự. Trái nguyên tắc "chủ phòng tuyệt đối" (mục 4.3 spec)
+// mà evictStaleGuestIfNeeded() ở trên đã áp dụng — khách bị dọn (kể cả do LỖI
+// của chính khách, trễ 30 giây) cũng chỉ mất đúng CHỖ CỦA KHÁCH, không đụng
+// tới phòng của chủ; một khách TỰ NGUYỆN rời càng không có lý do bị xử nhẹ tay
+// hơn (tức phòng bị xoá) so với một khách bị đuổi vì lỗi của chính mình.
+//
+// Sửa: khách rời phòng (mySide='b') khi phòng còn 'pending' chỉ dọn đúng các
+// cột slot của khách — cùng bộ cột evictStaleGuestIfNeeded() đã dọn
+// (black_member_id, black_guest_name, black_guest_token, second_joined_at),
+// cộng thêm black_ready_at (evictStaleGuestIfNeeded() không cần dọn cột này vì
+// hàm đó chỉ chạy TRƯỚC khi ai bấm sẵn sàng — xem điều kiện !game.black_ready_at
+// ngay đầu hàm; ở đây khách có thể đã bấm sẵn sàng rồi mới đổi ý rời) — KHÔNG
+// xoá ván. red_ready_at của chủ phòng không đụng tới nên không mất — đúng tinh
+// thần "người đã bấm ở lại" đã ghi ở evictStaleGuestIfNeeded(). Chủ phòng rời
+// (mySide='r') giữ nguyên hành vi cũ: xoá cả ván, vì phòng của chính họ không
+// còn gì đáng giữ lại khi chưa vào trận.
+export async function leaveRoom({ actor, id }) {
+  const game = await withActor(actor.id, (trx) => loadGame(trx, actor.communityId, id));
+  const mySide = resolveSide(actor, game);
+  if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+  if (game.status === 'active') return resign({ actor, id });
+  if (mySide === 'b') {
+    await withActor(actor.id, async (trx) => {
+      const { rows: [row] } = await trx.raw(
+        `UPDATE games SET black_member_id = NULL, black_guest_name = NULL, black_guest_token = NULL,
+                second_joined_at = NULL, black_ready_at = NULL
+          WHERE id = ? AND status = 'pending' RETURNING id`,
+        [id]
+      );
+      if (!row) throw INVALID_STATE('Ván cờ này không còn ở bước chuẩn bị.');
+      await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+        action: 'chess_game.guest_left', targetType: 'game', targetId: id, detail: {} });
+    });
+    return { id, status: 'left' };
+  }
+  await withActor(actor.id, async (trx) => {
+    await trx.raw(`DELETE FROM game_moves WHERE game_id = ?`, [id]);
+    const { rows: [deleted] } = await trx.raw(
+      `DELETE FROM games WHERE id = ? AND status = 'pending' RETURNING id`, [id]
+    );
+    if (!deleted) throw INVALID_STATE('Ván cờ này không còn ở bước chuẩn bị.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.room_closed', targetType: 'game', targetId: id, detail: {} });
+  });
+  return { id, status: 'deleted' };
+}
+
+export async function createRoom({ actor }) {
+  const rawToken = newInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const id = await withActor(actor.id, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `INSERT INTO games (community_id, red_member_id, black_member_id, status, turn, invite_token_hash)
+       VALUES (?, ?, NULL, 'pending', 'r', ?) RETURNING id`,
+      [actor.communityId, actor.id, tokenHash]
+    );
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.room_opened', targetType: 'game', targetId: row.id, detail: {} });
+    return row.id;
+  });
+  return { id, invite_token: rawToken };
+}
+
+export async function joinRoom({ rawToken, guestName }) {
+  const tokenHash = hashInviteToken(rawToken);
+  const result = await withActor(null, async (trx) => {
+    const { rows: [game] } = await trx.raw(
+      `SELECT id, community_id, status, black_member_id, black_guest_name
+         FROM games WHERE invite_token_hash = ?`,
+      [tokenHash]
+    );
+    if (!game) throw NOT_FOUND();
+    if (game.status !== 'pending' || game.black_member_id || game.black_guest_name) {
+      throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
+    }
+    const guestToken = randomUUID();
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET black_guest_name = ?, black_guest_token = ?, second_joined_at = now()
+        WHERE id = ? AND status = 'pending' AND black_member_id IS NULL AND black_guest_name IS NULL
+        RETURNING id`,
+      [guestName, guestToken, game.id]
+    );
+    if (!row) throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
+    await auditLog(trx, { communityId: game.community_id, actorId: null,
+      action: 'chess_game.guest_joined', targetType: 'game', targetId: game.id, detail: {} });
+    return { gameId: game.id, guestToken };
+  });
+  return { id: result.gameId, guest_token: result.guestToken };
+}
+
+export async function ready({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'pending') throw INVALID_STATE('Ván này không còn ở bước chuẩn bị.');
+    // game.black_guest_name (cột thô) không có trong GAME_SELECT — chỉ có alias
+    // black_name (COALESCE(b.full_name, g.black_guest_name)) — nên đọc field đó
+    // thay vì cột thô để phát hiện đúng "đã có khách/thành viên vào làm Đen".
+    if (!game.black_member_id && !game.black_name) throw INVALID_STATE('Chưa có đối thủ vào phòng.');
+    const col = mySide === 'r' ? 'red_ready_at' : 'black_ready_at';
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET ?? = now() WHERE id = ? AND status = 'pending' AND ?? IS NULL
+        RETURNING red_ready_at, black_ready_at`,
+      [col, id, col]
+    );
+    if (!row) throw INVALID_STATE('Bạn đã bấm sẵn sàng rồi.');
+    let becameActive = false;
+    if (row.red_ready_at && row.black_ready_at) {
+      const board = rules.initBoard();
+      await trx.raw(
+        `UPDATE games SET status = 'active', board = ?::jsonb, turn = 'r', started_at = now(), turn_started_at = now()
+          WHERE id = ? AND status = 'pending'`,
+        [JSON.stringify(board), id]
+      );
+      becameActive = true;
+    }
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.ready', targetType: 'game', targetId: id, detail: { side: mySide } });
+    return { becameActive };
+  });
+  if (result.becameActive) publishToGame(id, 'game_start', { turn: 'r' });
+  return { ready: true, active: result.becameActive };
+}
+
+export async function offerDraw({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET draw_offered_by = ? WHERE id = ? AND status = 'active' AND draw_offered_by IS NULL RETURNING id`,
+      [mySide, id]
+    );
+    if (!row) throw INVALID_STATE('Đã có lời cầu hoà đang chờ.');
+    const opponentSide = rules.opp(mySide);
+    const opponentId = opponentSide === 'r' ? game.red_member_id : game.black_member_id;
+    let notification = null;
+    if (opponentId && !isWatchingGame(id, opponentId)) {
+      const { rows: [n] } = await trx.raw(
+        `INSERT INTO notifications (community_id, recipient_id, actor_id, kind, title, body, target_type, target_id)
+         VALUES (?, ?, ?, 'game_turn', 'Đối thủ cầu hoà', 'Đối thủ vừa đề nghị hoà ván cờ.', 'game', ?) RETURNING *`,
+        [actor.communityId, opponentId, actor.id, id]
+      );
+      notification = n;
+    }
+    return { mySide, opponentId, notification };
+  });
+  publishToGame(id, 'draw_offered', { by: result.mySide });
+  if (result.notification) publishToMember(result.opponentId, 'notification', result.notification);
+  return { offered: true };
+}
+
+export async function acceptDraw({ actor, id }) {
+  await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (!game.draw_offered_by || game.draw_offered_by === mySide) {
+      throw INVALID_STATE('Không có lời cầu hoà nào để nhận.');
+    }
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'hoa-thoa-thuan', finished_at = now()
+        WHERE id = ? AND status = 'active' AND draw_offered_by = ? RETURNING id`,
+      [id, game.draw_offered_by]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.draw_accepted', targetType: 'game', targetId: id, detail: {} });
+  });
+  publishToGame(id, 'game_end', { winner: null, reason: 'hoa-thoa-thuan' });
+  return { id, status: 'finished' };
+}
+
+export async function declineDraw({ actor, id }) {
+  await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (!game.draw_offered_by || game.draw_offered_by === mySide) {
+      throw INVALID_STATE('Không có lời cầu hoà nào để từ chối.');
+    }
+    await trx.raw(`UPDATE games SET draw_offered_by = NULL WHERE id = ? AND status = 'active'`, [id]);
+  });
+  publishToGame(id, 'draw_declined', {});
+  return { declined: true };
+}
+
+export async function claimTimeout({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    if (game.disconnected_side) throw INVALID_STATE('Đồng hồ đang tạm dừng do mất kết nối.');
+    const remaining = computeRemainingMs(game);
+    const timedOutSide = remaining.red <= 0 ? 'r' : remaining.black <= 0 ? 'b' : null;
+    if (!timedOutSide) throw INVALID_STATE('Chưa bên nào thật sự hết giờ.');
+    const winnerSide = rules.opp(timedOutSide);
+    const winnerId = winnerSide === 'r' ? game.red_member_id : game.black_member_id;
+    // Vòng soát xét cuối cùng của cả nhánh (Important): thiếu CAS trên phần
+    // trạng thái vừa ĐỌC và dùng để QUYẾT ĐỊNH claim này — khác mọi hàm ghi
+    // trạng thái khác trong file (move() khoá thêm AND turn = ?, acceptDraw()
+    // khoá thêm AND draw_offered_by = ?, claimDisconnectTimeout() khoá thêm
+    // AND disconnected_side = ?). timedOutSide/winnerSide ở trên được suy ra
+    // từ turn + turn_started_at đọc lúc đầu hàm; nếu bên "hết giờ" vừa đi được
+    // một nước hợp lệ (move() không hề biết tới claimTimeout đang diễn ra,
+    // đổi cả turn lẫn turn_started_at) NGAY TRƯỚC KHI UPDATE này chạy, bản
+    // thiếu khoá vẫn khớp WHERE (status vẫn 'active') và kết thúc ván trên dữ
+    // liệu đã cũ — xử thua oan một người vừa thật sự đi nước kịp giờ. Khoá
+    // thêm AND turn = ? (giá trị đã đọc, KHÔNG PHẢI turn_started_at — cột đó
+    // là timestamptz độ chính xác micro-giây, driver `pg` đọc về JS Date chỉ
+    // còn mili-giây nên so bằng nhau không bao giờ khớp, đúng bẫy đã xác nhận
+    // ở Task 8/evictStaleGuestIfNeeded() phía trên) chặn đúng khe hở này: turn
+    // đổi thì WHERE không khớp dòng nào nữa, claim thất bại thay vì thắng oan.
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'het-gio', winner_member_id = ?, finished_at = now()
+        WHERE id = ? AND status = 'active' AND turn = ? RETURNING id`,
+      [winnerId, id, game.turn]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.timeout', targetType: 'game', targetId: id, detail: { side: timedOutSide } });
+    return { winnerSide };
+  });
+  publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'het-gio' });
+  return { id, status: 'finished' };
+}
+
+export async function markDisconnected({ communityId, gameId, side }) {
+  await withActor(null, async (trx) => {
+    await trx.raw(
+      `UPDATE games SET disconnected_side = ?, disconnected_at = now()
+        WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side IS NULL`,
+      [side, gameId, communityId]
+    );
+  });
+  publishToGame(gameId, 'disconnected', { side });
+}
+
+// Lệch có chủ đích khỏi brief (phát hiện + xác nhận bằng dữ liệu thật ở Task
+// 10, xem "§3.2" trong task-10-report.md): CASE gốc của brief
+// (`turn_started_at = CASE WHEN turn = ? THEN now() ELSE turn_started_at END`)
+// chỉ dời turn_started_at khi bên VỪA KẾT NỐI LẠI cũng đang là bên cầm lượt.
+// Khi bên KHÔNG mất kết nối đang cầm lượt suốt thời gian đối thủ mất kết nối
+// (không đi nước nào nên turn không đổi), CASE đó không bao giờ khớp —
+// turn_started_at đứng nguyên từ trước khi mất kết nối, và computeRemainingMs()
+// / move() (elapsed = now() - turn_started_at, không hề biết tới
+// disconnected_side) sẽ tính oan TOÀN BỘ thời gian mất kết nối vào đồng hồ
+// của bên đang kết nối ngay khi cờ disconnected_side vừa được xoá — nhẹ thì
+// lệch hiển thị, nặng thì bên vừa mất kết nối kết nối lại xong báo /timeout
+// thắng luôn, dù bên kia chưa hề đi nước nào và màn hình vẫn đứng yên tới tận
+// khoảnh khắc đó (tái hiện được bằng service thật, xem báo cáo).
+//
+// Sửa: DỜI turn_started_at tới TRƯỚC đúng bằng khoảng thời gian mất kết nối
+// (`turn_started_at + (now() - disconnected_at)`), không điều kiện theo bên
+// nào đang cầm lượt. elapsed = now() - turn_started_at ở mọi lần đọc sau này
+// sẽ tự động trừ đúng khoảng mất kết nối ra khỏi kết quả — dù sau đó là bên
+// nào cầm lượt. Không dùng cách "luôn đặt lại = now()" (đơn giản hơn nhưng
+// tha oan): khi bên vừa kết nối lại CŨNG đang cầm lượt, cách đó xoá luôn cả
+// thời gian họ đã nghĩ THẬT trước khi mất kết nối, không chỉ khoảng mất kết
+// nối — công thức dời ở đây giữ đúng phần đã nghĩ thật đó, chỉ trừ đúng phần
+// mất kết nối. An toàn với NULL: disconnected_side và disconnected_at luôn
+// được set/xoá cùng nhau (markDisconnected/clearDisconnected), nên WHERE
+// disconnected_side = ? khớp thì disconnected_at chắc chắn không NULL; mọi
+// hàng status='active' luôn có turn_started_at không NULL (mọi chỗ đặt
+// status='active' — acceptChallenge, quickMatch, ready(), move() khi ván chưa
+// xong — đều set turn_started_at cùng lúc; chỗ duy nhất đặt nó về NULL trong
+// move() cũng đặt status='finished' cùng lúc nên WHERE status='active' loại
+// hàng đó ra trước).
+//
+// Lệch có chủ đích khỏi brief, vòng 2 (xem "§9" trong task-10-report.md):
+// công thức dời ở trên tự ngầm định turn_started_at <= disconnected_at (lượt
+// hiện tại bắt đầu TRƯỚC khi đối thủ mất kết nối) — đúng khi không ai đi
+// thêm nước nào trong lúc mất kết nối, nhưng move() (không sửa ở Task 10,
+// không hề biết tới disconnected_side) vẫn cho bên ĐANG KẾT NỐI đi nước bình
+// thường trong lúc đối thủ mất kết nối, và mỗi nước dời turn_started_at tới
+// now() của chính lúc đi — có thể MUỘN HƠN disconnected_at. Khi đó công thức
+// dời ở trên vọt QUÁ hiện tại (turn_started_at mới nằm ở tương lai), khiến
+// elapsed = now() - turn_started_at ÂM ở computeRemainingMs()/move() lần đọc
+// kế tiếp — Math.max(0, remaining - elapsed_âm) LÀM PHỒNG remaining VƯỢT QUÁ
+// cả ngân sách ban đầu (tái hiện thật: black_time_remaining_ms = 659987, vượt
+// 600000). Không outcome-flipping như lỗ hổng vòng 1 (remaining phồng lên thì
+// CÀNG XA ngưỡng claimTimeout's remaining<=0, không thể tạo thắng giả) nhưng
+// vẫn là một giá trị hiển thị/tính toán sai sự thật, đạt được bằng một hành
+// vi hoàn toàn bình thường (bên đang kết nối đi một nước trong lúc đối thủ
+// mất kết nối), không cần cố tình canh giờ.
+//
+// Sửa: kẹp giá trị dời lại không bao giờ vượt quá now() bằng LEAST(). Trường
+// hợp không có nước đi xen giữa (turn_started_at <= disconnected_at, đúng như
+// công thức dời ở trên đã ngầm định) thì giá trị dời vốn đã <= now() nên
+// LEAST không đổi gì — y hệt hành vi đã xác nhận ở vòng 1. Trường hợp có nước
+// đi xen giữa (turn_started_at > disconnected_at) thì LEAST kẹp về đúng
+// now() — cho bên vừa nhận lượt (luôn CHÍNH LÀ bên vừa kết nối lại: nước đi
+// duy nhất có thể xen vào là của bên ĐANG kết nối, và nước đó luôn trao lượt
+// sang đúng bên đang mất kết nối) một khởi đầu mới tinh từ lúc kết nối lại —
+// hợp lý vì họ không thể nào đã "nghĩ" cho một lượt vừa được trao trong lúc
+// còn đang mất kết nối, và không mở lỗ hổng mới vì chỉ có lợi cho đúng bên
+// vừa kết nối lại, không phải bên gây ra nước đi khiến lượt bị vọt.
+export async function clearDisconnected({ communityId, gameId, side }) {
+  const wasCleared = await withActor(null, async (trx) => {
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL,
+              turn_started_at = LEAST(now(), turn_started_at + (now() - disconnected_at))
+        WHERE id = ? AND community_id = ? AND status = 'active' AND disconnected_side = ?
+        RETURNING id`,
+      [gameId, communityId, side]
+    );
+    return !!row;
+  });
+  if (wasCleared) publishToGame(gameId, 'reconnected', { side });
+}
+
+// Lệch có chủ đích khỏi brief, vòng 3 (xem "§10" trong task-10-report.md):
+// disconnected_side/disconnected_at chỉ do markDisconnected/clearDisconnected
+// đụng tới — move() (không sửa ở Task 10) không hề biết tới hai cột này, nên
+// nếu chính bên bị đánh dấu mất kết nối vẫn còn một kênh khác gọi API bình
+// thường được (SSE rớt nhưng request/response HTTP vẫn sống — hoàn toàn có
+// thật trên mạng chập chờn), họ đi nước hoàn toàn hợp lệ mà cờ disconnected_side
+// vẫn đứng nguyên, cũ dần. Không kiểm điều này thì sau 60 giây kể từ mốc cũ đó,
+// đối thủ báo /disconnect-timeout THẮNG THẬT dù bên kia vẫn đang chơi bình
+// thường suốt — xử thua oan, tái hiện được bằng service thật (xem báo cáo).
+//
+// Sửa: trước khi tin disconnected_side, kiểm xem CHÍNH bên đó có nước đi nào
+// mới hơn disconnected_at không (lọc side = disconnected_side — một nước của
+// bên ĐANG kết nối không nói lên gì về việc đối thủ họ có thật sự còn mất kết
+// nối hay không, nên không được tính). Có thì cờ đã cũ — tự dọn (best-effort,
+// không cần RETURNING/kiểm, cùng kiểu markDisconnected) rồi từ chối, không xử
+// thua. created_at > ? là so KHÔNG BẰNG NHAU nên không dính bẫy lệch độ chính
+// xác mili-giây/micro-giây của Task 8 (bẫy đó chỉ vỡ phép so BẰNG NHAU).
+//
+// Lệch tiếp, có chủ đích, khỏi chính mã sửa vòng 3 (phát hiện lúc tự kiểm —
+// xem "§10.3" trong task-10-report.md): bản đầu ném INVALID_STATE NGAY SAU
+// UPDATE tự dọn ở trên, CÙNG một trx với withActor(). withActor() = 1 lời gọi
+// knex.transaction() DUY NHẤT bọc quanh toàn bộ callback — callback ném lỗi
+// thì knex tự ROLLBACK CẢ giao dịch, xoá luôn UPDATE tự dọn vừa chạy (đúng bẫy
+// đã ghi ở core/audit.js phần logDenied: "ngoại lệ huỷ cả giao dịch"). Kết quả
+// đo được: /disconnect-timeout vẫn trả 409 đúng (exception vẫn thoát ra ngoài
+// bình thường) NHƯNG disconnected_side đọc lại vẫn còn 'r' — cờ cũ không hề
+// được dọn, y hệt trước khi sửa. Sửa: KHÔNG throw trong trx nữa — trả về cờ
+// hiệu {stale:true} để withActor() tự COMMIT giao dịch (đã có UPDATE tự dọn),
+// rồi throw NGOÀI withActor(), sau khi giao dịch đã chốt xong — không còn gì
+// để rollback nữa.
+export async function claimDisconnectTimeout({ actor, id }) {
+  const result = await withActor(actor.id, async (trx) => {
+    const game = await loadGame(trx, actor.communityId, id);
+    const mySide = resolveSide(actor, game);
+    if (!mySide) throw FORBIDDEN('Bạn không phải người chơi trong ván này.');
+    if (game.status !== 'active') throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    if (!game.disconnected_side) throw INVALID_STATE('Không có ai đang mất kết nối.');
+    const { rows: [movedSince] } = await trx.raw(
+      `SELECT 1 FROM game_moves WHERE game_id = ? AND side = ? AND created_at > ? LIMIT 1`,
+      [id, game.disconnected_side, game.disconnected_at]
+    );
+    if (movedSince) {
+      await trx.raw(
+        `UPDATE games SET disconnected_side = NULL, disconnected_at = NULL WHERE id = ? AND status = 'active' AND disconnected_side = ?`,
+        [id, game.disconnected_side]
+      );
+      return { stale: true };
+    }
+    const elapsedMs = Date.now() - new Date(game.disconnected_at).getTime();
+    if (elapsedMs < 60_000) throw INVALID_STATE('Chưa đủ 1 phút mất kết nối.');
+    const loserSide = game.disconnected_side;
+    const winnerSide = rules.opp(loserSide);
+    const winnerId = winnerSide === 'r' ? game.red_member_id : game.black_member_id;
+    const { rows: [row] } = await trx.raw(
+      `UPDATE games SET status = 'finished', end_reason = 'mat-ket-noi', winner_member_id = ?, finished_at = now()
+        WHERE id = ? AND status = 'active' AND disconnected_side = ? RETURNING id`,
+      [winnerId, id, loserSide]
+    );
+    if (!row) throw INVALID_STATE('Ván cờ này không còn đang chơi.');
+    await auditLog(trx, { communityId: actor.communityId, actorId: actor.id,
+      action: 'chess_game.disconnect_timeout', targetType: 'game', targetId: id, detail: { side: loserSide } });
+    return { winnerSide };
+  });
+  if (result.stale) throw INVALID_STATE('Bên bị coi là mất kết nối đã có nước đi mới — không còn mất kết nối thật.');
+  publishToGame(id, 'game_end', { winner: result.winnerSide, reason: 'mat-ket-noi' });
   return { id, status: 'finished' };
 }

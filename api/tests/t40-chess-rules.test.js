@@ -69,3 +69,83 @@ describe('T40 chess rules engine', () => {
     expect(JSON.stringify(b)).toBe(before);
   });
 });
+
+describe('T40 hashBoard', () => {
+  it('cùng thế cờ + cùng lượt cho cùng 1 khoá', () => {
+    const b1 = rules.initBoard();
+    const b2 = rules.initBoard();
+    expect(rules.hashBoard(b1, 'r')).toBe(rules.hashBoard(b2, 'r'));
+  });
+
+  it('khác lượt đi thì khoá khác nhau dù cùng thế cờ', () => {
+    const b = rules.initBoard();
+    expect(rules.hashBoard(b, 'r')).not.toBe(rules.hashBoard(b, 'b'));
+  });
+
+  it('đổi vị trí 1 quân thì khoá đổi theo', () => {
+    const b1 = rules.initBoard();
+    const b2 = rules.clone(b1);
+    b2[6][0] = null;
+    b2[5][0] = { side: 'r', type: 'soldier' };
+    expect(rules.hashBoard(b1, 'r')).not.toBe(rules.hashBoard(b2, 'r'));
+  });
+});
+
+describe('T40 detectRepetition / detectNoCaptureDraw', () => {
+  const m = (side, isCheck, boardHash, captured = false) => ({ side, isCheck, captured, boardHash });
+
+  it('boardHash mới nhất mới xuất hiện 2 lần thì chưa tính là lặp', () => {
+    const h = [m('r', false, 'A'), m('b', false, 'B'), m('r', false, 'A')];
+    expect(rules.detectRepetition(h)).toBe(null);
+  });
+
+  it('lặp lần 3, không bên nào chiếu liên tục trong chu kỳ → hoà', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', false, 'B1'),
+      m('r', false, 'C1'),
+      m('b', false, 'start'),
+      m('r', false, 'C1'),
+      m('b', false, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'hoa-3-lan', loser: null });
+  });
+
+  it('lặp lần 3, đúng 1 bên chiếu ở mọi nước của mình trong chu kỳ → bên đó thua (trường chiếu)', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', false, 'B1'),
+      m('r', true, 'C1'),
+      m('b', false, 'start'),
+      m('r', true, 'C1'),
+      m('b', false, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'truong-chieu', loser: 'r' });
+  });
+
+  it('lặp lần 3, cả 2 bên đều chiếu liên tục trong chu kỳ → vẫn hoà (mặc định an toàn)', () => {
+    const h = [
+      m('r', false, 'start'),
+      m('b', true, 'B1'),
+      m('r', true, 'start'),
+      m('b', true, 'B1'),
+      m('r', true, 'start'),
+    ];
+    expect(rules.detectRepetition(h)).toEqual({ reason: 'hoa-3-lan', loser: null });
+  });
+
+  it('60 nước không ăn quân (120 bán nước) thì hoà', () => {
+    const h = Array.from({ length: 120 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i));
+    expect(rules.detectNoCaptureDraw(h)).toBe(true);
+  });
+
+  it('chưa đủ 120 bán nước thì chưa hoà', () => {
+    const h = Array.from({ length: 119 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i));
+    expect(rules.detectNoCaptureDraw(h)).toBe(false);
+  });
+
+  it('có 1 nước ăn quân trong 120 nước gần nhất thì đếm lại từ đó, chưa hoà', () => {
+    const h = Array.from({ length: 130 }, (_, i) => m(i % 2 === 0 ? 'r' : 'b', false, 'x' + i, i === 20));
+    expect(rules.detectNoCaptureDraw(h)).toBe(false);
+  });
+});
