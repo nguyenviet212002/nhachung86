@@ -6202,6 +6202,127 @@ function resignGame(id){
   api.post('/games/'+id+'/resign').catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
 
+/* ---------- Phòng cờ (Gen 2): trạng thái, đồng hồ, phiên khách ----------
+   Dùng chung cho cả V['cotuong-van'] (chủ phòng) và PUB['cotuong-phong']
+   (khách). Không có cột trạng thái phòng riêng trong CSDL — suy ra từ
+   status/second_joined_at/red_ready_at/black_ready_at, xem mục 6 spec
+   2026-09-07-cotuong-phong-khach-ui-design.md. ══════════════════════ */
+function xqRoomPhase(g){
+  if(!g || g.error) return null;
+  if(g.status==='active') return 'dang-dau';
+  if(g.status!=='pending') return null; // finished hoặc trạng thái khác: không phải máy trạng thái phòng
+  if(!g.second_joined_at) return 'cho-doi-thu';
+  if(!g.red_ready_at && !g.black_ready_at) return 'du-nguoi';
+  return 'cho-ben-kia';
+}
+function xqFormatClock(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+// Mô phỏng lại ĐÚNG công thức computeRemainingMs() phía server
+// (api/src/modules/games/service.js) chỉ để hiện đếm mượt giữa hai lần đồng
+// bộ — server vẫn là nguồn sự thật duy nhất cho việc kết thúc ván vì hết giờ.
+function xqDisplayClock(st, side){
+  const raw = side==='r' ? st.red_time_ms : st.black_time_ms;
+  if(st.status!=='active' || !st.turn_started_at || st.disconnected_side || st.turn!==side) return raw;
+  const elapsed = Date.now() - new Date(st.turn_started_at).getTime();
+  return Math.max(0, raw - elapsed);
+}
+// winner_member_id là NULL cả khi hoà LẪN khi khách (không có member id)
+// thắng — hai trường hợp phải tách bằng end_reason. Chỉ gọi khi
+// st.status==='finished'.
+function xqGameResultSide(st){
+  if(st.end_reason==='hoa-thoa-thuan') return null;
+  if(!st.winner_member_id) return 'b'; // thắng mà không có member id ⇒ chắc chắn là khách (luôn Đen)
+  return st.winner_member_id===st.red_member_id ? 'r' : 'b';
+}
+function resolveMySide(g){
+  if(!g) return null;
+  if(DATA.me){
+    if(g.red_member_id===DATA.me.id) return 'r';
+    if(g.black_member_id===DATA.me.id) return 'b';
+  }
+  return GUEST_TOKEN ? 'b' : null;
+}
+
+let GUEST_TOKEN = null, GUEST_INVITE_TOKEN = null;
+function guestSessionKey(inviteToken){ return 'xq_guest_'+inviteToken; }
+function saveGuestSession(inviteToken, data){
+  try{ localStorage.setItem(guestSessionKey(inviteToken), JSON.stringify(data)); }catch(e){}
+}
+function loadGuestSession(inviteToken){
+  try{ const raw = localStorage.getItem(guestSessionKey(inviteToken)); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function clearGuestSession(inviteToken){
+  try{ localStorage.removeItem(guestSessionKey(inviteToken)); }catch(e){}
+}
+
+// Client cho khách — KHÔNG qua window.api: token khách không có refresh,
+// không gắn phiên đăng nhập (xem mục 9 spec thiết kế). Cùng khuôn lỗi với
+// api.js (server trả {error:{code,message,fields}}) và dùng lại đúng
+// api.messageFor() để hai đường không lệch câu chữ hiển thị.
+function guestFetch(method, path, body, tokenOverride){
+  const token = tokenOverride!==undefined ? tokenOverride : GUEST_TOKEN;
+  const headers = {};
+  if(token) headers['authorization'] = 'Bearer '+token;
+  if(body!==undefined) headers['content-type'] = 'application/json';
+  return fetch(api.baseUrl()+path, {method, headers, body: body===undefined?undefined:JSON.stringify(body)})
+    .catch(()=>{ throw new Error(api.messageFor('NETWORK')); })
+    .then(res=>{
+      if(res.status===204) return null;
+      return res.json().catch(()=>null).then(data=>{
+        if(res.ok) return data;
+        const code = (data && data.error && data.error.code) || 'INTERNAL';
+        const err = new Error(api.messageFor(code));
+        err.code = code; err.status = res.status;
+        throw err;
+      });
+    });
+}
+
+// Đếm giây cục bộ khi ván đang active — chỉ để UI mượt, KHÔNG tự kết thúc
+// ván (việc đó server quyết định qua /timeout, được Task 5 gọi khi hết giờ).
+// Tick mỗi giây còn kiêm việc tự gọi /disconnect-timeout khi đối thủ mất
+// kết nối đã quá 60 giây (mục 6 spec). gameClaimDisconnectTimeout() do
+// Task 5 định nghĩa — khai báo bằng `function` nên thứ tự trong file không
+// quan trọng (hoisting).
+let GAME_CLOCK_TIMER = null;
+function stopGameClock(){ if(GAME_CLOCK_TIMER){ clearInterval(GAME_CLOCK_TIMER); GAME_CLOCK_TIMER=null; } }
+function gameClockTick(){
+  if(GAME_STATE && GAME_STATE.disconnected_side){
+    const elapsed = Date.now() - new Date(GAME_STATE.disconnected_at).getTime();
+    if(elapsed>=60000) gameClaimDisconnectTimeout(GAME_STATE.id);
+  }
+  render();
+}
+function maybeStartGameClock(status){
+  stopGameClock();
+  if(status==='active') GAME_CLOCK_TIMER = setInterval(gameClockTick, 1000);
+}
+
+// Polling trong lúc phòng còn 'pending' — ready()/joinRoom() không bắn sự
+// kiện SSE cho "khách vừa vào"/"một bên vừa bấm sẵn sàng lần đầu" (rà
+// publishToGame() trong api/src/modules/games/service.js xác nhận điều
+// này; ghi trong backlog theo dõi của nhánh Kernel, không sửa ở đây). Dừng
+// tự động ngay khi phase không còn là trạng thái phòng nữa.
+let ROOM_POLL_TIMER = null;
+function stopRoomPoll(){ if(ROOM_POLL_TIMER){ clearInterval(ROOM_POLL_TIMER); ROOM_POLL_TIMER=null; } }
+function startRoomPoll(id){
+  stopRoomPoll();
+  ROOM_POLL_TIMER = setInterval(()=>{
+    if(GAME_STATE_ID!==id){ stopRoomPoll(); return; }
+    const req = DATA.me ? api.get('/games/'+id) : guestFetch('GET', '/games/'+id);
+    req.then(g=>{
+      if(GAME_STATE_ID!==id) return;
+      GAME_STATE=g;
+      const phase = xqRoomPhase(g);
+      if(phase!=='cho-doi-thu' && phase!=='du-nguoi' && phase!=='cho-ben-kia') stopRoomPoll();
+      render();
+    }).catch(()=>{});
+  }, 3000);
+}
+
 V['cotuong-van'] = (params)=>{
   const id = params[0];
   if(!id) return `<div class="empty" style="margin-top:15vh"><h3>Không tìm thấy ván cờ</h3></div>`;
