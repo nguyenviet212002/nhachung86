@@ -6496,10 +6496,9 @@ function aiLevelMenuToggle(){ AI_LEVEL_MENU_OPEN = !AI_LEVEL_MENU_OPEN; render()
 function gameSetAiLevel(id, level){
   AI_LEVEL_MENU_OPEN = false;
   const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/ai-level', {level}) : api.post('/games/'+id+'/ai-level', {level});
-  req.then(g=>{
+  req.then(()=>{
     if(GAME_STATE_ID!==id || !GAME_STATE) return;
-    GAME_STATE.red_ai_level=g.red_ai_level; GAME_STATE.black_ai_level=g.black_ai_level;
-    render();
+    refreshGameState(id);
   }).catch(e=>{ toast(e.message||'Không đổi được máy đi hộ, thử lại.','x'); render(); });
 }
 
