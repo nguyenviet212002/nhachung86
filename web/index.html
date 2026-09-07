@@ -3205,7 +3205,7 @@ function renderSuaHoSoForm(me){
   openModal(`<div class="modal-head"><b>Sửa hồ sơ</b><button class="modal-x" onclick="closeModal()">${ic('x',15)}</button></div>
     <div class="modal-body">
       ${shAvatarBoxHtml(me.avatar_url, me.full_name)}
-      <div class="field"><label class="label">Họ tên</label><input class="input" id="sh-name" value="${esc(me.full_name||'')}"></div>
+      <div class="field"><label class="label">Họ tên <span class="req" style="color:var(--red)">*</span></label><input class="input" id="sh-name" value="${esc(me.full_name||'')}"></div>
       <div class="g2">
         <div class="field"><label class="label">Nghề nghiệp</label><input class="input" id="sh-job" value="${esc(me.job||'')}"></div>
         ${suggestFieldArea('Khu vực','shkhuvuc')}
@@ -3227,8 +3227,13 @@ function renderSuaHoSoForm(me){
       <button class="btn btn-blue" id="sh-submit" style="flex:2" onclick="suaHoSoSubmit()">Lưu</button></div>`, {wide:true});
 }
 async function suaHoSoSubmit(){
-  const btn=qs('#sh-submit'); if(btn){btn.disabled=true;btn.textContent='Đang lưu…';}
   const box=qs('#sh-err'), txt=qs('#sh-err-txt');
+  if(box) box.style.display='none';
+  if(getVal('sh-name').length<2){
+    if(box&&txt){ txt.textContent='Nhập họ tên ít nhất 2 ký tự.'; box.style.display='flex'; }
+    return;
+  }
+  const btn=qs('#sh-submit'); if(btn){btn.disabled=true;btn.textContent='Đang lưu…';}
   try{
     const work_status = document.querySelector('[data-wsval].on')?.dataset.wsval;
     const payload = { full_name:getVal('sh-name'), job:getVal('sh-job')||null, bio:getVal('sh-bio')||null,
