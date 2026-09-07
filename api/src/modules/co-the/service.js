@@ -3,6 +3,7 @@ import { AppError } from '../../core/errors.js';
 import { log as auditLog } from '../../core/audit.js';
 import * as rules from '../games/rules.js';
 import * as engineClient from '../games/engineClient.js';
+import { randomUUID } from 'node:crypto';
 import { publishToGame } from '../../core/realtime.js';
 import { selectAiMove } from '../games/aiSelect.js';
 
@@ -460,4 +461,56 @@ export async function listMySessions({ actor, page, limit }) {
     );
     return { data: rows, meta: { page, limit, total } };
   });
+}
+
+export async function createInvite({ actor, id }) {
+  return withActor(actor.id, async (trx) => {
+    const session = await loadSession(trx, actor.communityId, id);
+    if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+    if (session.invite_token) return { invite_token: session.invite_token };
+    const token = randomUUID();
+    await trx.raw(`UPDATE co_the_sessions SET invite_token = ? WHERE id = ?`, [token, id]);
+    return { invite_token: token };
+  });
+}
+
+export async function guestJoin({ rawToken }) {
+  return withActor(null, async (trx) => {
+    const { rows: [session] } = await trx.raw(`SELECT id FROM co_the_sessions WHERE invite_token = ?`, [rawToken]);
+    if (!session) throw NOT_FOUND();
+    const guestToken = randomUUID();
+    await trx.raw(`UPDATE co_the_sessions SET guest_token = ? WHERE id = ?`, [guestToken, session.id]);
+    return { session_id: session.id, guest_token: guestToken };
+  });
+}
+
+// Dữ liệu RÚT GỌN cho khách — CHỈ bàn cờ/lượt/trạng thái/nhật ký (spec mục
+// 5: 6 khối riêng tư — Phân tích/Đối thủ/trình độ/Tìm cách phá/Đường
+// giải/Diễn giải — KHÔNG BAO GIỜ có trong response này).
+export async function getGuestView({ rawToken, guestToken }) {
+  return withActor(null, async (trx) => {
+    const { rows: [session] } = await trx.raw(
+      `SELECT id, board, turn, status, result, guest_token FROM co_the_sessions WHERE invite_token = ?`, [rawToken]
+    );
+    if (!session || !guestToken || session.guest_token !== guestToken) {
+      throw new AppError('UNAUTHENTICATED', 'Cần vào đúng bằng link mời.', { status: 401 });
+    }
+    const { rows: moves } = await trx.raw(
+      `SELECT seq, side, from_r, from_c, to_r, to_c, captured_type FROM co_the_moves WHERE session_id = ? ORDER BY seq ASC`,
+      [session.id]
+    );
+    const { guest_token, ...safeSession } = session;
+    return { ...safeSession, moves };
+  });
+}
+
+// Dùng ở route /stream — trả session_id (không lộ gì khác) sau khi xác
+// thực guest_token đúng, để route mở SSE subscribe đúng kênh.
+export async function assertGuestVisible({ rawToken, guestToken }) {
+  const { rows: [session] } = await withActor(null, (trx) =>
+    trx.raw(`SELECT id, guest_token FROM co_the_sessions WHERE invite_token = ?`, [rawToken]));
+  if (!session || !guestToken || session.guest_token !== guestToken) {
+    throw new AppError('UNAUTHENTICATED', 'Cần vào đúng bằng link mời.', { status: 401 });
+  }
+  return { sessionId: session.id };
 }

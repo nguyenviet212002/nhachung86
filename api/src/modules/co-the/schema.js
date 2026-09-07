@@ -34,3 +34,6 @@ export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
+
+export const guestJoinParamsSchema = z.object({ token: z.string().min(1) });
+export const guestViewQuerySchema = z.object({ guest_token: uuid });

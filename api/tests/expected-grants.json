@@ -77,5 +77,8 @@
   "notifications":            ["SELECT", "INSERT", "UPDATE"],
   "direct_messages":           ["SELECT", "INSERT", "UPDATE"],
   "games":                    ["SELECT", "INSERT", "UPDATE"],
-  "game_moves":               ["SELECT", "INSERT", "UPDATE"]
+  "game_moves":               ["SELECT", "INSERT", "UPDATE"],
+  "co_the_positions":         ["SELECT", "INSERT", "UPDATE"],
+  "co_the_sessions":          ["SELECT", "INSERT", "UPDATE"],
+  "co_the_moves":             ["SELECT", "INSERT", "UPDATE"]
 }
