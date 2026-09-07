@@ -371,6 +371,78 @@ export async function getMoVan({ actor, id }) {
   });
 }
 
+const LUYEN_THE_N_VAN = 8;
+const LUYEN_THE_MOVETIME_MS = 3000;
+const LUYEN_THE_MAX_PLIES = 200; // sàn an toàn — không để 1 ván mô phỏng chạy vô hạn
+
+export async function runLuyenThe({ actor, id }) {
+  const session = await withActor(actor.id, (trx) => loadSession(trx, actor.communityId, id));
+  if (session.solver_member_id !== actor.id) throw FORBIDDEN('Bạn không phải người giải ván này.');
+  if (session.mode !== 'luyen-the') throw INVALID_STATE('Ván này không phải chế độ Luyện Thế.');
+  if (session.status !== 'dang-choi') throw INVALID_STATE('Ván này đã kết thúc.');
+  runLuyenTheBackground({ communityId: actor.communityId, session }).catch((e) => console.error('luyện thế lỗi:', e));
+  return { started: true };
+}
+
+async function simulateOneGame(session) {
+  let board = session.board, turn = session.turn, moves = [], history = [];
+  let gameOver = false, winner = null;
+  while (!gameOver && moves.length < LUYEN_THE_MAX_PLIES) {
+    const fen = rules.boardToFen(board, turn);
+    const { lines } = await engineClient.bestMove({ fen, movetime: LUYEN_THE_MOVETIME_MS, multipv: 3 });
+    if (!lines?.length) break;
+    const level = turn === session.solver_side ? 'sieu' : 'xuat-sac';
+    const chosenUci = selectAiMove(lines, level, Math.random);
+    if (!chosenUci) break;
+    const { from, to } = rules.uciMoveToCells(chosenUci);
+    const applied = rules.applyMove(board, from, to);
+    const newHash = rules.hashBoard(applied.board, applied.gameOver ? turn : rules.opp(turn));
+    history.push({ side: turn, isCheck: applied.checkOpp, captured: !!applied.captured, boardHash: newHash });
+    moves.push({ side: turn, uci: chosenUci });
+    board = applied.board; gameOver = applied.gameOver; winner = applied.winner;
+    if (!gameOver) {
+      const rep = rules.detectRepetition(history);
+      if (rep) { gameOver = true; winner = rep.loser ? rules.opp(rep.loser) : null; }
+      else if (rules.detectNoCaptureDraw(history)) { gameOver = true; winner = null; }
+    }
+    turn = gameOver ? turn : rules.opp(turn);
+  }
+  const result = !winner ? 'hoa' : winner === session.solver_side ? 'thang' : 'thua';
+  return { moves, result };
+}
+
+async function runLuyenTheBackground({ communityId, session }) {
+  const results = [];
+  for (let i = 0; i < LUYEN_THE_N_VAN; i++) results.push(await simulateOneGame(session));
+
+  const grouped = new Map();
+  for (const g of results) {
+    const first = g.moves.find((m) => m.side === session.solver_side);
+    if (!first) continue;
+    const cur = grouped.get(first.uci) ?? { count: 0, wins: 0, totalLen: 0 };
+    cur.count++; if (g.result === 'thang') cur.wins++; cur.totalLen += g.moves.length;
+    grouped.set(first.uci, cur);
+  }
+  const candidates = [...grouped.entries()].map(([first_move, s]) => ({
+    first_move, ti_le_thanh_cong: s.wins / s.count, so_nuoc_trung_binh: s.totalLen / s.count, so_van: s.count,
+  }));
+  const thanhCong100 = candidates.filter((c) => c.ti_le_thanh_cong === 1);
+  const ha = [...(thanhCong100.length ? thanhCong100 : candidates)]
+    .sort((a, b) => a.so_nuoc_trung_binh - b.so_nuoc_trung_binh)[0] ?? null;
+  const cao = [...candidates].sort((a, b) => b.ti_le_thanh_cong - a.ti_le_thanh_cong || a.so_nuoc_trung_binh - b.so_nuoc_trung_binh)[0] ?? null;
+  const trung = candidates
+    .filter((c) => c !== ha && c !== cao)
+    .sort((a, b) => (b.ti_le_thanh_cong / b.so_nuoc_trung_binh) - (a.ti_le_thanh_cong / a.so_nuoc_trung_binh))[0]
+    ?? cao ?? ha;
+
+  await withActor(null, (trx) => trx.raw(
+    `UPDATE co_the_sessions SET status = 'ket-thuc', end_reason = 'luyen-the-xong', ended_at = now()
+      WHERE id = ? AND status = 'dang-choi'`,
+    [session.id]
+  ));
+  publishToGame(session.id, 'luyen_the_done', { ha, trung, cao, tong_so_van: results.length });
+}
+
 export async function listMySessions({ actor, page, limit }) {
   return withActor(actor.id, async (trx) => {
     const offset = (page - 1) * limit;

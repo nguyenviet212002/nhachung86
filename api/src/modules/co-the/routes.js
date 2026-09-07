@@ -56,3 +56,6 @@ router.get('/sessions/:id/mo-van', requireAuth, validate(schema.idParamSchema, '
 router.get('/sessions', requireAuth, validate(schema.listQuerySchema, 'query'), async (req, res, next) => {
   try { res.json(await service.listMySessions({ actor: req.actor, ...req.query })); } catch (e) { next(e); }
 });
+router.post('/sessions/:id/luyen-the/chay', requireAuth, validate(schema.idParamSchema, 'params'), async (req, res, next) => {
+  try { res.json(await service.runLuyenThe({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
+});
