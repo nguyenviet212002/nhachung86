@@ -370,7 +370,7 @@ function roomCreate(){
   api.post('/games/rooms').then(g=>{
     ROOM_INVITE_TOKEN = g.invite_token;
     GAMES_LIST = null;
-    go('cotuong-van/'+g.id);
+    go('cotuong-van:'+g.id);
   }).catch(e=>toast(e.message||'Không tạo được phòng, thử lại.','x'));
 }
 // Dùng chung cho cả chủ phòng (V['cotuong-van'], Task 4) VÀ khách
@@ -421,7 +421,7 @@ bằng:
     const isHost = mySide==='r';
     let body;
     if(phase==='cho-doi-thu'){
-      const link = location.origin+location.pathname+'#cotuong-phong/'+(ROOM_INVITE_TOKEN||'');
+      const link = location.origin+location.pathname+'#cotuong-phong:'+(ROOM_INVITE_TOKEN||'');
       body = `<h1>Phòng đang chờ đối thủ</h1>
         <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Gửi link này cho đối thủ để họ vào phòng — không cần tài khoản.</p>
         <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
@@ -624,10 +624,15 @@ PUB['cotuong-phong'] = (params)=>{
       GUEST_TOKEN = saved.guestToken;
       GAME_STATE_ID = null;
       loadGame(saved.gameId);
+      return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải…</p>`;
     }
-    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải…</p>`;
+    // Không có phiên đã lưu — không có gì để chờ, rơi thẳng xuống form nhập
+    // tên bên dưới trong cùng lượt render này (KHÔNG return ở đây — nếu
+    // return vô điều kiện như một bản nháp trước đó của kế hoạch này từng
+    // viết, khách lần đầu sẽ kẹt vĩnh viễn ở "Đang tải…" vì không có gì
+    // kích hoạt render() lần hai).
   }
-  if(!GUEST_TOKEN) return guestJoinFormHtml(token);
+  if(!GUEST_TOKEN) return guestJoinFormHtml();
   if(GAME_STATE_ID===null || GAME_STATE===null){
     return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   }
@@ -636,19 +641,27 @@ PUB['cotuong-phong'] = (params)=>{
     // đã tự rời ở tab khác trước đó) — xoá bản lưu, quay lại form nhập tên
     // thay vì kẹt lại một thông báo lỗi (mục 5/11 spec thiết kế).
     clearGuestSession(token); GUEST_TOKEN=null;
-    return guestJoinFormHtml(token);
+    return guestJoinFormHtml();
   }
   return guestGameHtml(GAME_STATE);
 };
-function guestJoinFormHtml(token){
+function guestJoinFormHtml(){
   return `<div class="xq-fs-card">
     <h1>Vào phòng cờ tướng</h1>
     <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Nhập tên để đối thủ biết bạn là ai — không cần tài khoản.</p>
     <input class="input" id="guest-name" placeholder="Tên của bạn" value="${esc(GUEST_NAME_INPUT)}" oninput="GUEST_NAME_INPUT=this.value" style="margin-bottom:10px">
-    <button class="btn btn-blue" style="width:100%" onclick="guestJoinRoom('${token}')">${ic('users',15)} Vào phòng</button>
+    <button class="btn btn-blue" style="width:100%" onclick="guestJoinRoom()">${ic('users',15)} Vào phòng</button>
   </div>`;
 }
-function guestJoinRoom(token){
+// token đọc từ GUEST_INVITE_TOKEN (global), KHÔNG nhận qua tham số/nội suy
+// vào onclick — token đến thẳng từ URL (params[0] của parseHash()), một
+// link mời có thể bị chỉnh tay; nội suy thẳng vào onclick="...('${token}')"
+// mở đường cho thoát chuỗi JS ngay trong thuộc tính HTML (esc() không chặn
+// được kiểu này: HTML giải mã thực thể TRƯỚC khi trình duyệt phân tích nội
+// dung thuộc tính thành JS, nên một dấu nháy đã "esc" vẫn quay lại thành
+// dấu nháy thật lúc JS chạy). Đọc từ global tránh hẳn việc nội suy.
+function guestJoinRoom(){
+  const token = GUEST_INVITE_TOKEN;
   const name = (GUEST_NAME_INPUT||'').trim();
   if(!name){ toast('Nhập tên trước đã.','x'); return; }
   guestFetch('POST', '/games/rooms/'+encodeURIComponent(token)+'/join', {guest_name:name}, null).then(r=>{
