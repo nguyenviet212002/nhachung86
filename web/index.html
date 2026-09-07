@@ -5959,6 +5959,7 @@ function xqAnnounceHtml(text, tone, fade){
    GAMES_LIST vẫn cần tải để tính 2 badge số liệu thật trên thẻ "Đấu cờ".
    ══════════════════════════════════════════════════════════════ */
 let GAMES_LIST = null, GAMES_LIST_LOADING = false;
+let ROOM_INVITE_TOKEN = null;
 function loadGamesList(){
   if(GAMES_LIST_LOADING) return;
   GAMES_LIST_LOADING = true;
@@ -5967,6 +5968,24 @@ function loadGamesList(){
     api.get('/games?mine=true&status=pending,active&limit=20'),
   ]).then(([open,mine])=>{ GAMES_LIST={open:open.data||[], mine:mine.data||[]}; GAMES_LIST_LOADING=false; render(); })
     .catch(()=>{ GAMES_LIST={open:[],mine:[]}; GAMES_LIST_LOADING=false; render(); });
+}
+function roomCreate(){
+  api.post('/games/rooms').then(g=>{
+    ROOM_INVITE_TOKEN = g.invite_token;
+    GAMES_LIST = null;
+    go('cotuong-van/'+g.id);
+  }).catch(e=>toast(e.message||'Không tạo được phòng, thử lại.','x'));
+}
+// Dùng chung cho cả chủ phòng (V['cotuong-van'], Task 4) VÀ khách
+// (PUB['cotuong-phong']/guestGameHtml, Task 7) — rẽ nhánh DATA.me đã đủ để
+// đúng cho cả hai, không cần bản riêng cho khách.
+function roomReady(id){
+  const req = DATA.me ? api.post('/games/'+id+'/ready') : guestFetch('POST', '/games/'+id+'/ready');
+  req.catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
+}
+function roomClose(id){
+  const req = DATA.me ? api.post('/games/'+id+'/leave') : guestFetch('POST', '/games/'+id+'/leave');
+  req.then(()=>go(DATA.me?'cotuong-online':'congchung')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
 V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
@@ -5979,6 +5998,7 @@ V['cotuong-online'] = ()=>{
   return `
   <div class="xq-hub-topbar">
     <button class="btn btn-out" data-open="thachDau">${ic('plus',15)} Thách đấu</button>
+    <button class="btn btn-blue" onclick="roomCreate()">${ic('users',15)} Tạo phòng</button>
   </div>
   <div class="xq-hub-hero">
     <img class="deco" src="assets/cotuong/06-cap-quan-co-do-xanh.png" alt="">
@@ -6342,7 +6362,7 @@ V['cotuong-van'] = (params)=>{
   if(!GAME_STATE) return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang tải ván cờ…</p>`;
   if(GAME_STATE.error) return `<div class="empty" style="margin-top:15vh"><h3>${esc(GAME_STATE.error)}</h3></div>`;
   const st = GAME_STATE;
-  const mySide = DATA.me && st.red_member_id===DATA.me.id ? 'r' : (DATA.me && st.black_member_id===DATA.me.id ? 'b' : null);
+  const mySide = resolveMySide(st);
   const isMyTurn = mySide && mySide===st.turn && st.status==='active';
   if(st.status==='pending'){
     const isInvitee = DATA.me && st.black_member_id===DATA.me.id;
@@ -6362,6 +6382,29 @@ V['cotuong-van'] = (params)=>{
       <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
       <p style="margin-top:10px">Lời thách đấu đã bị từ chối</p>
       <p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại danh sách</a></p>
+    </div>`;
+  }
+  const phase = xqRoomPhase(st);
+  if(phase && phase!=='dang-dau'){
+    const isHost = mySide==='r';
+    let body;
+    if(phase==='cho-doi-thu'){
+      const link = location.origin+location.pathname+'#cotuong-phong/'+(ROOM_INVITE_TOKEN||'');
+      body = `<h1>Phòng đang chờ đối thủ</h1>
+        <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Gửi link này cho đối thủ để họ vào phòng — không cần tài khoản.</p>
+        <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
+    } else if(phase==='du-nguoi'){
+      body = `<h1>${esc(st.black_name)} đã vào phòng</h1>
+        <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+    } else { // cho-ben-kia
+      const iAmReady = isHost ? st.red_ready_at : st.black_ready_at;
+      body = iAmReady
+        ? `<h1>Đang chờ ${esc(st.black_name)} sẵn sàng…</h1>`
+        : `<h1>${esc(st.black_name)} đã sẵn sàng</h1>
+          <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
+    }
+    return `<div class="xq-fs-card">${body}
+      <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Đóng phòng</button></div>
     </div>`;
   }
   const pts=[];
