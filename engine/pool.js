@@ -28,6 +28,17 @@ export class PikafishPool {
     finally { this._release(worker); }
   }
 
+  // Trạng thái sống thật-lúc-này của pool, dùng cho GET /health (server.js) —
+  // đọc thẳng cờ `alive` do uci.js duy trì (true từ lúc spawn thành công tới
+  // lúc exit/error/hết-giờ-bắt-tay, xem uci.js), KHÔNG suy ra từ một cờ
+  // boot-time cố định như `started` cũ của server.js: một worker chết giữa
+  // chừng rồi đang được _replace() dựng lại phải phản ánh NGAY ở đây, không
+  // chờ tới lần dựng lại kế tiếp thành công.
+  status() {
+    const alive = this.workers.filter((w) => w.alive).length;
+    return { total: this.workers.length, alive };
+  }
+
   _acquire() {
     if (this.free.length) return Promise.resolve(this.free.pop());
     // Giữ cả resolve lẫn reject của lượt xếp hàng — _replace() cần reject thẳng

@@ -1,6 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
+// Bắt tay UCI bình thường gần như tức thời — nạp NNUE là bước chậm nhất và
+// thường mất chưa tới vài giây. 15s đủ dư cho máy chậm, đủ ngắn để vòng lặp
+// retry-với-backoff của PikafishPool._replace() (pool.js) không treo vô thời
+// hạn chờ một tiến trình đã treo.
+const HANDSHAKE_TIMEOUT_MS = 15000;
+
 // Bọc ĐÚNG MỘT tiến trình Pikafish qua giao thức UCI. Chỉ xử lý một lượt tìm
 // tại một thời điểm — PikafishPool (pool.js) xếp hàng khi cần hơn một lượt
 // cùng lúc (mục 1 spec Kernel/Engine).
@@ -26,15 +32,15 @@ export class PikafishEngine {
   start() {
     this.proc = spawn(this.binPath, [], { stdio: ['pipe', 'pipe', 'pipe'] });
     this.alive = true;
-    // _waitFor() bên dưới (dùng trong bắt tay UCI) không có đường reject — nó
-    // chỉ resolve khi đúng dòng mong đợi xuất hiện. Nếu tiến trình chết ngay
-    // trong lúc đang bắt tay (vd. bị PikafishPool._replace() khởi động lại rồi
-    // bị kill/OOM trước khi kịp gửi "uciok"/"readyok"), sẽ không còn ai gọi
-    // resolve nữa và promise của _handshake() treo vĩnh viễn — kéo theo start()
-    // không bao giờ settle, khiến PikafishPool._replace() (đang await start())
-    // treo theo, rồi mọi request xếp hàng phía sau cũng treo theo. _deathRace là
-    // lối thoát: hễ tiến trình chết trước khi bắt tay xong, race() để phần
-    // "chết" thắng và trả lỗi thay vì treo.
+    // _waitFor() bên dưới (dùng trong bắt tay UCI) tự hết giờ sau
+    // HANDSHAKE_TIMEOUT_MS nếu dòng mong đợi không xuất hiện (xem _waitFor) —
+    // nhưng đó là đường dành cho tiến trình TREO (spawn được, không nói gì,
+    // không exit). Nếu tiến trình CHẾT NGAY trong lúc đang bắt tay (vd. bị
+    // PikafishPool._replace() khởi động lại rồi bị kill/OOM trước khi kịp gửi
+    // "uciok"/"readyok"), sẽ không còn dòng nào tới nữa và không có gì để chờ
+    // hết giờ cho đúng nghĩa treo — _deathRace là lối thoát riêng cho ca này:
+    // hễ tiến trình chết trước khi bắt tay xong, race() để phần "chết" thắng
+    // ngay lập tức và trả lỗi thay vì đợi hết 15s một cách vô ích.
     let rejectOnDeath;
     this._deathRace = new Promise((_resolve, reject) => { rejectOnDeath = reject; });
     this._rejectOnDeath = rejectOnDeath;
@@ -66,9 +72,34 @@ export class PikafishEngine {
 
   _send(cmd) { this.proc.stdin.write(cmd + '\n'); }
 
-  _waitFor(token, onStart) {
-    return new Promise((resolve) => {
-      const handler = (line) => { if (line.trim() === token) { this.rl.off('line', handler); resolve(); } };
+  _waitFor(token, onStart, timeoutMs = HANDSHAKE_TIMEOUT_MS) {
+    return new Promise((resolve, reject) => {
+      const handler = (line) => {
+        if (line.trim() === token) {
+          clearTimeout(timer);
+          this.rl.off('line', handler);
+          resolve();
+        }
+      };
+      // Không có timeout thì một tiến trình Pikafish "treo" trong lúc bắt tay
+      // (spawn được nhưng không bao giờ nói "uciok"/"readyok", không crash,
+      // không exit) làm promise này treo vĩnh viễn — kéo theo start() treo
+      // theo, và với worker thay thế của PikafishPool._replace(), cả một lượt
+      // retry-với-backoff treo theo chứ không lùi rồi thử lại như thiết kế.
+      // Hết giờ ở đây thì xử lý HỆT như tiến trình chết thật: gọi _onDead() để
+      // đi đúng con đường alive=false/_deathRace/onFatal mà crash thật đi qua
+      // (xem _onDead bên dưới), rồi tự kill tiến trình treo — khác với crash
+      // thật (tiến trình đã tự thoát rồi), ở đây KHÔNG ai khác dọn nó nếu
+      // không chủ động kill.
+      const timer = setTimeout(() => {
+        this.rl.off('line', handler);
+        const err = new Error(
+          `Pikafish không phản hồi "${token}" trong bắt tay UCI sau ${timeoutMs}ms — tiến trình có thể đã treo.`
+        );
+        this.stop();
+        this._onDead(err);
+        reject(err);
+      }, timeoutMs);
       this.rl.on('line', handler);
       onStart();
     });

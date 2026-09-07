@@ -14,7 +14,16 @@ let started = false;
 const app = express();
 app.use(express.json());
 
-app.get('/health', (_req, res) => res.json({ ok: started, engine: 'pikafish' }));
+// `ok` phản ánh trạng thái sống THẬT-LÚC-NÀY của pool (pool.status(), đọc cờ
+// `alive` mỗi worker duy trì — xem pool.js), không phải cờ `started` một lần
+// lúc boot ở dưới: `started` chỉ nói "pool đã khởi động lần đầu xong", vẫn
+// true mãi mãi kể cả khi mọi worker đã chết sau đó và đang chờ _replace()
+// dựng lại — HEALTHCHECK của Docker (engine/Dockerfile) cần biết đúng lúc
+// này còn worker nào phục vụ được hay không.
+app.get('/health', (_req, res) => {
+  const workers = pool.status();
+  res.json({ ok: workers.alive > 0, engine: 'pikafish', workers });
+});
 
 app.post('/bestmove', async (req, res) => {
   if (!started) return res.status(503).json({ error: 'engine chưa sẵn sàng' });

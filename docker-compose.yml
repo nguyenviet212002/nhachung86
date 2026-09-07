@@ -22,7 +22,6 @@ services:
     depends_on:
       db: { condition: service_healthy }
       storage: { condition: service_started }
-      engine: { condition: service_started }
     environment:
       DATABASE_URL: postgres://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${DB_NAME}
       MIGRATION_DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}

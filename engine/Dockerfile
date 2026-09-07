@@ -8,7 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git build-essential curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-RUN git clone --depth 1 https://github.com/official-pikafish/Pikafish.git .
+# Chốt đúng một commit cụ thể để build có thể lặp lại — không dùng nhánh mặc
+# định trôi theo thời gian (rebuild vài tháng sau có thể ra một engine khác,
+# và `make net` khi đó cũng tải NNUE khác theo HEAD mới). Nâng cấp có chủ đích
+# thì đổi SHA này, không để nó tự trôi.
+RUN git clone https://github.com/official-pikafish/Pikafish.git . \
+    && git checkout 612730762d25f62b284a103e761378891a8a0b7a
 WORKDIR /src/src
 # ARCH=native: build tối ưu đúng CPU của MÁY ĐANG BUILD image này — vì
 # `docker compose up -d --build` chạy build NGAY TRÊN máy sẽ chạy container
@@ -22,12 +27,13 @@ RUN ls -la .
 
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 COPY server.js pool.js uci.js ./
 COPY --from=build /src/src/pikafish ./engine-bin/pikafish
 COPY --from=build /src/src/pikafish.nnue ./engine-bin/pikafish.nnue
-RUN chmod +x ./engine-bin/pikafish
+RUN chmod +x ./engine-bin/pikafish && chown -R node:node /app
+USER node
 ENV PIKAFISH_BIN=/app/engine-bin/pikafish
 ENV PIKAFISH_NNUE=/app/engine-bin/pikafish.nnue
 EXPOSE 8898
