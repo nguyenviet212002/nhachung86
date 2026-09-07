@@ -6677,7 +6677,17 @@ V['cotuong-van'] = (params)=>{
           <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
       }
     } else if(phase==='du-nguoi'){
+      // Đếm 30 giây thuần hiển thị, KHÔNG tự gọi API gì (BAN_CHUAN_CO_TUONG.md
+      // mục 2.2: "Đếm từ lúc nào: từ khi người thứ hai vào phòng"). Trạng thái
+      // này đã có startRoomPoll() gọi lại render() mỗi 3 giây (hàm
+      // startRoomPoll trong file này) nên đồng hồ này tự làm mới theo đúng
+      // nhịp đó, không cần thêm setInterval riêng. Server tự đuổi khách quá
+      // giờ (luật lazy-eviction có sẵn) — lần poll kế tiếp phản ánh đúng
+      // trạng thái mới, đồng hồ ở đây không bao giờ tự ý điều hướng hay gọi
+      // API khi chạm 0.
+      const remainMs = Math.max(0, 30000 - (Date.now() - new Date(st.second_joined_at).getTime()));
       body = `<h1>${esc(st.black_name)} đã vào phòng</h1>
+        <p style="font-size:13px;color:var(--muted);margin:4px 0 10px">Còn <b>${xqFormatClock(remainMs)}</b> để cả hai bấm Sẵn sàng.</p>
         <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
     } else { // cho-ben-kia
       const iAmReady = isHost ? st.red_ready_at : st.black_ready_at;
