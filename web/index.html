@@ -6529,6 +6529,55 @@ function xqAiToggleHtml(st, mySide){
 // captured_type đã có sẵn trên mỗi nước — quân bị bắt LUÔN thuộc bên NGƯỢC
 // với bên vừa đi nước đó (m.side đi, m.captured_type là quân của đối phương).
 // Không cần dữ liệu mới, không gọi mạng.
+// Mổ ván (mục 2.5 spec) — chỉ gọi khi ván đã 'finished' (khớp guard phía
+// backend: getAnalysis 409 nếu chưa xong). Cache theo gameId để không gọi lại
+// mỗi lần render() (render() của CHÍNH ván này có thể chạy nhiều lần/giây lúc
+// đang có SSE).
+let XQ_ANALYSIS_CACHE = {}; // { [gameId]: 'loading' | {..response..} | 'error' }
+function xqFetchAnalysis(gameId){
+  if(XQ_ANALYSIS_CACHE[gameId]) return; // đang tải hoặc đã có rồi
+  XQ_ANALYSIS_CACHE[gameId] = 'loading';
+  api.get('/games/'+gameId+'/analysis').then(res=>{
+    XQ_ANALYSIS_CACHE[gameId] = res;
+    render();
+  }).catch(()=>{
+    XQ_ANALYSIS_CACHE[gameId] = 'error';
+    render();
+  });
+}
+// Thang quy đổi HIỂN THỊ THÔ "hơn X quân": mỗi ~100 điểm centipawn xấp xỉ 1
+// quân — CHỈ để đưa ra một con số dễ hiểu, không phải số đo tuyệt đối (đúng
+// tinh thần "ƯỚC LƯỢNG" mục V.3 bản chuẩn). Nếu ván có nước chiếu bí
+// (eval_before_mate khác null) thì nói thẳng "chiếu bí sau N nước" thay vì
+// quy đổi quân — quy đổi một thế chiếu bí thành "hơn X quân" làm sai lệch ý
+// nghĩa hoàn toàn.
+function xqAnalysisPanelHtml(gameId, mySide){
+  if(!mySide) return '';
+  const cached = XQ_ANALYSIS_CACHE[gameId];
+  if(!cached){ xqFetchAnalysis(gameId); return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`; }
+  if(cached==='loading') return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
+  if(cached==='error') return `<p style="font-size:12.5px;color:var(--muted)">Chưa mổ ván được, thử tải lại trang.</p>`;
+  if(!cached.analyzed_at) return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
+  const lastMove = cached.moves.length ? cached.moves[cached.moves.length-1] : null;
+  let theCoTxt = 'Cân bằng';
+  if(lastMove){
+    if(lastMove.eval_before_mate!=null){
+      theCoTxt = lastMove.eval_before_mate>0 ? `${lastMove.side==='r'?'Đỏ':'Đen'} chiếu bí sau ${lastMove.eval_before_mate} nước` : `${lastMove.side==='r'?'Đen':'Đỏ'} chiếu bí sau ${-lastMove.eval_before_mate} nước`;
+    } else if(lastMove.eval_before_cp!=null){
+      const pawns = Math.abs(lastMove.eval_before_cp/100).toFixed(1);
+      const favoredSide = (lastMove.eval_before_cp>=0) === (lastMove.side==='r') ? 'Đỏ' : 'Đen';
+      theCoTxt = Math.abs(lastMove.eval_before_cp)<30 ? 'Cân bằng' : `${favoredSide} hơn ~${pawns} quân`;
+    }
+  }
+  const worst = cached.moves.reduce((w,m)=> (m.win_loss!=null && (!w||m.win_loss>w.win_loss)) ? m : w, null);
+  return `
+    <div style="margin-bottom:10px"><span style="font-size:11.5px;color:var(--muted)">Thế cờ</span><div style="font-size:13.5px;font-weight:700">${esc(theCoTxt)}</div></div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:4px">Đỏ mất trung bình ${cached.red_avg_loss!=null?(cached.red_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-bottom:8px">Đen mất trung bình ${cached.black_avg_loss!=null?(cached.black_avg_loss*100).toFixed(1)+'%':'—'} tỉ lệ thắng/nước</div>
+    ${worst?`<div style="font-size:12px;color:var(--muted)">Nước hỏng nhất: nước ${worst.seq} (${worst.side==='r'?'Đỏ':'Đen'})</div>`:''}
+  `;
+}
+
 function xqCapturedHtml(moves){
   const byRed = [], byBlack = []; // byRed = quân Đỏ đã bắt được (tức quân Đen)
   for(const m of moves){
