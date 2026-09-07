@@ -6538,6 +6538,17 @@ function xqFetchAnalysis(gameId){
   if(XQ_ANALYSIS_CACHE[gameId]) return; // đang tải hoặc đã có rồi
   XQ_ANALYSIS_CACHE[gameId] = 'loading';
   api.get('/games/'+gameId+'/analysis').then(res=>{
+    if(!res.analyzed_at){
+      // Ván vừa xong, mổ ván (fire-and-forget phía server) chưa chạy kịp —
+      // KHÔNG cache như một kết quả cuối, thử lại sau 3 giây (cùng nhịp
+      // startRoomPoll đã dùng ở chỗ khác trong file này). 'pending' khác
+      // 'loading'/'error' để render() gọi lại xqAnalysisPanelHtml trong lúc
+      // chờ không kích thêm một lần fetch chồng lên timer đang chạy.
+      XQ_ANALYSIS_CACHE[gameId] = 'pending';
+      setTimeout(()=>{ XQ_ANALYSIS_CACHE[gameId]=null; xqFetchAnalysis(gameId); }, 3000);
+      render();
+      return;
+    }
     XQ_ANALYSIS_CACHE[gameId] = res;
     render();
   }).catch(()=>{
@@ -6555,7 +6566,7 @@ function xqAnalysisPanelHtml(gameId, mySide){
   if(!mySide) return '';
   const cached = XQ_ANALYSIS_CACHE[gameId];
   if(!cached){ xqFetchAnalysis(gameId); return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`; }
-  if(cached==='loading') return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
+  if(cached==='loading' || cached==='pending') return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
   if(cached==='error') return `<p style="font-size:12.5px;color:var(--muted)">Chưa mổ ván được, thử tải lại trang.</p>`;
   if(!cached.analyzed_at) return `<p style="font-size:12.5px;color:var(--muted)">Đang mổ ván…</p>`;
   const lastMove = cached.moves.length ? cached.moves[cached.moves.length-1] : null;
@@ -6924,7 +6935,7 @@ V['cotuong-van'] = (params)=>{
       <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
       ${xqMoveLogHtml(st.moves)}
       <h3 style="margin-top:14px;font-size:13px">Hồ sơ đối thủ</h3>
-      ${xqOpponentProfileHtml(opponentId, opponentName)}
+      ${opponentId?xqOpponentProfileHtml(opponentId, opponentName):`<p style="font-size:12.5px;color:var(--muted)">Khách — chưa có hồ sơ.</p>`}
     </div>
     <div class="xq-3col-center">
       <div class="xq-wrap">
