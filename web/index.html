@@ -519,19 +519,16 @@ tr:last-child td{border-bottom:none}
 .cothe-pal-group{margin-bottom:12px}
 .cothe-pal-lbl{display:block;font-size:12px;font-weight:700;color:#8a6d3a;
   text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
-.cothe-pal-row{display:flex;gap:6px;flex-wrap:wrap}
-.cothe-pal-pc{position:relative;width:34px;height:34px;border-radius:11px;border:1.5px solid var(--line);background:#fff;
-  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:16.5px;cursor:pointer;flex:none}
+.cothe-pal-row{display:flex;gap:7px;flex-wrap:wrap}
+/* To hẳn lên (từ 34px) + bỏ số đếm ở góc — số lượng thật mỗi loại (1
+   Tướng/2 Sĩ/2 Tượng/2 Mã/2 Xe/2 Pháo/5 Tốt) giờ nhìn thấy trực tiếp bằng
+   ĐẾM SỐ NÚT đang có, giống bốc quân thật ra khỏi hộp — hết quân loại nào
+   thì loại đó hết nút hẳn (xem cothePalette), không cần mờ/khoá riêng. */
+.cothe-pal-pc{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:21px;cursor:pointer;flex:none}
 .cothe-pal-pc.red{color:#C93B2F}
 .cothe-pal-pc.black{color:#1a1a1a}
 .cothe-pal-pc.on{border-color:#D7B26D;background:#faf3e3}
-.cothe-pal-pc.maxed{opacity:.35;cursor:not-allowed}
-/* Số quân LOẠI này còn lại chưa đặt lên bàn (mỗi bộ cờ tướng thật chỉ có
-   đúng từng ấy quân — 1 Tướng/2 Sĩ/2 Tượng/2 Mã/2 Xe/2 Pháo/5 Tốt) — hết số
-   thì nút mờ đi và không chọn được nữa (xem cothePick/cotheCellClickSoan). */
-.cothe-pal-n{position:absolute;right:-4px;bottom:-4px;min-width:15px;height:15px;padding:0 2px;
-  border-radius:8px;background:#083B2F;color:#F7F3E9;font-family:var(--font);
-  font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .cothe-kho-list{display:flex;flex-direction:column;gap:6px}
 .cothe-kho-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff}
 .cothe-kho-item:hover{background:var(--brand-vl)}
@@ -7563,6 +7560,9 @@ function cotheCellClickSoan(r,c){
   // lại đúng loại đang có sẵn ở đó thì không đổi gì, luôn cho phép.
   if(!isSameType && cotheCountUsed(COTHE.board, side, type) >= COTHE_PIECE_MAX[type]) return;
   COTHE.board[r][c] = {side, type};
+  // Vừa dùng hết quân loại này (bảng quân sắp không còn nút nào của nó) —
+  // bỏ chọn ngay, tránh giữ "đang cầm" một quân không còn để đặt tiếp.
+  if(!isSameType && cotheCountUsed(COTHE.board, side, type) >= COTHE_PIECE_MAX[type]) COTHE.pick=null;
   cotheRender();
 }
 function cotheSetSide(side){ COTHE.sideToMove=side; cotheRender(); }
@@ -7746,11 +7746,15 @@ function cotheVerdictCaption(p){
 }
 function cothePalette(){
   const groups = [['r','Đỏ'],['b','Đen']].map(([side,label])=>{
-    const btns = COTHE_PIECE_TYPES.map(t=>{
-      const on = COTHE.pick && COTHE.pick!=='erase' && COTHE.pick.side===side && COTHE.pick.type===t;
+    // Vẽ ĐÚNG số quân còn lại — mỗi quân thật một nút riêng (không phải 1 nút
+    // + số đếm) — giống bốc quân thật ra khỏi hộp: hết quân loại nào thì
+    // loại đó hết nút luôn, không cần mờ/khoá riêng.
+    const on = (t)=> COTHE.pick && COTHE.pick!=='erase' && COTHE.pick.side===side && COTHE.pick.type===t;
+    const btns = COTHE_PIECE_TYPES.flatMap(t=>{
       const remain = COTHE_PIECE_MAX[t] - cotheCountUsed(COTHE.board, side, t);
-      const maxed = remain<=0;
-      return `<button type="button" class="cothe-pal-pc ${side==='r'?'red':'black'} ${on?'on':''} ${maxed?'maxed':''}" ${maxed?'disabled':''} onclick="cothePick('${side}','${t}')">${CHESS_CHAR[side][t]}<span class="cothe-pal-n">${Math.max(remain,0)}</span></button>`;
+      return Array.from({length:Math.max(remain,0)}, ()=>
+        `<button type="button" class="cothe-pal-pc ${side==='r'?'red':'black'} ${on(t)?'on':''}" onclick="cothePick('${side}','${t}')">${CHESS_CHAR[side][t]}</button>`
+      );
     }).join('');
     return `<div class="cothe-pal-group"><span class="cothe-pal-lbl">${label}</span><div class="cothe-pal-row">${btns}</div></div>`;
   }).join('');
