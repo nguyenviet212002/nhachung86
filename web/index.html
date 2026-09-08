@@ -2326,6 +2326,8 @@ function render(){
   if(XQ_FULLSCREEN_SCREENS.has(screen)){
     const shellOpts = screen==='cotuong-the'
       ? {extraClass:'xq-fs-cothe', topbarHtml: cotheTopbarHtml(body.includes('xq-fs-panel'))}
+      : screen==='cotuong-van'
+      ? {topbarHtml: xqHallNavHtml(null, {hasPanel: body.includes('xq-fs-panel'), closeTarget: XQ_FULLSCREEN_CLOSE[screen]})}
       : undefined;
     root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung', shellOpts);
     window.scrollTo(0,0);
@@ -2397,9 +2399,11 @@ const XQ_HALL_TABS = [
 // #logoutBtn — bindGlobal() (đã có sẵn) gắn sự kiện theo đúng các id này,
 // không cần sửa gì ở bindGlobal(). activeTab=null khi đang đấu (không tab
 // nào sáng — người chơi không đang "ở" một trong 4 mục đó).
-function xqHallNavHtml(activeTab){
+function xqHallNavHtml(activeTab, fsOpts){
+  fsOpts = fsOpts || {};
   const tabsHtml = XQ_HALL_TABS.map(t=>`<a href="#${t.id}" class="xq-hall-tab${activeTab===t.id?' on':''}" data-go="${t.id}">${esc(t.label)}</a>`).join('');
   return `<header class="xq-hall-nav"><div class="wrap xq-hall-nav-in">
+    ${fsOpts.hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',18)}</button>` : ''}
     <a href="#cotuong-online" class="xq-hall-logo" data-go="cotuong-online">${ic('star',22)}<span>SẢNH CỜ<br><b>NHACCON6789</b></span></a>
     <nav class="xq-hall-tabs">${tabsHtml}</nav>
     <div class="xq-hall-right">
@@ -2418,6 +2422,7 @@ function xqHallNavHtml(activeTab){
           <button id="logoutBtn" class="logout">${ic('logout',15)} Đăng xuất</button>
         </div>
       </div>
+      ${fsOpts.closeTarget ? `<a href="#${fsOpts.closeTarget}" data-go="${fsOpts.closeTarget}" class="ic-bell" title="Thoát, không đánh nữa">${ic('x',17)}</a>` : ''}
     </div>
   </div></header>`;
 }
