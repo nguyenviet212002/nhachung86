@@ -412,6 +412,13 @@ tr:last-child td{border-bottom:none}
 .xq-3col-right{order:3}
 @media(max-width:1024px){.xq-3col{grid-template-columns:200px minmax(0,1fr) 280px}}
 @media(max-width:768px){.xq-3col{grid-template-columns:1fr}.xq-3col-left{order:3}.xq-3col-center{order:1}.xq-3col-right{order:2}}
+/* .xq-fs-panel gốc là panel NỔI (position:fixed) cho các màn cờ 1 cột — dùng
+   lại nguyên khối HTML đó (rightColHtml) làm nội dung cột phải của bố cục 3
+   cột thì bị dính luôn position:fixed, thoát hẳn khỏi grid (cột phải xẹp về
+   cao 0, nội dung nổi đè lên cột trái/bàn cờ — lỗi thật đã xác nhận bằng đo
+   toạ độ DOM). Dán cứng lại đúng vị trí trong grid, luôn hiện — cột phải của
+   bố cục 3 cột không còn là panel ẩn/hiện qua nút ☰ nữa. */
+.xq-3col-right .xq-fs-panel{position:static;display:block;width:100%;max-height:none;box-shadow:none;top:auto;left:auto;right:auto}
 /* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
    (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
    nhẹ nhàng, không phải nền game portal rực rỡ. */
@@ -2196,11 +2203,21 @@ function render(){
   }
   // Đổi hẳn sang màn khác (không phải re-render lại CHÍNH màn cờ đang mở) thì
   // đóng bảng menu nổi — tránh menu của thế cờ cũ "dính" sang màn kế tiếp.
-  // Riêng vào thẳng màn ván cờ trực tuyến (chủ phòng/khách) thì MỞ SẴN — đang
-  // đấu mà mỗi nước lại phải bấm ☰ mở lại đồng hồ/nút hành động là phiền,
-  // trong khi bấm quân trên bàn cờ (nằm ngoài .xq-fs-panel) trước đây vô tình
-  // bị coi là "bấm ra ngoài" và tự đóng panel (xem sửa ở bindGlobal()).
-  if(screen!==PREV_SCREEN) XQ_FS_MENU_OPEN = (screen==='cotuong-van' || screen==='cotuong-phong');
+  //
+  // KHÔNG tự mở sẵn (XQ_FS_MENU_OPEN=true) cho bất kỳ màn nào nữa — đã thử và
+  // phát hiện .xq-fs-panel là panel NỔI (position:fixed, neo góc trái màn
+  // hình): trên điện thoại nó rộng gần bằng cả màn hình, đè lên hẳn hàng quân
+  // trên cùng của bàn cờ (ảnh chụp xác nhận: quân bị panel che, không bấm
+  // được) — đây chính là gốc lỗi "khách không bấm được quân" báo hôm nay. Đo
+  // thử cả ở màn 1280px vẫn còn đè khoảng 28px cạnh trái bàn cờ vì bàn cờ
+  // luôn canh giữa — không có ngưỡng rộng nào thật sự an toàn để tự mở panel
+  // NỔI này, nên bỏ hẳn việc tự mở, giữ nguyên hành vi gốc (đóng sẵn, tự bấm
+  // ☰ để mở). Vẫn giữ phần sửa ở bindGlobal() bên dưới (bấm quân đi nước
+  // không còn tự đóng panel) — cải thiện thật, không rủi ro. Riêng cột phải
+  // của bố cục 3 cột (V['cotuong-van'], người chơi thật) không còn dùng
+  // .xq-fs-panel kiểu nổi nữa — xem CSS `.xq-3col-right .xq-fs-panel` đã sửa
+  // thành dán cứng trong cột, luôn hiện, không phụ thuộc biến này.
+  if(screen!==PREV_SCREEN) XQ_FS_MENU_OPEN = false;
   PREV_SCREEN = screen;
   const root=document.getElementById('root');
   const variant = variantOf(screen);
