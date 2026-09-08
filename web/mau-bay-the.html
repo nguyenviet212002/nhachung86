@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bày thế — Sảnh Cờ NHACCON6789 (giao diện tĩnh)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --dark-green:#083B2F;
+    --green:#0F5A43;
+    --green-glow:#174F45;
+    --wood-light:#E8CF9B;
+    --wood-border:#9B6A2E;
+    --ivory:#F7F3E9;
+    --border-soft:#D8C9A8;
+    --ink:#1C2A22;
+    --muted:#5F6B66;
+    --red:#C93B2F;
+    --black:#1E1E1E;
+    --gold:#D7B26D;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Be Vietnam Pro',system-ui,sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    background:
+      linear-gradient(180deg, rgba(6,38,31,.55), rgba(6,38,31,.72)),
+      url('assets/00-banner/banner-co.png') center/cover no-repeat fixed;
+  }
+  button{font-family:inherit;cursor:pointer}
+
+  /* ============ TOPBAR ============ */
+  .topbar{
+    display:flex;align-items:center;gap:18px;
+    padding:12px 28px;
+    background:rgba(8,59,47,.82);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(215,178,109,.25);
+    position:sticky;top:0;z-index:20;
+  }
+  .topbar-left{display:flex;align-items:center;gap:12px;flex:none}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16);
+    color:#F7F3E9;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,.16)}
+  .brand-logo{
+    width:40px;height:40px;border-radius:50%;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 35% 30%, #2c7a5f, var(--dark-green));
+    border:1.5px solid var(--gold);
+    color:var(--gold);font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:19px;
+  }
+  .brand-text{display:flex;flex-direction:column;line-height:1.15}
+  .brand-text .l1{font-size:11.5px;letter-spacing:2px;color:var(--gold);font-weight:600}
+  .brand-text .l2{font-size:15.5px;letter-spacing:.5px;color:#fff;font-weight:800}
+
+  .topnav{
+    flex:1;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
+  }
+  .topnav-item{
+    display:flex;align-items:center;gap:7px;
+    padding:9px 18px;border-radius:999px;
+    font-size:14px;font-weight:600;color:rgba(247,243,233,.72);
+    border:1px solid transparent;text-decoration:none;
+  }
+  .topnav-item svg{width:15px;height:15px;flex:none;opacity:.85}
+  .topnav-item.active{
+    background:rgba(215,178,109,.16);
+    border-color:rgba(215,178,109,.55);
+    color:#fff;
+  }
+  .topnav-item:not(.active):hover{color:#fff}
+
+  .topbar-right{display:flex;align-items:center;gap:12px;flex:none}
+  .user-chip{
+    display:flex;align-items:center;gap:9px;
+    padding:5px 12px 5px 6px;border-radius:999px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16);
+    color:#F7F3E9;font-size:14px;font-weight:600;
+  }
+  .user-chip .avatar{
+    width:28px;height:28px;border-radius:50%;flex:none;
+    background:linear-gradient(160deg,var(--gold),#a97f3f);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--dark-green);font-weight:800;font-size:12.5px;
+  }
+  .user-chip svg{width:12px;height:12px;opacity:.75}
+
+  /* ============ LAYOUT ============ */
+  .page{max-width:1320px;margin:0 auto;padding:34px 28px 64px}
+  .setup-grid{display:flex;align-items:flex-start;gap:28px}
+
+  /* ============ SIDEBAR ============ */
+  .setup-sidebar{
+    flex:none;width:340px;
+    background:var(--ivory);
+    border-radius:22px;
+    border:1px solid var(--border-soft);
+    box-shadow:0 18px 40px rgba(0,0,0,.28);
+    padding:26px 24px 22px;
+  }
+  .setup-sidebar h1{
+    font-size:22px;font-weight:800;color:var(--ink);
+    display:flex;align-items:center;gap:10px;
+  }
+  .setup-sidebar h1::after{
+    content:"";flex:1;height:1px;
+    background:linear-gradient(90deg, var(--gold), transparent);
+    opacity:.6;
+  }
+  .flourish{
+    margin:6px 0 18px;font-size:12px;letter-spacing:3px;color:var(--gold);
+    text-align:center;
+  }
+
+  .piece-group{margin-bottom:16px}
+  .piece-group .lbl{
+    font-size:12.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:block;
+  }
+  .piece-row{display:flex;flex-wrap:wrap;gap:6px}
+  .piece-chip{
+    width:34px;height:34px;border-radius:11px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:#fff;border:1.5px solid var(--border-soft);
+    font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:16.5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.06);
+  }
+  .piece-chip.red{color:var(--red)}
+  .piece-chip.black{color:var(--black)}
+  .piece-chip:hover{border-color:var(--green);transform:translateY(-1px)}
+
+  .divider{height:1px;background:var(--border-soft);margin:18px 0}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;height:46px;border-radius:14px;
+    font-size:14.5px;font-weight:700;
+    border:1.5px solid transparent;
+  }
+  .btn-outline{
+    background:#fff;color:var(--ink);border-color:var(--border-soft);
+    margin-bottom:16px;
+  }
+  .btn-outline:hover{border-color:var(--wood-border)}
+  .btn-primary{
+    background:linear-gradient(160deg, var(--green), var(--dark-green));
+    color:#fff;box-shadow:0 10px 22px rgba(15,90,67,.35);
+    margin-bottom:10px;
+  }
+  .btn-secondary{
+    background:var(--wood-light);color:var(--ink);
+    border-color:var(--wood-border);
+  }
+
+  .side-label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
+  .segmented{
+    display:flex;background:#fff;border:1.5px solid var(--border-soft);
+    border-radius:12px;padding:3px;margin-bottom:20px;
+  }
+  .segmented .seg{
+    flex:1;height:38px;border-radius:9px;font-size:14px;font-weight:700;
+    color:var(--muted);
+  }
+  .segmented .seg.active{
+    background:var(--dark-green);color:#fff;
+    box-shadow:0 4px 10px rgba(8,59,47,.28);
+  }
+
+  .note-row{
+    display:flex;align-items:flex-start;gap:8px;
+    font-size:12.5px;color:var(--muted);line-height:1.5;
+  }
+  .note-row svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--gold)}
+
+  /* ============ BOARD AREA ============ */
+  .board-area{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+  .board-hint{
+    color:#F3ECD9;font-size:14px;font-weight:600;
+    margin-bottom:16px;text-align:center;
+    text-shadow:0 1px 6px rgba(0,0,0,.4);
+  }
+  .board-frame{
+    width:100%;max-width:620px;
+    background:linear-gradient(160deg,#a97a3c,var(--wood-border));
+    border-radius:20px;padding:16px;
+    box-shadow:0 24px 50px rgba(0,0,0,.4);
+  }
+  .board-inner{
+    background:var(--wood-light);
+    border-radius:12px;
+    padding:26px 22px;
+    box-shadow:inset 0 0 0 1px rgba(155,106,46,.35);
+  }
+  .board-svg{display:block;width:100%;height:auto}
+  .river-label{
+    font-family:'Songti SC','SimSun',serif;font-weight:700;
+    fill:#7a5326;letter-spacing:6px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:1024px){
+    .setup-sidebar{width:300px}
+    .topnav-item span{display:none}
+    .topnav-item{padding:9px 12px}
+  }
+  @media (max-width:860px){
+    .setup-grid{flex-direction:column;align-items:stretch}
+    .setup-sidebar{width:100%}
+    .board-frame{max-width:none}
+  }
+  @media (max-width:640px){
+    .topbar{padding:10px 14px;gap:10px}
+    .brand-text{display:none}
+    .user-chip span{display:none}
+    .page{padding:20px 14px 40px}
+    .board-inner{padding:16px 10px}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" type="button" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="brand-logo">棋</div>
+      <div class="brand-text">
+        <span class="l1">SẢNH CỜ</span>
+        <span class="l2">NHACCON6789</span>
+      </div>
+    </div>
+
+    <nav class="topnav">
+      <a class="topnav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/></svg>
+        <span>Cờ Tướng</span>
+      </a>
+      <a class="topnav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l6-6M20 4l-6 6M8 8l8 8"/></svg>
+        <span>Phòng đấu</span>
+      </a>
+      <a class="topnav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 01-12 0V4z"/></svg>
+        <span>Xếp hạng</span>
+      </a>
+      <a class="topnav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5v-15z"/></svg>
+        <span>Hướng dẫn</span>
+      </a>
+    </nav>
+
+    <div class="topbar-right">
+      <button class="icon-btn" type="button" aria-label="Thông báo">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      </button>
+      <div class="user-chip">
+        <span class="avatar">TV</span>
+        <span>TingTingVác</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <button class="icon-btn" type="button" aria-label="Cài đặt">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.04 1.56V21a2 2 0 01-4 0v-.09A1.7 1.7 0 008.9 19.35a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.65 15a1.7 1.7 0 00-1.56-1.04H3a2 2 0 010-4h.09A1.7 1.7 0 004.65 8.9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 008.9 4.65a1.7 1.7 0 001.04-1.56V3a2 2 0 014 0v.09a1.7 1.7 0 001.04 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.35 8.9c.14.36.2.73.2 1.1H21a2 2 0 010 4h-.09a1.7 1.7 0 00-1.56 1.04z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ MAIN ============ -->
+  <main class="page">
+    <div class="setup-grid">
+
+      <!-- ============ SETUP SIDEBAR ============ -->
+      <aside class="setup-sidebar">
+        <h1>Bày thế</h1>
+        <div class="flourish">卍 ・ 卐</div>
+
+        <div class="piece-group">
+          <span class="lbl">Đỏ</span>
+          <div class="piece-row">
+            <button class="piece-chip red" type="button">帥</button>
+            <button class="piece-chip red" type="button">仕</button>
+            <button class="piece-chip red" type="button">相</button>
+            <button class="piece-chip red" type="button">傌</button>
+            <button class="piece-chip red" type="button">俥</button>
+            <button class="piece-chip red" type="button">炮</button>
+            <button class="piece-chip red" type="button">兵</button>
+          </div>
+        </div>
+
+        <div class="piece-group">
+          <span class="lbl">Đen</span>
+          <div class="piece-row">
+            <button class="piece-chip black" type="button">將</button>
+            <button class="piece-chip black" type="button">士</button>
+            <button class="piece-chip black" type="button">象</button>
+            <button class="piece-chip black" type="button">馬</button>
+            <button class="piece-chip black" type="button">車</button>
+            <button class="piece-chip black" type="button">砲</button>
+            <button class="piece-chip black" type="button">卒</button>
+          </div>
+        </div>
+
+        <button class="btn btn-outline" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          Xoá quân (bấm ô)
+        </button>
+
+        <div class="side-label">Bên đi trước:</div>
+        <div class="segmented">
+          <button class="seg active" type="button">Đỏ</button>
+          <button class="seg" type="button">Đen</button>
+        </div>
+
+        <button class="btn btn-primary" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          Chốt thế
+        </button>
+        <button class="btn btn-secondary" type="button">← Quay lại</button>
+
+        <div class="divider"></div>
+
+        <div class="note-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8.01"/><line x1="12" y1="11" x2="12" y2="16"/></svg>
+          <span>Bấm 1 quân bên dưới rồi bấm vào bàn cờ</span>
+        </div>
+      </aside>
+
+      <!-- ============ CHESS BOARD ============ -->
+      <section class="board-area">
+        <p class="board-hint">Bấm 1 quân bên dưới rồi bấm vào bàn cờ</p>
+
+        <div class="board-frame">
+          <div class="board-inner">
+            <!-- Bàn cờ tướng 9x10 điểm, cung có gạch chéo, khoảng sông ở giữa.
+                 Toạ độ: cột c=0..8 (x=c*60), hàng r=0..9 với sông giãn giữa
+                 r=4 và r=5 (xem giải thích trong PR / lịch sử commit). -->
+            <svg class="board-svg" viewBox="0 0 480 560" xmlns="http://www.w3.org/2000/svg">
+              <!-- lưới ngang: 10 đường đầy đủ -->
+              <g stroke="#8a5f34" stroke-width="2">
+                <line x1="0" y1="0"   x2="480" y2="0"/>
+                <line x1="0" y1="60"  x2="480" y2="60"/>
+                <line x1="0" y1="120" x2="480" y2="120"/>
+                <line x1="0" y1="180" x2="480" y2="180"/>
+                <line x1="0" y1="240" x2="480" y2="240"/>
+                <line x1="0" y1="320" x2="480" y2="320"/>
+                <line x1="0" y1="380" x2="480" y2="380"/>
+                <line x1="0" y1="440" x2="480" y2="440"/>
+                <line x1="0" y1="500" x2="480" y2="500"/>
+                <line x1="0" y1="560" x2="480" y2="560"/>
+              </g>
+              <!-- lưới dọc: 2 cột biên chạy suốt, 7 cột giữa ngắt ở khoảng sông -->
+              <g stroke="#8a5f34" stroke-width="2">
+                <line x1="0"   y1="0" x2="0"   y2="560"/>
+                <line x1="480" y1="0" x2="480" y2="560"/>
+                <line x1="60"  y1="0" x2="60"  y2="240"/><line x1="60"  y1="320" x2="60"  y2="560"/>
+                <line x1="120" y1="0" x2="120" y2="240"/><line x1="120" y1="320" x2="120" y2="560"/>
+                <line x1="180" y1="0" x2="180" y2="240"/><line x1="180" y1="320" x2="180" y2="560"/>
+                <line x1="240" y1="0" x2="240" y2="240"/><line x1="240" y1="320" x2="240" y2="560"/>
+                <line x1="300" y1="0" x2="300" y2="240"/><line x1="300" y1="320" x2="300" y2="560"/>
+                <line x1="360" y1="0" x2="360" y2="240"/><line x1="360" y1="320" x2="360" y2="560"/>
+                <line x1="420" y1="0" x2="420" y2="240"/><line x1="420" y1="320" x2="420" y2="560"/>
+              </g>
+              <!-- 2 cung tướng, gạch chéo -->
+              <g stroke="#8a5f34" stroke-width="2">
+                <line x1="180" y1="0"   x2="300" y2="120"/>
+                <line x1="300" y1="0"   x2="180" y2="120"/>
+                <line x1="180" y1="440" x2="300" y2="560"/>
+                <line x1="300" y1="440" x2="180" y2="560"/>
+              </g>
+              <!-- chữ sông -->
+              <text x="140" y="288" class="river-label" font-size="26" text-anchor="middle">楚河</text>
+              <text x="340" y="288" class="river-label" font-size="26" text-anchor="middle">漢界</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+</body>
+</html>
