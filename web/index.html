@@ -6494,6 +6494,34 @@ V['cotuong-phong-dau'] = ()=>{
   <div style="margin-top:18px"><button class="btn btn-blue" onclick="roomCreate()">${ic('users',15)} Tạo phòng</button></div>`;
 };
 
+// Xếp hạng — cùng nhịp fetch-cache-render với XQ_ANALYSIS_CACHE/xqFetchAnalysis
+// ở trên: cache module-level, no-op nếu đang tải/đã có, gọi render() khi xong.
+let XQ_LEADERBOARD_CACHE = null; // null=chưa tải, 'loading', hoặc mảng data
+function xqFetchLeaderboard(){
+  if(XQ_LEADERBOARD_CACHE!==null) return;
+  XQ_LEADERBOARD_CACHE = 'loading';
+  api.get('/games/leaderboard').then(r=>{ XQ_LEADERBOARD_CACHE = r.data||[]; render(); })
+    .catch(()=>{ XQ_LEADERBOARD_CACHE = []; render(); });
+}
+V['cotuong-xep-hang'] = ()=>{
+  xqFetchLeaderboard();
+  if(XQ_LEADERBOARD_CACHE===null || XQ_LEADERBOARD_CACHE==='loading'){
+    return `<div class="page-head"><div><h1>Xếp hạng</h1></div></div>
+    <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`;
+  }
+  const rows = XQ_LEADERBOARD_CACHE;
+  const rowHtml = (r,i) => `<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    <div style="width:28px;text-align:center;font-weight:800;color:var(--muted)">${i+1}</div>
+    ${avatarCircle(r.avatar_url, r.full_name, 36)}
+    <div style="flex:1"><b style="font-size:14px">${esc(r.full_name)}</b>
+      <div style="font-size:12px;color:var(--muted)">${r.games_count} ván${r.avg_loss!==null?` · ACPL ${r.avg_loss.toFixed(1)}`:''}</div></div>
+    <div style="font-weight:800;font-size:15px;color:var(--brand)">${r.win_rate}%</div>
+  </div>`;
+  return `
+  <div class="page-head"><div><h1>Xếp hạng</h1><p>Theo tỉ lệ thắng — chỉ tính thành viên đã chơi ít nhất 5 ván đã mổ xong.</p></div></div>
+  ${rows.length ? rows.map(rowHtml).join('') : '<p style="padding:20px;text-align:center;color:var(--muted)">Chưa có ai đủ 5 ván để xếp hạng.</p>'}`;
+};
+
 let CHALLENGE_PICK = null, CHALLENGE_TIMER = null;
 function challengeSearchInput(){
   clearTimeout(CHALLENGE_TIMER);
