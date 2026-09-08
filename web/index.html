@@ -6452,6 +6452,28 @@ V['cotuong-online'] = ()=>{
   </div>`;
 };
 
+V['cotuong-huong-dan'] = ()=>`
+  <div class="page-head"><div><h1>Hướng dẫn</h1><p>Luật chơi cơ bản và cách dùng Sảnh Cờ.</p></div></div>
+  <div class="card" style="margin-bottom:14px">
+    <h3>${ic('book',16)} Luật chơi cơ bản</h3>
+    <p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:8px">
+      Mỗi bên có 16 quân: 1 Tướng, 2 Sĩ, 2 Tượng, 2 Xe, 2 Pháo, 2 Mã, 5 Tốt. Tướng chỉ đi trong cung (3x3 ô), không được đối mặt trực tiếp với Tướng đối phương.
+      Sĩ đi chéo trong cung. Tượng đi chéo 2 ô, không qua sông, bị cản nếu có quân ở giữa đường đi (mắt Tượng). Xe đi ngang/dọc không giới hạn.
+      Pháo đi như Xe nhưng khi ăn quân phải nhảy qua đúng 1 quân khác (ngòi Pháo). Mã đi hình chữ "nhật", bị cản nếu có quân ngay cạnh chân Mã.
+      Tốt trước khi qua sông chỉ đi thẳng 1 ô; qua sông rồi đi thẳng hoặc ngang 1 ô, không được lùi. Chiếu bí Tướng đối phương là thắng; hết nước đi hợp lệ mà không bị chiếu là thua (hết nước).
+    </p>
+  </div>
+  <div class="card">
+    <h3>${ic('star',16)} Cách dùng Sảnh Cờ</h3>
+    <div style="margin-top:10px">
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Tạo phòng & mời</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Bấm "Tạo phòng" ở màn Cờ Tướng, gửi link mời cho đối thủ — họ vào chơi được ngay, không cần lập tài khoản.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Máy đi hộ</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Đang đấu mà bận việc, bật "Máy đi hộ ta" để nhaccon6789 tự đi hộ đến khi bạn quay lại tắt.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Mổ ván</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Sau khi ván kết thúc, cả hai người chơi xem lại từng nước đi và điểm mất trung bình (ACPL) để biết mình sai ở đâu.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Hồ sơ đối thủ</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Trong ván đang đấu, xem nhanh số ván/tỉ lệ thắng/ACPL trung bình của đối thủ.</p></div>
+      <div><b style="font-size:13.5px">Xếp hạng</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Bảng xếp theo tỉ lệ thắng, chỉ tính thành viên đã chơi ít nhất 5 ván đã mổ xong.</p></div>
+    </div>
+  </div>`;
+
 V['cotuong-phong-dau'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
     return `<div class="page-head"><div><h1>Phòng đấu</h1></div></div>
