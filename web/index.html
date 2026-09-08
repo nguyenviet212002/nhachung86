@@ -536,7 +536,8 @@ tr:last-child td{border-bottom:none}
 .cothe-kho-item .nm{font-weight:700;font-size:13.5px}
 .cothe-kho-item .meta{font-size:12px;color:var(--muted);margin-top:2px}
 .cothe-hoso-list{display:flex;flex-direction:column;gap:4px}
-.cothe-hoso-item{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line2)}
+.cothe-hoso-item{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line2);cursor:pointer}
+.cothe-hoso-item:hover{background:var(--brand-vl)}
 .cothe-hoso-kq{font-weight:700;color:var(--muted)}
 .cothe-hoso-kq.thang{color:#1a7a3c}
 .cothe-hoso-kq.thua{color:#c0392b}
@@ -7615,6 +7616,22 @@ function cotheOpenPosition(id){
     COTHE.busy=false; COTHE.position=p; COTHE.stage='position'; COTHE.refutation=null; cotheRender();
   }).catch(e=>{ COTHE.busy=false; toast(cotheErrMsg(e),'x'); cotheRender(); });
 }
+// Mở lại 1 ván từ "Hồ sơ gần đây" — xem tiếp ván đang chơi hoặc coi lại ván đã
+// xong. Cần nạp CẢ position gốc (không chỉ session) vì màn "finished" lùi
+// nước bằng cách phát lại từ COTHE.position.board (xem cotheHistBoard).
+function cotheOpenSession(id){
+  if(COTHE.busy) return;
+  COTHE.busy=true; cotheRender();
+  api.get('/co-the/sessions/'+id).then(s=>
+    api.get('/co-the/positions/'+s.position_id).then(p=>{
+      COTHE.busy=false; COTHE.position=p; COTHE.session=s;
+      COTHE.selected=null; COTHE.legal=[]; COTHE.hint=null; COTHE.histIdx=null; COTHE.moVan=null; COTHE.invite=null;
+      if(s.status==='ket-thuc'){ COTHE.stage='finished'; if(s.mode==='giai') cotheGetMoVan(); }
+      else COTHE.stage='playing';
+      cotheRender();
+    })
+  ).catch(e=>{ COTHE.busy=false; toast(cotheErrMsg(e),'x'); cotheRender(); });
+}
 function cothePhanTich(){
   if(COTHE.busy) return; COTHE.busy=true; cotheRender();
   api.post('/co-the/positions/'+COTHE.position.id+'/phan-tich').then(p=>{
@@ -7777,7 +7794,7 @@ function cotheHomeHtml(){
           ${p.verdict?` · <b class="cothe-v-${p.verdict}">${COTHE_VERDICT_LABEL[p.verdict]}</b>${p.verdict_certainty==='chung-minh'?' ✓':' ◐'}`:''}</div>
       </div>`).join('');
   const hoSo = !COTHE.mySessions ? '' : !COTHE.mySessions.length ? `<p style="font-size:13px;color:var(--muted)">Bạn chưa giải ván Cờ Thế nào.</p>`
-    : COTHE.mySessions.map(s=>`<div class="cothe-hoso-item">
+    : COTHE.mySessions.map(s=>`<div class="cothe-hoso-item" onclick="cotheOpenSession('${s.id}')">
         <span>${esc(s.label||'Thế tự soạn')}</span>
         <span class="cothe-hoso-kq ${s.result||''}">${s.status==='ket-thuc' ? (s.result?COTHE_VERDICT_LABEL[s.result]:(COTHE_END_REASON_LABEL[s.end_reason]||'Xong')) : 'Đang chơi'}</span>
       </div>`).join('');
