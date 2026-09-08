@@ -118,8 +118,16 @@ ul{list-style:none}
    cả logo/chuông/tài khoản), nên bỏ hẳn overflow-x ở hàng ngoài này thay vì
    thêm overflow-y:visible (không tự nhiên bằng, dễ bị đổi lại sau này). */
 .xq-hall-nav-in{display:flex;align-items:center;gap:18px;padding:10px 0}
-.xq-hall-logo{display:flex;align-items:center;gap:8px;color:#fff;flex:none;font-size:12px;line-height:1.3;font-weight:700;text-decoration:none}
-.xq-hall-logo b{display:block;font-size:13px;letter-spacing:.02em}
+.xq-hall-logo{display:flex;align-items:center;gap:10px;color:#fff;flex:none;font-size:13.5px;font-weight:800;letter-spacing:.02em;text-decoration:none}
+/* Huy hiệu logo — cùng công thức màu với .cothe-brand-logo (màn Cờ Thế của
+   phiên trước) để 2 topbar chị em trông cùng một bộ nhận diện, thay cho icon
+   ngôi sao rời rạc trước đây không khớp ảnh mẫu. */
+.xq-hall-mark{width:36px;height:36px;border-radius:10px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%,#2c7a5f,#083B2F);
+  border:1.5px solid #D7B26D;color:#e3b34a;
+  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:19px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
 /* Sửa lỗi review cuối nhánh (Important): rời khung site (headerComp/wrapPage/
    drawer/tabbar) đồng nghĩa 4 màn Sảnh Cờ không còn lối thoát nào về phần
    còn lại của site trên điện thoại ngoài cuộn xuống footer — đúng rủi ro
@@ -141,13 +149,30 @@ ul{list-style:none}
    " Nhà Chung" vẫn đủ rộng để đẩy #umenuBtn ra khỏi vùng nhìn thấy — thu về
    còn mỗi mũi tên "←" (vẫn còn href/data-go/title/aria-label nguyên vẹn,
    click được, đọc được bằng trình đọc màn hình) đúng lúc chỗ eo hẹp nhất. */
-@media(max-width:480px){.xq-hall-home-t{display:none}}
+/* Kiểm thử trình duyệt thật ở 390px (sau khi thêm .xq-hall-mark/.chev đợt
+   sửa giao diện này) phát hiện: .xq-hall-right không co (flex:none) đẩy
+   .xq-hall-tabs (flex:1) co về clientWidth:0 — cả 4 tab biến mất, bánh răng
+   trôi ra ngoài màn hình hẳn (x:458 > 390), không cuộn tới được (tràn ra
+   ngoài .xq-hall-nav mà trang lại overflow-x:hidden ở cấp toàn trang). Bớt
+   huy hiệu logo + dòng phụ "NHACCON6789" + tên/mũi tên xổ xuống cạnh avatar
+   ở màn hẹp — đủ nhường lại chỗ cho hàng tab thay vì để nó co về 0. */
+@media(max-width:480px){
+  .xq-hall-home-t{display:none}
+  .xq-hall-mark{display:none}
+  .xq-hall-nav .avatar-mini .nm,.xq-hall-nav .avatar-mini .chev{display:none}
+  .xq-hall-nav .avatar-mini{padding:5px;gap:0}
+  .xq-hall-nav-in{gap:10px}
+  .xq-hall-right{gap:6px}
+}
 .xq-hall-tabs{display:flex;gap:4px;flex:1;overflow-x:auto}
-.xq-hall-tab{color:rgba(255,255,255,.72);padding:8px 12px;border-radius:8px;font-size:13.5px;font-weight:600;white-space:nowrap;text-decoration:none}
-.xq-hall-tab.on{color:#fff;background:rgba(255,255,255,.14)}
-.xq-hall-right{display:flex;align-items:center;gap:6px;flex:none}
+.xq-hall-tab{color:rgba(255,255,255,.72);padding:8px 12px;border-radius:9px;font-size:13.5px;font-weight:600;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+.xq-hall-tab svg{opacity:.75;flex:none}
+.xq-hall-tab.on{color:#fff;background:rgba(255,255,255,.16)}
+.xq-hall-tab.on svg{opacity:1}
+.xq-hall-right{display:flex;align-items:center;gap:8px;flex:none}
 .xq-hall-nav .ic-bell{color:#fff}
 .xq-hall-nav .avatar-mini .nm{color:#fff}
+.xq-hall-nav .avatar-mini .chev{color:rgba(255,255,255,.6);display:inline-flex;margin-left:2px}
 .xq-hall-nav .umenu{color:var(--ink)}
 /* Task 3 (màn cotuong-van): #xqFsMenuBtn tái dùng class .xq-fs-menu-btn (nút
    ☰ nổi mặc định của xqFullscreenShell — CSS gốc position:fixed, neo góc
@@ -415,9 +440,12 @@ tr:last-child td{border-bottom:none}
 .jf-step.on .jf-t{color:var(--ink)}
 
 /* ===== Cờ tướng ===== */
-.xq-wrap{display:flex;justify-content:center;padding:22px;border-radius:16px;
+.xq-wrap{display:flex;flex-direction:column;align-items:center;padding:22px;border-radius:16px;
   background:radial-gradient(ellipse at 50% 0%,#1f4a3a,#0e2e22 70%);
   box-shadow:inset 0 2px 14px rgba(0,0,0,.35)}
+.xq-wrap .xq-board{margin:0 auto}
+.xq-wrap .xq-player-bar{width:100%;max-width:472px}
+@media(max-width:600px){.xq-wrap{padding:14px}}
 .xq-board{--xq-pad:26px;position:relative;width:100%;max-width:472px;aspect-ratio:8/9;container-type:inline-size;
   background:repeating-linear-gradient(90deg,rgba(140,100,45,.08) 0 2px,transparent 2px 22px),
     radial-gradient(ellipse at 30% 20%,#F6E6BE,#E8CE97 55%,#D6B87C 100%);
@@ -458,11 +486,11 @@ tr:last-child td{border-bottom:none}
 .xq-clock-row{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
 .xq-clock{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.08)}
 .xq-clock.low{color:#ff9d92;background:rgba(255,90,60,.16)}
-.xq-3col{display:grid;grid-template-columns:220px minmax(0,1fr) 300px;gap:16px;align-items:start}
-.xq-3col-left{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;order:1}
+.xq-3col{display:grid;grid-template-columns:260px minmax(0,1fr) 300px;gap:16px;align-items:start}
+.xq-3col-left{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;order:1}
 .xq-3col-center{order:2}
 .xq-3col-right{order:3}
-@media(max-width:1024px){.xq-3col{grid-template-columns:200px minmax(0,1fr) 280px}}
+@media(max-width:1024px){.xq-3col{grid-template-columns:230px minmax(0,1fr) 280px}}
 @media(max-width:768px){.xq-3col{grid-template-columns:1fr}.xq-3col-left{order:3}.xq-3col-center{order:1}.xq-3col-right{order:2}}
 /* .xq-fs-panel gốc là panel NỔI (position:fixed) cho các màn cờ 1 cột — dùng
    lại nguyên khối HTML đó (rightColHtml) làm nội dung cột phải của bố cục 3
@@ -471,6 +499,55 @@ tr:last-child td{border-bottom:none}
    toạ độ DOM). Dán cứng lại đúng vị trí trong grid, luôn hiện — cột phải của
    bố cục 3 cột không còn là panel ẩn/hiện qua nút ☰ nữa. */
 .xq-3col-right .xq-fs-panel{position:static;display:block;width:100%;max-height:none;box-shadow:none;top:auto;left:auto;right:auto}
+/* Nền tối cho cột phải (thẻ Ván đấu/Đối thủ/Trợ giúp): quét theo .xq-fs-hall,
+   KHÔNG quét .xq-3col-right — nhánh khách xem (!mySide) của V['cotuong-van']
+   không có cột 3-col, panel nằm thẳng trong .content, nếu chỉ bắt theo
+   .xq-3col-right thì panel đó vẫn nền trắng mặc định trong khi .xq-panel-card/
+   -h bên trong lại tô màu chữ gần trắng — không đọc được. .xq-fs-hall giờ bọc
+   4 màn cờ cùng dùng bố cục Sảnh Cờ này: cotuong-van (cả 2 nhánh), cotuong-may
+   (đấu máy), cotuong (giao lưu 2 người cùng máy) — không đụng .xq-fs-panel
+   nền trắng mặc định của 2 màn cờ CÒN LẠI vẫn dùng class đó riêng
+   (cotuong-the-nhanh, cotuong-phong; cotuong-the đã có nền cothe-panel riêng
+   qua extraClass 'xq-fs-cothe'). */
+.xq-fs-hall .xq-fs-panel{background:linear-gradient(165deg,#1c4433,#0e2e22);border:1px solid rgba(215,178,109,.25);color:#eef7f0;
+  display:block;position:static;width:100%;max-height:none;box-shadow:none;top:auto;left:auto;right:auto;margin-top:14px}
+.xq-fs-hall .xq-fs-panel h1{color:#fff}
+/* Thanh tên/đồng hồ đối thủ (trên bàn) và của mình (dưới bàn) — thay thế
+   phần "Tới lượt bạn" chữ nổi đơn thuần cũ bằng bố cục giống ảnh mẫu: avatar
+   + tên + quân tướng theo bên + đồng hồ + chấm tín hiệu kết nối. */
+.xq-player-bar{display:flex;align-items:center;gap:8px;background:#0e2e22;border:1px solid rgba(215,178,109,.2);
+  border-radius:10px;padding:6px 10px;margin:0 0 8px;color:#eef7f0;box-sizing:border-box}
+.xq-player-bar:last-of-type{margin:8px 0 0}
+.xq-player-side{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  font-family:'Songti SC','SimSun',serif;font-weight:800;font-size:12px;
+  background:radial-gradient(circle at 35% 28%,#FFFBEF,#E8CE97 60%,#D6B87C 100%);border:1.5px solid #8a5d24}
+.xq-player-side.red{color:#B4231F}
+.xq-player-side.black{color:#1f2937}
+.xq-player-name{flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xq-player-clock{flex:none;font-variant-numeric:tabular-nums;font-weight:800;font-size:12px;padding:3px 8px;border-radius:7px;background:rgba(255,255,255,.08)}
+.xq-player-clock.low{color:#ff9d92;background:rgba(255,90,60,.16)}
+.xq-player-sig{flex:none;width:7px;height:7px;border-radius:50%;background:#3ecf7a;box-shadow:0 0 0 2px rgba(62,207,122,.25)}
+.xq-player-bar.off .xq-player-sig{background:#9aa;box-shadow:0 0 0 2px rgba(153,170,170,.2)}
+.xq-player-bar.active{border-color:#D7B26D;box-shadow:0 0 0 1px rgba(215,178,109,.35)}
+.xq-player-bar.active .xq-player-clock{background:rgba(215,178,109,.22);color:#f3d9a0}
+/* Bọc rộng bằng bàn cờ: player-bar dùng ĐÚNG công thức max-width của
+   .xq-fs-hall .xq-board (xem khối cạnh .xq-fs-hall .xq-board bên dưới) để 2
+   thanh trên/dưới luôn khớp mép bàn cờ, kể cả khi ngân sách chiều cao viewport
+   thu hẹp bàn lại (không cố định 1 số px). */
+.xq-fs-hall .xq-wrap .xq-player-bar{max-width:min(97vw,780px,calc((100vh - 280px)*8/9))}
+@media(max-width:768px){.xq-fs-hall .xq-wrap .xq-player-bar{max-width:min(97vw,calc((100vh - 246px)*8/9))}}
+/* Cột phải "ĐIỀU KHIỂN TRẬN ĐẤU" — nhóm nút/thông tin sẵn có thành từng thẻ
+   nhỏ theo đúng bố cục ảnh mẫu (Ván đấu / Đối thủ / Máy đi hộ ta) thay vì một
+   danh sách phẳng, KHÔNG đổi bất kỳ onclick/hành vi nào bên trong. */
+.xq-panel-eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(255,255,255,.5);text-transform:uppercase;margin:0 0 10px}
+.xq-panel-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;margin-bottom:10px}
+.xq-panel-card-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.62);margin-bottom:8px}
+.xq-panel-opponent{display:flex;align-items:center;gap:10px;cursor:pointer}
+.xq-panel-opponent .nm{font-size:14.5px;font-weight:700;display:block}
+.xq-panel-opponent .st{font-size:12px;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:5px}
+.xq-panel-opponent .st .dot{width:6px;height:6px;border-radius:50%;background:#3ecf7a;flex:none}
+.xq-panel-opponent .st.off .dot{background:#9aa}
+.xq-panel-opponent svg:last-child{margin-left:auto;color:rgba(255,255,255,.4);flex:none}
 /* Trang hub Cờ tướng (V['cotuong-online']) — băng chào mừng + 2 thẻ chính
    (Đấu cờ / Cờ thế), dùng ảnh quân cờ 3D trong assets/cotuong/ làm điểm nhấn
    nhẹ nhàng, không phải nền game portal rực rỡ. */
@@ -626,6 +703,17 @@ tr:last-child td{border-bottom:none}
     linear-gradient(180deg, rgba(6,38,31,.55), rgba(6,38,31,.72)),
     url('assets/00-banner/banner-co.png') center/cover no-repeat;
 }
+/* Màn đấu thật (V['cotuong-van']) — cùng ảnh nền phong cảnh núi-tre-trăng với
+   Cờ Thế thay cho mảng xanh phẳng trước đây, đúng yêu cầu "phân bổ lại giống
+   ảnh 2" (ảnh mẫu có nền có chiều sâu, không phẳng 1 màu). Gradient tối hơn
+   .xq-fs-cothe một chút (.72/.85 so với .55/.72) vì màn này có bàn cờ SÁNG
+   (ngà vàng) làm tâm điểm — nền cần lùi lại rõ hơn để không cạnh tranh, khác
+   Cờ Thế vốn dùng tông kem/vàng đồng bộ với nền. */
+.xq-fs.xq-fs-hall{
+  background:
+    linear-gradient(180deg, rgba(6,38,31,.72), rgba(6,38,31,.85)),
+    url('assets/00-banner/banner-co.png') center/cover no-repeat;
+}
 .xq-fs-cothe .content{padding-top:112px}
 .cothe-topbar{
   position:fixed;top:0;left:0;right:0;z-index:212;height:58px;box-sizing:border-box;
@@ -661,8 +749,15 @@ tr:last-child td{border-bottom:none}
 .xq-fs-hall .xq-status-bar{top:calc(74px + env(safe-area-inset-top))}
 .xq-fs-hall .xq-fs-panel{top:calc(74px + env(safe-area-inset-top))}
 .xq-fs-hall .xq-fs-card{top:calc(74px + 6vh)}
-.xq-fs-hall .xq-board{max-width:min(97vw,780px,calc((100vh - 192px)*8/9))}
-@media(max-width:768px){.xq-fs-hall .xq-board{max-width:min(97vw,calc((100vh - 158px)*8/9))}}
+/* Ngân sách 192→280 (+88px, so với bản gốc trước khi có thanh tên/đồng hồ
+   người chơi trên-dưới bàn cờ): mỗi .xq-player-bar cao ~36px + margin 8px =
+   ~44px, 2 thanh = ~88px chiều cao mới bên trong .xq-wrap mà công thức cũ
+   chưa tính — không bù thì bàn+2 thanh tràn khỏi viewport trên màn thấp
+   (.xq-fs vẫn overflow-y:auto nên không vỡ layout, chỉ phải cuộn thêm nếu
+   thiếu bù). Cùng số 88 dùng lại ở .xq-fs-hall .xq-wrap .xq-player-bar phía
+   trên để 2 nơi luôn khớp nhau. */
+.xq-fs-hall .xq-board{max-width:min(97vw,780px,calc((100vh - 280px)*8/9))}
+@media(max-width:768px){.xq-fs-hall .xq-board{max-width:min(97vw,calc((100vh - 246px)*8/9))}}
 
 .cothe-topbar .icon-btn{
   width:36px;height:36px;border-radius:50%;flex:none;
@@ -2343,6 +2438,20 @@ function render(){
     if(CHESS_AI) CHESS_AI.thinking=false;
     if(CHESS_THE) CHESS_THE.thinking=false;
   }
+  // Đồng hồ đếm giờ suy nghĩ (xqLocalPlayerBarHtml, mỗi giây gọi lại render()
+  // để số giây tự chạy) — chỉ 2 màn cờ cục bộ có đồng hồ này (không phải ván
+  // online thật, không có đồng hồ server). Bật khi VÀO 1 trong 2 màn, tắt khi
+  // RỜI CẢ HAI (không tắt khi chỉ đang re-render lại chính màn đó).
+  if(screen==='cotuong-may'||screen==='cotuong') startLocalClock();
+  else if(PREV_SCREEN==='cotuong-may'||PREV_SCREEN==='cotuong') stopLocalClock();
+  // CHESS (cờ tướng giao lưu) được tạo SẴN ở top-level ngay lúc script chạy
+  // (không có màn "Bắt đầu" như CHESS_AI) — turnStartedAt gốc là thời điểm
+  // NẠP TRANG, không phải lúc người dùng thật sự vào màn này. Không reset lại
+  // mỗi lần vào màn thì ai đó nạp trang xong lướt chỗ khác 10 phút rồi mới
+  // ghé #cotuong sẽ thấy đồng hồ bên Đỏ đã chạy sẵn 10 phút — sai. Reset lại
+  // mốc giờ (KHÔNG đụng board/moves/timeMs đã tích luỹ) mỗi lần thật sự BƯỚC
+  // VÀO màn, không phải mỗi lần render() lại chính màn đang mở.
+  if(screen==='cotuong' && PREV_SCREEN!=='cotuong') CHESS.turnStartedAt = Date.now();
   // Đổi hẳn sang màn khác (không phải re-render lại CHÍNH màn cờ đang mở) thì
   // đóng bảng menu nổi — tránh menu của thế cờ cũ "dính" sang màn kế tiếp.
   //
@@ -2406,7 +2515,22 @@ function render(){
       // .xq-fs-card mặc định (chúng neo top:18px/58px/12vh theo viewport,
       // không biết gì về topbar mới chèn phía trên). Xem các quy tắc
       // `.xq-fs-hall ...` cạnh `.xq-fs-cothe ...` trong CSS.
-      ? {extraClass:'xq-fs-hall', topbarHtml: xqHallNavHtml(null, {hasPanel: body.includes('xq-fs-panel'), closeTarget: XQ_FULLSCREEN_CLOSE[screen]})}
+      // hasPanel:false CỐ TÌNH (khác 6 màn cờ khác) — panel của cotuong-van
+      // giờ LUÔN hiện (xem `.xq-fs-hall .xq-fs-panel` ép display:block/
+      // position:static trong CSS bên dưới, áp cho CẢ 2 nhánh chơi thật lẫn
+      // xem khách), không còn cần nút ☰ để mở/đóng nữa — để lại nút này chỉ
+      // là 1 nút chết (bấm không thấy gì đổi) vì .xq-3col-right đã ép hiện
+      // sẵn từ trước, còn nhánh xem khách giờ cũng ép hiện sẵn tương tự.
+      ? {extraClass:'xq-fs-hall', topbarHtml: xqHallNavHtml(null, {hasPanel:false, closeTarget: XQ_FULLSCREEN_CLOSE[screen]})}
+      // cotuong (giao lưu 2 người cùng máy) và cotuong-may (đấu máy): cùng
+      // thanh Sảnh Cờ + bố cục 3 cột + đồng hồ dưới mỗi bên như cotuong-van,
+      // theo yêu cầu "giao diện trong đấu ngay và thách đấu giống bên tạo
+      // phòng lúc chơi cờ" — 2 màn này KHÔNG có ván online thật (không có
+      // st.red_name/black_name/xqDisplayClock), nên panel/đồng hồ ở đây dùng
+      // xqLocalPlayerBarHtml (đếm giờ suy nghĩ cộng dồn phía client) thay vì
+      // xqPlayerBarHtml (đọc đồng hồ đếm ngược từ server).
+      : (screen==='cotuong-may'||screen==='cotuong')
+      ? {extraClass:'xq-fs-hall', topbarHtml: xqHallNavHtml(null, {hasPanel:false, closeTarget: XQ_FULLSCREEN_CLOSE[screen]})}
       : undefined;
     root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung', shellOpts);
     window.scrollTo(0,0);
@@ -2466,10 +2590,10 @@ function xqFullscreenShell(bodyHtml, closeTarget, opts){
   </div>`;
 }
 const XQ_HALL_TABS = [
-  {id:'cotuong-online', label:'Cờ Tướng'},
-  {id:'cotuong-phong-dau', label:'Phòng đấu'},
-  {id:'cotuong-xep-hang', label:'Xếp hạng'},
-  {id:'cotuong-huong-dan', label:'Hướng dẫn'},
+  {id:'cotuong-online', label:'Cờ Tướng', icon:'grid'},
+  {id:'cotuong-phong-dau', label:'Phòng đấu', icon:'users'},
+  {id:'cotuong-xep-hang', label:'Xếp hạng', icon:'medal'},
+  {id:'cotuong-huong-dan', label:'Hướng dẫn', icon:'book'},
 ];
 // Topbar riêng của Sảnh Cờ — dùng CHUNG cho cả màn sảnh (xqHallShell, xem
 // dưới) lẫn màn đang đấu (xqFullscreenShell, Task 3) thay vì mỗi nơi một
@@ -2480,10 +2604,10 @@ const XQ_HALL_TABS = [
 // nào sáng — người chơi không đang "ở" một trong 4 mục đó).
 function xqHallNavHtml(activeTab, fsOpts){
   fsOpts = fsOpts || {};
-  const tabsHtml = XQ_HALL_TABS.map(t=>`<a href="#${t.id}" class="xq-hall-tab${activeTab===t.id?' on':''}" data-go="${t.id}">${esc(t.label)}</a>`).join('');
+  const tabsHtml = XQ_HALL_TABS.map(t=>`<a href="#${t.id}" class="xq-hall-tab${activeTab===t.id?' on':''}" data-go="${t.id}">${ic(t.icon,15)}<span>${esc(t.label)}</span></a>`).join('');
   return `<header class="xq-hall-nav"><div class="wrap xq-hall-nav-in">
     ${fsOpts.hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',18)}</button>` : ''}
-    <a href="#cotuong-online" class="xq-hall-logo" data-go="cotuong-online">${ic('star',22)}<span>SẢNH CỜ<br><b>NHACCON6789</b></span></a>
+    <a href="#cotuong-online" class="xq-hall-logo" data-go="cotuong-online" title="Về Sảnh Cờ"><span class="xq-hall-mark">棋</span><span>SẢNH CỜ</span></a>
     <a href="#congchung" class="xq-hall-home" data-go="congchung" title="Về Nhà Chung" aria-label="Về Nhà Chung">←<span class="xq-hall-home-t"> Nhà Chung</span></a>
     <nav class="xq-hall-tabs">${tabsHtml}</nav>
     <div class="xq-hall-right">
@@ -2491,10 +2615,10 @@ function xqHallNavHtml(activeTab, fsOpts){
         <button class="ic-bell" id="bellBtn">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
         <div class="umenu" id="notifPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:4px">${notifPanelHtml()}</div>
       </div>
-      <a href="#caidat" data-go="caidat" class="ic-bell" title="Cài đặt">${ic('gear',17)}</a>
       <div class="avatar-mini" id="umenuBtn">
         ${avatarCircle(DATA.me.avatar, DATA.me.name, 32)}
         <div><span class="nm">${esc(DATA.me.name)}</span></div>
+        <span class="chev">${ic('chevD',13)}</span>
         <div class="umenu" id="umenu">
           <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
           <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
@@ -2502,6 +2626,7 @@ function xqHallNavHtml(activeTab, fsOpts){
           <button id="logoutBtn" class="logout">${ic('logout',15)} Đăng xuất</button>
         </div>
       </div>
+      <a href="#caidat" data-go="caidat" class="ic-bell" title="Cài đặt">${ic('gear',17)}</a>
       ${fsOpts.closeTarget ? `<a href="#${fsOpts.closeTarget}" data-go="${fsOpts.closeTarget}" class="ic-bell" title="Thoát, không đánh nữa">${ic('x',17)}</a>` : ''}
     </div>
   </div></header>`;
@@ -6375,13 +6500,13 @@ const CHESS_CHAR = {
   r:{general:'帥',advisor:'仕',elephant:'相',horse:'傌',chariot:'俥',cannon:'炮',soldier:'兵'},
   b:{general:'將',advisor:'士',elephant:'象',horse:'馬',chariot:'車',cannon:'砲',soldier:'卒'},
 };
-let CHESS = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null, lastMove:null };
+let CHESS = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null, lastMove:null, moves:[], timeMs:{r:0,b:0}, turnStartedAt:Date.now() };
 /* Đổi bên = xoay góc nhìn bàn cờ 180° cho người ngồi phía Đen — không phải
    trạng thái ván cờ nên tách khỏi CHESS, "Ván mới" không xoá lại góc nhìn. */
 let CHESS_FLIP = false;
 function chessFlipBoard(){ CHESS_FLIP = !CHESS_FLIP; render(); }
 
-function chessReset(){ CHESS = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null, lastMove:null }; render(); }
+function chessReset(){ CHESS = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null, lastMove:null, moves:[], timeMs:{r:0,b:0}, turnStartedAt:Date.now() }; render(); }
 function chessCellClick(r,c){
   if(CHESS.over) return;
   const p = CHESS.board[r][c];
@@ -6389,6 +6514,8 @@ function chessCellClick(r,c){
     const isDest = CHESS.legal.some(m=>m.r===r&&m.c===c);
     if(isDest){
       const res = xqApplyMove(CHESS.board, CHESS.selected, {r,c});
+      xqLocalTickMove(CHESS, CHESS.turn);
+      xqLocalRecordMove(CHESS, CHESS.turn, CHESS.selected, {r,c}, res.captured);
       CHESS.lastMove = {from:CHESS.selected, to:{r,c}};
       CHESS.board = res.board;
       CHESS.turn = xqOpp(CHESS.board[r][c].side);
@@ -6449,8 +6576,48 @@ function chessBoardHtml(board, opts){
     const disabledAttr = disabled ? ' disabled' : '';
     pts.push(`<button type="button" class="xq-pt ${isDest&&p?'cap':''} ${isLast?'last':''}" style="left:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${leftFrac});top:calc(var(--xq-pad) + (100% - var(--xq-pad)*2) * ${topFrac})"${clickAttr}${disabledAttr}>${inner}</button>`);
   }
-  return `<div class="xq-wrap"><div class="xq-board">${chessGridSvg()}<div class="xq-river">楚 河　　漢 界</div>${pts.join('')}</div></div>`;
+  return `<div class="xq-wrap">${opts.topBarHtml||''}<div class="xq-board">${chessGridSvg()}<div class="xq-river">楚 河　　漢 界</div>${pts.join('')}</div>${opts.bottomBarHtml||''}</div>`;
 }
+
+// Đồng hồ đếm THỜI GIAN ĐÃ NGHĨ của mỗi bên cho 2 màn cờ cục bộ (V.cotuong
+// pass-and-play, V['cotuong-may'] đấu máy) — 2 màn này không có đồng hồ đếm
+// ngược thật như ván online (không giới hạn giờ), nhưng vẫn cần "hẹn giờ dưới
+// mỗi bên" như ảnh mẫu. state.timeMs[side] cộng dồn mỗi khi BÊN ĐÓ vừa đi
+// xong 1 nước (xqLocalTickMove gọi TRƯỚC khi đổi state.turn); bên đang chờ
+// (chưa tới lượt) thì đồng hồ đứng yên. Hàm không đụng gì tới CHESS_THE (thế
+// cờ cục bộ) — state đó không có .timeMs nên xqLocalTickMove/xqLocalElapsed
+// tự bỏ qua (return sớm), không cần sửa nơi khác.
+function xqLocalTickMove(state, moverSide){
+  if(!state.timeMs) return;
+  const now = Date.now();
+  state.timeMs[moverSide] = (state.timeMs[moverSide]||0) + (now - (state.turnStartedAt||now));
+  state.turnStartedAt = now;
+}
+function xqLocalElapsed(state, side){
+  if(!state.timeMs) return 0;
+  const running = (state.turn===side && !state.over) ? Date.now()-(state.turnStartedAt||Date.now()) : 0;
+  return (state.timeMs[side]||0) + running;
+}
+function xqLocalRecordMove(state, side, from, to, captured){
+  if(!state.moves) return;
+  state.moves.push({seq: state.moves.length+1, side, from_r:from.r, from_c:from.c, to_r:to.r, to_c:to.c, captured_type: captured?captured.type:null});
+}
+function xqLocalPlayerBarHtml(state, side, name){
+  const glyph = side==='r' ? '帥' : '將';
+  const active = state.turn===side && !state.over;
+  return `<div class="xq-player-bar${active?' active':''}">
+    <span class="xq-player-side ${side==='r'?'red':'black'}">${glyph}</span>
+    <span class="xq-player-name">${esc(name)}</span>
+    <span class="xq-player-clock">${ic('clock',12)} ${xqFormatClock(xqLocalElapsed(state, side))}</span>
+  </div>`;
+}
+// Chạy tick mỗi giây để đồng hồ đang chạy tự cập nhật hiển thị — chỉ bật khi
+// đang ở đúng 1 trong 2 màn có đồng hồ cục bộ (xem render()), tắt khi rời đi
+// (khác hẳn màn ván online: ở đây không có gì phải gọi API khi hết giờ, tick
+// chỉ để vẽ lại số giây).
+let LOCAL_CLOCK_TIMER = null;
+function stopLocalClock(){ if(LOCAL_CLOCK_TIMER){ clearInterval(LOCAL_CLOCK_TIMER); LOCAL_CLOCK_TIMER=null; } }
+function startLocalClock(){ if(!LOCAL_CLOCK_TIMER) LOCAL_CLOCK_TIMER = setInterval(render, 1000); }
 
 /* Banner thông báo nổi bật (chiếu tướng / thắng-thua / giải thành công) cho
    các màn cờ full màn hình — xem CSS .xq-announce. tone: 'win'|'lose'|''.
@@ -6500,6 +6667,24 @@ function roomClose(id){
   const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/leave') : api.post('/games/'+id+'/leave');
   req.then(()=>go(GUEST_TOKEN?'congchung':'cotuong-online')).catch(e=>toast(e.message||'Có lỗi, thử lại.','x'));
 }
+// "Đấu ngay" trong phòng đang chờ đối thủ (chỉ hiện ở phase cho-doi-thu —
+// chưa ai vào phòng, huỷ ngay không tiếc gì): rời phòng thật đang chờ rồi
+// rơi thẳng vào ván với máy (nhaccon6789), CÙNG cấu hình mặc định mà
+// ghepTranNhanhFallbackAi() từng dùng khi "Ghép trận nhanh" hết giờ không
+// bắt được ai. Không gọi lại chính hàm đó — nó gắn với modal/
+// QUICK_MATCH_WAITING của luồng ghép trận cũ (đã bỏ nút gọi tới nó), còn ở
+// đây là rời MỘT PHÒNG THẬT vừa tạo qua roomCreate(), không phải hàng chờ
+// ghép trận. Không chờ API rời phòng xong mới chuyển màn (giống cách
+// ghepTranNhanhFallbackAi không chờ api.del) — người chơi muốn vào ngay,
+// dọn phòng cũ chạy nền, lỗi thì bỏ qua (phòng cũ tự hết hạn nếu request
+// này trót thất bại, không chặn trải nghiệm).
+function roomFallbackAi(id){
+  const req = GUEST_TOKEN ? guestFetch('POST', '/games/'+id+'/leave') : api.post('/games/'+id+'/leave');
+  req.catch(()=>{});
+  CHESS_AI_SETUP = {side:'r', level:'vua'};
+  chessAiStart();
+  go('cotuong-may');
+}
 V['cotuong-online'] = ()=>{
   if(GAMES_LIST===null){ loadGamesList();
     return `<div class="page-head"><div><h1>Cờ tướng online</h1><p>Chơi cùng thành viên hoặc thử sức với cờ thế.</p></div></div>
@@ -6530,7 +6715,7 @@ V['cotuong-online'] = ()=>{
           <span class="chip">${ic('users',13)} ${openCount} ván đang diễn ra</span>
           <span class="chip">${ic('clock',13)} ${pendingMineCount} lời mời đang chờ bạn</span>
         </div>
-        <div class="btns"><button class="btn btn-blue" data-open="ghepTranNhanh">${ic('bolt',15)} Đấu ngay</button></div>
+        <div class="btns"><button class="btn btn-blue" onclick="roomCreate()">${ic('bolt',15)} Cờ Tướng</button></div>
       </div>
     </div>
     <div class="xq-hub-card the">
@@ -7041,7 +7226,7 @@ function xqCapturedHtml(moves){
 // cuộn được chỉnh riêng cho cột trái hẹp — không phải bản sao y hệt pixel.
 function xqMoveLogHtml(moves){
   if(!moves.length) return `<p style="font-size:12.5px;color:var(--muted)">Chưa có nước nào.</p>`;
-  return `<div style="max-height:220px;overflow-y:auto">${moves.map(m=>`<div style="font-size:12.5px;padding:3px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`;
+  return `<div style="max-height:340px;overflow-y:auto">${moves.map(m=>`<div style="font-size:12.5px;padding:3px 0;color:var(--ink2)">${m.seq}. ${m.side==='r'?'Đỏ':'Đen'} (${m.from_r},${m.from_c}) → (${m.to_r},${m.to_c})${m.captured_type?' — ăn quân':''}</div>`).join('')}</div>`;
 }
 
 function resolveMySide(g){
@@ -7277,7 +7462,10 @@ V['cotuong-van'] = (params)=>{
           <div class="xq-ctrl-row" style="margin-top:12px"><button class="btn btn-blue" style="flex:1" onclick="roomReady('${st.id}')">${ic('check',15)} Sẵn sàng</button></div>`;
     }
     return `<div class="xq-fs-card">${body}
-      <div class="xq-ctrl-row" style="margin-top:10px"><button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Đóng phòng</button></div>
+      <div class="xq-ctrl-row" style="margin-top:10px">
+        ${phase==='cho-doi-thu'?`<button class="btn btn-blue" style="flex:1" onclick="roomFallbackAi('${st.id}')">${ic('bolt',15)} Đấu ngay</button>`:''}
+        <button class="btn btn-out" style="flex:1" onclick="roomClose('${st.id}')">${ic('x',15)} Đóng phòng</button>
+      </div>
     </div>`;
   }
   // Xem chú thích cùng chỗ này trong guestGameHtml: khe hở giữa game_start
@@ -7314,38 +7502,60 @@ V['cotuong-van'] = (params)=>{
     : (disconnectedOpp ? xqAnnounceHtml('⚡ Đối thủ mất mạng — chờ nối lại', '') : (inCheck ? xqAnnounceHtml('Chiếu tướng!', '', true) : ''));
   const opponentId = mySide ? (mySide==='r'?st.black_member_id:st.red_member_id) : null;
   const opponentName = mySide ? (mySide==='r'?st.black_name:st.red_name) : null;
+  const moveCount = st.moves ? st.moves.length : 0;
+  const turnLabel = st.turn==='r' ? 'Đỏ' : 'Đen';
+  // Cột phải gộp thành 3 thẻ (Ván đấu / Đối thủ / Trợ giúp) theo đúng bố cục
+  // ảnh mẫu thay vì danh sách phẳng — mọi onclick/hàm gọi bên trong GIỮ
+  // NGUYÊN, chỉ đổi khung bọc. Đồng hồ đỏ/đen dời sang xqPlayerBarHtml() cạnh
+  // bàn cờ (không lặp lại 2 nơi như bản cũ .xq-clock-row).
   const rightColHtml = `
     <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
-      <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}</p>
-      ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px">nhaccon6789 đang chơi</p>` : ''}
-      ${st.status==='active'?`<div class="xq-clock-row">
-        <span class="xq-clock${xqDisplayClock(st,'r')<60000?' low':''}">${ic('clock',14)} ${esc(st.red_name)}: ${xqFormatClock(xqDisplayClock(st,'r'))}</span>
-        <span class="xq-clock${xqDisplayClock(st,'b')<60000?' low':''}">${ic('clock',14)} ${esc(st.black_name)}: ${xqFormatClock(xqDisplayClock(st,'b'))}</span>
+      <div class="xq-panel-eyebrow">Điều khiển trận đấu</div>
+      <div class="xq-panel-card">
+        <div class="xq-panel-card-h">${ic('flag',14)} Ván đấu</div>
+        <h1 style="font-size:16px;margin-bottom:2px">${esc(st.red_name)} <span style="color:rgba(255,255,255,.5);font-weight:400">vs</span> ${esc(st.black_name)}</h1>
+        <p style="font-size:12.5px;color:rgba(255,255,255,.6);margin:0 0 10px">${mySide?'Bạn đang chơi bên '+(mySide==='r'?'Đỏ':'Đen'):'Bạn đang xem trực tiếp'}${st.status==='active'?` · Nước ${moveCount} · Lượt ${turnLabel}`:''}</p>
+        ${mySide && (mySide==='r'?st.black_ai_level:st.red_ai_level) ? `<p style="font-size:12.5px;color:rgba(255,255,255,.55);margin:-6px 0 10px">nhaccon6789 đang chơi</p>` : ''}
+        ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
+          <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
+          <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+        </div>`:''}
+        ${mySide&&st.status==='active'?`<div class="xq-ctrl-row">
+          <button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>
+          <button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>
+        </div>`:''}
+      </div>
+      ${mySide && opponentName ? `<div class="xq-panel-card">
+        <div class="xq-panel-card-h">${ic('user',14)} Đối thủ</div>
+        <div class="xq-panel-opponent" onclick="const e=document.getElementById('xqOppProfile');e&&e.scrollIntoView({behavior:'smooth',block:'center'})">
+          ${avatarCircle(null, opponentName, 34)}
+          <div><span class="nm">${esc(opponentName)}</span><span class="st${disconnectedOpp?' off':''}"><span class="dot"></span>${disconnectedOpp?'Mất kết nối':'Đang online'}</span></div>
+          ${ic('chevD',15)}
+        </div>
       </div>`:''}
-      ${drawFromOpp?`<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:10px">
-        <p style="font-size:13.5px;margin-bottom:8px">✋ ${esc(mySide==='r'?st.black_name:st.red_name)} xin hoà</p>
-        <div class="xq-ctrl-row"><button class="btn btn-blue" style="flex:1" onclick="gameAcceptDraw('${st.id}')">Đồng ý</button><button class="btn btn-out" style="flex:1" onclick="gameDeclineDraw('${st.id}')">Từ chối</button></div>
+      ${mySide&&st.status!=='finished'?`<div class="xq-panel-card">
+        <div class="xq-panel-card-h">${ic('bolt',14)} Trợ giúp</div>
+        ${xqAiToggleHtml(st,mySide)}
       </div>`:''}
       <div class="xq-ctrl-row">
-        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameOfferDraw('${st.id}')">${ic('handshake',15)} Cầu hoà</button>`:''}
-        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="resignGame('${st.id}')">${ic('flag',15)} Xin thua</button>`:''}
         <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+        ${mySide&&st.status==='active'?`<button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button>`:''}
       </div>
-      ${mySide&&st.status==='active'?`<div class="xq-ctrl-row" style="margin-top:8px"><button class="btn btn-out" style="flex:1" onclick="gameLeaveActive('${st.id}')">${ic('x',15)} Rời phòng</button></div>`:''}
-      ${mySide&&st.status!=='finished'?xqAiToggleHtml(st,mySide):''}
-      ${!mySide?`<h3 style="margin-top:14px">Biên bản ván cờ</h3>${xqMoveLogHtml(st.moves)}`:''}
+      ${!mySide?`<div class="xq-panel-card" style="margin-top:10px"><div class="xq-panel-card-h">${ic('doc',14)} Biên bản ván cờ</div>${xqMoveLogHtml(st.moves)}</div>`:''}
     </div>`;
+  const topSide = CHESS_FLIP ? 'r' : 'b', bottomSide = CHESS_FLIP ? 'b' : 'r';
   if(!mySide){
     return `
     <div class="xq-status-bar ${statusCls}">${statusTxt}</div>
     ${announce}
     <div class="xq-wrap">
+      ${xqPlayerBarHtml(st, topSide)}
       <div class="xq-board">
         ${chessGridSvg()}
         <div class="xq-river">楚 河　　漢 界</div>
         ${pts.join('')}
       </div>
+      ${xqPlayerBarHtml(st, bottomSide)}
     </div>
     ${rightColHtml}`;
   }
@@ -7359,21 +7569,41 @@ V['cotuong-van'] = (params)=>{
       ${xqCapturedHtml(st.moves)}
       <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
       ${xqMoveLogHtml(st.moves)}
-      <h3 style="margin-top:14px;font-size:13px">Hồ sơ đối thủ</h3>
+      <h3 id="xqOppProfile" style="margin-top:14px;font-size:13px">Hồ sơ đối thủ</h3>
       ${opponentId?xqOpponentProfileHtml(opponentId, opponentName):`<p style="font-size:12.5px;color:var(--muted)">Khách — chưa có hồ sơ.</p>`}
     </div>
     <div class="xq-3col-center">
       <div class="xq-wrap">
+        ${xqPlayerBarHtml(st, topSide)}
         <div class="xq-board">
           ${chessGridSvg()}
           <div class="xq-river">楚 河　　漢 界</div>
           ${pts.join('')}
         </div>
+        ${xqPlayerBarHtml(st, bottomSide)}
       </div>
     </div>
     <div class="xq-3col-right">${rightColHtml}</div>
   </div>`;
 };
+// Thanh tên/quân tướng/đồng hồ/tín hiệu 1 bên, đặt sát mép bàn cờ — thay cho
+// dòng .xq-clock-row cũ từng lặp lại y hệt trong cột phải. topSide/bottomSide
+// tính theo CHESS_FLIP ở nơi gọi (đen luôn ở trên khi chưa "Đổi bên", đúng
+// quy ước bàn cờ hiện có — xem chessFlipBoard()/dr=CHESS_FLIP?9-r:r).
+function xqPlayerBarHtml(st, side){
+  const name = side==='r' ? st.red_name : st.black_name;
+  const glyph = side==='r' ? '帥' : '將';
+  const showClock = st.status==='active';
+  const ms = showClock ? xqDisplayClock(st, side) : null;
+  const low = ms!=null && ms<60000;
+  const off = st.status==='active' && st.disconnected_side===side;
+  return `<div class="xq-player-bar${off?' off':''}">
+    <span class="xq-player-side ${side==='r'?'red':'black'}">${glyph}</span>
+    <span class="xq-player-name">${esc(name)}</span>
+    ${showClock?`<span class="xq-player-clock${low?' low':''}">${ic('clock',12)} ${xqFormatClock(ms)}</span>`:''}
+    <span class="xq-player-sig" title="${off?'Mất kết nối':'Đang online'}"></span>
+  </div>`;
+}
 
 V.cotuong = ()=>{
   const st = CHESS;
@@ -7384,23 +7614,43 @@ V.cotuong = ()=>{
   const announce = st.over
     ? xqAnnounceHtml(`Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`, 'win')
     : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
+  const topSide = CHESS_FLIP ? 'r' : 'b', bottomSide = CHESS_FLIP ? 'b' : 'r';
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
   ${announce}
-  ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick'})}
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
-    <h1>Cờ tướng giao lưu</h1>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Bàn cờ chơi trực tiếp 2 người trên cùng màn hình. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p>
-    <div class="xq-ctrl-row">
-      <button class="btn btn-out" style="flex:1" onclick="chessReset()">${ic('refresh',15)} Ván mới</button>
-      <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+  <div class="xq-3col">
+    <div class="xq-3col-left">
+      <h3 style="margin-top:0;font-size:13px">Quân đã bắt</h3>
+      ${xqCapturedHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
+      ${xqMoveLogHtml(st.moves)}
     </div>
-    <h3 style="margin-top:14px">Quy ước quân</h3>
-    <div style="font-size:12.5px;color:var(--body);line-height:2">
-      <div><b style="color:#B4231F">Đỏ</b>: 帥 tướng · 仕 sĩ · 相 tượng · 傌 mã · 俥 xe · 炮 pháo · 兵 tốt</div>
-      <div><b>Đen</b>: 將 tướng · 士 sĩ · 象 tượng · 馬 mã · 車 xe · 砲 pháo · 卒 tốt</div>
+    <div class="xq-3col-center">
+      ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip:CHESS_FLIP, onCellClick:'chessCellClick',
+        topBarHtml: xqLocalPlayerBarHtml(st, topSide, topSide==='r'?'Bên Đỏ':'Bên Đen'),
+        bottomBarHtml: xqLocalPlayerBarHtml(st, bottomSide, bottomSide==='r'?'Bên Đỏ':'Bên Đen')})}
     </div>
-    <div class="notice brand" style="margin-top:12px">${ic('calendar',16)}Gắn với hoạt động "Giải cờ tướng mở rộng" — <a data-go="hoatdong-detail:ac03" style="font-weight:700;color:var(--brand-dd)">xem lịch thi đấu</a></div>
+    <div class="xq-3col-right">
+      <div class="xq-fs-panel show">
+        <div class="xq-panel-eyebrow">Điều khiển trận đấu</div>
+        <div class="xq-panel-card">
+          <div class="xq-panel-card-h">${ic('users',14)} Cờ tướng giao lưu</div>
+          <p style="font-size:12.5px;color:rgba(255,255,255,.6);margin-bottom:10px">Bàn cờ chơi trực tiếp 2 người trên cùng màn hình. Đủ luật: mã cản chân, tượng không qua sông, pháo cần ngòi, chiếu tướng và cấm lộ mặt tướng.</p>
+          <div class="xq-ctrl-row">
+            <button class="btn btn-out" style="flex:1" onclick="chessReset()">${ic('refresh',15)} Ván mới</button>
+            <button class="btn btn-out" style="flex:1" onclick="chessFlipBoard()">${ic('swap',15)} Đổi bên</button>
+          </div>
+        </div>
+        <div class="xq-panel-card">
+          <div class="xq-panel-card-h">${ic('book',14)} Quy ước quân</div>
+          <div style="font-size:12.5px;line-height:2">
+            <div><b style="color:#ff9d92">Đỏ</b>: 帥 tướng · 仕 sĩ · 相 tượng · 傌 mã · 俥 xe · 炮 pháo · 兵 tốt</div>
+            <div>Đen: 將 tướng · 士 sĩ · 象 tượng · 馬 mã · 車 xe · 砲 pháo · 卒 tốt</div>
+          </div>
+        </div>
+        <div class="notice brand">${ic('calendar',16)}Gắn với hoạt động "Giải cờ tướng mở rộng" — <a data-go="hoatdong-detail:ac03" style="font-weight:700;color:var(--brand-dd)">xem lịch thi đấu</a></div>
+      </div>
+    </div>
   </div>`;
 };
 
@@ -7409,13 +7659,21 @@ V.cotuong = ()=>{
    V['cotuong-the-nhanh'] (80 thế mẫu cục bộ, không qua server) — cả 2 chỉ
    khác nhau ở CÁCH nạp state ban đầu, không khác ở cách áp nước đi.
    ══════════════════════════════════════════════════════════════ */
-let CHESS_AI = null; // null = đang ở màn chọn bên/cấp độ, chưa vào ván
+let CHESS_AI = null; // null = chưa vào ván (chỉ đúng lúc vừa nạp trang — V['cotuong-may'] tự chessAiStart() ngay khi gặp null, xem bên dưới)
 let CHESS_AI_SETUP = { side:'r', level:'vua' };
+// "Đấu ngay" (roomFallbackAi trong phòng chờ, hoặc vào thẳng #cotuong-may):
+// không hỏi chọn bên/cấp độ nữa, luôn Đỏ đi trước + cấp Vừa, vào là chơi
+// luôn — cờ này chặn KHÔNG cho setTimeout lên lịch chessAiStart() nhiều lần
+// nếu render() chạy lại vài lượt trước khi lượt hẹn đầu tiên kịp bắn (ví dụ
+// resize/nhiều sự kiện gọi render() dồn dập trong cùng 1 tick).
+let CHESS_AI_AUTOSTART_PENDING = false;
 
 /* Áp 1 nước đi của NGƯỜI vào state, vẽ lại, rồi gọi tiếp onPlayerMoved (thường
    là để kích máy đi nếu chưa xong ván). */
 function chessVsAiPlayMove(state, from, to, onPlayerMoved){
   const res = xqApplyMove(state.board, from, to);
+  xqLocalTickMove(state, state.turn);
+  xqLocalRecordMove(state, state.turn, from, to, res.captured);
   state.lastMove = {from, to};
   state.justMoved = null;
   state.board = res.board;
@@ -7453,6 +7711,8 @@ function chessVsAiMaybeMove(state, isStillCurrent){
   xqRequestMove(state.board, state.turn, state.level).then(move=>{
     if(!isStillCurrent()) return;
     const res = xqApplyMove(state.board, move.from, move.to);
+    xqLocalTickMove(state, state.turn);
+    xqLocalRecordMove(state, state.turn, move.from, move.to, res.captured);
     state.lastMove = {from:move.from, to:move.to};
     state.justMoved = move.to;
     state.board = res.board;
@@ -7465,16 +7725,14 @@ function chessVsAiMaybeMove(state, isStillCurrent){
   });
 }
 
-function chessAiSetSide(side){ CHESS_AI_SETUP.side = side; render(); }
-function chessAiSetLevel(level){ CHESS_AI_SETUP.level = level; render(); }
 function chessAiStart(){
   CHESS_AI = { board:xqInitBoard(), turn:'r', selected:null, legal:[], over:false, winner:null, reason:null,
-    lastMove:null, justMoved:null, thinking:false, playerSide:CHESS_AI_SETUP.side, level:CHESS_AI_SETUP.level };
+    lastMove:null, justMoved:null, thinking:false, playerSide:CHESS_AI_SETUP.side, level:CHESS_AI_SETUP.level,
+    moves:[], timeMs:{r:0,b:0}, turnStartedAt:Date.now() };
   render();
   const captured = CHESS_AI;
   chessVsAiMaybeMove(captured, ()=> CHESS_AI === captured);
 }
-function chessAiBackToSetup(){ xqStopWorker(); CHESS_AI = null; render(); }
 function chessAiReset(){ xqStopWorker(); chessAiStart(); }
 function chessAiCellClick(r,c){
   chessVsAiCellClick(CHESS_AI, r, c, ()=>{
@@ -7485,44 +7743,56 @@ function chessAiCellClick(r,c){
 
 V['cotuong-may'] = ()=>{
   if(!CHESS_AI){
-    return `<div class="xq-fs-card">
-      <h1>Chơi với máy</h1>
-      <p style="font-size:13px;color:var(--muted);margin:2px 0 14px">Chọn bên và cấp độ rồi bắt đầu ván — máy suy nghĩ và đi như một đối thủ thật, không phải lúc nào cũng đi nước tối ưu.</p>
-      <h3>Bạn cầm bên</h3>
-      <div class="xq-ctrl-row" style="margin:10px 0 18px">
-        <button class="btn ${CHESS_AI_SETUP.side==='r'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('r')">Đỏ (đi trước)</button>
-        <button class="btn ${CHESS_AI_SETUP.side==='b'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetSide('b')">Đen</button>
-      </div>
-      <h3>Cấp độ máy</h3>
-      <div class="xq-ctrl-row" style="margin:10px 0 18px">
-        <button class="btn ${CHESS_AI_SETUP.level==='de'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('de')">Dễ</button>
-        <button class="btn ${CHESS_AI_SETUP.level==='vua'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('vua')">Vừa</button>
-        <button class="btn ${CHESS_AI_SETUP.level==='kho'?'btn-blue':'btn-out'}" style="flex:1" onclick="chessAiSetLevel('kho')">Khó</button>
-      </div>
-      <button class="btn btn-blue btn-full" onclick="chessAiStart()">${ic('star',15)} Bắt đầu</button>
-      <p style="margin-top:14px;text-align:center"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại Cờ tướng online</a></p>
-    </div>`;
+    // Không hỏi chọn bên/cấp độ nữa (yêu cầu "xoá nốt các thứ ghi máy và
+    // chọn máy chế độ máy gì trong màn đấu ngay") — luôn Đỏ đi trước, cấp
+    // Vừa, tự vào ván ngay. setTimeout 0 (không gọi chessAiStart() thẳng ở
+    // đây): chessAiStart() tự gọi render() bên trong, gọi ngay giữa lúc
+    // CHÍNH render() đang dựng HTML cho màn này sẽ đệ quy vào render() lần 2
+    // trước khi lần 1 kịp trả về — lệch 1 tick để tránh render() lồng nhau,
+    // cùng kiểu V['cotuong-van'] đã né bằng loadGame()+màn "Đang tải…".
+    if(!CHESS_AI_AUTOSTART_PENDING){
+      CHESS_AI_AUTOSTART_PENDING = true;
+      CHESS_AI_SETUP = {side:'r', level:'vua'};
+      setTimeout(()=>{ CHESS_AI_AUTOSTART_PENDING=false; chessAiStart(); }, 0);
+    }
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang vào ván…</p>`;
   }
   const st = CHESS_AI;
   const flip = st.playerSide==='b';
   const turnTxt = st.turn===st.playerSide ? 'Tới lượt bạn' : 'Đối thủ đang đi...';
   const reasonTxt = {chieu:'Chiếu tướng!', ['chieu-bi']:'Chiếu bí — hết cờ!', ['het-nuoc-di']:'Hết nước đi!', ['bat-tuong']:'Bắt được tướng!'}[st.reason]||'';
-  const levelLabel = {de:'Dễ', vua:'Vừa', kho:'Khó'}[st.level];
   const statusCls = st.over ? (st.winner===st.playerSide?'win':'lose') : '';
   const statusLabel = st.over ? `Ván đã kết thúc — Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!` : turnTxt;
   const announce = st.over
     ? xqAnnounceHtml(`Bên ${st.winner==='r'?'Đỏ':'Đen'} thắng!`, st.winner===st.playerSide?'win':'lose')
     : (reasonTxt ? xqAnnounceHtml(reasonTxt, '', true) : '');
+  const topSide = flip ? 'r' : 'b', bottomSide = flip ? 'b' : 'r';
+  const nameFor = side => side===st.playerSide ? ((DATA.me&&DATA.me.name)||'Bạn') : 'nhaccon6789';
   return `
   <div class="xq-status-bar ${statusCls}">${statusLabel}</div>
   ${announce}
-  ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved})}
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?` show`:``}">
-    <h1>Chơi với máy</h1>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Cấp độ: ${levelLabel} · Bạn cầm bên ${st.playerSide==='r'?'Đỏ':'Đen'}</p>
-    <div class="xq-ctrl-row">
-      <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
-      <button class="btn btn-out" style="flex:1" onclick="chessAiBackToSetup()">${ic('swap',15)} Đổi bên/cấp độ</button>
+  <div class="xq-3col">
+    <div class="xq-3col-left">
+      <h3 style="margin-top:0;font-size:13px">Quân đã bắt</h3>
+      ${xqCapturedHtml(st.moves)}
+      <h3 style="margin-top:14px;font-size:13px">Nhật ký</h3>
+      ${xqMoveLogHtml(st.moves)}
+    </div>
+    <div class="xq-3col-center">
+      ${chessBoardHtml(st.board, {selected:st.selected, legal:st.legal, lastMove:st.lastMove, flip, onCellClick:'chessAiCellClick', disabled: st.over||st.thinking||st.turn!==st.playerSide, justMovedTo:st.justMoved,
+        topBarHtml: xqLocalPlayerBarHtml(st, topSide, nameFor(topSide)),
+        bottomBarHtml: xqLocalPlayerBarHtml(st, bottomSide, nameFor(bottomSide))})}
+    </div>
+    <div class="xq-3col-right">
+      <div class="xq-fs-panel show">
+        <div class="xq-panel-eyebrow">Điều khiển trận đấu</div>
+        <div class="xq-panel-card">
+          <div class="xq-panel-card-h">${ic('flag',14)} Ván đấu</div>
+          <div class="xq-ctrl-row">
+            <button class="btn btn-out" style="flex:1" onclick="chessAiReset()">${ic('refresh',15)} Ván mới</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>`;
 };

@@ -21,21 +21,7 @@
 ### 1.1 Màn của Chủ Công — ba cột
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ 帥 TingTingVác · chủ phòng     [🔒 màn riêng] [G-4a91]  │
-├────────────┬──────────────────────────┬──────────────────┤
-│ RIÊNG TƯ   │      BÀN CỜ 8:9          │  ĐIỀU KHIỂN      │
-│ 164px      │                          │  172px           │
-│            │ ┌──────────────────────┐ │                  │
-│ Thế cờ ①   │ │ 將 Anh Linh    08:42 │ │ Ván              │
-│ Quân đã bắt│ ├──────────────────────┤ │ Đối thủ          │
-│ Nhật ký    │ │      bàn cờ          │ │ Máy đi hộ ta ②   │
-│ Mổ ván     │ ├──────────────────────┤ │ Màn của khách    │
-│ Hồ sơ ĐT   │ │ 帥 TingTingVác 10:00 │ │                  │
-└────────────┴─┴──────────────────────┴─┴──────────────────┘
 
-① Thế cờ: CHỈ HIỆN SAU KHI VÁN KẾT THÚC — không hiện lúc đang đánh
-② Nút trượt: thu một dòng, bấm mở, chọn xong TỰ THU
 ```
 
 **Cột trái — khách không bao giờ thấy**
