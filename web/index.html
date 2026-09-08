@@ -7132,9 +7132,17 @@ V['cotuong-van'] = (params)=>{
           <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Link mời đã mất sau khi tải lại trang. Đóng phòng này và tạo phòng mới để có link mời dùng được.</p>`;
       } else {
         const link = location.origin+location.pathname+'#cotuong-phong:'+ROOM_INVITE_TOKEN;
+        const linkEnc = encodeURIComponent(link);
+        const roomCode = 'G-'+st.id.slice(0,4);
         body = `<h1>Phòng đang chờ đối thủ</h1>
           <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Gửi link này cho đối thủ để họ vào phòng — không cần tài khoản.</p>
-          <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
+          <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px">Mã phòng: <b>${esc(roomCode)}</b> (chỉ để nhận diện — đường vào thật vẫn là link mời ở trên)</p>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${linkEnc}" target="_blank" rel="noopener" class="btn btn-out btn-sm">${ic('send',14)} Facebook</a>
+            <button type="button" class="btn btn-out btn-sm" onclick="(navigator.share?navigator.share({url:'${link.replace(/'/g,"\\'")}',title:'Mời đấu cờ tướng'}):(navigator.clipboard&&navigator.clipboard.writeText('${link.replace(/'/g,"\\'")}'),toast('Đã sao chép link — dán vào Zalo để gửi')))">${ic('link',14)} Chia sẻ (Zalo/khác)</button>
+            <a href="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${linkEnc}" target="_blank" rel="noopener" class="btn btn-out btn-sm">${ic('grid',14)} Mã QR</a>
+          </div>`;
       }
     } else if(phase==='du-nguoi'){
       // Đếm 30 giây thuần hiển thị, KHÔNG tự gọi API gì (BAN_CHUAN_CO_TUONG.md
