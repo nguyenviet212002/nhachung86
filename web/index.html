@@ -118,6 +118,16 @@ ul{list-style:none}
 .xq-hall-nav .ic-bell{color:#fff}
 .xq-hall-nav .avatar-mini .nm{color:#fff}
 .xq-hall-nav .umenu{color:var(--ink)}
+/* Task 3 (màn cotuong-van): #xqFsMenuBtn tái dùng class .xq-fs-menu-btn (nút
+   ☰ nổi mặc định của xqFullscreenShell — CSS gốc position:fixed, neo góc
+   màn hình, xem quy tắc .xq-fs-x,.xq-fs-menu-btn phía dưới) nhưng lần này
+   được đặt làm phần tử ĐẦU trong hàng flex .xq-hall-nav-in của topbar, chứ
+   không nổi độc lập trên bàn cờ như 6 màn cờ khác. position:fixed kéo nó ra
+   khỏi luồng flex — không nằm ở đầu hàng như mong muốn mà đè lên logo Sảnh
+   Cờ ở góc trái màn hình. Ghi đè lại thành position:static để nó xếp đúng
+   vị trí trong hàng, giữ nguyên mọi kiểu dáng khác (kích thước/màu/bo góc)
+   từ class gốc — không đụng gì tới cách dùng .xq-fs-menu-btn nổi ở nơi khác. */
+.xq-hall-nav-in .xq-fs-menu-btn{position:static;top:auto;left:auto;z-index:auto}
 
 /* mobile drawer */
 .drawer-ov{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:90;display:none}
