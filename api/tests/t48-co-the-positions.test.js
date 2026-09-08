@@ -8,10 +8,14 @@ import { config } from '../src/config/index.js';
 let db, app, cid, alice, aliceToken, bob, bobToken;
 const auth = (t) => ({ authorization: `Bearer ${t}` });
 
+// Tướng khác cột hẳn (4 và 3) — tránh vừa phải né lộ mặt Tướng vừa phải né
+// việc chính quân chắn đó lại đứng thẳng hàng chiếu luôn Tướng kia (Xe ở
+// cột 4 kề Tướng Đen từng đứng cùng cột 4 sẽ chiếu sẵn Tướng Đen — validate
+// Position giờ bắt đúng lỗi này, xem T47/T48 "bên chưa đi đã bị chiếu sẵn").
 function validBoard() {
   const b = Array.from({ length: 10 }, () => Array(9).fill(null));
   b[9][4] = { side: 'r', type: 'general' };
-  b[0][4] = { side: 'b', type: 'general' };
+  b[0][3] = { side: 'b', type: 'general' };
   b[5][4] = { side: 'r', type: 'chariot' };
   return b;
 }

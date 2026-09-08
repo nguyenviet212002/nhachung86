@@ -12,17 +12,20 @@ let db, app, cid, alice, aliceToken;
 const auth = (t) => ({ authorization: `Bearer ${t}` });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Xe Đỏ (1,4) đi thẳng ăn Tướng Đen (0,4) ngay nước đầu -> "bắt tướng" lập
-// tức, ván kết thúc ở ĐÚNG nước đầu của người giải (không có nước máy đáp
-// lễ, không có nước 2). Xe đứng giữa hai Tướng nên KHÔNG vi phạm luật đối
-// mặt lúc soạn thế (validatePosition chỉ chặn khi không có quân chắn giữa).
+// Bản trước dùng "Xe Đỏ (1,4) ăn thẳng Tướng Đen (0,4)" — BẤT HỢP LỆ thật:
+// bên chưa đi (Đen) đã bị Xe chiếu sẵn ngay từ lúc bày (validatePosition bắt
+// đúng lỗi này, xem T47/T48; Pikafish thật cũng từ chối thẳng vì lý do y hệt
+// — "Unsupported position. King can be captured."). Đổi sang thế đã tự chạy
+// qua CẢ engine thật lẫn rules.js thật (giống T52): Tướng Đen (0,3) bị BÍT
+// hết nước đi ngay sau khi Xe Đỏ (1,1) đi sang (1,0) — không ăn quân nào,
+// ván vẫn kết thúc ở ĐÚNG nước đầu của người giải (hết-nước-đi vẫn tính
+// THUA theo luật cờ tướng, không phải hoà như cờ vua) — giữ đúng ý test này
+// (mo-van có ngay, không cần nước 2).
 function matIn1Board() {
   const b = Array.from({ length: 10 }, () => Array(9).fill(null));
   b[9][4] = { side: 'r', type: 'general' };
-  b[0][4] = { side: 'b', type: 'general' };
-  b[0][3] = { side: 'b', type: 'advisor' };
-  b[0][5] = { side: 'b', type: 'advisor' };
-  b[1][4] = { side: 'r', type: 'chariot' };
+  b[0][3] = { side: 'b', type: 'general' };
+  b[1][1] = { side: 'r', type: 'chariot' };
   return b;
 }
 
@@ -39,14 +42,14 @@ afterAll(async () => { await db.destroy(); });
 
 describe('T51 Cờ Thế — Mổ ván + Diễn giải + Hồ sơ', () => {
   it('bắt tướng ngay nước đầu: mo-van có sẵn ngay (nước đầu copy điểm gốc, không cần gọi engine nền), giữ thế thắng', async () => {
-    engineClient.bestMove.mockResolvedValue({ bestmove: 'e1e0', score_cp: 0, mate: 1, depth: 20, pv: ['e1e0'], lines: [] });
+    engineClient.bestMove.mockResolvedValue({ bestmove: 'b8a8', score_cp: 0, mate: 1, depth: 20, pv: ['b8a8'], lines: [] });
     const created = await supertest(app).post('/api/v1/co-the/positions').set(auth(aliceToken))
       .send({ board: matIn1Board(), side_to_move: 'r' }).expect(201);
     await supertest(app).post(`/api/v1/co-the/positions/${created.body.id}/phan-tich`).set(auth(aliceToken)).expect(200);
     const session = await supertest(app).post('/api/v1/co-the/sessions').set(auth(aliceToken))
       .send({ position_id: created.body.id, mode: 'giai', opponent_level: 'manh' }).expect(201);
     const moveRes = await supertest(app).post(`/api/v1/co-the/sessions/${session.body.id}/moves`).set(auth(aliceToken))
-      .send({ from: { r: 1, c: 4 }, to: { r: 0, c: 4 } }).expect(200);
+      .send({ from: { r: 1, c: 1 }, to: { r: 1, c: 0 } }).expect(200);
     expect(moveRes.body.status).toBe('ket-thuc');
     expect(moveRes.body.result).toBe('thang');
 
