@@ -7534,10 +7534,11 @@ function cotheLoadMySessions(){
     .catch(()=>{ COTHE.mySessions=[]; cotheRender(); });
 }
 function cotheStartSoan(){
-  // Bắt đầu từ đủ bộ 32 quân đúng thế khai cuộc (xqInitBoard, đã dùng sẵn
-  // cho Cờ Tướng đấu thật) thay vì bàn trắng — người soạn xoá/dời bớt đi để
-  // ra thế mình muốn, đỡ cảm giác bàn trống trơn lúc mới vào.
-  COTHE.stage='soan'; COTHE.board=xqInitBoard(); COTHE.sideToMove='r'; COTHE.errors=[]; COTHE.pick=null;
+  // Bàn TRẮNG khi bắt đầu bày thế mới — "đầy đủ quân cờ" người dùng muốn là
+  // ở BẢNG QUÂN bên trái (đủ số lượng thật mỗi loại, xem COTHE_PIECE_MAX),
+  // không phải bàn cờ đầy sẵn: bàn đầy sẵn thì còn chỗ đâu mà đặt (đã thử
+  // và bị chỉnh lại đúng chỗ này).
+  COTHE.stage='soan'; COTHE.board=cotheEmptyBoard(); COTHE.sideToMove='r'; COTHE.errors=[]; COTHE.pick=null;
   cotheRender();
 }
 // Đếm số quân CÙNG bên+loại đang có trên bàn — tính lại từ bàn cờ mỗi lần,
