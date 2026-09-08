@@ -227,10 +227,46 @@ export function uciMoveToCells(uciMove) {
 // co-the — BAN_CHUAN_CO_THE.md §5: fail-closed, thiếu quân thì chặn).
 // Trả mảng lỗi tiếng Việt CÓ DẤU đầy đủ (rỗng = hợp lệ) — trả HẾT lỗi tìm
 // được cùng lúc, không dừng ở lỗi đầu, để người soạn sửa một lần.
-export function validatePosition(board) {
+// Thế cờ tự bày phải giữ đúng cấu trúc bàn thật — Tướng/Sĩ ra khỏi cung hay
+// Tượng qua sông là bàn cờ Pikafish không lường trước (giả định ngầm của UCI
+// engine là một thế hợp lệ), lỡ chốt một thế như vậy thì "Phân tích ngay" /
+// "Tìm cách phá" sẽ nhận về engine thoát bất ngờ (mã 1) thay vì kết quả.
+function inOwnPalace(side, r, c) {
+  const rows = side === 'r' ? [7, 8, 9] : [0, 1, 2];
+  return rows.includes(r) && c >= 3 && c <= 5;
+}
+function inOwnHalf(side, r) {
+  return side === 'r' ? r >= 5 : r <= 4;
+}
+// sideToMove tuỳ chọn (bàn cờ đứng riêng vẫn kiểm được cấu trúc) — CÓ truyền
+// thì kiểm thêm: bên KHÔNG đi (đối phương của sideToMove) không được đang bị
+// chiếu sẵn. Thiếu kiểm này thì thế bày ra có thể để lộ Tướng đối phương ngay
+// trước mũi quân mình mà không quân nào chắn — Pikafish coi đó là "đã có thể
+// bắt Tướng ngay" (một thế không bao giờ xảy ra thật từ một ván chơi hợp lệ)
+// và thoát luôn (mã 1) thay vì tìm nước, đã tận mắt bắt lỗi này qua log thật.
+export function validatePosition(board, sideToMove) {
   const errors = [];
-  if (!findGeneral(board, 'r')) errors.push('Thiếu Tướng bên Đỏ.');
-  if (!findGeneral(board, 'b')) errors.push('Thiếu Tướng bên Đen.');
-  if (flyingGeneral(board)) errors.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  const gr = findGeneral(board, 'r'), gb = findGeneral(board, 'b');
+  if (!gr) errors.push('Thiếu Tướng bên Đỏ.');
+  else if (!inOwnPalace('r', gr.r, gr.c)) errors.push('Tướng bên Đỏ phải nằm trong cung.');
+  if (!gb) errors.push('Thiếu Tướng bên Đen.');
+  else if (!inOwnPalace('b', gb.r, gb.c)) errors.push('Tướng bên Đen phải nằm trong cung.');
+  if (gr && gb && inOwnPalace('r', gr.r, gr.c) && inOwnPalace('b', gb.r, gb.c) && flyingGeneral(board)) {
+    errors.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  }
+  if (gr && gb && sideToMove) {
+    const waiting = opp(sideToMove);
+    if (inCheck(board, waiting)) {
+      errors.push(`Tướng bên ${waiting === 'r' ? 'Đỏ' : 'Đen'} đang bị chiếu sẵn dù chưa đến lượt đi — không hợp lệ.`);
+    }
+  }
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+    const p = board[r][c]; if (!p) continue;
+    if (p.type === 'advisor' && !inOwnPalace(p.side, r, c)) {
+      errors.push(`Sĩ bên ${p.side === 'r' ? 'Đỏ' : 'Đen'} phải nằm trong cung.`);
+    } else if (p.type === 'elephant' && !inOwnHalf(p.side, r)) {
+      errors.push(`Tượng bên ${p.side === 'r' ? 'Đỏ' : 'Đen'} không được qua sông.`);
+    }
+  }
   return errors;
 }

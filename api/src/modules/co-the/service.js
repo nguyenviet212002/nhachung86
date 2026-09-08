@@ -40,7 +40,7 @@ export async function loadPosition(trx, communityId, id) {
 }
 
 export async function createPosition({ actor, board, sideToMove }) {
-  const errors = rules.validatePosition(board);
+  const errors = rules.validatePosition(board, sideToMove);
   if (errors.length) throw new AppError('VALIDATION_FAILED', errors.join(' '), { status: 422, fields: { board: errors } });
   return withActor(actor.id, async (trx) => {
     const { rows: [row] } = await trx.raw(

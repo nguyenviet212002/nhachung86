@@ -45,6 +45,19 @@ describe('T48 Cờ Thế — soạn thế, kiểm, Kho thế', () => {
       .send({ board: b, side_to_move: 'r' }).expect(422);
   });
 
+  // Thế thật đã bắt được lỗi này qua log: Xe kề ngay Tướng đối phương, chưa
+  // ai đi, nếu cho chốt thì "Phân tích ngay"/"Tìm cách phá" gọi engine thật
+  // sẽ nhận về "Pikafish thoát bất ngờ (mã 1)" thay vì kết quả — phải chặn
+  // ngay từ lúc chốt thế (fail-closed), không để lộ ra tận lúc phân tích.
+  it('soạn thế để bên chưa đi bị chiếu sẵn (Tướng bắt được ngay) -> 422', async () => {
+    const b = Array.from({ length: 10 }, () => Array(9).fill(null));
+    b[9][4] = { side: 'r', type: 'general' };
+    b[0][4] = { side: 'b', type: 'general' };
+    b[1][4] = { side: 'r', type: 'chariot' };
+    await supertest(app).post('/api/v1/co-the/positions').set(auth(aliceToken))
+      .send({ board: b, side_to_move: 'r' }).expect(422);
+  });
+
   it('lưu Kho thế rồi liệt kê thấy đúng thế đó, thành viên KHÁC trong cộng đồng cũng xem được', async () => {
     const created = await supertest(app).post('/api/v1/co-the/positions').set(auth(aliceToken))
       .send({ board: validBoard(), side_to_move: 'r' }).expect(201);

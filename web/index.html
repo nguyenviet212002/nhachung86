@@ -7411,22 +7411,39 @@ function cotheSetSide(side){ COTHE.sideToMove=side; cotheRender(); }
 // Soát trước ở client những gì server chắc chắn sẽ từ chối (rules.validatePosition
 // phía api) — tránh bấm "Chốt thế" ra lỗi 422 lặp đi lặp lại vì thiếu Tướng hoặc
 // hai Tướng đối mặt, người dùng không biết sửa gì.
-function cotheSoanErrors(board){
+function cotheInPalace(side,r,c){ const rows=side==='r'?[7,8,9]:[0,1,2]; return rows.includes(r)&&c>=3&&c<=5; }
+function cotheInOwnHalf(side,r){ return side==='r'?r>=5:r<=4; }
+// Khớp với rules.validatePosition phía server (chuẩn nằm ở đó — bản này chỉ
+// để chặn sớm trên trình duyệt, tránh 1 lần gọi mạng thất bại + tránh chốt
+// một thế mà lúc Phân tích/Tìm cách phá engine thật (Pikafish) sẽ thoát bất
+// ngờ: Tướng/Sĩ ra khỏi cung, Tượng qua sông, hoặc bên chưa đi đã bị chiếu
+// sẵn (Pikafish coi đó là "đã có thể bắt Tướng ngay", không phải thế hợp lệ
+// từ một ván chơi thật) — dùng lại xqFindGeneral/xqInCheck/xqFlyingGeneral
+// đã có sẵn cho phần gợi ý nước đi, khỏi viết lại lần hai.
+function cotheSoanErrors(board, sideToMove){
   const errs=[];
-  const find=(side)=>{ for(let r=0;r<10;r++) for(let c=0;c<9;c++){ const p=board[r][c]; if(p&&p.side===side&&p.type==='general') return {r,c}; } return null; };
-  const gr=find('r'), gb=find('b');
+  const gr=xqFindGeneral(board,'r'), gb=xqFindGeneral(board,'b');
   if(!gr) errs.push('Thiếu Tướng bên Đỏ.');
+  else if(!cotheInPalace('r',gr.r,gr.c)) errs.push('Tướng bên Đỏ phải nằm trong cung.');
   if(!gb) errs.push('Thiếu Tướng bên Đen.');
-  if(gr&&gb&&gr.c===gb.c){
-    let blocked=false;
-    for(let r=Math.min(gr.r,gb.r)+1;r<Math.max(gr.r,gb.r);r++) if(board[r][gr.c]) blocked=true;
-    if(!blocked) errs.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  else if(!cotheInPalace('b',gb.r,gb.c)) errs.push('Tướng bên Đen phải nằm trong cung.');
+  if(gr&&gb&&cotheInPalace('r',gr.r,gr.c)&&cotheInPalace('b',gb.r,gb.c)&&xqFlyingGeneral(board)){
+    errs.push('Hai Tướng đối mặt trực tiếp — không hợp lệ.');
+  }
+  if(gr&&gb&&sideToMove){
+    const waiting = xqOpp(sideToMove);
+    if(xqInCheck(board,waiting)) errs.push(`Tướng bên ${waiting==='r'?'Đỏ':'Đen'} đang bị chiếu sẵn dù chưa đến lượt đi — không hợp lệ.`);
+  }
+  for(let r=0;r<10;r++) for(let c=0;c<9;c++){
+    const p=board[r][c]; if(!p) continue;
+    if(p.type==='advisor'&&!cotheInPalace(p.side,r,c)) errs.push(`Sĩ bên ${p.side==='r'?'Đỏ':'Đen'} phải nằm trong cung.`);
+    else if(p.type==='elephant'&&!cotheInOwnHalf(p.side,r)) errs.push(`Tượng bên ${p.side==='r'?'Đỏ':'Đen'} không được qua sông.`);
   }
   return errs;
 }
 function cotheChotThe(){
   if(COTHE.busy) return;
-  const preErrs = cotheSoanErrors(COTHE.board);
+  const preErrs = cotheSoanErrors(COTHE.board, COTHE.sideToMove);
   if(preErrs.length){ COTHE.errors=preErrs; cotheRender(); return; }
   COTHE.busy=true; COTHE.errors=[]; cotheRender();
   api.post('/co-the/positions', {board:COTHE.board, side_to_move:COTHE.sideToMove}).then(p=>{
