@@ -515,14 +515,16 @@ tr:last-child td{border-bottom:none}
 /* ===== Cờ Thế (V['cotuong-the']) — bảng màu bày quân, Kho thế, hồ sơ,
    tìm cách phá, mổ ván. Dùng chung .xq-fs-panel/.xq-fs-card/.xq-status-bar
    đã có, chỉ thêm phần riêng của màn này. ===== */
-.cothe-palette{display:flex;flex-direction:column;gap:6px}
-.cothe-pal-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.cothe-pal-row .lbl{font-size:12px;color:var(--muted);width:32px;flex:none}
-.cothe-pal-pc{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--line);background:#fff;
-  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:16px;cursor:pointer;flex:none}
-.cothe-pal-pc.red{color:#c0392b}
+.cothe-palette{display:flex;flex-direction:column;gap:2px}
+.cothe-pal-group{margin-bottom:12px}
+.cothe-pal-lbl{display:block;font-size:12px;font-weight:700;color:#8a6d3a;
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+.cothe-pal-row{display:flex;gap:6px;flex-wrap:wrap}
+.cothe-pal-pc{width:34px;height:34px;border-radius:11px;border:1.5px solid var(--line);background:#fff;
+  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:16.5px;cursor:pointer;flex:none}
+.cothe-pal-pc.red{color:#C93B2F}
 .cothe-pal-pc.black{color:#1a1a1a}
-.cothe-pal-pc.on{border-color:var(--brand);background:var(--brand-l)}
+.cothe-pal-pc.on{border-color:#D7B26D;background:#faf3e3}
 .cothe-kho-list{display:flex;flex-direction:column;gap:6px}
 .cothe-kho-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff}
 .cothe-kho-item:hover{background:var(--brand-vl)}
@@ -546,7 +548,7 @@ tr:last-child td{border-bottom:none}
    nằm trần trên nền xanh đậm của .xq-fs (chữ tối mất hút). Đóng khung như
    .xq-fs-card nhưng nằm THEO DÒNG (không position:fixed) để cuộn tự nhiên
    theo danh sách Kho thế dài ngắn tuỳ ý. */
-.cothe-home-card{max-width:600px;margin:0 auto;background:#fff;border-radius:18px;
+.cothe-home-card{max-width:600px;margin:0 auto;background:#F7F3E9;border:1px solid #D8C9A8;border-radius:18px;
   box-shadow:0 16px 40px rgba(0,0,0,.28);padding:22px}
 /* Tab lọc danh mục: nút NHỎ ôm theo chữ, không dùng .xq-ctrl-row (nút đó tự
    giãn flex:1 cho các hàng 2-3 nút ngang hàng — 6 tab category theo kiểu đó
@@ -555,6 +557,61 @@ tr:last-child td{border-bottom:none}
 .cothe-tab{flex:none;padding:7px 14px;border-radius:999px;border:1.5px solid var(--line);
   background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .cothe-tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* ===== Cờ Thế — topbar riêng + nền banner-co.png + tông kem/vàng, theo
+   đúng bản thiết kế mau-bay-the.html. Chỉ áp cho .xq-fs-cothe (đúng 1 màn
+   'cotuong-the') qua tham số opts của xqFullscreenShell — KHÔNG cascade
+   vào .xq-fs/.xq-fs-panel mặc định mà 6 màn cờ khác (đấu thật, xem khách,
+   chơi máy...) vẫn đang dùng nguyên. ===== */
+.xq-fs.xq-fs-cothe{
+  background:
+    linear-gradient(180deg, rgba(6,38,31,.55), rgba(6,38,31,.72)),
+    url('assets/00-banner/banner-co.png') center/cover no-repeat;
+}
+.xq-fs-cothe .content{padding-top:78px}
+.cothe-topbar{
+  position:fixed;top:0;left:0;right:0;z-index:212;height:58px;box-sizing:border-box;
+  display:flex;align-items:center;gap:14px;padding:0 22px;
+  background:rgba(8,59,47,.85);backdrop-filter:blur(6px);
+  border-bottom:1px solid rgba(215,178,109,.25);
+}
+/* Status bar / panel / card của các màn cờ khác neo theo mép trên màn hình
+   (không có topbar) — riêng Cờ Thế phải dời xuống dưới cothe-topbar (cao
+   58px) để khỏi bị đè lên. */
+.xq-fs-cothe .xq-status-bar{top:calc(70px + env(safe-area-inset-top))}
+.xq-fs-cothe .xq-fs-panel{top:calc(70px + env(safe-area-inset-top))}
+.xq-fs-cothe .xq-fs-card{top:calc(70px + 6vh)}
+.xq-fs-cothe .xq-board{max-width:min(97vw,780px,calc((100vh - 200px)*8/9))}
+@media(max-width:768px){.xq-fs-cothe .xq-board{max-width:min(97vw,calc((100vh - 166px)*8/9))}}
+.cothe-topbar .icon-btn{
+  width:36px;height:36px;border-radius:50%;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#F7F3E9;
+}
+.cothe-topbar .icon-btn:hover{background:rgba(255,255,255,.18)}
+.cothe-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:none}
+.cothe-brand img{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;border:1.5px solid #D7B26D}
+.cothe-brand span{font-size:14.5px;font-weight:800;color:#fff;letter-spacing:.4px}
+.cothe-crumb{flex:none;display:flex;align-items:center;gap:6px;padding:7px 15px;border-radius:999px;
+  background:rgba(215,178,109,.16);border:1px solid rgba(215,178,109,.55);color:#fff;font-size:13.5px;font-weight:700}
+.cothe-topbar .spacer{flex:1}
+.cothe-topbar .ic-bell{color:#F7F3E9}
+.cothe-topbar .avatar-mini .nm{color:#fff}
+.cothe-topbar .avatar-mini .rl{color:rgba(247,243,233,.6)}
+@media(max-width:640px){
+  .cothe-brand span,.cothe-crumb span{display:none}
+  .cothe-topbar .avatar-mini .rl{display:none}
+  .xq-fs-cothe .content{padding-top:70px}
+}
+
+/* Thẻ nổi trong Cờ Thế (soạn/thế cờ/đấu/xong) — kem ngà + viền vàng nhạt
+   thay cho trắng trơn mặc định của .xq-fs-panel. Cộng thêm qua class
+   cothe-panel gắn tay ở từng màn, không sửa .xq-fs-panel gốc. */
+.cothe-panel{background:#F7F3E9;border:1px solid #D8C9A8}
+.cothe-panel h1,.cothe-home-card h1{display:flex;align-items:center;gap:10px;color:#1C2A22}
+.cothe-panel h1::after,.cothe-home-card h1::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#D7B26D,transparent);opacity:.6}
+.cothe-btn-primary{background:linear-gradient(160deg,#0F5A43,#083B2F);color:#fff;border-color:transparent}
+.cothe-btn-wood{background:#E8CF9B;color:#1C2A22;border-color:#9B6A2E}
 
 /* ===== Chat ===== */
 .chat-shell{display:grid;grid-template-columns:280px 1fr;height:calc(100vh - 240px);min-height:460px;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:#fff}
@@ -2256,7 +2313,10 @@ function render(){
   // hình — không header/nav/footer — chỉ có bàn cờ + nút X để thoát, theo
   // đúng yêu cầu "bấm vào đánh cờ thì full screen, có nút X để thoát".
   if(XQ_FULLSCREEN_SCREENS.has(screen)){
-    root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung');
+    const shellOpts = screen==='cotuong-the'
+      ? {extraClass:'xq-fs-cothe', topbarHtml: cotheTopbarHtml(body.includes('xq-fs-panel'))}
+      : undefined;
+    root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung', shellOpts);
     window.scrollTo(0,0);
     bindGlobal();
     return;
@@ -2290,15 +2350,52 @@ const XQ_FULLSCREEN_CLOSE = { cotuong:'congchung', 'cotuong-may':'cotuong-online
    trước/sau...) đều gọi lại render() (thay nguyên root.innerHTML), nên nếu
    không nhớ vào biến thì panel sẽ tự đóng ngay khi vừa bấm 1 nút bên trong. */
 let XQ_FS_MENU_OPEN = false;
-function xqFullscreenShell(bodyHtml, closeTarget){
+function xqFullscreenShell(bodyHtml, closeTarget, opts){
+  opts = opts || {};
   // Nút menu (☰) chỉ hiện khi màn thực sự có bảng điều khiển nổi (.xq-fs-panel)
   // để mở/đóng — tránh 1 nút bấm vô tác dụng ở các trạng thái không có panel
   // (ví dụ màn đang tải ván cờ online, hoặc lời thách đấu đã bị từ chối).
   const hasPanel = bodyHtml.includes('xq-fs-panel');
-  return `<div class="xq-fs">
-    ${hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',20)}</button>` : ''}
-    <a href="#${closeTarget}" data-go="${closeTarget}" class="xq-fs-x" title="Thoát, không đánh nữa">${ic('x',20)}</a>
+  // opts.topbarHtml: chỉ màn 'cotuong-the' truyền vào (xem cotheTopbarHtml) —
+  // khi có, nút ☰/X đã nằm SẴN trong topbar đó (id="xqFsMenuBtn" dùng lại
+  // đúng chỗ bindGlobal() đang gắn sự kiện), nên KHÔNG vẽ thêm 2 nút tròn nổi
+  // cũ nữa (chồng lên topbar). 6 màn cờ khác không truyền opts, giữ y nguyên.
+  return `<div class="xq-fs ${opts.extraClass||''}">
+    ${opts.topbarHtml || ''}
+    ${!opts.topbarHtml && hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',20)}</button>` : ''}
+    ${!opts.topbarHtml ? `<a href="#${closeTarget}" data-go="${closeTarget}" class="xq-fs-x" title="Thoát, không đánh nữa">${ic('x',20)}</a>` : ''}
     <div class="wrap"><div class="content">${bodyHtml}</div></div>
+  </div>`;
+}
+// Topbar riêng cho Cờ Thế (V['cotuong-the']) — theo bản thiết kế
+// mau-bay-the.html: logo Sảnh Cờ thật + chuông/tài khoản THẬT (dùng lại
+// đúng id bellBtn/notifPanel/umenuBtn/umenu/logoutBtn mà bindGlobal() đã
+// gắn sẵn cho header thường — KHÔNG viết lại JS mới), cộng nút ☰/X gộp vào
+// đây thay vì 2 nút tròn nổi mặc định.
+function cotheTopbarHtml(hasPanel){
+  return `<div class="cothe-topbar">
+    ${hasPanel ? `<button type="button" class="icon-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',18)}</button>` : ''}
+    <a href="#cotuong-online" data-go="cotuong-online" class="cothe-brand" title="Về Sảnh Cờ">
+      <img src="assets/topbar/04-sanh-co.png" alt="">
+      <span>SẢNH CỜ</span>
+    </a>
+    <span class="cothe-crumb">${ic('star',14)} <span>Cờ Thế</span></span>
+    <div class="spacer"></div>
+    <div style="position:relative">
+      <button class="ic-bell" id="bellBtn" title="Thông báo">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
+      <div class="umenu" id="notifPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:4px">${notifPanelHtml()}</div>
+    </div>
+    <div class="avatar-mini" id="umenuBtn">
+      ${avatarCircle(DATA.me.avatar, DATA.me.name, 32)}
+      <div><span class="nm">${esc(DATA.me.name)}</span><span class="rl">Bấm để mở trình đơn</span></div>
+      <div class="umenu" id="umenu">
+        <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
+        <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
+        <div class="div"></div>
+        <button id="logoutBtn" class="logout">${ic('logout',15)} Đăng xuất</button>
+      </div>
+    </div>
+    <a href="#cotuong-online" data-go="cotuong-online" class="icon-btn" title="Thoát, không đánh nữa">${ic('x',18)}</a>
   </div>`;
 }
 
@@ -7613,15 +7710,15 @@ function cotheVerdictCaption(p){
   return '';
 }
 function cothePalette(){
-  const rows = [['r','Đỏ'],['b','Đen']].map(([side,label])=>{
+  const groups = [['r','Đỏ'],['b','Đen']].map(([side,label])=>{
     const btns = COTHE_PIECE_TYPES.map(t=>{
       const on = COTHE.pick && COTHE.pick!=='erase' && COTHE.pick.side===side && COTHE.pick.type===t;
       return `<button type="button" class="cothe-pal-pc ${side==='r'?'red':'black'} ${on?'on':''}" onclick="cothePick('${side}','${t}')">${CHESS_CHAR[side][t]}</button>`;
     }).join('');
-    return `<div class="cothe-pal-row"><span class="lbl">${label}</span>${btns}</div>`;
+    return `<div class="cothe-pal-group"><span class="cothe-pal-lbl">${label}</span><div class="cothe-pal-row">${btns}</div></div>`;
   }).join('');
   const eraseOn = COTHE.pick==='erase';
-  return `<div class="cothe-palette">${rows}<button type="button" class="btn ${eraseOn?'btn-blue':'btn-out'} btn-sm" style="margin-top:6px" onclick="cothePickErase()">${ic('x',13)} Xoá quân${eraseOn?' (đang chọn — bấm ô)':' (bấm ô)'}</button></div>`;
+  return `<div class="cothe-palette">${groups}<button type="button" class="btn ${eraseOn?'cothe-btn-primary':'btn-out'} btn-sm" style="margin-top:6px" onclick="cothePickErase()">${ic('x',13)} Xoá quân${eraseOn?' (đang chọn — bấm ô)':' (bấm ô)'}</button></div>`;
 }
 const COTHE_PIECE_TYPES = ['general','advisor','elephant','horse','chariot','cannon','soldier'];
 function cotheHomeHtml(){
@@ -7662,17 +7759,17 @@ function cotheSoanHtml(){
   return `
   <div class="xq-status-bar">${cotheSoanStatus()}</div>
   ${chessBoardHtml(COTHE.board, {onCellClick:'cotheCellClickSoan'})}
-  <div class="xq-fs-panel show">
+  <div class="xq-fs-panel cothe-panel show">
     <h1>Bày thế</h1>
     ${errs}
     ${cothePalette()}
     <div class="xq-ctrl-row" style="margin-top:14px">
       <span style="font-size:13px;color:var(--muted);flex:none;align-self:center">Bên đi trước:</span>
-      <button class="btn ${COTHE.sideToMove==='r'?'btn-blue':'btn-out'} btn-sm" onclick="cotheSetSide('r')">Đỏ</button>
-      <button class="btn ${COTHE.sideToMove==='b'?'btn-blue':'btn-out'} btn-sm" onclick="cotheSetSide('b')">Đen</button>
+      <button class="btn ${COTHE.sideToMove==='r'?'cothe-btn-primary':'btn-out'} btn-sm" onclick="cotheSetSide('r')">Đỏ</button>
+      <button class="btn ${COTHE.sideToMove==='b'?'cothe-btn-primary':'btn-out'} btn-sm" onclick="cotheSetSide('b')">Đen</button>
     </div>
-    <button class="btn btn-blue btn-block" style="margin-top:12px" ${COTHE.busy?'disabled':''} onclick="cotheChotThe()">${ic('check',15)} Chốt thế</button>
-    <button class="btn btn-out btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
+    <button class="btn cothe-btn-primary btn-block" style="margin-top:12px" ${COTHE.busy?'disabled':''} onclick="cotheChotThe()">${ic('check',15)} Chốt thế</button>
+    <button class="btn cothe-btn-wood btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
   </div>`;
 }
 function cothePositionHtml(){
@@ -7683,7 +7780,7 @@ function cothePositionHtml(){
       <select class="input" onchange="COTHE.saveCategory=this.value" style="margin-bottom:8px">
         ${COTHE_CATEGORY.map(([v,l])=>`<option value="${v}" ${COTHE.saveCategory===v?'selected':''}>${l}</option>`).join('')}
       </select>
-      <button class="btn btn-blue btn-block" onclick="cotheLuuKho()">${ic('check',15)} Lưu vào Kho thế</button>
+      <button class="btn cothe-btn-primary btn-block" onclick="cotheLuuKho()">${ic('check',15)} Lưu vào Kho thế</button>
     </div>` : '';
   const refutation = COTHE.refutation ? (
     !COTHE.refutation.co_duong_thang ? `<p style="font-size:13px;color:var(--muted);margin-top:8px">Không tìm thấy đường chiếu bí rõ trong thời gian tìm.</p>`
@@ -7692,7 +7789,7 @@ function cothePositionHtml(){
   return `
   <div class="xq-status-bar">${p.saved_to_library?'Kho thế · '+esc(p.label||''):'Thế mới soạn — chưa lưu Kho thế'}</div>
   ${chessBoardHtml(p.board, {})}
-  <div class="xq-fs-panel show">
+  <div class="xq-fs-panel cothe-panel show">
     <h1>Thế cờ</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Bên ${p.side_to_move==='r'?'Đỏ':'Đen'} đi trước.</p>
 
@@ -7733,7 +7830,7 @@ function cothePositionHtml(){
         <button class="btn btn-out btn-sm" ${COTHE.busy?'disabled':''} onclick="cotheTaoTran('luyen-the','cao')">Cao cấp</button>
       </div>
     </div>
-    <button class="btn btn-out btn-block" style="margin-top:12px" onclick="cotheVeHome()">← Quay lại</button>
+    <button class="btn cothe-btn-wood btn-block" style="margin-top:12px" onclick="cotheVeHome()">← Quay lại</button>
   </div>`;
 }
 function cotheOpponentLabel(s){
@@ -7743,12 +7840,12 @@ function cotheOpponentLabel(s){
 function cothePlayingHtml(){
   const s = COTHE.session;
   if(s.mode==='luyen-the'){
-    return `<div class="xq-fs-card">
+    return `<div class="xq-fs-card cothe-panel">
       <h1>Luyện Thế · ${cotheOpponentLabel(s)}</h1>
       <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Máy tự đấu máy nhiều ván nền, tìm đường nào DỄ ĐI nhất cho người — không phải đáp án lý thuyết.</p>
       ${COTHE_POLL_TIMER ? `<p style="text-align:center;padding:20px 0">${ic('clock',18)}<br>Đang chạy…</p>`
-        : `<button class="btn btn-blue btn-block" ${COTHE.busy?'disabled':''} onclick="cotheChayLuyenThe()">${ic('bolt',15)} Bắt đầu luyện</button>`}
-      <button class="btn btn-out btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
+        : `<button class="btn cothe-btn-primary btn-block" ${COTHE.busy?'disabled':''} onclick="cotheChayLuyenThe()">${ic('bolt',15)} Bắt đầu luyện</button>`}
+      <button class="btn cothe-btn-wood btn-block" style="margin-top:8px" onclick="cotheVeHome()">← Quay lại</button>
     </div>`;
   }
   const flip = s.solver_side==='b';
@@ -7757,7 +7854,7 @@ function cothePlayingHtml(){
   return `
   <div class="xq-status-bar">${isMyTurn?'Tới lượt bạn':'Máy đang đi…'}</div>
   ${chessBoardHtml(s.board, {selected:COTHE.selected, legal:COTHE.legal, flip, onCellClick:'cotheCellClick', disabled:!isMyTurn||COTHE.busy, lastMove:hint})}
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?' show':''}">
+  <div class="xq-fs-panel cothe-panel${XQ_FS_MENU_OPEN?' show':''}">
     <h1>Đang đấu</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Bạn cầm bên ${s.solver_side==='r'?'Đỏ':'Đen'} · Đối thủ: máy (${cotheOpponentLabel(s)})</p>
     <div class="xq-ctrl-row">
@@ -7772,11 +7869,11 @@ function cotheFinishedHtml(){
   if(s.mode==='luyen-the'){
     const r = s.luyen_the_result;
     const cap = (label,c)=> c ? `<div class="cothe-luyen-cap"><b>${label}</b><span>nước đầu: ${esc(c.first_move)} · thắng ${(c.ti_le_thanh_cong*100).toFixed(0)}% · ~${c.so_nuoc_trung_binh.toFixed(1)} nước</span></div>` : `<div class="cothe-luyen-cap"><b>${label}</b><span>không đủ dữ liệu</span></div>`;
-    return `<div class="xq-fs-card">
+    return `<div class="xq-fs-card cothe-panel">
       <h1>Luyện Thế xong</h1>
       <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">${r?r.tong_so_van:0} ván tự đấu · tỉ lệ đo mức máy chống kém đến đâu, KHÔNG PHẢI đáp án lý thuyết tuyệt đối (xem ⚖ Phân tích để biết đáp án đúng/sai).</p>
       ${r?cap('Hạ cấp — ngắn nhất, dễ nhớ',r.ha)+cap('Trung cấp — cân bằng',r.trung)+cap('Cao cấp — chắc nhất',r.cao):''}
-      <button class="btn btn-blue btn-block" style="margin-top:14px" onclick="cotheVeHome()">Về Kho thế</button>
+      <button class="btn cothe-btn-primary btn-block" style="margin-top:14px" onclick="cotheVeHome()">Về Kho thế</button>
     </div>`;
   }
   const won = s.result==='thang';
@@ -7794,7 +7891,7 @@ function cotheFinishedHtml(){
   return `
   ${announce}
   ${chessBoardHtml(hb.board, {lastMove:hb.lastMove, flip:s.solver_side==='b'})}
-  <div class="xq-fs-panel${XQ_FS_MENU_OPEN?' show':''}">
+  <div class="xq-fs-panel cothe-panel${XQ_FS_MENU_OPEN?' show':''}">
     <h1>${won?'Giải thành công!':(s.result==='hoa'?'Hoà':'Chưa xong')}</h1>
     <p style="font-size:13px;color:var(--muted);margin-bottom:10px">${COTHE_END_REASON_LABEL[s.end_reason]||''}</p>
 
@@ -7817,7 +7914,7 @@ function cotheFinishedHtml(){
       ${COTHE.invite ? invite : `<button class="btn btn-out btn-sm" onclick="cotheMoiXem()">${ic('users',13)} Mời xem lại</button>`}
     </div>
 
-    <button class="btn btn-blue btn-block" style="margin-top:12px" onclick="cotheVeHome()">Về Kho thế</button>
+    <button class="btn cothe-btn-primary btn-block" style="margin-top:12px" onclick="cotheVeHome()">Về Kho thế</button>
   </div>`;
 }
 V['cotuong-the'] = ()=>{
