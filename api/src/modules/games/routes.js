@@ -43,6 +43,10 @@ router.get('/', requireAuth, validate(schema.listQuerySchema, 'query'), async (r
   } catch (e) { next(e); }
 });
 
+router.get('/leaderboard', requireAuth, async (req, res, next) => {
+  try { res.json(await service.getLeaderboard({ actor: req.actor })); } catch (e) { next(e); }
+});
+
 router.get('/:id', validate(schema.idParamSchema, 'params'), requireAuthOrGuestToken, async (req, res, next) => {
   try { res.json(await service.get({ actor: req.actor, id: req.params.id })); } catch (e) { next(e); }
 });

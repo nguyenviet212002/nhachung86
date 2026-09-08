@@ -848,6 +848,48 @@ export async function getMemberProfile({ actor, memberId }) {
   });
 }
 
+// Xếp hạng (mục 4 spec topbar hợp nhất) — tỉ lệ thắng trên các ván đã kết
+// thúc VÀ đã mổ (analyzed_at IS NOT NULL, cùng điều kiện getMemberProfile),
+// ngưỡng tối thiểu 5 ván để vào bảng (dưới ngưỡng, tỉ lệ thắng dễ gây hiểu
+// lầm — 100% sau đúng 1 ván thắng may). Khách (không black_member_id) bị
+// loại khỏi vế UNION thứ hai — khách không có hồ sơ, không xếp hạng được,
+// cùng nguyên tắc getAnalysis/getMemberProfile.
+export async function getLeaderboard({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows } = await trx.raw(
+      `SELECT m.id AS member_id, m.full_name, m.avatar_url,
+              count(*) AS games_count,
+              count(*) FILTER (WHERE x.won) AS wins,
+              avg(x.avg_loss) AS avg_loss
+         FROM (
+           SELECT g.red_member_id AS member_id, (g.winner_member_id = g.red_member_id) AS won, g.red_avg_loss AS avg_loss
+             FROM games g WHERE g.community_id = ? AND g.status = 'finished' AND g.analyzed_at IS NOT NULL
+           UNION ALL
+           SELECT g.black_member_id, (g.winner_member_id = g.black_member_id), g.black_avg_loss
+             FROM games g WHERE g.community_id = ? AND g.status = 'finished' AND g.analyzed_at IS NOT NULL
+               AND g.black_member_id IS NOT NULL
+         ) x
+         JOIN members m ON m.id = x.member_id
+        GROUP BY m.id, m.full_name, m.avatar_url
+       HAVING count(*) >= 5
+       ORDER BY (count(*) FILTER (WHERE x.won))::float / count(*) DESC, count(*) DESC
+       LIMIT 50`,
+      [actor.communityId, actor.communityId]
+    );
+    return {
+      data: rows.map((r) => ({
+        member_id: r.member_id,
+        full_name: r.full_name,
+        avatar_url: r.avatar_url,
+        games_count: Number(r.games_count),
+        wins: Number(r.wins),
+        win_rate: Math.round((Number(r.wins) / Number(r.games_count)) * 1000) / 10,
+        avg_loss: r.avg_loss === null ? null : Number(r.avg_loss),
+      })),
+    };
+  });
+}
+
 export async function setAiLevel({ actor, id, level }) {
   await withActor(actor.id, async (trx) => {
     const game = await loadGame(trx, actor.communityId, id);
