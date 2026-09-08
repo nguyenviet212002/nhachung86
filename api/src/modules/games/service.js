@@ -236,10 +236,10 @@ export async function list({ actor, status, mine, page, limit }) {
     const { rows } = await trx.raw(
       `SELECT g.id, g.status, g.turn, g.created_at, g.started_at,
               g.red_member_id, r.full_name AS red_name, r.avatar_url AS red_avatar_url,
-              g.black_member_id, b.full_name AS black_name, b.avatar_url AS black_avatar_url
+              g.black_member_id, COALESCE(b.full_name, g.black_guest_name) AS black_name, b.avatar_url AS black_avatar_url
          FROM games g
          JOIN members r ON r.id = g.red_member_id AND r.community_id = g.community_id
-         JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id
+         LEFT JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id
         WHERE ${clause} ORDER BY g.created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );

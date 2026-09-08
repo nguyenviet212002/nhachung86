@@ -115,6 +115,20 @@ describe('T42 tạo phòng / vào phòng', () => {
     await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
       .send({ guest_name: 'Người 2' }).expect(409);
   });
+
+  it('T42-extra: GET /games?mine=true liệt kê được phòng có khách (chưa phải thành viên)', async () => {
+    const created = await supertest(app).post('/api/v1/games/rooms').set(auth(aliceToken)).expect(201);
+    const roomId = created.body.id;
+    const guestName = 'Khách Phòng Đấu';
+    await supertest(app).post(`/api/v1/games/rooms/${created.body.invite_token}/join`)
+      .send({ guest_name: guestName }).expect(201);
+    // black_member_id vẫn NULL (khách, không phải thành viên) — trước bản vá
+    // list() dùng INNER JOIN cho bên Đen nên hàng này bị loại hẳn khỏi kết quả.
+    const res = await supertest(app).get('/api/v1/games?mine=true&status=pending,active').set(auth(aliceToken)).expect(200);
+    const row = res.body.data.find((g) => g.id === roomId);
+    expect(row).toBeDefined();
+    expect(row.black_name).toBe(guestName); // COALESCE lấy black_guest_name vì black_member_id NULL
+  });
 });
 
 describe('T42 sẵn sàng — 4 trạng thái + hết 30 giây', () => {
