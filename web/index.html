@@ -107,6 +107,17 @@ ul{list-style:none}
 .umenu a:hover,.umenu button:hover{background:var(--bg3)}
 .umenu .div{height:1px;background:var(--line2);margin:5px 4px}
 .umenu .logout{color:var(--red)}
+.xq-hall-nav{position:sticky;top:0;z-index:50;background:#163a2c;color:#fff}
+.xq-hall-nav-in{display:flex;align-items:center;gap:18px;padding:10px 0;overflow-x:auto}
+.xq-hall-logo{display:flex;align-items:center;gap:8px;color:#fff;flex:none;font-size:12px;line-height:1.3;font-weight:700;text-decoration:none}
+.xq-hall-logo b{display:block;font-size:13px;letter-spacing:.02em}
+.xq-hall-tabs{display:flex;gap:4px;flex:1;overflow-x:auto}
+.xq-hall-tab{color:rgba(255,255,255,.72);padding:8px 12px;border-radius:8px;font-size:13.5px;font-weight:600;white-space:nowrap;text-decoration:none}
+.xq-hall-tab.on{color:#fff;background:rgba(255,255,255,.14)}
+.xq-hall-right{display:flex;align-items:center;gap:6px;flex:none}
+.xq-hall-nav .ic-bell{color:#fff}
+.xq-hall-nav .avatar-mini .nm{color:#fff}
+.xq-hall-nav .umenu{color:var(--ink)}
 
 /* mobile drawer */
 .drawer-ov{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:90;display:none}
@@ -2261,6 +2272,12 @@ function render(){
     bindGlobal();
     return;
   }
+  if(XQ_HALL_SCREENS.has(screen)){
+    root.innerHTML = xqHallShell(screen, body);
+    window.scrollTo(0,0);
+    bindGlobal();
+    return;
+  }
   // isLanding (bố cục full-bleed, không khung .wrap/.content) chỉ đúng cho
   // trang chủ KHÁCH thật — congchung khi đã đăng nhập giờ render Bảng nhà
   // (xem variantOf()), cần khung thường như mọi màn thành viên khác.
@@ -2301,6 +2318,54 @@ function xqFullscreenShell(bodyHtml, closeTarget){
     <div class="wrap"><div class="content">${bodyHtml}</div></div>
   </div>`;
 }
+const XQ_HALL_TABS = [
+  {id:'cotuong-online', label:'Cờ Tướng'},
+  {id:'cotuong-phong-dau', label:'Phòng đấu'},
+  {id:'cotuong-xep-hang', label:'Xếp hạng'},
+  {id:'cotuong-huong-dan', label:'Hướng dẫn'},
+];
+// Topbar riêng của Sảnh Cờ — dùng CHUNG cho cả màn sảnh (xqHallShell, xem
+// dưới) lẫn màn đang đấu (xqFullscreenShell, Task 3) thay vì mỗi nơi một
+// kiểu khung như trước — đúng yêu cầu "gộp phần đấu cờ và phần tạo phòng
+// trong 1 cái". Tái dùng NGUYÊN các id #bellBtn/#notifPanel/#umenuBtn/#umenu/
+// #logoutBtn — bindGlobal() (đã có sẵn) gắn sự kiện theo đúng các id này,
+// không cần sửa gì ở bindGlobal(). activeTab=null khi đang đấu (không tab
+// nào sáng — người chơi không đang "ở" một trong 4 mục đó).
+function xqHallNavHtml(activeTab){
+  const tabsHtml = XQ_HALL_TABS.map(t=>`<a href="#${t.id}" class="xq-hall-tab${activeTab===t.id?' on':''}" data-go="${t.id}">${esc(t.label)}</a>`).join('');
+  return `<header class="xq-hall-nav"><div class="wrap xq-hall-nav-in">
+    <a href="#cotuong-online" class="xq-hall-logo" data-go="cotuong-online">${ic('star',22)}<span>SẢNH CỜ<br><b>NHACCON6789</b></span></a>
+    <nav class="xq-hall-tabs">${tabsHtml}</nav>
+    <div class="xq-hall-right">
+      <div style="position:relative">
+        <button class="ic-bell" id="bellBtn">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
+        <div class="umenu" id="notifPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:4px">${notifPanelHtml()}</div>
+      </div>
+      <a href="#caidat" data-go="caidat" class="ic-bell" title="Cài đặt">${ic('gear',17)}</a>
+      <div class="avatar-mini" id="umenuBtn">
+        ${avatarCircle(DATA.me.avatar, DATA.me.name, 32)}
+        <div><span class="nm">${esc(DATA.me.name)}</span></div>
+        <div class="umenu" id="umenu">
+          <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
+          <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
+          <div class="div"></div>
+          <button id="logoutBtn" class="logout">${ic('logout',15)} Đăng xuất</button>
+        </div>
+      </div>
+    </div>
+  </div></header>`;
+}
+// Thay hẳn cho wrapPage() ở 4 màn Sảnh Cờ — KHÔNG xếp chồng lên headerComp()
+// (ảnh mẫu chỉ có một thanh ngang duy nhất). Vẫn giữ footerFull() — thông
+// tin liên hệ/điều khoản là nội dung chung toàn site, không riêng gì Sảnh Cờ.
+function xqHallShell(activeTab, bodyHtml){
+  return `
+  ${xqHallNavHtml(activeTab)}
+  <main><div class="wrap"><div class="content">${bodyHtml}</div></div></main>
+  ${footerFull('member')}
+  `;
+}
+const XQ_HALL_SCREENS = new Set(['cotuong-online','cotuong-phong-dau','cotuong-xep-hang','cotuong-huong-dan']);
 
 // Icon 1 mục nav — ảnh thật (nav.img, bộ 4 icon topbar mới) nếu có, không thì
 // rơi về icon vector ic() như trước (mục overflow/NAV_ADMIN chưa có ảnh riêng).
