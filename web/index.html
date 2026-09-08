@@ -107,6 +107,58 @@ ul{list-style:none}
 .umenu a:hover,.umenu button:hover{background:var(--bg3)}
 .umenu .div{height:1px;background:var(--line2);margin:5px 4px}
 .umenu .logout{color:var(--red)}
+.xq-hall-nav{position:sticky;top:0;z-index:50;background:#163a2c;color:#fff}
+/* Sửa lỗi review cuối nhánh (final review, Critical 2): overflow-x:auto ở
+   đây từng khiến CSS tự suy ra overflow-y:auto (quy tắc "một trục non-visible
+   thì trục kia cũng thành auto, không còn visible") — biến hàng này thành
+   khung cắt/cuộn 2 trục, cắt gần hết #umenu/#notifPanel (position:absolute,
+   neo theo các phần tử con trong hàng này) ra khỏi vùng nhìn thấy, không
+   bấm được chuông/tài khoản/đăng xuất ở CẢ 5 màn dùng topbar này. Cuộn
+   ngang cho màn hẹp đã có sẵn ở .xq-hall-tabs (đúng chỗ cần, không kéo theo
+   cả logo/chuông/tài khoản), nên bỏ hẳn overflow-x ở hàng ngoài này thay vì
+   thêm overflow-y:visible (không tự nhiên bằng, dễ bị đổi lại sau này). */
+.xq-hall-nav-in{display:flex;align-items:center;gap:18px;padding:10px 0}
+.xq-hall-logo{display:flex;align-items:center;gap:8px;color:#fff;flex:none;font-size:12px;line-height:1.3;font-weight:700;text-decoration:none}
+.xq-hall-logo b{display:block;font-size:13px;letter-spacing:.02em}
+/* Sửa lỗi review cuối nhánh (Important): rời khung site (headerComp/wrapPage/
+   drawer/tabbar) đồng nghĩa 4 màn Sảnh Cờ không còn lối thoát nào về phần
+   còn lại của site trên điện thoại ngoài cuộn xuống footer — đúng rủi ro
+   spec đã lường trước (mục 2, "Rủi ro đã cân nhắc") và đề xuất sẵn cách sửa:
+   thêm liên kết nhỏ "← Nhà Chung" cạnh logo, trỏ #congchung (cùng đích lối
+   về mà headerComp() dùng cho logo site). Cố tình nhỏ/mờ hơn hẳn 4 tab —
+   đây là lối thoát khẩn cấp, không phải mục điều hướng chính. */
+/* margin âm ăn bớt vào .xq-hall-nav-in{gap:18px} 2 bên — .xq-hall-tabs vẫn
+   co giãn được (flex:1 + overflow-x:auto, xem chú thích min-width auto→0 ở
+   trên), nhưng logo/khối phải (.xq-hall-right) là flex:none, KHÔNG co lại
+   được. Ở màn 390px, thêm nguyên 1 mục flex 80px+gap 18px đẩy #umenuBtn ra
+   ngoài vùng nhìn thấy (đã đo qua elementFromPoint — trả về null). Bớt gap
+   quanh liên kết này (không đụng .xq-hall-nav-in{gap:18px} chung) + chữ nhỏ
+   hơn để tổng chiều rộng cộng thêm đủ nhỏ, giữ #umenuBtn/#umenu trong màn
+   hình 390px. */
+.xq-hall-home{flex:none;font-size:10.5px;color:rgba(255,255,255,.55);text-decoration:none;white-space:nowrap;padding:4px 0;margin:0 -9px}
+.xq-hall-home:hover{color:#fff}
+/* Màn hẹp (390px đã đo qua elementFromPoint): dù đã bớt gap/cỡ chữ, chữ
+   " Nhà Chung" vẫn đủ rộng để đẩy #umenuBtn ra khỏi vùng nhìn thấy — thu về
+   còn mỗi mũi tên "←" (vẫn còn href/data-go/title/aria-label nguyên vẹn,
+   click được, đọc được bằng trình đọc màn hình) đúng lúc chỗ eo hẹp nhất. */
+@media(max-width:480px){.xq-hall-home-t{display:none}}
+.xq-hall-tabs{display:flex;gap:4px;flex:1;overflow-x:auto}
+.xq-hall-tab{color:rgba(255,255,255,.72);padding:8px 12px;border-radius:8px;font-size:13.5px;font-weight:600;white-space:nowrap;text-decoration:none}
+.xq-hall-tab.on{color:#fff;background:rgba(255,255,255,.14)}
+.xq-hall-right{display:flex;align-items:center;gap:6px;flex:none}
+.xq-hall-nav .ic-bell{color:#fff}
+.xq-hall-nav .avatar-mini .nm{color:#fff}
+.xq-hall-nav .umenu{color:var(--ink)}
+/* Task 3 (màn cotuong-van): #xqFsMenuBtn tái dùng class .xq-fs-menu-btn (nút
+   ☰ nổi mặc định của xqFullscreenShell — CSS gốc position:fixed, neo góc
+   màn hình, xem quy tắc .xq-fs-x,.xq-fs-menu-btn phía dưới) nhưng lần này
+   được đặt làm phần tử ĐẦU trong hàng flex .xq-hall-nav-in của topbar, chứ
+   không nổi độc lập trên bàn cờ như 6 màn cờ khác. position:fixed kéo nó ra
+   khỏi luồng flex — không nằm ở đầu hàng như mong muốn mà đè lên logo Sảnh
+   Cờ ở góc trái màn hình. Ghi đè lại thành position:static để nó xếp đúng
+   vị trí trong hàng, giữ nguyên mọi kiểu dáng khác (kích thước/màu/bo góc)
+   từ class gốc — không đụng gì tới cách dùng .xq-fs-menu-btn nổi ở nơi khác. */
+.xq-hall-nav-in .xq-fs-menu-btn{position:static;top:auto;left:auto;z-index:auto}
 
 /* mobile drawer */
 .drawer-ov{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:90;display:none}
@@ -592,6 +644,26 @@ tr:last-child td{border-bottom:none}
 .xq-fs-cothe .xq-fs-card{top:calc(70px + 6vh)}
 .xq-fs-cothe .xq-board{max-width:min(97vw,780px,calc((100vh - 230px)*8/9))}
 @media(max-width:768px){.xq-fs-cothe .xq-board{max-width:min(97vw,calc((100vh - 196px)*8/9))}}
+
+/* Sửa lỗi review cuối nhánh (final review, Critical 1): cùng vấn đề như
+   .xq-fs-cothe ở trên nhưng cho V['cotuong-van'] khi nhúng topbar Sảnh Cờ
+   (xqHallNavHtml, extraClass 'xq-fs-hall', Task 3) — .xq-hall-nav đo thực tế
+   cao 62px (position:sticky, chiếm chỗ trong luồng, không phải fixed như
+   cothe-topbar, nhưng .xq-status-bar/.xq-fs-panel/.xq-fs-card vẫn neo
+   top:18px/58px/12vh theo VIEWPORT nên vẫn bị đè — đã xác nhận qua
+   elementFromPoint: cả 4 tab + chuông + bánh răng đều trả về .xq-status-bar
+   thay vì chính nó). Dời xuống dưới .xq-hall-nav, +12px đệm cho status-bar/
+   panel (giống +12 của cothe: 58→70), +62px (đúng chiều cao đo được, không
+   cần đệm) cho ngân sách chiều cao của card/board. Bảng đấu 3 cột
+   (.xq-3col-right .xq-fs-panel) đã ép position:static ở trên nên không bị
+   ảnh hưởng — quy tắc panel dưới đây chỉ có tác dụng ở lối xem khách (1 cột,
+   panel vẫn nổi fixed). */
+.xq-fs-hall .xq-status-bar{top:calc(74px + env(safe-area-inset-top))}
+.xq-fs-hall .xq-fs-panel{top:calc(74px + env(safe-area-inset-top))}
+.xq-fs-hall .xq-fs-card{top:calc(74px + 6vh)}
+.xq-fs-hall .xq-board{max-width:min(97vw,780px,calc((100vh - 192px)*8/9))}
+@media(max-width:768px){.xq-fs-hall .xq-board{max-width:min(97vw,calc((100vh - 158px)*8/9))}}
+
 .cothe-topbar .icon-btn{
   width:36px;height:36px;border-radius:50%;flex:none;
   display:flex;align-items:center;justify-content:center;
@@ -2328,8 +2400,21 @@ function render(){
   if(XQ_FULLSCREEN_SCREENS.has(screen)){
     const shellOpts = screen==='cotuong-the'
       ? {extraClass:'xq-fs-cothe', topbarHtml: cotheTopbarHtml(body.includes('xq-fs-panel'))}
+      : screen==='cotuong-van'
+      // extraClass:'xq-fs-hall' — cùng lý do/cách làm với 'xq-fs-cothe' ở
+      // trên: topbar Sảnh Cờ (xqHallNavHtml) đè lên .xq-status-bar/.xq-fs-panel/
+      // .xq-fs-card mặc định (chúng neo top:18px/58px/12vh theo viewport,
+      // không biết gì về topbar mới chèn phía trên). Xem các quy tắc
+      // `.xq-fs-hall ...` cạnh `.xq-fs-cothe ...` trong CSS.
+      ? {extraClass:'xq-fs-hall', topbarHtml: xqHallNavHtml(null, {hasPanel: body.includes('xq-fs-panel'), closeTarget: XQ_FULLSCREEN_CLOSE[screen]})}
       : undefined;
     root.innerHTML = xqFullscreenShell(body, XQ_FULLSCREEN_CLOSE[screen] || 'congchung', shellOpts);
+    window.scrollTo(0,0);
+    bindGlobal();
+    return;
+  }
+  if(XQ_HALL_SCREENS.has(screen)){
+    root.innerHTML = xqHallShell(screen, body);
     window.scrollTo(0,0);
     bindGlobal();
     return;
@@ -2380,6 +2465,59 @@ function xqFullscreenShell(bodyHtml, closeTarget, opts){
     <div class="wrap"><div class="content">${bodyHtml}</div></div>
   </div>`;
 }
+const XQ_HALL_TABS = [
+  {id:'cotuong-online', label:'Cờ Tướng'},
+  {id:'cotuong-phong-dau', label:'Phòng đấu'},
+  {id:'cotuong-xep-hang', label:'Xếp hạng'},
+  {id:'cotuong-huong-dan', label:'Hướng dẫn'},
+];
+// Topbar riêng của Sảnh Cờ — dùng CHUNG cho cả màn sảnh (xqHallShell, xem
+// dưới) lẫn màn đang đấu (xqFullscreenShell, Task 3) thay vì mỗi nơi một
+// kiểu khung như trước — đúng yêu cầu "gộp phần đấu cờ và phần tạo phòng
+// trong 1 cái". Tái dùng NGUYÊN các id #bellBtn/#notifPanel/#umenuBtn/#umenu/
+// #logoutBtn — bindGlobal() (đã có sẵn) gắn sự kiện theo đúng các id này,
+// không cần sửa gì ở bindGlobal(). activeTab=null khi đang đấu (không tab
+// nào sáng — người chơi không đang "ở" một trong 4 mục đó).
+function xqHallNavHtml(activeTab, fsOpts){
+  fsOpts = fsOpts || {};
+  const tabsHtml = XQ_HALL_TABS.map(t=>`<a href="#${t.id}" class="xq-hall-tab${activeTab===t.id?' on':''}" data-go="${t.id}">${esc(t.label)}</a>`).join('');
+  return `<header class="xq-hall-nav"><div class="wrap xq-hall-nav-in">
+    ${fsOpts.hasPanel ? `<button type="button" class="xq-fs-menu-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',18)}</button>` : ''}
+    <a href="#cotuong-online" class="xq-hall-logo" data-go="cotuong-online">${ic('star',22)}<span>SẢNH CỜ<br><b>NHACCON6789</b></span></a>
+    <a href="#congchung" class="xq-hall-home" data-go="congchung" title="Về Nhà Chung" aria-label="Về Nhà Chung">←<span class="xq-hall-home-t"> Nhà Chung</span></a>
+    <nav class="xq-hall-tabs">${tabsHtml}</nav>
+    <div class="xq-hall-right">
+      <div style="position:relative">
+        <button class="ic-bell" id="bellBtn">${ic('bell',17)}${DATA.notifUnread>0?`<span class="dot"></span>`:''}</button>
+        <div class="umenu" id="notifPanel" style="width:340px;max-height:420px;overflow-y:auto;padding:4px">${notifPanelHtml()}</div>
+      </div>
+      <a href="#caidat" data-go="caidat" class="ic-bell" title="Cài đặt">${ic('gear',17)}</a>
+      <div class="avatar-mini" id="umenuBtn">
+        ${avatarCircle(DATA.me.avatar, DATA.me.name, 32)}
+        <div><span class="nm">${esc(DATA.me.name)}</span></div>
+        <div class="umenu" id="umenu">
+          <a href="#hoso-toi" data-go="hoso-toi">${ic('user',15)} Hồ sơ của tôi</a>
+          <a href="#caidat" data-go="caidat">${ic('gear',15)} Cài đặt</a>
+          <div class="div"></div>
+          <button id="logoutBtn" class="logout">${ic('logout',15)} Đăng xuất</button>
+        </div>
+      </div>
+      ${fsOpts.closeTarget ? `<a href="#${fsOpts.closeTarget}" data-go="${fsOpts.closeTarget}" class="ic-bell" title="Thoát, không đánh nữa">${ic('x',17)}</a>` : ''}
+    </div>
+  </div></header>`;
+}
+// Thay hẳn cho wrapPage() ở 4 màn Sảnh Cờ — KHÔNG xếp chồng lên headerComp()
+// (ảnh mẫu chỉ có một thanh ngang duy nhất). Vẫn giữ footerFull() — thông
+// tin liên hệ/điều khoản là nội dung chung toàn site, không riêng gì Sảnh Cờ.
+function xqHallShell(activeTab, bodyHtml){
+  return `
+  ${xqHallNavHtml(activeTab)}
+  <main><div class="wrap"><div class="content">${bodyHtml}</div></div></main>
+  ${footerFull('member')}
+  `;
+}
+const XQ_HALL_SCREENS = new Set(['cotuong-online','cotuong-phong-dau','cotuong-xep-hang','cotuong-huong-dan']);
+
 // Topbar riêng cho Cờ Thế (V['cotuong-the']) — theo bản thiết kế
 // mau-bay-the.html: logo Sảnh Cờ thật + chuông/tài khoản THẬT (dùng lại
 // đúng id bellBtn/notifPanel/umenuBtn/umenu/logoutBtn mà bindGlobal() đã
@@ -6384,6 +6522,76 @@ V['cotuong-online'] = ()=>{
   </div>`;
 };
 
+V['cotuong-huong-dan'] = ()=>`
+  <div class="page-head"><div><h1>Hướng dẫn</h1><p>Luật chơi cơ bản và cách dùng Sảnh Cờ.</p></div></div>
+  <div class="card" style="margin-bottom:14px">
+    <h3>${ic('book',16)} Luật chơi cơ bản</h3>
+    <p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-top:8px">
+      Mỗi bên có 16 quân: 1 Tướng, 2 Sĩ, 2 Tượng, 2 Xe, 2 Pháo, 2 Mã, 5 Tốt. Tướng chỉ đi trong cung (3x3 ô), không được đối mặt trực tiếp với Tướng đối phương.
+      Sĩ đi chéo trong cung. Tượng đi chéo 2 ô, không qua sông, bị cản nếu có quân ở giữa đường đi (mắt Tượng). Xe đi ngang/dọc không giới hạn.
+      Pháo đi như Xe nhưng khi ăn quân phải nhảy qua đúng 1 quân khác (ngòi Pháo). Mã đi hình chữ "nhật", bị cản nếu có quân ngay cạnh chân Mã.
+      Tốt trước khi qua sông chỉ đi thẳng 1 ô; qua sông rồi đi thẳng hoặc ngang 1 ô, không được lùi. Chiếu bí Tướng đối phương là thắng; hết nước đi hợp lệ mà không bị chiếu là thua (hết nước).
+    </p>
+  </div>
+  <div class="card">
+    <h3>${ic('star',16)} Cách dùng Sảnh Cờ</h3>
+    <div style="margin-top:10px">
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Tạo phòng & mời</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Bấm "Tạo phòng" ở màn Cờ Tướng, gửi link mời cho đối thủ — họ vào chơi được ngay, không cần lập tài khoản.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Máy đi hộ</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Đang đấu mà bận việc, bật "Máy đi hộ ta" để nhaccon6789 tự đi hộ đến khi bạn quay lại tắt.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Mổ ván</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Sau khi ván kết thúc, cả hai người chơi xem lại từng nước đi và điểm mất trung bình (ACPL) để biết mình sai ở đâu.</p></div>
+      <div style="margin-bottom:12px"><b style="font-size:13.5px">Hồ sơ đối thủ</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Trong ván đang đấu, xem nhanh số ván/tỉ lệ thắng/ACPL trung bình của đối thủ.</p></div>
+      <div><b style="font-size:13.5px">Xếp hạng</b><p style="font-size:13px;color:var(--ink2);margin-top:3px">Bảng xếp theo tỉ lệ thắng, chỉ tính thành viên đã chơi ít nhất 5 ván đã mổ xong.</p></div>
+    </div>
+  </div>`;
+
+V['cotuong-phong-dau'] = ()=>{
+  if(GAMES_LIST===null){ loadGamesList();
+    return `<div class="page-head"><div><h1>Phòng đấu</h1></div></div>
+    <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
+  const mineIds = new Set(GAMES_LIST.mine.map(g=>g.id));
+  const openOthers = GAMES_LIST.open.filter(g=>!mineIds.has(g.id));
+  const rowHtml = (g, isMine) => `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+    <div><b style="font-size:14.5px">${esc(g.red_name)}</b> <span style="color:var(--muted)">vs</span> <b style="font-size:14.5px">${esc(g.black_name||'(chưa có đối thủ)')}</b>
+      <div style="font-size:12.5px;color:var(--muted);margin-top:2px">${g.status==='pending'?'Đang chờ':'Đang đấu'}</div></div>
+    <button class="btn ${isMine?'btn-blue':'btn-out'} btn-sm" onclick="go('cotuong-van:${g.id}')">${isMine?'Vào tiếp':'Xem'}</button>
+  </div>`;
+  return `
+  <div class="page-head"><div><h1>Phòng đấu</h1><p>Ván của bạn và các ván đang diễn ra trong Nhà Chung.</p></div></div>
+  <h3 style="margin:16px 0 8px">Ván của bạn</h3>
+  ${GAMES_LIST.mine.length ? GAMES_LIST.mine.map(g=>rowHtml(g,true)).join('') : '<p style="font-size:13.5px;color:var(--muted)">Bạn chưa có ván nào đang chờ hoặc đang chơi.</p>'}
+  <h3 style="margin:20px 0 8px">Đang diễn ra</h3>
+  ${openOthers.length ? openOthers.map(g=>rowHtml(g,false)).join('') : '<p style="font-size:13.5px;color:var(--muted)">Chưa có ván nào khác đang diễn ra.</p>'}
+  <div style="margin-top:18px"><button class="btn btn-blue" onclick="roomCreate()">${ic('users',15)} Tạo phòng</button></div>`;
+};
+
+// Xếp hạng — cùng nhịp fetch-cache-render với XQ_ANALYSIS_CACHE/xqFetchAnalysis
+// ở trên: cache module-level, no-op nếu đang tải/đã có, gọi render() khi xong.
+let XQ_LEADERBOARD_CACHE = null; // null=chưa tải, 'loading', hoặc mảng data
+function xqFetchLeaderboard(){
+  if(XQ_LEADERBOARD_CACHE!==null) return;
+  XQ_LEADERBOARD_CACHE = 'loading';
+  api.get('/games/leaderboard').then(r=>{ XQ_LEADERBOARD_CACHE = r.data||[]; render(); })
+    .catch(()=>{ XQ_LEADERBOARD_CACHE = []; render(); });
+}
+V['cotuong-xep-hang'] = ()=>{
+  xqFetchLeaderboard();
+  if(XQ_LEADERBOARD_CACHE===null || XQ_LEADERBOARD_CACHE==='loading'){
+    return `<div class="page-head"><div><h1>Xếp hạng</h1></div></div>
+    <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`;
+  }
+  const rows = XQ_LEADERBOARD_CACHE;
+  const rowHtml = (r,i) => `<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    <div style="width:28px;text-align:center;font-weight:800;color:var(--muted)">${i+1}</div>
+    ${avatarCircle(r.avatar_url, r.full_name, 36)}
+    <div style="flex:1"><b style="font-size:14px">${esc(r.full_name)}</b>
+      <div style="font-size:12px;color:var(--muted)">${r.games_count} ván${r.avg_loss!==null?` · ACPL ${r.avg_loss.toFixed(1)}`:''}</div></div>
+    <div style="font-weight:800;font-size:15px;color:var(--brand)">${r.win_rate}%</div>
+  </div>`;
+  return `
+  <div class="page-head"><div><h1>Xếp hạng</h1><p>Theo tỉ lệ thắng — chỉ tính thành viên đã chơi ít nhất 5 ván đã mổ xong.</p></div></div>
+  ${rows.length ? rows.map(rowHtml).join('') : '<p style="padding:20px;text-align:center;color:var(--muted)">Chưa có ai đủ 5 ván để xếp hạng.</p>'}`;
+};
+
 let CHALLENGE_PICK = null, CHALLENGE_TIMER = null;
 function challengeSearchInput(){
   clearTimeout(CHALLENGE_TIMER);
@@ -6994,9 +7202,17 @@ V['cotuong-van'] = (params)=>{
           <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Link mời đã mất sau khi tải lại trang. Đóng phòng này và tạo phòng mới để có link mời dùng được.</p>`;
       } else {
         const link = location.origin+location.pathname+'#cotuong-phong:'+ROOM_INVITE_TOKEN;
+        const linkEnc = encodeURIComponent(link);
+        const roomCode = 'G-'+st.id.slice(0,4);
         body = `<h1>Phòng đang chờ đối thủ</h1>
           <p style="font-size:13px;color:var(--muted);margin:8px 0 14px">Gửi link này cho đối thủ để họ vào phòng — không cần tài khoản.</p>
-          <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>`;
+          <div style="display:flex;gap:8px;width:100%"><input class="input" id="room-link" readonly value="${esc(link)}"><button class="btn btn-out btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('room-link').value);toast('Đã sao chép link mời')">${ic('doc',14)} Chép</button></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px">Mã phòng: <b>${esc(roomCode)}</b> (chỉ để nhận diện — đường vào thật vẫn là link mời ở trên)</p>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${linkEnc}" target="_blank" rel="noopener" class="btn btn-out btn-sm">${ic('send',14)} Facebook</a>
+            <button type="button" class="btn btn-out btn-sm" onclick="(navigator.share?navigator.share({url:'${link.replace(/'/g,"\\'")}',title:'Mời đấu cờ tướng'}):(navigator.clipboard&&navigator.clipboard.writeText('${link.replace(/'/g,"\\'")}'),toast('Đã sao chép link — dán vào Zalo để gửi')))">${ic('link',14)} Chia sẻ (Zalo/khác)</button>
+            <a href="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${linkEnc}" target="_blank" rel="noopener" class="btn btn-out btn-sm">${ic('grid',14)} Mã QR</a>
+          </div>`;
       }
     } else if(phase==='du-nguoi'){
       // Đếm 30 giây thuần hiển thị, KHÔNG tự gọi API gì (BAN_CHUAN_CO_TUONG.md

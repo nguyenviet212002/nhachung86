@@ -236,10 +236,10 @@ export async function list({ actor, status, mine, page, limit }) {
     const { rows } = await trx.raw(
       `SELECT g.id, g.status, g.turn, g.created_at, g.started_at,
               g.red_member_id, r.full_name AS red_name, r.avatar_url AS red_avatar_url,
-              g.black_member_id, b.full_name AS black_name, b.avatar_url AS black_avatar_url
+              g.black_member_id, COALESCE(b.full_name, g.black_guest_name) AS black_name, b.avatar_url AS black_avatar_url
          FROM games g
          JOIN members r ON r.id = g.red_member_id AND r.community_id = g.community_id
-         JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id
+         LEFT JOIN members b ON b.id = g.black_member_id AND b.community_id = g.community_id
         WHERE ${clause} ORDER BY g.created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -844,6 +844,48 @@ export async function getMemberProfile({ actor, memberId }) {
       games_count: Number(row.games_count),
       wins: Number(row.wins),
       avg_loss: row.avg_loss === null ? null : Number(row.avg_loss),
+    };
+  });
+}
+
+// Xếp hạng (mục 4 spec topbar hợp nhất) — tỉ lệ thắng trên các ván đã kết
+// thúc VÀ đã mổ (analyzed_at IS NOT NULL, cùng điều kiện getMemberProfile),
+// ngưỡng tối thiểu 5 ván để vào bảng (dưới ngưỡng, tỉ lệ thắng dễ gây hiểu
+// lầm — 100% sau đúng 1 ván thắng may). Khách (không black_member_id) bị
+// loại khỏi vế UNION thứ hai — khách không có hồ sơ, không xếp hạng được,
+// cùng nguyên tắc getAnalysis/getMemberProfile.
+export async function getLeaderboard({ actor }) {
+  return withActor(actor.id, async (trx) => {
+    const { rows } = await trx.raw(
+      `SELECT m.id AS member_id, m.full_name, m.avatar_url,
+              count(*) AS games_count,
+              count(*) FILTER (WHERE x.won) AS wins,
+              avg(x.avg_loss) AS avg_loss
+         FROM (
+           SELECT g.red_member_id AS member_id, (g.winner_member_id = g.red_member_id) AS won, g.red_avg_loss AS avg_loss
+             FROM games g WHERE g.community_id = ? AND g.status = 'finished' AND g.analyzed_at IS NOT NULL
+           UNION ALL
+           SELECT g.black_member_id, (g.winner_member_id = g.black_member_id), g.black_avg_loss
+             FROM games g WHERE g.community_id = ? AND g.status = 'finished' AND g.analyzed_at IS NOT NULL
+               AND g.black_member_id IS NOT NULL
+         ) x
+         JOIN members m ON m.id = x.member_id
+        GROUP BY m.id, m.full_name, m.avatar_url
+       HAVING count(*) >= 5
+       ORDER BY (count(*) FILTER (WHERE x.won))::float / count(*) DESC, count(*) DESC
+       LIMIT 50`,
+      [actor.communityId, actor.communityId]
+    );
+    return {
+      data: rows.map((r) => ({
+        member_id: r.member_id,
+        full_name: r.full_name,
+        avatar_url: r.avatar_url,
+        games_count: Number(r.games_count),
+        wins: Number(r.wins),
+        win_rate: Math.round((Number(r.wins) / Number(r.games_count)) * 1000) / 10,
+        avg_loss: r.avg_loss === null ? null : Number(r.avg_loss),
+      })),
     };
   });
 }
