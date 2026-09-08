@@ -13,4 +13,13 @@
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
+	# index.html là tệp duy nhất phục vụ toàn bộ SPA, không có bước build/hash
+	# tên tệp — không set Cache-Control thì trình duyệt (đặc biệt webview
+	# trong Zalo/Facebook) áp dụng cache suy đoán riêng (heuristic freshness
+	# theo Last-Modified) và có thể phục vụ bản CŨ nhiều phút/giờ sau khi đã
+	# deploy bản mới, dù ETag vẫn đúng nếu trình duyệt chịu hỏi lại. Ép hỏi lại
+	# server mỗi lần (no-cache, không phải no-store) — vẫn tận dụng ETag/304
+	# nên không nặng hơn, chỉ đảm bảo luôn thấy đúng bản mới nhất.
+	@html path /index.html /
+	header @html Cache-Control "no-cache"
 }

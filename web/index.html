@@ -2140,7 +2140,7 @@ const PUBLIC_SCREENS = new Set(['congchung','hosocongkhai','gianhap','dangnhap',
 let AFTER_LOGIN = null;
 /* true đúng MỘT lần khi PUB.dangnhap() được vẽ do bị chặn (không phải do
    khách tự bấm "Đăng nhập") — PUB.dangnhap() đọc rồi tự tắt lại. */
-let LOGIN_REQUIRED_NOTICE = false;
+let LOGIN_REQUIRED_NOTICE = false; // false | true (chung) | 'cotuong-van' (riêng, xem render())
 let ROLE = 'member';
 
 function parseHash(){
@@ -2226,7 +2226,15 @@ function render(){
 
   if((variant==='member'||variant==='admin') && !isAuthed()){
     AFTER_LOGIN = {screen, params};
-    LOGIN_REQUIRED_NOTICE = true;
+    // 'cotuong-van' là màn CHỦ PHÒNG (link dạng #cotuong-van:<id>) — khách
+    // không tài khoản không bao giờ vào được đây, chỉ vào được qua link mời
+    // riêng #cotuong-phong:<token> (PUBLIC_SCREENS). Người lỡ gửi/bấm nhầm
+    // link chủ phòng (vd. chép thẳng từ thanh địa chỉ thay vì bấm nút "Chép"
+    // cạnh link mời) rơi vào màn đăng nhập trắng trơn, tưởng "phải có tài
+    // khoản mới chơi được" — đây chính là gốc một lỗi người dùng thật báo lại
+    // dù mã đã đúng (xác nhận qua kiểm thử end-to-end): không phải lỗi vào
+    // được ván, mà lỗi vào NHẦM LINK. Nói rõ ra ngay tại màn đăng nhập.
+    LOGIN_REQUIRED_NOTICE = screen==='cotuong-van' ? 'cotuong-van' : true;
     root.innerHTML = wrapPage('public', 'dangnhap', PUB.dangnhap(), false);
     window.scrollTo(0,0); bindGlobal(); return;
   }
@@ -3986,7 +3994,8 @@ PUB.dangnhap = ()=>{
   return `
   <div class="auth-wrap"><div class="auth-card">
     <div class="auth-head"><h1>Đăng nhập</h1><p>Chào mừng trở lại Nhà Chung 86 👋</p></div>
-    ${notice?`<div class="notice brand" style="margin-bottom:14px">${ic('lock',16)}Cần đăng nhập để xem mục này.</div>`:''}
+    ${notice==='cotuong-van'?`<div class="notice brand" style="margin-bottom:14px">${ic('lock',16)}Link này chỉ dành cho chủ phòng. Muốn vào chơi mà không cần tài khoản, hãy xin lại đúng <b>link mời</b> (nút "Chép" cạnh link mời) từ người tạo phòng.</div>`
+      :notice?`<div class="notice brand" style="margin-bottom:14px">${ic('lock',16)}Cần đăng nhập để xem mục này.</div>`:''}
     <div class="field"><label class="label">Số điện thoại hoặc email</label><input class="input" id="ln-id" placeholder="09xx xxx xxx"></div>
     <div class="field"><label class="label">Mật khẩu</label><div class="pw-wrap"><input class="input" id="ln-pw" type="password" placeholder="••••••••"><button type="button" class="pw-toggle" onclick="togglePw('ln-pw',this)">${ic('eye',18)}</button></div></div>
     <div id="ln-err" class="notice wait" style="display:none;margin-bottom:14px">${ic('flag',16)}<span id="ln-err-txt"></span></div>
