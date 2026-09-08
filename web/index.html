@@ -568,7 +568,7 @@ tr:last-child td{border-bottom:none}
     linear-gradient(180deg, rgba(6,38,31,.55), rgba(6,38,31,.72)),
     url('assets/00-banner/banner-co.png') center/cover no-repeat;
 }
-.xq-fs-cothe .content{padding-top:78px}
+.xq-fs-cothe .content{padding-top:112px}
 .cothe-topbar{
   position:fixed;top:0;left:0;right:0;z-index:212;height:58px;box-sizing:border-box;
   display:flex;align-items:center;gap:14px;padding:0 22px;
@@ -577,12 +577,15 @@ tr:last-child td{border-bottom:none}
 }
 /* Status bar / panel / card của các màn cờ khác neo theo mép trên màn hình
    (không có topbar) — riêng Cờ Thế phải dời xuống dưới cothe-topbar (cao
-   58px) để khỏi bị đè lên. */
-.xq-fs-cothe .xq-status-bar{top:calc(70px + env(safe-area-inset-top))}
+   58px) để khỏi bị đè lên. Dòng chữ trạng thái (xq-status-bar) cần thêm
+   khoảng hở XUỐNG DƯỚI nó nữa (không chỉ hở với topbar phía trên) để không
+   dính sát mép trên của bàn cờ ngay bên dưới — content padding-top phải
+   lớn hơn hẳn top + chiều cao dòng chữ, không chỉ bằng nó. */
+.xq-fs-cothe .xq-status-bar{top:calc(74px + env(safe-area-inset-top))}
 .xq-fs-cothe .xq-fs-panel{top:calc(70px + env(safe-area-inset-top))}
 .xq-fs-cothe .xq-fs-card{top:calc(70px + 6vh)}
-.xq-fs-cothe .xq-board{max-width:min(97vw,780px,calc((100vh - 200px)*8/9))}
-@media(max-width:768px){.xq-fs-cothe .xq-board{max-width:min(97vw,calc((100vh - 166px)*8/9))}}
+.xq-fs-cothe .xq-board{max-width:min(97vw,780px,calc((100vh - 230px)*8/9))}
+@media(max-width:768px){.xq-fs-cothe .xq-board{max-width:min(97vw,calc((100vh - 196px)*8/9))}}
 .cothe-topbar .icon-btn{
   width:36px;height:36px;border-radius:50%;flex:none;
   display:flex;align-items:center;justify-content:center;
@@ -590,7 +593,11 @@ tr:last-child td{border-bottom:none}
 }
 .cothe-topbar .icon-btn:hover{background:rgba(255,255,255,.18)}
 .cothe-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:none}
-.cothe-brand img{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;border:1.5px solid #D7B26D}
+.cothe-brand-logo{width:34px;height:34px;border-radius:50%;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%,#2c7a5f,#083B2F);
+  border:1.5px solid #D7B26D;color:#C93B2F;
+  font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:17px}
 .cothe-brand span{font-size:14.5px;font-weight:800;color:#fff;letter-spacing:.4px}
 .cothe-crumb{flex:none;display:flex;align-items:center;gap:6px;padding:7px 15px;border-radius:999px;
   background:rgba(215,178,109,.16);border:1px solid rgba(215,178,109,.55);color:#fff;font-size:13.5px;font-weight:700}
@@ -601,7 +608,7 @@ tr:last-child td{border-bottom:none}
 @media(max-width:640px){
   .cothe-brand span,.cothe-crumb span{display:none}
   .cothe-topbar .avatar-mini .rl{display:none}
-  .xq-fs-cothe .content{padding-top:70px}
+  .xq-fs-cothe .content{padding-top:104px}
 }
 
 /* Thẻ nổi trong Cờ Thế (soạn/thế cờ/đấu/xong) — kem ngà + viền vàng nhạt
@@ -2376,7 +2383,7 @@ function cotheTopbarHtml(hasPanel){
   return `<div class="cothe-topbar">
     ${hasPanel ? `<button type="button" class="icon-btn" id="xqFsMenuBtn" title="Menu">${ic('menu',18)}</button>` : ''}
     <a href="#cotuong-online" data-go="cotuong-online" class="cothe-brand" title="Về Sảnh Cờ">
-      <img src="assets/topbar/04-sanh-co.png" alt="">
+      <span class="cothe-brand-logo">帥</span>
       <span>SẢNH CỜ</span>
     </a>
     <span class="cothe-crumb">${ic('star',14)} <span>Cờ Thế</span></span>
@@ -7520,7 +7527,10 @@ function cotheLoadMySessions(){
     .catch(()=>{ COTHE.mySessions=[]; cotheRender(); });
 }
 function cotheStartSoan(){
-  COTHE.stage='soan'; COTHE.board=cotheEmptyBoard(); COTHE.sideToMove='r'; COTHE.errors=[]; COTHE.pick=null;
+  // Bắt đầu từ đủ bộ 32 quân đúng thế khai cuộc (xqInitBoard, đã dùng sẵn
+  // cho Cờ Tướng đấu thật) thay vì bàn trắng — người soạn xoá/dời bớt đi để
+  // ra thế mình muốn, đỡ cảm giác bàn trống trơn lúc mới vào.
+  COTHE.stage='soan'; COTHE.board=xqInitBoard(); COTHE.sideToMove='r'; COTHE.errors=[]; COTHE.pick=null;
   cotheRender();
 }
 function cothePick(side,type){ COTHE.pick={side,type}; cotheRender(); }
