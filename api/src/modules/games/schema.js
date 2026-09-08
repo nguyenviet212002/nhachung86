@@ -14,5 +14,8 @@ export const listQuerySchema = z.object({
 });
 export const moveSchema = z.object({ from: cell, to: cell });
 
-export const joinRoomSchema = z.object({ guest_name: z.string().trim().min(1).max(40) });
+// guest_name chỉ bắt buộc khi vào phòng KHÔNG kèm phiên thành viên (route
+// join tự chấp nhận cả hai — xem optionalAuth ở routes.js) — thành viên đã
+// đăng nhập lấy tên thẳng từ members.full_name, không cần gõ lại.
+export const joinRoomSchema = z.object({ guest_name: z.string().trim().min(1).max(40).optional() });
 export const aiLevelSchema = z.object({ level: z.enum(['sieu', 'thong-minh', 'xuat-sac']).nullable() });

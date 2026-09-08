@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
-import { requireAuthOrGuestToken } from '../../middleware/gameAuth.js';
+import { requireAuthOrGuestToken, optionalAuth } from '../../middleware/gameAuth.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { subscribeGame, isSideWatchingGame } from '../../core/realtime.js';
@@ -89,8 +89,8 @@ router.post('/:id/leave', validate(schema.idParamSchema, 'params'), requireAuthO
 router.post('/rooms', requireAuth, async (req, res, next) => {
   try { res.status(201).json(await service.createRoom({ actor: req.actor })); } catch (e) { next(e); }
 });
-router.post('/rooms/:token/join', validate(schema.joinRoomSchema), async (req, res, next) => {
-  try { res.status(201).json(await service.joinRoom({ rawToken: req.params.token, guestName: req.body.guest_name })); }
+router.post('/rooms/:token/join', optionalAuth, validate(schema.joinRoomSchema), async (req, res, next) => {
+  try { res.status(201).json(await service.joinRoom({ rawToken: req.params.token, guestName: req.body.guest_name, actor: req.actor })); }
   catch (e) { next(e); }
 });
 

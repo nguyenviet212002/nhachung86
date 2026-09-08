@@ -4252,10 +4252,39 @@ PUB.dangnhap = ()=>{
   </div></div>`;
 };
 
+// Thành viên ĐÃ đăng nhập bấm link mời (#cotuong-phong:<token>) — trước đây
+// PUB['cotuong-phong'] luôn coi mọi người bấm vào là khách (biến GUEST_TOKEN),
+// kể cả khi họ đang có phiên thành viên thật, nên mất hẳn topbar Sảnh Cờ/cột
+// hồ sơ đối thủ mà V['cotuong-van'] có (màn khách guestGameHtml cố tình rút
+// gọn, đúng cho người không tài khoản, SAI cho thành viên thật). Sửa bằng
+// cách vào phòng bằng API có thực (POST /rooms/:token/join với Bearer, xem
+// service.joinRoom nhánh actor), rồi CHUYỂN HẲN sang #cotuong-van:<id> — tái
+// dùng nguyên màn của chủ phòng thay vì tự vẽ một bản "thành viên xem khách"
+// riêng. Nhớ gameId theo đúng khuôn saveGuestSession/loadGuestSession (khoá
+// theo token, không phải theo actor) để tải lại trang không gọi join() lần
+// hai (server đã từ chối join lần hai vì black_member_id không còn NULL).
+let MEMBER_ROOM_TOKEN = null, MEMBER_ROOM_ERROR = null;
+function memberRoomSessionKey(inviteToken){ return 'xq_minvite_'+inviteToken; }
+function cotuongPhongMemberHtml(token){
+  if(MEMBER_ROOM_TOKEN!==token){
+    MEMBER_ROOM_TOKEN = token; MEMBER_ROOM_ERROR = null;
+    let savedId = null; try{ savedId = localStorage.getItem(memberRoomSessionKey(token)); }catch(e){}
+    if(savedId){ go('cotuong-van:'+savedId); }
+    else api.post('/games/rooms/'+encodeURIComponent(token)+'/join', {}).then(r=>{
+      try{ localStorage.setItem(memberRoomSessionKey(token), r.id); }catch(e){}
+      go('cotuong-van:'+r.id);
+    }).catch(e=>{ MEMBER_ROOM_ERROR = e.message||'Không vào được phòng, thử lại.'; render(); });
+    return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang vào phòng…</p>`;
+  }
+  if(MEMBER_ROOM_ERROR) return `<div class="empty" style="margin-top:15vh"><h3>${esc(MEMBER_ROOM_ERROR)}</h3>
+    <p style="margin-top:8px"><a data-go="cotuong-online" style="color:var(--brand);font-weight:700">← Quay lại Cờ Tướng</a></p></div>`;
+  return `<p style="padding-top:15vh;text-align:center;color:var(--muted)">Đang vào phòng…</p>`;
+}
 let GUEST_NAME_INPUT = '';
 PUB['cotuong-phong'] = (params)=>{
   const token = params[0];
   if(!token) return `<div class="empty" style="margin-top:15vh"><h3>Link mời không hợp lệ</h3></div>`;
+  if(isAuthed()) return cotuongPhongMemberHtml(token);
   if(GUEST_INVITE_TOKEN!==token){
     // Lần đầu vào token này (hoặc vừa đổi token): nạp lại từ đầu.
     GUEST_INVITE_TOKEN = token; GUEST_TOKEN = null;
@@ -6845,7 +6874,14 @@ function resignGame(id){
    2026-09-07-cotuong-phong-khach-ui-design.md. ══════════════════════ */
 function xqRoomPhase(g){
   if(!g || g.error) return null;
-  if(g.black_member_id) return null; // ván có bên Đen là thành viên thật (thách đấu/ghép nhanh Gen 1) — không phải máy trạng thái phòng; phòng Gen 2 chỉ có black_guest_name/black_guest_token, không bao giờ black_member_id
+  // !g.second_joined_at mới là dấu hiệu THẬT của ván thách đấu/ghép nhanh Gen 1
+  // (black_member_id gán ngay lúc tạo, không đi qua bước "vào phòng" nên không
+  // bao giờ có second_joined_at) — phòng Gen 2 (link mời) mà bên Đen là THÀNH
+  // VIÊN thật (bấm link mời trong lúc đã đăng nhập, xem cotuongPhongMemberHtml)
+  // CŨNG có black_member_id, nhưng luôn kèm second_joined_at giống hệt khách,
+  // nên vẫn phải rơi tiếp xuống máy trạng thái phòng bên dưới thay vì bị chặn
+  // ở đây (từng gây bug: bị coi nhầm là Gen 1, hiện màn Nhận lời/Từ chối sai).
+  if(g.black_member_id && !g.second_joined_at) return null;
   if(g.status==='active') return 'dang-dau';
   if(g.status!=='pending') return null; // finished hoặc trạng thái khác: không phải máy trạng thái phòng
   if(!g.second_joined_at) return 'cho-doi-thu';
@@ -7168,7 +7204,13 @@ V['cotuong-van'] = (params)=>{
   const st = GAME_STATE;
   const mySide = resolveMySide(st);
   const isMyTurn = mySide && mySide===st.turn && st.status==='active';
-  if(st.status==='pending' && st.black_member_id){
+  // !st.second_joined_at phân biệt ván THÁCH ĐẤU/ghép nhanh Gen 1 (black_member_id
+  // gán ngay từ lúc tạo, không bao giờ có second_joined_at) với ván PHÒNG Gen 2 mà
+  // bên Đen là THÀNH VIÊN vừa bấm link mời vào (black_member_id CÓ nhưng luôn kèm
+  // second_joined_at, giống hệt khách) — chỉ Gen 1 mới cần màn Nhận lời/Từ chối
+  // này; Gen 2 rơi thẳng xuống xqRoomPhase() bên dưới để vào đúng bước Sẵn sàng,
+  // cùng khuôn với khách (xem cotuongPhongMemberHtml/xqRoomPhase).
+  if(st.status==='pending' && st.black_member_id && !st.second_joined_at){
     const isInvitee = DATA.me && st.black_member_id===DATA.me.id;
     return `<div class="xq-fs-card">
       <h1>${esc(st.red_name)} <span style="color:var(--muted);font-weight:400">vs</span> ${esc(st.black_name)}</h1>

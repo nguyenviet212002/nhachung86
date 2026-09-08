@@ -2,6 +2,21 @@ import { AppError } from '../core/errors.js';
 import { knex } from '../db/knex.js';
 import { authenticateMemberToken } from './auth.js';
 
+// Vào phòng qua link mời (POST /rooms/:token/join) chấp nhận CẢ hai: một
+// thành viên đã đăng nhập bấm link (Bearer hợp lệ) HOẶC một khách không tài
+// khoản (không gửi Authorization). Khác requireAuthOrGuestToken ở chỗ không
+// có gì bắt buộc — thiếu/hỏng token thì cứ coi là khách, service.joinRoom() tự
+// rẽ nhánh theo req.actor có hay không, không middleware nào được phép chặn ở
+// đây (mục đích route vẫn là điểm vào công khai).
+export async function optionalAuth(req, _res, next) {
+  const header = req.headers.authorization ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) { req.actor = null; return next(); }
+  const { actor } = await authenticateMemberToken(token);
+  req.actor = actor ?? null;
+  next();
+}
+
 // Đăng nhập thành viên (như requireAuth) HOẶC token khách gắn với đúng ván cờ
 // trong :id — dùng cho các route trong phòng cờ mà khách-không-tài-khoản
 // cũng phải gọi được (mục 4.1 spec Kernel/Engine). Đặt SAU

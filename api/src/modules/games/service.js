@@ -82,7 +82,14 @@ async function loadGame(trx, communityId, id) {
 // trước khi so thì khớp đúng — cùng bẫy đã ghi ở core/audit.js (`log` phần
 // bình luận "Lệch có chủ đích khỏi brief").
 async function evictStaleGuestIfNeeded(trx, game) {
-  if (game.status !== 'pending' || !game.second_joined_at || game.black_ready_at) return game;
+  // game.black_member_id: bên Đen là THÀNH VIÊN thật (đã bấm link mời trong lúc
+  // đăng nhập, xem web/index.html cotuongPhongMemberHtml) — luật 30 giây chỉ áp
+  // cho KHÁCH không tài khoản (mục 4.3 spec: "khách không bấm sẵn sàng kịp thì bị
+  // đưa ra khỏi phòng"), không áp cho thành viên. Thiếu nhánh chặn này từng khiến
+  // một thành viên vào phòng xong quá 30 giây chưa bấm Sẵn sàng bị âm thầm xoá
+  // black_member_id, coi như chưa từng vào — cùng lỗi vừa sửa ở xqRoomPhase phía
+  // client (V['cotuong-van'] hiểu nhầm ván là thách đấu Gen 1 sau khi bị xoá).
+  if (game.status !== 'pending' || game.black_member_id || !game.second_joined_at || game.black_ready_at) return game;
   const elapsedMs = Date.now() - new Date(game.second_joined_at).getTime();
   if (elapsedMs <= 30_000) return game;
   await trx.raw(
@@ -476,18 +483,41 @@ export async function createRoom({ actor }) {
   return { id, invite_token: rawToken };
 }
 
-export async function joinRoom({ rawToken, guestName }) {
+// actor (tuỳ chọn, xem optionalAuth ở routes.js): thành viên ĐÃ đăng nhập bấm
+// link mời thì vào phòng bằng đúng tài khoản của họ (black_member_id) — trước
+// đây route này luôn coi mọi người bấm link là khách, kể cả thành viên thật,
+// nên bên đó mất hẳn topbar/sidebar/hồ sơ của màn thành viên (V['cotuong-van'])
+// mà rơi vào màn khách rút gọn (guestGameHtml). guestName bắt buộc CHỈ khi
+// không có actor.
+export async function joinRoom({ rawToken, guestName, actor }) {
   const tokenHash = hashInviteToken(rawToken);
-  const result = await withActor(null, async (trx) => {
+  const result = await withActor(actor?.id ?? null, async (trx) => {
     const { rows: [game] } = await trx.raw(
-      `SELECT id, community_id, status, black_member_id, black_guest_name
+      `SELECT id, community_id, status, black_member_id, black_guest_name, red_member_id
          FROM games WHERE invite_token_hash = ?`,
       [tokenHash]
     );
     if (!game) throw NOT_FOUND();
+    // Khác cộng đồng thì coi như không tồn tại (không rò việc phòng có thật) —
+    // cùng lý do NOT_FOUND thay vì FORBIDDEN ở các nơi khác lọc theo community_id.
+    if (actor && actor.communityId !== game.community_id) throw NOT_FOUND();
+    if (actor && actor.id === game.red_member_id) throw INVALID_STATE('Bạn là chủ phòng này rồi.');
     if (game.status !== 'pending' || game.black_member_id || game.black_guest_name) {
       throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
     }
+    if (actor) {
+      const { rows: [row] } = await trx.raw(
+        `UPDATE games SET black_member_id = ?, second_joined_at = now()
+          WHERE id = ? AND status = 'pending' AND black_member_id IS NULL AND black_guest_name IS NULL
+          RETURNING id`,
+        [actor.id, game.id]
+      );
+      if (!row) throw INVALID_STATE('Phòng này đã có khách hoặc đã bắt đầu.');
+      await auditLog(trx, { communityId: game.community_id, actorId: actor.id,
+        action: 'chess_game.member_joined', targetType: 'game', targetId: game.id, detail: {} });
+      return { gameId: game.id, guestToken: null };
+    }
+    if (!guestName) throw new AppError('VALIDATION_FAILED', 'Cần nhập tên.', { status: 422 });
     const guestToken = randomUUID();
     const { rows: [row] } = await trx.raw(
       `UPDATE games SET black_guest_name = ?, black_guest_token = ?, second_joined_at = now()
