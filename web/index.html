@@ -6452,6 +6452,26 @@ V['cotuong-online'] = ()=>{
   </div>`;
 };
 
+V['cotuong-phong-dau'] = ()=>{
+  if(GAMES_LIST===null){ loadGamesList();
+    return `<div class="page-head"><div><h1>Phòng đấu</h1></div></div>
+    <p style="padding:40px;text-align:center;color:var(--muted)">Đang tải…</p>`; }
+  const mineIds = new Set(GAMES_LIST.mine.map(g=>g.id));
+  const openOthers = GAMES_LIST.open.filter(g=>!mineIds.has(g.id));
+  const rowHtml = (g, isMine) => `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+    <div><b style="font-size:14.5px">${esc(g.red_name)}</b> <span style="color:var(--muted)">vs</span> <b style="font-size:14.5px">${esc(g.black_name||'(chưa có đối thủ)')}</b>
+      <div style="font-size:12.5px;color:var(--muted);margin-top:2px">${g.status==='pending'?'Đang chờ':'Đang đấu'}</div></div>
+    <button class="btn ${isMine?'btn-blue':'btn-out'} btn-sm" onclick="go('cotuong-van:${g.id}')">${isMine?'Vào tiếp':'Xem'}</button>
+  </div>`;
+  return `
+  <div class="page-head"><div><h1>Phòng đấu</h1><p>Ván của bạn và các ván đang diễn ra trong Nhà Chung.</p></div></div>
+  <h3 style="margin:16px 0 8px">Ván của bạn</h3>
+  ${GAMES_LIST.mine.length ? GAMES_LIST.mine.map(g=>rowHtml(g,true)).join('') : '<p style="font-size:13.5px;color:var(--muted)">Bạn chưa có ván nào đang chờ hoặc đang chơi.</p>'}
+  <h3 style="margin:20px 0 8px">Đang diễn ra</h3>
+  ${openOthers.length ? openOthers.map(g=>rowHtml(g,false)).join('') : '<p style="font-size:13.5px;color:var(--muted)">Chưa có ván nào khác đang diễn ra.</p>'}
+  <div style="margin-top:18px"><button class="btn btn-blue" onclick="roomCreate()">${ic('users',15)} Tạo phòng</button></div>`;
+};
+
 let CHALLENGE_PICK = null, CHALLENGE_TIMER = null;
 function challengeSearchInput(){
   clearTimeout(CHALLENGE_TIMER);
