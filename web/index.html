@@ -520,11 +520,18 @@ tr:last-child td{border-bottom:none}
 .cothe-pal-lbl{display:block;font-size:12px;font-weight:700;color:#8a6d3a;
   text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
 .cothe-pal-row{display:flex;gap:6px;flex-wrap:wrap}
-.cothe-pal-pc{width:34px;height:34px;border-radius:11px;border:1.5px solid var(--line);background:#fff;
+.cothe-pal-pc{position:relative;width:34px;height:34px;border-radius:11px;border:1.5px solid var(--line);background:#fff;
   font-family:'Songti SC','SimSun',serif;font-weight:900;font-size:16.5px;cursor:pointer;flex:none}
 .cothe-pal-pc.red{color:#C93B2F}
 .cothe-pal-pc.black{color:#1a1a1a}
 .cothe-pal-pc.on{border-color:#D7B26D;background:#faf3e3}
+.cothe-pal-pc.maxed{opacity:.35;cursor:not-allowed}
+/* Số quân LOẠI này còn lại chưa đặt lên bàn (mỗi bộ cờ tướng thật chỉ có
+   đúng từng ấy quân — 1 Tướng/2 Sĩ/2 Tượng/2 Mã/2 Xe/2 Pháo/5 Tốt) — hết số
+   thì nút mờ đi và không chọn được nữa (xem cothePick/cotheCellClickSoan). */
+.cothe-pal-n{position:absolute;right:-4px;bottom:-4px;min-width:15px;height:15px;padding:0 2px;
+  border-radius:8px;background:#083B2F;color:#F7F3E9;font-family:var(--font);
+  font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 .cothe-kho-list{display:flex;flex-direction:column;gap:6px}
 .cothe-kho-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fff}
 .cothe-kho-item:hover{background:var(--brand-vl)}
@@ -7533,11 +7540,28 @@ function cotheStartSoan(){
   COTHE.stage='soan'; COTHE.board=xqInitBoard(); COTHE.sideToMove='r'; COTHE.errors=[]; COTHE.pick=null;
   cotheRender();
 }
-function cothePick(side,type){ COTHE.pick={side,type}; cotheRender(); }
+// Đếm số quân CÙNG bên+loại đang có trên bàn — tính lại từ bàn cờ mỗi lần,
+// không giữ biến đếm riêng, nên quân dời/xoá/đổi chỗ tự động đúng theo,
+// khỏi phải đồng bộ tay ở nhiều nơi.
+function cotheCountUsed(board, side, type){
+  let n=0; for(let r=0;r<10;r++) for(let c=0;c<9;c++){ const p=board[r][c]; if(p&&p.side===side&&p.type===type) n++; }
+  return n;
+}
+function cothePick(side,type){
+  if(cotheCountUsed(COTHE.board, side, type) >= COTHE_PIECE_MAX[type]) return; // hết quân loại này, chặn chọn
+  COTHE.pick={side,type}; cotheRender();
+}
 function cothePickErase(){ COTHE.pick='erase'; cotheRender(); }
 function cotheCellClickSoan(r,c){
   if(!COTHE.pick) return;
-  COTHE.board[r][c] = COTHE.pick==='erase' ? null : {side:COTHE.pick.side, type:COTHE.pick.type};
+  if(COTHE.pick==='erase'){ COTHE.board[r][c]=null; cotheRender(); return; }
+  const { side, type } = COTHE.pick;
+  const already = COTHE.board[r][c];
+  const isSameType = already && already.side===side && already.type===type;
+  // Đặt đè lên ô KHÁC loại (kể cả ô trống) mới thật sự "thêm 1 quân" — đặt
+  // lại đúng loại đang có sẵn ở đó thì không đổi gì, luôn cho phép.
+  if(!isSameType && cotheCountUsed(COTHE.board, side, type) >= COTHE_PIECE_MAX[type]) return;
+  COTHE.board[r][c] = {side, type};
   cotheRender();
 }
 function cotheSetSide(side){ COTHE.sideToMove=side; cotheRender(); }
@@ -7723,7 +7747,9 @@ function cothePalette(){
   const groups = [['r','Đỏ'],['b','Đen']].map(([side,label])=>{
     const btns = COTHE_PIECE_TYPES.map(t=>{
       const on = COTHE.pick && COTHE.pick!=='erase' && COTHE.pick.side===side && COTHE.pick.type===t;
-      return `<button type="button" class="cothe-pal-pc ${side==='r'?'red':'black'} ${on?'on':''}" onclick="cothePick('${side}','${t}')">${CHESS_CHAR[side][t]}</button>`;
+      const remain = COTHE_PIECE_MAX[t] - cotheCountUsed(COTHE.board, side, t);
+      const maxed = remain<=0;
+      return `<button type="button" class="cothe-pal-pc ${side==='r'?'red':'black'} ${on?'on':''} ${maxed?'maxed':''}" ${maxed?'disabled':''} onclick="cothePick('${side}','${t}')">${CHESS_CHAR[side][t]}<span class="cothe-pal-n">${Math.max(remain,0)}</span></button>`;
     }).join('');
     return `<div class="cothe-pal-group"><span class="cothe-pal-lbl">${label}</span><div class="cothe-pal-row">${btns}</div></div>`;
   }).join('');
@@ -7731,6 +7757,9 @@ function cothePalette(){
   return `<div class="cothe-palette">${groups}<button type="button" class="btn ${eraseOn?'cothe-btn-primary':'btn-out'} btn-sm" style="margin-top:6px" onclick="cothePickErase()">${ic('x',13)} Xoá quân${eraseOn?' (đang chọn — bấm ô)':' (bấm ô)'}</button></div>`;
 }
 const COTHE_PIECE_TYPES = ['general','advisor','elephant','horse','chariot','cannon','soldier'];
+// Đúng số quân một bộ cờ tướng thật có — chặn không cho bày nhiều hơn (vd.
+// 3 Xe một bên) ngay từ lúc soạn, khỏi phải đợi máy chủ/engine phát hiện.
+const COTHE_PIECE_MAX = {general:1, advisor:2, elephant:2, horse:2, chariot:2, cannon:2, soldier:5};
 function cotheHomeHtml(){
   const kho = COTHE.khoList;
   const tabs = [[null,'Tất cả'], ...COTHE_CATEGORY].map(([val,label])=>
